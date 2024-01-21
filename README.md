@@ -1,0 +1,2 @@
+# Monorepo
+Monolithic Repository
