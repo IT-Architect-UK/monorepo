@@ -118,11 +118,6 @@ echo "Done!"
 
 echo "Customisation Complete"
 
-echo "Applying the latest updates and then rebooting
-apt-get upgrade -y
-apt-get dist-upgrade
-apt-get autoremove -y
-apt-get autoclean -y
 reboot
 
 fi
