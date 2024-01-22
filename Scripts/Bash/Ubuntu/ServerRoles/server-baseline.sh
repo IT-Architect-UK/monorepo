@@ -4,7 +4,7 @@
 SCRIPTS_DIR="/source-files/github/Monorepo/Scripts/Bash/Ubuntu"
 
 # Define log file name
-LOG_FILE="/logs/server_config_log_$(date '+%Y%m%d').log"
+LOG_FILE="/logs/server-baseline-$(date '+%Y%m%d').log"
 
 # Create Logs Directory and Log File
 mkdir -p /logs
@@ -58,5 +58,3 @@ touch $LOG_FILE
     echo "All specified scripts have been executed."
     echo "Script completed successfully on $(date)"
 } 2>&1 | tee -a $LOG_FILE
-
- reboot
