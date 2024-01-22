@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Define the scripts directory
 SCRIPTS_DIR="/source-files/github/Monorepo/Scripts/Bash/Ubuntu"
@@ -27,6 +27,7 @@ touch $LOG_FILE
         "Configuration/dns-default-gateway.sh"
         "Configuration/setup-chrony-ntp.sh"
         "Configuration/setup-iptables.sh"
+        "Configuration/apt-get-upgrade.sh"
         # Add more script names here
     )
 
@@ -57,3 +58,5 @@ touch $LOG_FILE
     echo "All specified scripts have been executed."
     echo "Script completed successfully on $(date)"
 } 2>&1 | tee -a $LOG_FILE
+
+ reboot

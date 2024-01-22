@@ -38,12 +38,7 @@ touch $LOG_FILE
     # Allow essential traffic
     sudo iptables -A INPUT -i lo -j ACCEPT
     sudo iptables -A OUTPUT -o lo -j ACCEPT
-    # Allow essential traffic
-    sudo iptables -A INPUT -i lo -j ACCEPT
-    sudo iptables -A OUTPUT -o lo -j ACCEPT
-    sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
     sudo iptables -A INPUT -s 192.168.0.0/16 -j ACCEPT
-    sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
     # Allow SSH to maintain connectivity
     echo "Adding rule to allow SSH..."
