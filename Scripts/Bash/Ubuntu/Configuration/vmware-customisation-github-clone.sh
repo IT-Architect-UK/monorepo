@@ -20,8 +20,8 @@ else
     echo "Git is already installed."
 fi
 
-echo "Creating Source-Files Directory"
-mkdir -p /source-files
+echo "Creating Source-Files & Scripts Directory"
+mkdir -p /source-files/scripts
 SOURCE_FILES_DIR=/source-files
 
 echo "Cloning GitHub Repository"
