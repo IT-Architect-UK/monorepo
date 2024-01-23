@@ -79,7 +79,9 @@ cat << EOF > /etc/apache2/sites-available/wordpress.conf
 EOF
 
 a2ensite wordpress.conf # Enable WordPress Site
+systemctl reload apache2 # Restart Apache
 a2enmod rewrite # Enable Apache Rewrite Module
+systemctl restart apache2 # Restart Apache
 a2dissite 000-default.conf # Disable Default Site
 systemctl reload apache2 # Reload Apache
 
