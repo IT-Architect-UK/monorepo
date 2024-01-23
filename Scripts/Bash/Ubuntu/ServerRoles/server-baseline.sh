@@ -55,5 +55,6 @@ touch $LOG_FILE
     done
 
     echo "All specified scripts have been executed."
-    echo "Script completed successfully on $(date)"
+    echo "Script completed successfully on $(date). Now Rebooting..."
 } 2>&1 | tee -a $LOG_FILE
+    reboot
