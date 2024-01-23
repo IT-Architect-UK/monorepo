@@ -25,10 +25,8 @@ touch $LOG_FILE
         "Configuration/extend-disks.sh"
         "Configuration/disable-ipv6.sh"
         "Configuration/dns-default-gateway.sh"
-        "Configuration/setup-chrony-ntp.sh"
         "Configuration/setup-iptables.sh"
         "Configuration/apt-get-upgrade.sh"
-        # Add more script names here
     )
 
     for script in "${SCRIPTS_TO_RUN[@]}"; do
