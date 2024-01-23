@@ -44,7 +44,11 @@ systemctl enable mysql >> $LOG_FILE 2>&1
 
 # Secure MySQL installation
 echo "Securing MySQL installation..." | tee -a $LOG_FILE
-mysql_secure_installation >> $LOG_FILE 2>&1
+mysql -e "DELETE FROM mysql.user WHERE User='';"
+mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+mysql -e "DROP DATABASE IF EXISTS test;"
+mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
+mysql -e "FLUSH PRIVILEGES;"
 
 # Create MySQL Database and User for WordPress
 echo "Creating MySQL Database and User for WordPress..." | tee -a $LOG_FILE
