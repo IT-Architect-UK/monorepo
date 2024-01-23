@@ -26,6 +26,7 @@ touch $LOG_FILE
         "Configuration/disable-ipv6.sh"
         "Configuration/dns-default-gateway.sh"
         "Configuration/setup-iptables.sh"
+        "Configuration/disable-cloud-init.sh"
         "Configuration/apt-get-upgrade.sh"
     )
 
