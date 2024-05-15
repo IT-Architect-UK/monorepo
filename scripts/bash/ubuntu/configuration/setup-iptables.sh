@@ -5,7 +5,7 @@ LOG_FILE="/logs/setup-iptables-$(date '+%Y%m%d').log"
 
 # Create Logs Directory and Log File
 mkdir -p /logs
-touch $LOG_FILE
+touch "$LOG_FILE"
 
 {
     echo "Script started on $(date)"
@@ -15,6 +15,9 @@ touch $LOG_FILE
         echo "Error: User does not have sudo privileges or requires a password for sudo."
         exit 1
     fi
+
+    # Array of private subnets
+    subnets=("10.0.0.0/8" "172.16.0.0/12" "192.168.0.0/16")
 
     echo "Configuring Firewall Rules"
 
@@ -38,19 +41,23 @@ touch $LOG_FILE
     # Allow essential traffic
     sudo iptables -A INPUT -i lo -j ACCEPT
     sudo iptables -A OUTPUT -o lo -j ACCEPT
-    sudo iptables -A INPUT -s 192.168.0.0/16 -j ACCEPT
+    for subnet in "${subnets[@]}"; do
+        sudo iptables -A INPUT -s "$subnet" -j ACCEPT
+    done
 
     # Allow SSH to maintain connectivity
     echo "Adding rule to allow SSH..."
-    SSH_PORT=$(grep Port /etc/ssh/sshd_config | cut -d ' ' -f2)
+    SSH_PORT=$(grep ^Port /etc/ssh/sshd_config | cut -d ' ' -f2)
     if [ -z "$SSH_PORT" ]; then
         SSH_PORT=22 # Default SSH port
     fi
-    sudo iptables -A INPUT -p tcp --dport $SSH_PORT -j ACCEPT
+    sudo iptables -A INPUT -p tcp --dport "$SSH_PORT" -j ACCEPT
 
-    # Allow ICMP (Ping) from the 192.168.0.0/16 subnet
-    echo "Allowing ICMP from 192.168.0.0/16 subnet..."
-    sudo iptables -A INPUT -s 192.168.0.0/16 -p icmp -j ACCEPT
+    # Allow ICMP (Ping) from private subnets
+    echo "Allowing ICMP from private subnets..."
+    for subnet in "${subnets[@]}"; do
+        sudo iptables -A INPUT -s "$subnet" -p icmp -j ACCEPT
+    done
 
     # Install iptables-persistent
     echo "Installing iptables-persistent..."
@@ -72,4 +79,4 @@ touch $LOG_FILE
 
     echo "Firewall rules configured and saved."
     echo "Script completed successfully on $(date)"
-} 2>&1 | tee -a $LOG_FILE
+} 2>&1 | tee -a "$LOG_FILE"
