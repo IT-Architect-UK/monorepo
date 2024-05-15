@@ -1,6 +1,0 @@
-Earth Node Registration - http://35.246.86.181/
-World Mobile TestNet Explorer - https://wmt-explorer.com/Testnet
-Node Installation Guidance:
-World Mobile - https://nodebasewm.github.io/docs/overview/
-Cardano - https://github.com/input-output-hk/
-Cardano - https://cardano-community.github.io/guild-operators/Build/dbsync/
