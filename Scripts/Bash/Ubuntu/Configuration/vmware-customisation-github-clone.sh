@@ -9,7 +9,7 @@ elif [ x$1 = x"postcustomization" ]; then
 echo "Setting Variables"
 LOG_FILE="/logs/vmware-customisation-github-clone.log"
 SOURCE_FILES_DIR="/source-files"
-REPO_URL="https://github.com/IT-Architect-UK/Monorepo.git"
+REPO_URL="https://github.com/IT-Architect-UK/monorepo.git"
 REPO_NAME=$(basename -s .git "$REPO_URL")
 TARGET_DIR="$SOURCE_FILES_DIR/github/$REPO_NAME"
 
@@ -26,7 +26,7 @@ apt-get install git -y
 echo "Cloning Monorepo"
 mkdir -p "$TARGET_DIR"
 git clone "$REPO_URL" "$TARGET_DIR"
-cd /source-files/github/Monorepo/Scripts/Bash/Ubuntu/ServerRoles
+cd /source-files/github/monorepo/scripts/bash/Ubuntu/ServerRoles
 chmod +x *.sh
 
 reboot

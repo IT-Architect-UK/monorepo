@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the scripts directory
-SCRIPTS_DIR="/source-files/github/Monorepo/scripts/bash/ubuntu"
+SCRIPTS_DIR="/source-files/github/monorepo/scripts/bash/ubuntu"
 
 # Define log file name
 LOG_FILE="/logs/server-baseline-$(date '+%Y%m%d').log"

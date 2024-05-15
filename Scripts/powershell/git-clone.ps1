@@ -10,7 +10,7 @@ The script performs the following actions:
 - Deletes the repository if it already exists, then clones a fresh copy to the specified location.
 
 .PARAMETER repoUrl
-The URL of the Git repository to clone. Default value is 'https://github.com/IT-Surgery/Scripts.git'.
+The URL of the Git repository to clone. Default value is 'https://github.com/IT-Surgery/scripts.git'.
 
 .EXAMPLE
 PS> .\UpdateGitRepo.ps1
@@ -34,7 +34,7 @@ function Write-Log {
 }
 
 # Define the repository URL
-$repoUrl = 'https://github.com/IT-Surgery/Scripts.git'
+$repoUrl = 'https://github.com/IT-Surgery/scripts.git'
 
 
 # Installing Git using Chocolatey if it is not already installed
