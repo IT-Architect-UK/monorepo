@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the scripts directory
-SCRIPTS_DIR="/source-files/github/Monorepo/Scripts/Bash/Ubuntu"
+SCRIPTS_DIR="/source-files/github/Monorepo/scripts/bash/ubuntu"
 
 # Define log file name
 LOG_FILE="/logs/server-baseline-$(date '+%Y%m%d').log"
@@ -21,13 +21,13 @@ touch $LOG_FILE
 
     # List of scripts to run
     SCRIPTS_TO_RUN=(
-        "Packages/install-webmin.sh"
-        "Configuration/extend-disks.sh"
-        "Configuration/disable-ipv6.sh"
-        "Configuration/dns-default-gateway.sh"
-        "Configuration/setup-iptables.sh"
-        "Configuration/disable-cloud-init.sh"
-        "Configuration/apt-get-upgrade.sh"
+        "packages/install-webmin.sh"
+        "configuration/extend-disks.sh"
+        "configuration/disable-ipv6.sh"
+        "configuration/dns-default-gateway.sh"
+        "configuration/setup-iptables.sh"
+        "configuration/disable-cloud-init.sh"
+        "configuration/apt-get-upgrade.sh"
     )
 
     for script in "${SCRIPTS_TO_RUN[@]}"; do
