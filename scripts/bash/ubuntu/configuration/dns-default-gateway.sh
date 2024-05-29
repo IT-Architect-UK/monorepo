@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Define log file name
 LOG_FILE="/logs/dns-default-gateway-$(date '+%Y%m%d').log"

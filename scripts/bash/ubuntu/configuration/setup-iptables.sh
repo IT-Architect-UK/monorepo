@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Define log file name
 LOG_FILE="/logs/setup-iptables-$(date '+%Y%m%d').log"
