@@ -60,12 +60,5 @@ write_log "User $username created successfully with sudo privileges without pass
 cd /source-files/github/monorepo/projects/world-mobile/aya-testnet
 chmod +x *.sh
 
-# Switch to the 'wmt' user and run the remaining commands as this user
-sudo -i -u $username bash << EOF
-cd /source-files/github/monorepo/projects/world-mobile/aya-testnet
-./aya-testnet-node-configuration.sh
-
-EOF
-
 # Logging completion
 write_log "AYA TestNet node deployment script completed"
