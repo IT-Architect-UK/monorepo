@@ -45,9 +45,18 @@ fi
 # Create 'wmt' User
 username="wmt"
 write_log "Creating user $username"
-sudo useradd -m -s /bin/bash $username
-sudo usermod -aG sudo $username
-echo "$username ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$username
+if ! sudo useradd -m -s /bin/bash $username; then
+  echo "Failed to create user $username" >&2
+  exit 1
+fi
+if ! sudo usermod -aG sudo $username; then
+  echo "Failed to add $username to sudo group" >&2
+  exit 1
+fi
+if ! echo "$username ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$username; then
+  echo "Failed to update sudoers for $username" >&2
+  exit 1
+fi
 write_log "User $username created successfully with sudo privileges without password"
 
 # Make the World Mobile scripts executable
