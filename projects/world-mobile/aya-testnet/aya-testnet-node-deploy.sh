@@ -16,9 +16,6 @@ write_log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | sudo tee -a "$LOG_FILE"
 }
 
-# Start logging
-write_log "Starting Cloud-Init disable process"
-
 # Disable Cloud-Init
 write_log "Disabling Cloud-Init"
 sudo touch /etc/cloud/cloud-init.disabled
