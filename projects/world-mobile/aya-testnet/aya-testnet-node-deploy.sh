@@ -69,5 +69,3 @@ EOF
 
 # Logging completion
 write_log "AYA TestNet node deployment script completed"
-write_log "Rebooting the system to apply changes"
-sudo reboot
