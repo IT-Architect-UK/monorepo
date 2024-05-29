@@ -45,7 +45,7 @@ fi
 # Create 'wmt' User
 username="wmt"
 write_log "Creating user $username"
-sudo useradd -m $username --disabled-password
+sudo useradd -m $username
 sudo usermod -aG sudo $username
 echo "$username ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$username
 write_log "User $username created successfully with sudo privileges without password"
