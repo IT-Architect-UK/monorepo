@@ -24,13 +24,12 @@ write_log "Disabling Cloud-Init"
 sudo touch /etc/cloud/cloud-init.disabled
 write_log "Cloud-Init disabled successfully"
 
-# Create 'wmt' User
-username="wmt"
-write_log "Creating user $username"
-sudo useradd -m $username --disabled-password
-sudo usermod -aG sudo $username
-echo "$username ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$username
-write_log "User $username created successfully with sudo privileges without password"
+# Install AYA TestNet Dependencies
+write_log "Installing AYA TestNet Dependencies"
+cd /source-files/github/monorepo/scripts/bash/ubuntu/packages
+sudo ./server-baseline.sh
+sudo apt install -y curl
+write_log "Dependencies installed successfully"
 
 # Configure Firewall - Allow P2P Port TCP 30333
 write_log "Configuring firewall"
@@ -43,8 +42,22 @@ else
     exit 1
 fi
 
+# Create 'wmt' User
+username="wmt"
+write_log "Creating user $username"
+sudo useradd -m $username --disabled-password
+sudo usermod -aG sudo $username
+echo "$username ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$username
+write_log "User $username created successfully with sudo privileges without password"
+
+# Make the World Mobile scripts executable
+cd /source-files/github/monorepo/projects/world-mobile/aya-testnet
+chmod +x *.sh
+
 # Switch to the 'wmt' user and run the remaining commands as this user
 sudo -i -u $username bash << EOF
+cd /source-files/github/monorepo/projects/world-mobile/aya-testnet
+./aya-testnet-node-configuration.sh
 
 EOF
 

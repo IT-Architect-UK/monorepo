@@ -19,8 +19,3 @@ write_log() {
 # Start logging
 write_log "Starting Cloud-Init disable process"
 
-# Install AYA TestNet Dependencies
-write_log "Installing AYA TestNet Dependencies"
-sudo apt update -q && sudo apt upgrade -q -y
-sudo apt install -y curl
-write_log "Dependencies installed successfully"

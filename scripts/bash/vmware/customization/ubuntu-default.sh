@@ -28,7 +28,7 @@ mkdir -p "$TARGET_DIR"
 git clone "$REPO_URL" "$TARGET_DIR"
 cd /source-files/github/monorepo/scripts/bash/ubuntu/configuration
 chmod +x *.sh
-cd /source-files/github/monorepo/scripts/bash/ubuntu/serverRoles
+cd /source-files/github/monorepo/scripts/bash/ubuntu/server-roles
 chmod +x *.sh
 cd /source-files/github/monorepo/scripts/bash/ubuntu/packages
 chmod +x *.sh
