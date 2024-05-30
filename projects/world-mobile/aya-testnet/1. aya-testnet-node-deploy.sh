@@ -25,7 +25,7 @@ write_log "Cloud-Init disabled successfully"
 write_log "Installing AYA TestNet Dependencies"
 cd /source-files/github/monorepo/scripts/bash/ubuntu/packages
 sudo ./server-baseline.sh
-sudo apt install -y curl
+sudo apt install -y curl jq
 write_log "Dependencies installed successfully"
 
 # Configure Firewall - Allow P2P Port TCP 30333
