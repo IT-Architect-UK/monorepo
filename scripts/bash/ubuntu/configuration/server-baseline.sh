@@ -13,9 +13,9 @@ The script performs the following actions:
 - Performs a full system upgrade, removes unnecessary packages, and reboots.
 
 .NOTES
-Version:            1.1
-Author:             Your Name
-Modification Date:  08-03-2024
+Version:            1.0
+Author:             Darren Pilkington
+Modification Date:  31-05-2024
 '
 
 # Define the scripts directory

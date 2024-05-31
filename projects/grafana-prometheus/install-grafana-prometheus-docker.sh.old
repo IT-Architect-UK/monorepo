@@ -1,12 +1,35 @@
 #!/bin/bash
 
-#######################################################################################################################################################
-#                                                                                                                                                     #
-# This script is used to install Grafana, Prometheus and Docker on a Ubuntu Server.                                                                   #
-# It will install Docker, Docker Compose, Grafana and Prometheus.                                                                                     #
-# It will also configure Prometheus to scrape the Node Exporter and Windows Exporter.                                                                 #
-#                                                                                                                                                     #
-#######################################################################################################################################################
+: '
+.SYNOPSIS
+This script executes a series of scripts for server baseline configuration.
+
+.DESCRIPTION
+- This script is used to install Grafana, Prometheus and Docker on a Ubuntu Server.
+- It will install Docker, Docker Compose, Grafana and Prometheus.
+- It will also configure Prometheus to scrape the Node Exporter and Windows Exporter.
+
+.NOTES
+Version:            1.0
+Author:             Darren Pilkington
+Modification Date:  31-05-2024
+'
+
+# Log file location
+LOG_DIR="/logs"
+LOG_FILE="${LOG_DIR}/install-grafana-prometheus-docker.log"
+
+# Ensure log directory exists
+if [ ! -d "$LOG_DIR" ]; then
+    sudo mkdir -p "$LOG_DIR"
+    echo "Created log directory: ${LOG_DIR}"
+fi
+
+# Function to write log with timestamp
+write_log() {
+    local message="$1"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | sudo tee -a "$LOG_FILE"
+}
 
 apt-get update && sudo apt-get upgrade
 
@@ -136,6 +159,19 @@ curl -X POST \
   -H "Content-Type: application/json" \
   -d "${GRAFANA_DATASOURCE}" \
   admin:admin@localhost:3000/api/datasources
+
+# Configure Firewall
+write_log "Configuring firewall"
+sudo iptables -A INPUT -p tcp --dport 9090 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 9100 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 3000 -j ACCEPT
+# Save the rules
+if sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null; then
+    write_log "IPTables rules saved successfully."
+else
+    write_log "Error occurred while saving IPTables rules."
+    exit 1
+fi
 
 # Print completion message
 echo "Prometheus and Node Exporter have been set up and are running on Docker."
