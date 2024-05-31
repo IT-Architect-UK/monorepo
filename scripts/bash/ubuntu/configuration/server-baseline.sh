@@ -26,7 +26,7 @@ LOG_FILE="$LOG_DIR/server-baseline-$(date '+%Y%m%d').log"
 
 # Create Logs Directory and Log File
 mkdir -p "$LOG_DIR"
-touch "$LOG_FILE"
+sudo touch "$LOG_FILE"
 
 # Ensure log directory exists
 if [ ! -d "$LOG_DIR" ]; then
@@ -47,6 +47,11 @@ LOG_FILE="$LOG_DIR/server-baseline-$(date '+%Y%m%d').log"
 write_log "Disabling Cloud-Init"
 sudo touch /etc/cloud/cloud-init.disabled
 write_log "Cloud-Init disabled successfully"
+
+# Install Latest Updates
+write_log "Updating package lists"
+sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt autoclean -y
+write_log "Package lists updated successfully"
 
 {
     echo "Script started on $(date)"
