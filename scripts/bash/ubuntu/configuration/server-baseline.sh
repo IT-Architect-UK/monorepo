@@ -10,11 +10,12 @@ The script performs the following actions:
 - Disables Cloud-Init.
 - Verifies if the user has sudo privileges without requiring a password.
 - Executes a predefined list of scripts for server configuration, logging the output.
+- Performs a full system upgrade, removes unnecessary packages, and reboots.
 
 .NOTES
 Version:            1.0
-Author:             Your Name
-Modification Date:  08-03-2024
+Author:             Darren Pilkington
+Modification Date:  31-05-2024
 '
 
 # Define the scripts directory
@@ -48,11 +49,6 @@ write_log "Disabling Cloud-Init"
 sudo touch /etc/cloud/cloud-init.disabled
 write_log "Cloud-Init disabled successfully"
 
-# Install Latest Updates
-write_log "Updating package lists"
-sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt autoclean -y
-write_log "Package lists updated successfully"
-
 {
     echo "Script started on $(date)"
 
@@ -70,7 +66,6 @@ write_log "Package lists updated successfully"
         "configuration/dns-default-gateway.sh"
         "configuration/setup-iptables.sh"
         "configuration/disable-cloud-init.sh"
-        "configuration/apt-get-upgrade.sh"
     )
 
     for script in "${SCRIPTS_TO_RUN[@]}"; do
@@ -98,5 +93,16 @@ write_log "Package lists updated successfully"
     done
 
     echo "All specified scripts have been executed."
-    echo "Script completed successfully on $(date). Reboot if necessary."
+
+    # Install Latest Updates
+    write_log "Updating package lists"
+    sudo DEBIAN_FRONTEND=noninteractive apt update -y
+    sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y
+    sudo DEBIAN_FRONTEND=noninteractive apt autoremove -y
+    sudo DEBIAN_FRONTEND=noninteractive apt autoclean -y
+    write_log "Package lists updated successfully"
+
+    echo "Script completed successfully on $(date). The system will reboot in 5 seconds."
+    sleep 5
+    sudo reboot
 } 2>&1 | tee -a "$LOG_FILE"
