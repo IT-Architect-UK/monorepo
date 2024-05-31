@@ -35,6 +35,7 @@ write_log "Starting update and upgrade of the system"
 sudo apt-get update && sudo apt-get upgrade -y
 
 #######################################################################################################################################################
+
 write_log "Installing Docker ..."
 
 # Add Docker's GPG key
@@ -58,10 +59,10 @@ write_log "Docker installed and started"
 write_log "Installing Prometheus ..."
 
 # Create a directory for Prometheus configuration
-mkdir -p ~/prometheus
+sudo mkdir -p /etc/prometheus
 
 # Create a Prometheus configuration file
-cat <<EOF > ~/prometheus/prometheus.yml
+sudo tee /etc/prometheus/prometheus.yml > /dev/null <<EOF
 global:
   scrape_interval: 15s
 
@@ -87,7 +88,7 @@ scrape_configs:
           - source_labels: [__address__]
             regex: (.*)
             target_label: __param_target
-            replacement: ${1}
+            replacement: \${1}
           - source_labels: [__param_target]
             target_label: instance
 
@@ -102,21 +103,18 @@ alerting:
       # - "alertmanager:9093"
 EOF
 
-# Ensure the Prometheus configuration file is readable
-chmod 644 ~/prometheus/prometheus.yml
-
-# Pull and run Prometheus Docker container
+# Pull and run Prometheus Docker container using Ubuntu image
 docker run -d \
   -p 9090:9090 \
   --name prometheus \
-  -v ~/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
-  prom/prometheus
+  -v /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
+  ubuntu/prometheus
 
-# Pull and run Node Exporter Docker container
+# Pull and run Node Exporter Docker container using Ubuntu image
 docker run -d \
   -p 9100:9100 \
   --name node_exporter \
-  prom/node-exporter
+  ubuntu/node-exporter
 
 write_log "Prometheus and Node Exporter installed and started"
 
@@ -130,11 +128,12 @@ write_log "Installing Grafana ..."
 
 docker volume create grafana-storage
 
+# Pull and run Grafana Docker container using Ubuntu image
 docker run -d \
   -p 3000:3000 \
   --name=grafana \
   -v grafana-storage:/var/lib/grafana \
-  grafana/grafana
+  ubuntu/grafana
 
 # Wait for Grafana to start
 sleep 10
