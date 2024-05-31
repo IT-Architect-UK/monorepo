@@ -1,0 +1,27 @@
+Local Node Commands
+
+Follow Logs - sudo journalctl -f -u aya-node.service
+Check Status - sudo systemctl status aya-node.service
+Enable Service - sudo systemctl enable aya-node.service
+Restart Service - sudo systemctl restart aya-node.service
+Stop Service - sudo systemctl stop aya-node.service
+
+Useful Websites:
+
+AYA TesNet GitHub - https://github.com/worldmobilegroup/aya-node/blob/main/docs/guide_join_devnet_simple.md
+Talisman Wallet - https://www.talisman.xyz
+
+Technical Info:
+
+RPC EndPoint - devnet-rpc.worldmobilelabs.com
+Rest API - https://devnet-rpc.worldmobilelabs.com
+Websocket - wss://devnet-rpc.worldmobilelabs.com
+
+FERN Token Faucet - https://devnet-faucet.worldmobilelabs.com/
+Polkadot Web App - AyaTestNet Accounts - https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fdevnet-rpc.worldmobilelabs.com%3A#/accounts
+Polkadot Web App - AyaTestNet Explorer - https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fdevnet-rpc.worldmobilelabs.com%3A#/explorer
+
+
+
+
+
