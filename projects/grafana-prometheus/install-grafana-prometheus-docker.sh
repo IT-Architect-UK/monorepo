@@ -5,8 +5,8 @@
 This script executes a series of scripts for server baseline configuration.
 
 .DESCRIPTION
-- This script is used to install Grafana, Prometheus and Docker on a Ubuntu Server.
-- It will install Docker, Docker Compose, Grafana and Prometheus.
+- This script is used to install Grafana, Prometheus, and Docker on a Ubuntu Server.
+- It will install Docker, Docker Compose, Grafana, and Prometheus.
 - It will also configure Prometheus to scrape the Node Exporter and Windows Exporter.
 
 .NOTES
@@ -34,9 +34,9 @@ write_log() {
 write_log "Starting update and upgrade of the system"
 sudo apt-get update && sudo apt-get upgrade -y
 
-#############################
+#######################################################################################################################################################
 write_log "Installing Docker ..."
-#############################
+
 # Add Docker's GPG key
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
@@ -55,9 +55,7 @@ write_log "Docker installed and started"
 
 #######################################################################################################################################################
 
-################################
 write_log "Installing Prometheus ..."
-################################
 
 # Create a directory for Prometheus configuration
 mkdir -p ~/prometheus
@@ -104,6 +102,9 @@ alerting:
       # - "alertmanager:9093"
 EOF
 
+# Ensure the Prometheus configuration file is readable
+chmod 644 ~/prometheus/prometheus.yml
+
 # Pull and run Prometheus Docker container
 docker run -d \
   -p 9090:9090 \
@@ -125,9 +126,7 @@ echo "To monitor network devices using SNMP, configure the SNMP Exporter by foll
 
 #######################################################################################################################################################
 
-##############################
 write_log "Installing Grafana ..."
-##############################
 
 docker volume create grafana-storage
 
@@ -156,19 +155,6 @@ curl -X POST \
   admin:admin@localhost:3000/api/datasources
 
 write_log "Grafana installed and datasource configured"
-
-# Configure Firewall using iptables
-write_log "Configuring firewall"
-sudo iptables -A INPUT -p tcp --dport 9090 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 9100 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 3000 -j ACCEPT
-# Save the rules
-if sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null; then
-    write_log "IPTables rules saved successfully."
-else
-    write_log "Error occurred while saving IPTables rules."
-    exit 1
-fi
 
 # Print completion message
 echo "Prometheus and Node Exporter have been set up and are running on Docker."
