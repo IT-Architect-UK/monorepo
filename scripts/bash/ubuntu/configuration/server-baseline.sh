@@ -13,9 +13,9 @@ The script performs the following actions:
 - Performs a full system upgrade, removes unnecessary packages, and reboots.
 
 .NOTES
-Version:            1.0
-Author:             Darren Pilkington
-Modification Date:  31-05-2024
+Version:            1.1
+Author:             Your Name
+Modification Date:  08-03-2024
 '
 
 # Define the scripts directory
@@ -93,6 +93,11 @@ write_log "Cloud-Init disabled successfully"
     done
 
     echo "All specified scripts have been executed."
+
+    # Add jammy-updates repository
+    write_log "Ensuring jammy-updates repository is included"
+    sudo add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse"
+    write_log "jammy-updates repository added successfully"
 
     # Install Latest Updates
     write_log "Updating package lists"
