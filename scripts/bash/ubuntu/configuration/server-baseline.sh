@@ -1,14 +1,52 @@
 #!/bin/bash
 
+: '
+.SYNOPSIS
+This script executes a series of scripts for server baseline configuration.
+
+.DESCRIPTION
+The script performs the following actions:
+- Ensures the log directory exists and creates a log file.
+- Disables Cloud-Init.
+- Verifies if the user has sudo privileges without requiring a password.
+- Executes a predefined list of scripts for server configuration, logging the output.
+
+.NOTES
+Version:            1.0
+Author:             Your Name
+Modification Date:  08-03-2024
+'
+
 # Define the scripts directory
 SCRIPTS_DIR="/source-files/github/monorepo/scripts/bash/ubuntu"
 
-# Define log file name
-LOG_FILE="/logs/server-baseline-$(date '+%Y%m%d').log"
+# Define log file name and directory
+LOG_DIR="/logs"
+LOG_FILE="$LOG_DIR/server-baseline-$(date '+%Y%m%d').log"
 
 # Create Logs Directory and Log File
-mkdir -p /logs
-touch $LOG_FILE
+mkdir -p "$LOG_DIR"
+touch "$LOG_FILE"
+
+# Ensure log directory exists
+if [ ! -d "$LOG_DIR" ]; then
+    sudo mkdir -p "$LOG_DIR"
+    echo "Created log directory: ${LOG_DIR}"
+fi
+
+# Function to write log with timestamp
+write_log() {
+    local message="$1"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | sudo tee -a "$LOG_FILE"
+}
+
+# Log file location
+LOG_FILE="$LOG_DIR/server-baseline-$(date '+%Y%m%d').log"
+
+# Disable Cloud-Init
+write_log "Disabling Cloud-Init"
+sudo touch /etc/cloud/cloud-init.disabled
+write_log "Cloud-Init disabled successfully"
 
 {
     echo "Script started on $(date)"
@@ -56,4 +94,4 @@ touch $LOG_FILE
 
     echo "All specified scripts have been executed."
     echo "Script completed successfully on $(date). Reboot if necessary."
-} 2>&1 | tee -a $LOG_FILE
+} 2>&1 | tee -a "$LOG_FILE"
