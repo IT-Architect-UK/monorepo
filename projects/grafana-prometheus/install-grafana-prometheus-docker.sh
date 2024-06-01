@@ -7,7 +7,7 @@ This script executes a series of scripts for server baseline configuration.
 .DESCRIPTION
 - This script is used to install Grafana, Prometheus, and Docker on a Ubuntu Server.
 - It will install Docker, Docker Compose, Grafana, and Prometheus.
-- It will also configure Prometheus to scrape the Node Exporter and Windows Exporter.
+- It will also configure Prometheus to scrape the Node Exporter.
 
 .NOTES
 Version:            1.0
@@ -34,9 +34,9 @@ write_log() {
 write_log "Starting update and upgrade of the system"
 sudo apt-get update && sudo apt-get upgrade -y
 
-#############################
+##############################################################################################################################################################################################################
 write_log "Installing Docker ..."
-#############################
+
 # Add Docker's GPG key
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
@@ -53,14 +53,50 @@ sudo systemctl enable docker
 
 write_log "Docker installed and started"
 
-#######################################################################################################################################################
+##############################################################################################################################################################################################################
 
-################################
+write_log "Installing Node Exporter ..."
+
+# Download Node Exporter
+cd /tmp
+curl -LO https://github.com/prometheus/node_exporter/releases/download/v1.3.1/node_exporter-1.3.1.linux-amd64.tar.gz
+tar xvfz node_exporter-1.3.1.linux-amd64.tar.gz
+sudo cp node_exporter-1.3.1.linux-amd64/node_exporter /usr/local/bin/
+sudo useradd -rs /bin/false node_exporter
+
+# Create Node Exporter service
+sudo tee /etc/systemd/system/node_exporter.service > /dev/null <<EOF
+[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+ExecStart=/usr/local/bin/node_exporter
+
+[Install]
+WantedBy=default.target
+EOF
+
+# Start and enable Node Exporter service
+sudo systemctl daemon-reload
+sudo systemctl start node_exporter
+sudo systemctl enable node_exporter
+
+write_log "Node Exporter installed and started"
+
+##############################################################################################################################################################################################################
+
 write_log "Installing Prometheus ..."
-################################
 
 # Create a directory for Prometheus configuration
 sudo mkdir -p /etc/prometheus
+
+# Get the FQDN of the server
+FQDN=$(hostname -f)
 
 # Create a Prometheus configuration file
 sudo tee /etc/prometheus/prometheus.yml > /dev/null <<EOF
@@ -70,29 +106,11 @@ global:
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ['$FQDN:9090']
 
   - job_name: 'node_exporter'
     static_configs:
-      - targets: ['localhost:9100']
-
-  - job_name: 'windows_exporter'
-    static_configs:
-      - targets: ['windows_exporter:9182']
-
-  - job_name: 'network_devices'
-    metrics_path: /snmp
-    params:
-      module: [if_mib]
-    static_configs:
-      - targets: ['network_device_ip:snmp_port']
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: (.*)
-        target_label: __param_target
-        replacement: \${1}
-      - source_labels: [__param_target]
-        target_label: instance
+      - targets: ['$FQDN:9100']
 
 rule_files:
   # - "first_rules.yml"
@@ -112,35 +130,24 @@ docker run -d \
   -v /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
   ubuntu/prometheus
 
-# Pull and run Node Exporter Docker container using quay.io image
-docker run -d \
-  --net="host" \  # Use the host network namespace
-  --pid="host" \  # Use the host PID namespace
-  -v "/:/host:ro,rslave" \  # Mount the host's root filesystem
-  --name node_exporter \
-  quay.io/prometheus/node-exporter:latest \
-  --path.rootfs=/host
-
-write_log "Prometheus and Node Exporter installed and started"
+write_log "Prometheus installed and started"
 
 # Instructions for setting up Windows Exporter and SNMP Exporter (requires manual setup)
 echo "To monitor Windows systems, install the windows_exporter on the target machine from https://github.com/prometheus-community/windows_exporter."
 echo "To monitor network devices using SNMP, configure the SNMP Exporter by following the guide at https://github.com/prometheus/snmp_exporter."
 
-#######################################################################################################################################################
+##############################################################################################################################################################################################################
 
-##############################
 write_log "Installing Grafana ..."
-##############################
 
 docker volume create grafana-storage
 
-# Pull and run Grafana Docker container using Ubuntu image
+# Pull and run Grafana Docker container using official Grafana image
 docker run -d \
   -p 3000:3000 \
   --name=grafana \
   -v grafana-storage:/var/lib/grafana \
-  ubuntu/grafana
+  grafana/grafana
 
 # Wait for Grafana to start
 sleep 10
@@ -150,7 +157,7 @@ GRAFANA_DATASOURCE='{
   "name": "Prometheus",
   "type": "prometheus",
   "access": "proxy",
-  "url": "http://localhost:9090",
+  "url": "http://'"$FQDN"':9090",
   "basicAuth": false,
   "isDefault": true
 }'
@@ -162,11 +169,24 @@ curl -X POST \
 
 write_log "Grafana installed and datasource configured"
 
+# Configure Firewall using iptables
+write_log "Configuring firewall"
+sudo iptables -A INPUT -p tcp --dport 9090 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 9100 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 3000 -j ACCEPT
+# Save the rules
+if sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null; then
+    write_log "IPTables rules saved successfully."
+else
+    write_log "Error occurred while saving IPTables rules."
+    exit 1
+fi
+
 # Print completion message
 echo "Prometheus and Node Exporter have been set up and are running on Docker."
-echo "Prometheus is accessible at http://localhost:9090"
-echo "Node Exporter is accessible at http://localhost:9100"
-echo "Grafana is accessible at http://localhost:3000 (default login: admin/admin)"
+echo "Prometheus is accessible at http://$FQDN:9090"
+echo "Node Exporter is accessible at http://$FQDN:9100"
+echo "Grafana is accessible at http://$FQDN:3000 (default login: admin/admin)"
 echo "Remember to configure Windows Exporter and SNMP Exporter as needed."
 
 write_log "Script execution completed"
