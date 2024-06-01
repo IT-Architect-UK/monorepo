@@ -34,10 +34,9 @@ write_log() {
 write_log "Starting update and upgrade of the system"
 sudo apt-get update && sudo apt-get upgrade -y
 
-#######################################################################################################################################################
-
+#############################
 write_log "Installing Docker ..."
-
+#############################
 # Add Docker's GPG key
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
@@ -56,7 +55,9 @@ write_log "Docker installed and started"
 
 #######################################################################################################################################################
 
+################################
 write_log "Installing Prometheus ..."
+################################
 
 # Create a directory for Prometheus configuration
 sudo mkdir -p /etc/prometheus
@@ -80,17 +81,18 @@ scrape_configs:
       - targets: ['windows_exporter:9182']
 
   - job_name: 'network_devices'
+    metrics_path: /snmp
+    params:
+      module: [if_mib]
     static_configs:
       - targets: ['network_device_ip:snmp_port']
-        params:
-          module: [if_mib]
-        relabel_configs:
-          - source_labels: [__address__]
-            regex: (.*)
-            target_label: __param_target
-            replacement: \${1}
-          - source_labels: [__param_target]
-            target_label: instance
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: (.*)
+        target_label: __param_target
+        replacement: \${1}
+      - source_labels: [__param_target]
+        target_label: instance
 
 rule_files:
   # - "first_rules.yml"
@@ -98,9 +100,9 @@ rule_files:
 
 alerting:
   alertmanagers:
-  - static_configs:
-    - targets:
-      # - "alertmanager:9093"
+    - static_configs:
+        - targets:
+          # - "alertmanager:9093"
 EOF
 
 # Pull and run Prometheus Docker container using Ubuntu image
@@ -124,7 +126,9 @@ echo "To monitor network devices using SNMP, configure the SNMP Exporter by foll
 
 #######################################################################################################################################################
 
+##############################
 write_log "Installing Grafana ..."
+##############################
 
 docker volume create grafana-storage
 
