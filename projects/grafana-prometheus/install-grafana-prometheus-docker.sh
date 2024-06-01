@@ -74,7 +74,7 @@ scrape_configs:
 
   - job_name: 'node_exporter'
     static_configs:
-      - targets: ['node_exporter:9100']
+      - targets: ['localhost:9100']
 
   - job_name: 'windows_exporter'
     static_configs:
@@ -112,11 +112,14 @@ docker run -d \
   -v /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
   ubuntu/prometheus
 
-# Pull and run Node Exporter Docker container using Ubuntu image
+# Pull and run Node Exporter Docker container using quay.io image
 docker run -d \
-  -p 9100:9100 \
+  --net="host" \  # Use the host network namespace
+  --pid="host" \  # Use the host PID namespace
+  -v "/:/host:ro,rslave" \  # Mount the host's root filesystem
   --name node_exporter \
-  ubuntu/node-exporter
+  quay.io/prometheus/node-exporter:latest \
+  --path.rootfs=/host
 
 write_log "Prometheus and Node Exporter installed and started"
 
