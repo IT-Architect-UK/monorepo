@@ -9,6 +9,7 @@ This script installs or upgrades Prometheus Node Exporter on Ubuntu Linux server
 - If not installed, it installs the latest version.
 - If already installed, it upgrades to the latest version.
 - It logs each step of the process.
+- It verifies the service is running and the port is listening at the end.
 
 .NOTES
 Version:            1.0
@@ -41,6 +42,14 @@ check_node_exporter() {
     fi
 }
 
+# Create node_exporter user if it doesn't exist
+create_node_exporter_user() {
+    if ! id -u node_exporter > /dev/null 2>&1; then
+        sudo useradd --no-create-home --shell /bin/false node_exporter
+        write_log "Created node_exporter user."
+    fi
+}
+
 # Install or upgrade node_exporter
 install_or_upgrade_node_exporter() {
     # Get the latest version URL from GitHub API
@@ -67,6 +76,7 @@ install_or_upgrade_node_exporter() {
 
     # Move the binary to /usr/local/bin
     sudo mv node_exporter /usr/local/bin/
+    sudo chown node_exporter:node_exporter /usr/local/bin/node_exporter
     write_log "Moved node_exporter binary to /usr/local/bin/"
 
     # Create a systemd service file
@@ -74,10 +84,13 @@ install_or_upgrade_node_exporter() {
     sudo tee /etc/systemd/system/node_exporter.service > /dev/null <<EOF
 [Unit]
 Description=Node Exporter
+After=network.target
 
 [Service]
 User=node_exporter
+Group=node_exporter
 ExecStart=/usr/local/bin/node_exporter
+Restart=always
 
 [Install]
 WantedBy=default.target
@@ -90,6 +103,26 @@ EOF
     write_log "Node Exporter service started and enabled."
 }
 
+# Verify the service is running and the port is listening
+verify_service() {
+    write_log "Verifying Node Exporter service status..."
+    if systemctl is-active --quiet node_exporter; then
+        write_log "Node Exporter service is running."
+    else
+        write_log "Node Exporter service is not running. Checking journal logs..."
+        sudo journalctl -u node_exporter | tail -n 20 | sudo tee -a "$LOG_FILE"
+        exit 1
+    fi
+
+    write_log "Verifying Node Exporter is listening on port 9100..."
+    if sudo netstat -tuln | grep -q ":9100"; then
+        write_log "Node Exporter is listening on port 9100."
+    else
+        write_log "Node Exporter is not listening on port 9100."
+        exit 1
+    fi
+}
+
 # Main script execution
 write_log "Starting the installation script for Prometheus Node Exporter..."
 
@@ -99,6 +132,11 @@ else
     write_log "Prometheus Node Exporter is not installed. Installing the latest version..."
 fi
 
+create_node_exporter_user
 install_or_upgrade_node_exporter
 
 write_log "Installation or upgrade of Prometheus Node Exporter completed."
+
+verify_service
+
+write_log "Verification of Prometheus Node Exporter service completed successfully."
