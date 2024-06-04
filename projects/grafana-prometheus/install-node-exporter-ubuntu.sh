@@ -18,7 +18,7 @@ Modification Date:  04-06-2024
 
 # Log file location
 LOG_DIR="/logs"
-LOG_FILE="${LOG_DIR}/install-prometheus-node-exporter-ubuntu.log"
+LOG_FILE="${LOG_DIR}/install-node-exporter.log"
 
 # Ensure log directory exists
 if [ ! -d "$LOG_DIR" ]; then
@@ -43,14 +43,27 @@ check_node_exporter() {
 
 # Install or upgrade node_exporter
 install_or_upgrade_node_exporter() {
+    # Get the latest version URL from GitHub API
+    write_log "Fetching the latest version URL of Prometheus Node Exporter..."
+    latest_url=$(curl -s https://api.github.com/repos/prometheus/node_exporter/releases/latest | grep "browser_download_url.*linux-amd64.tar.gz" | cut -d '"' -f 4)
+
+    if [ -z "$latest_url" ]; then
+        write_log "Error: Unable to fetch the latest version URL of Prometheus Node Exporter."
+        exit 1
+    fi
+
     # Download the latest version
-    write_log "Downloading the latest version of Prometheus Node Exporter..."
-    latest_version=$(curl -s https://api.github.com/repos/prometheus/node_exporter/releases/latest | grep tag_name | cut -d '"' -f 4)
-    wget https://github.com/prometheus/node_exporter/releases/download/${latest_version}/node_exporter-${latest_version}.linux-amd64.tar.gz
+    write_log "Downloading Prometheus Node Exporter from ${latest_url}..."
+    wget "$latest_url" -O node_exporter.tar.gz
+
+    if [ $? -ne 0 ]; then
+        write_log "Error: Download failed."
+        exit 1
+    fi
 
     # Extract the files
-    tar xvf node_exporter-${latest_version}.linux-amd64.tar.gz
-    cd node_exporter-${latest_version}.linux-amd64
+    tar xvf node_exporter.tar.gz
+    cd node_exporter-*.linux-amd64 || { write_log "Error: Extraction failed."; exit 1; }
 
     # Move the binary to /usr/local/bin
     sudo mv node_exporter /usr/local/bin/
