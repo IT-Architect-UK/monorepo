@@ -94,6 +94,7 @@ write_log "Installing Prometheus ..."
 
 # Create a directory for Prometheus configuration
 sudo mkdir -p /etc/prometheus
+sudo mkdir -p /var/prometheus
 
 # Get the FQDN of the server
 FQDN=$(hostname -f)
@@ -128,6 +129,7 @@ docker run -d \
   -p 9090:9090 \
   --name prometheus \
   -v /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
+  -v /var/prometheus/data:/prometheus \
   ubuntu/prometheus
 
 write_log "Prometheus installed and started"

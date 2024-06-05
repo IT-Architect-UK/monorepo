@@ -89,7 +89,7 @@ After=network.target
 [Service]
 User=node_exporter
 Group=node_exporter
-ExecStart=/usr/local/bin/node_exporter
+ExecStart=/usr/local/bin/node_exporter --collector.systemd --collector.processes
 Restart=always
 
 [Install]
