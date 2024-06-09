@@ -10,17 +10,41 @@ The script performs the following actions:
 - Verifies the installation and ensures the service is running and the TCP port is listening.
 - Writes installation actions to a log file.
 
+.PARAMETER ServerIP
+The IP address of the Zabbix server.
+
+.PARAMETER ServerName
+The name of the Zabbix server.
+
+.EXAMPLE
+.\Install-ZabbixAgent.ps1 -ServerIP "192.168.4.105" -ServerName "POSVAPZABBIX01.SKINT.PRIVATE"
+
 .NOTES
 Version:        1.0
 Author:         Darren Pilkington
 Modification Date:  09-06-2024
 #>
 
+param (
+    [string]$ServerIP,
+    [string]$ServerName
+)
+
 # Function to write output to both console and log file
 function Write-Log {
     Param([string]$message)
     Write-Output $message
     Add-Content -Path $logPath -Value $message
+}
+
+# Prompt for Server IP if not provided
+if (-not $ServerIP) {
+    $ServerIP = Read-Host -Prompt "Please enter the Zabbix server IP address"
+}
+
+# Prompt for Server Name if not provided
+if (-not $ServerName) {
+    $ServerName = Read-Host -Prompt "Please enter the Zabbix server name"
 }
 
 Write-Output "Installing Zabbix Agent v2 ...."
@@ -64,11 +88,11 @@ if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
 Write-Log "Installing Zabbix Agent v2 using Chocolatey ..."
 try {
     if (!(choco list --local-only | Select-String -Pattern "zabbix-agent2")) {
-        choco install zabbix-agent2 -y --no-progress | Out-Null
+        choco install zabbix-agent2 -y --no-progress --params '"/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$env:COMPUTERNAME"' | Out-Null
         Write-Log "Zabbix Agent v2 installed successfully."
     } else {
         Write-Log "Zabbix Agent v2 is already installed. Upgrading..."
-        choco upgrade zabbix-agent2 -y --no-progress | Out-Null
+        choco upgrade zabbix-agent2 -y --no-progress --params '"/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$env:COMPUTERNAME"' | Out-Null
         Write-Log "Zabbix Agent v2 upgraded successfully."
     }
 } catch {
