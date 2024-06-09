@@ -17,7 +17,7 @@ The IP address of the Zabbix server.
 The name of the Zabbix server.
 
 .EXAMPLE
-.\Install-ZabbixAgent.ps1 -ServerIP "192.168.4.105" -ServerName "POSVAPZABBIX01.SKINT.PRIVATE"
+.\Install-ZabbixAgent.ps1 -ServerIP "192.168.1.1" -ServerName "ZABBIX-SERVER.example.com"
 
 .NOTES
 Version:        1.0
@@ -84,15 +84,33 @@ if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
     Write-Log "Chocolatey is already installed."
 }
 
-# Install Zabbix Agent v2 using Chocolatey
+# Function to install or upgrade Zabbix Agent v2
+function Install-ZabbixAgent {
+    Param([string]$installCommand)
+
+    Write-Log "Executing: $installCommand"
+    Invoke-Expression $installCommand
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -eq 0) {
+        Write-Log "Chocolatey command executed successfully."
+    } else {
+        Write-Log "Chocolatey command failed with exit code $exitCode."
+        exit
+    }
+}
+
+# Install or upgrade Zabbix Agent v2 using Chocolatey
 Write-Log "Installing Zabbix Agent v2 using Chocolatey ..."
 try {
     if (!(choco list --local-only | Select-String -Pattern "zabbix-agent2")) {
-        choco install zabbix-agent2 -y --no-progress --params '"/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$env:COMPUTERNAME"' | Out-Null
+        $installCommand = "choco install zabbix-agent2 -y --no-progress --params '/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$env:COMPUTERNAME'"
+        Install-ZabbixAgent -installCommand $installCommand
         Write-Log "Zabbix Agent v2 installed successfully."
     } else {
         Write-Log "Zabbix Agent v2 is already installed. Upgrading..."
-        choco upgrade zabbix-agent2 -y --no-progress --params '"/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$env:COMPUTERNAME"' | Out-Null
+        $upgradeCommand = "choco upgrade zabbix-agent2 -y --no-progress --params '/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$env:COMPUTERNAME'"
+        Install-ZabbixAgent -installCommand $upgradeCommand
         Write-Log "Zabbix Agent v2 upgraded successfully."
     }
 } catch {
