@@ -150,3 +150,4 @@ if ($tcpPortCheck) {
 
 Write-Log "Zabbix agent installation and verification completed successfully."
 Write-Host "Zabbix agent installation and verification completed successfully." -ForegroundColor Green
+
