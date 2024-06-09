@@ -17,7 +17,7 @@ The IP address of the Zabbix server.
 The name of the Zabbix server.
 
 .EXAMPLE
-.\Install-ZabbixAgent.ps1 -ServerIP "192.168.1.1" -ServerName "ZABBIX-SERVER.example.com"
+.\Install-ZabbixAgent.ps1 -ServerIP "192.168.4.105" -ServerName "POSVAPZABBIX01.SKINT.PRIVATE"
 
 .NOTES
 Version:        1.0
@@ -46,6 +46,9 @@ if (-not $ServerIP) {
 if (-not $ServerName) {
     $ServerName = Read-Host -Prompt "Please enter the Zabbix server name"
 }
+
+# Get the FQDN of the computer
+$FQDN = [System.Net.Dns]::GetHostByName(($env:COMPUTERNAME)).HostName
 
 Write-Output "Installing Zabbix Agent v2 ...."
 Write-Output "Configuring Script Log Settings."
@@ -104,12 +107,12 @@ function Install-ZabbixAgent {
 Write-Log "Installing Zabbix Agent v2 using Chocolatey ..."
 try {
     if (!(choco list --local-only | Select-String -Pattern "zabbix-agent2")) {
-        $installCommand = "choco install zabbix-agent2 -y --no-progress --params '/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$env:COMPUTERNAME'"
+        $installCommand = "choco install zabbix-agent2 -y --no-progress --params '/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$FQDN'"
         Install-ZabbixAgent -installCommand $installCommand
         Write-Log "Zabbix Agent v2 installed successfully."
     } else {
         Write-Log "Zabbix Agent v2 is already installed. Upgrading..."
-        $upgradeCommand = "choco upgrade zabbix-agent2 -y --no-progress --params '/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$env:COMPUTERNAME'"
+        $upgradeCommand = "choco upgrade zabbix-agent2 -y --no-progress --params '/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$FQDN'"
         Install-ZabbixAgent -installCommand $upgradeCommand
         Write-Log "Zabbix Agent v2 upgraded successfully."
     }
