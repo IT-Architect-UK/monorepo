@@ -17,7 +17,7 @@ The IP address of the Zabbix server.
 The name of the Zabbix server.
 
 .EXAMPLE
-.\Install-ZabbixAgent.ps1 -ServerIP "192.168.4.105" -ServerName "POSVAPZABBIX01.SKINT.PRIVATE"
+.\Install-ZabbixAgent.ps1 -ServerIP "192.168.1.123" -ServerName "ZABBIX-SERVER.EXAMPLE.COM"
 
 .NOTES
 Version:        1.0
