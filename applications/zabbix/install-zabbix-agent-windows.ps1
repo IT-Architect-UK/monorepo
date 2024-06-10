@@ -49,6 +49,11 @@ if (-not $ServerName) {
 
 # Get the FQDN of the computer
 $FQDN = [System.Net.Dns]::GetHostByName(($env:COMPUTERNAME)).HostName
+# Convert the FQDN to uppercase
+$FQDN = $FQDN.ToUpper()
+# Output the capitalized FQDN
+$FQDN
+
 
 Write-Output "Installing Zabbix Agent v2 ...."
 Write-Output "Configuring Script Log Settings."
@@ -107,12 +112,12 @@ function Install-ZabbixAgent {
 Write-Log "Installing Zabbix Agent v2 using Chocolatey ..."
 try {
     if (!(choco list --local-only | Select-String -Pattern "zabbix-agent2")) {
-        $installCommand = "choco install zabbix-agent2 -y --no-progress --params '/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$FQDN'"
+        $installCommand = "choco install zabbix-agent2 -y --no-progress --params '/SERVER:$ServerName,$ServerIP /SERVERACTIVE:$ServerName,$ServerIP /HOSTNAME:$FQDN'"
         Install-ZabbixAgent -installCommand $installCommand
         Write-Log "Zabbix Agent v2 installed successfully."
     } else {
         Write-Log "Zabbix Agent v2 is already installed. Upgrading..."
-        $upgradeCommand = "choco upgrade zabbix-agent2 -y --no-progress --params '/SERVER:$ServerIP /SERVERACTIVE:$ServerName /HOSTNAME:$FQDN'"
+        $upgradeCommand = "choco upgrade zabbix-agent2 -y --no-progress --params '/SERVER:$ServerName,$ServerIP /SERVERACTIVE:$ServerName,$ServerIP /HOSTNAME:$FQDN'"
         Install-ZabbixAgent -installCommand $upgradeCommand
         Write-Log "Zabbix Agent v2 upgraded successfully."
     }
