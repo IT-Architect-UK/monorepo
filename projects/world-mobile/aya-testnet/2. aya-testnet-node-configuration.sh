@@ -85,7 +85,7 @@ User=${USER}
 Restart=always
 RestartSec=90
 #Set the maximum number of file descriptors
-LimitNOFILE=4096
+LimitNOFILE=10000
 
 [Install]
 WantedBy=multi-user.target
