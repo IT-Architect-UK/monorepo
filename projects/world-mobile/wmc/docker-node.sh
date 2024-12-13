@@ -66,6 +66,8 @@ write_log "Cloud-Init disabled successfully"
         "configuration/dns-default-gateway.sh"
         "configuration/setup-iptables.sh"
         "configuration/disable-cloud-init.sh"
+        "packages/install-docker.sh"
+        "packages/install-portainer-agent.sh"
     )
 
     for script in "${SCRIPTS_TO_RUN[@]}"; do
