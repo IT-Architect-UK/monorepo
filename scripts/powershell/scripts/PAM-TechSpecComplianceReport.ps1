@@ -6,12 +6,12 @@
 .DESCRIPTION
     The script collects Group Policy results using gpresult.exe, saves them in XML and HTML formats,
     and checks multiple specified hardening settings against desired values, including service states.
-    It logs all actions to the screen and a log file, and generates per-computer reports. GPO settings are validated
-    by searching the GPResult XML and checking the registry independently. Service settings check the service state
+    It logs all actions to the screen and a log file, and generates per-computer reports with a compliance summary at the start.
+    GPO settings are validated by searching the GPResult XML and checking the registry independently. Service settings check the service state
     and registry. Compliance is 'Compliant' if either XML or registry matches the desired value for GPOs, or if the
     service matches the desired state. RDS settings are checked via registry only due to inconsistent XML format.
     SSL/TLS protocols are consolidated under ISS.2.1.9.
-    Reports include reference numbers, XML file path, line number (where applicable), and registry/service details.
+    Reports include a simplified CSV-formatted summary table (Reference and Compliance Status only) followed by detailed sections.
 .PARAMETER ServerListPath
     Optional path to a text file containing a list of server FQDNs (one per line) to audit.
 .NOTES
@@ -49,6 +49,35 @@ function Write-Log {
     $LogMessage = "[$Timestamp] $Message"
     Write-Host $LogMessage
     Add-Content -Path $LogFile -Value $LogMessage
+}
+
+# Function to format simplified compliance summary as CSV
+function Format-ComplianceSummary {
+    param ($SummaryData)
+    $ReferenceOrder = @(
+        "ISS.1.4.1", "ISS.1.4.2", "ISS.1.4.3", "ISS.1.4.4", "ISS.1.4.5", "ISS.1.4.6", "ISS.1.4.7", "ISS.1.4.8", "ISS.1.4.9",
+        "ISS.1.4.11", "ISS.1.4.12", "ISS.1.4.13", "ISS.1.4.14", "ISS.1.4.15", "ISS.1.4.16", "ISS.1.4.17", "ISS.1.4.20",
+        "ISS.1.4.30", "ISS.1.4.35", "ISS.1.4.36", "ISS.2.1.9"
+    )
+
+    $Output = "=== Compliance Summary ===`n"
+    $Output += "Reference,Compliance Status`n"
+
+    # Sort items based on custom order
+    $SortedData = $SummaryData | Sort-Object {
+        $ref = $_.Reference
+        $baseRef = if ($ref -match "^(ISS\.\d+\.\d+\.\d+)") { $Matches[1] } else { $ref }
+        $index = $ReferenceOrder.IndexOf($baseRef)
+        if ($index -eq -1) { 999 } else {
+            if ($ref -match "^ISS\.2\.1\.9 \((.*)\)$") { "$index-$($Matches[1])" } else { $index }
+        }
+    }
+
+    foreach ($Item in $SortedData) {
+        $Output += "$($Item.Reference),$($Item.Compliance)`n"
+    }
+    $Output += "`n"
+    return $Output
 }
 
 # Define service settings
@@ -208,7 +237,7 @@ $RDSSettings = @(
         DesiredValue = "Enabled"
         DefaultValue = "Disabled"
         RegistryPath = "HKLM:\Software\Policies\Microsoft\Windows NT\Terminal Services"
-        RegistryValueName = "fAllowUnlistedRemotePrograms"
+        RegistryValueName = "fWritableTSCCPermTab"
     },
     [PSCustomObject]@{
         Reference = "ISS.1.4.17"
@@ -227,8 +256,8 @@ $RDSSettings = @(
         PolicyPath = "Computer Configuration - Policies - Administrative Templates - Windows Components - Remote Desktop Services - Remote Desktop Session Host - Connections"
         DesiredValue = "Enabled"
         DefaultValue = "Disabled"
-        RegistryPath = "HKLM:\Software\Policies\Microsoft\Windows NT\Terminal Services"
-        RegistryValueName = "fHideDisconnectOption"
+        RegistryPath = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+        RegistryValueName = "NoDisconnect"
     },
     [PSCustomObject]@{
         Reference = "ISS.1.4.30"
@@ -237,8 +266,8 @@ $RDSSettings = @(
         PolicyPath = "Computer Configuration - Policies - Administrative Templates - Windows Components - Remote Desktop Services - Remote Desktop Session Host - Security"
         DesiredValue = "Enabled"
         DefaultValue = "Disabled"
-        RegistryPath = "HKLM:\Software\Policies\Microsoft\Windows NT\Terminal Services"
-        RegistryValueName = "fHideSecurityOption"
+        RegistryPath = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
+        RegistryValueName = "NoNTSecurity"
     }
 )
 
@@ -455,6 +484,9 @@ foreach ($Computer in $ComputerList) {
 
     $GpXmlFile = "$ComputerReportDir\GPResult_$DateStamp.xml"
     $GpHtmlFile = "$ComputerReportDir\GPResult_$DateStamp.html"
+    $TempReportFile = "$ComputerReportDir\HardeningReport_$DateStamp_temp.txt"
+    $ReportFile = "$ComputerReportDir\HardeningReport_$DateStamp.txt"
+    $ComplianceSummary = @()
 
     Write-Log "Collecting GPResult for $Computer"
     try {
@@ -484,18 +516,17 @@ foreach ($Computer in $ComputerList) {
 
     [xml]$GpXml = Get-Content $GpXmlFile
     $GpXmlLines = Get-Content $GpXmlFile
-    $ReportFile = "$ComputerReportDir\HardeningReport_$DateStamp.txt"
-    "System Hardening Audit Report - $Computer - $DateStamp" | Out-File $ReportFile
-    "" | Out-File $ReportFile -Append
+    "System Hardening Audit Report - $Computer - $DateStamp" | Out-File $TempReportFile
+    "" | Out-File $TempReportFile -Append
 
     # Service Settings
-    "=== Service Settings ===" | Out-File $ReportFile -Append
+    "=== Service Settings ===" | Out-File $TempReportFile -Append
     foreach ($Setting in $ServiceSettings) {
         Write-Log "Checking $($Setting.SettingName)"
-        "Reference - $($Setting.Reference)" | Out-File $ReportFile -Append
-        "Setting - $($Setting.SettingName)" | Out-File $ReportFile -Append
-        "Description - $($Setting.Description)" | Out-File $ReportFile -Append
-        "Desired State - $($Setting.DesiredState)" | Out-File $ReportFile -Append
+        "Reference - $($Setting.Reference)" | Out-File $TempReportFile -Append
+        "Setting - $($Setting.SettingName)" | Out-File $TempReportFile -Append
+        "Description - $($Setting.Description)" | Out-File $TempReportFile -Append
+        "Desired State - $($Setting.DesiredState)" | Out-File $TempReportFile -Append
 
         $ServiceState = "Not found"
         try {
@@ -508,10 +539,10 @@ foreach ($Computer in $ComputerList) {
                 $Service = Invoke-Command @InvokeArgs
                 $ServiceState = $Service.StartType
             }
-            "Service State - $ServiceState" | Out-File $ReportFile -Append
+            "Service State - $ServiceState" | Out-File $TempReportFile -Append
         } catch {
             Write-Log "Error checking service state for $($Setting.SettingName) - $_"
-            "Service State - Not found (check failed - $_)" | Out-File $ReportFile -Append
+            "Service State - Not found (check failed - $_)" | Out-File $TempReportFile -Append
         }
 
         $RegServiceValue = "Not set"
@@ -528,31 +559,35 @@ foreach ($Computer in $ComputerList) {
                 $RegRawValue = $RegValueObj.$($Setting.RegistryValueName)
                 $RegServiceValue = switch ($RegRawValue) { 2 {"Automatic"} 3 {"Manual"} 4 {"Disabled"} default {"Unknown ($RegRawValue)"} }
             }
-            "Registry Key - $($Setting.RegistryPath)" | Out-File $ReportFile -Append
-            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $ReportFile -Append
-            "Registry Value - $RegServiceValue (Raw: $RegRawValue)" | Out-File $ReportFile -Append
+            "Registry Key - $($Setting.RegistryPath)" | Out-File $TempReportFile -Append
+            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $TempReportFile -Append
+            "Registry Value - $RegServiceValue (Raw: $RegRawValue)" | Out-File $TempReportFile -Append
         } catch {
             Write-Log "Error checking registry for $($Setting.SettingName) - $_"
-            "Registry Key - $($Setting.RegistryPath)" | Out-File $ReportFile -Append
-            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $ReportFile -Append
-            "Registry Value - Not set (check failed - $_)" | Out-File $ReportFile -Append
+            "Registry Key - $($Setting.RegistryPath)" | Out-File $TempReportFile -Append
+            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $TempReportFile -Append
+            "Registry Value - Not set (check failed - $_)" | Out-File $TempReportFile -Append
         }
 
         $Compliance = if ($ServiceState -eq $Setting.DesiredState -or $RegServiceValue -eq $Setting.DesiredState) { "Compliant" } else { "Non-Compliant" }
-        "Compliance - $Compliance" | Out-File $ReportFile -Append
-        "" | Out-File $ReportFile -Append
+        "Compliance - $Compliance" | Out-File $TempReportFile -Append
+        "" | Out-File $TempReportFile -Append
+        $ComplianceSummary += [PSCustomObject]@{
+            Reference = $Setting.Reference
+            Compliance = $Compliance
+        }
     }
 
     # GPO Settings
-    "=== GPO Settings ===" | Out-File $ReportFile -Append
+    "=== GPO Settings ===" | Out-File $TempReportFile -Append
     foreach ($Setting in $HardeningSettings) {
         Write-Log "Checking $($Setting.SettingName)"
-        "Reference - $($Setting.Reference)" | Out-File $ReportFile -Append
-        "Setting - $($Setting.SettingName)" | Out-File $ReportFile -Append
-        "Description - $($Setting.Description)" | Out-File $ReportFile -Append
-        "Policy Path - $($Setting.PolicyPath)" | Out-File $ReportFile -Append
-        "Desired Value - $($Setting.DesiredValue)" | Out-File $ReportFile -Append
-        "Default Value - $($Setting.DefaultValue)" | Out-File $ReportFile -Append
+        "Reference - $($Setting.Reference)" | Out-File $TempReportFile -Append
+        "Setting - $($Setting.SettingName)" | Out-File $TempReportFile -Append
+        "Description - $($Setting.Description)" | Out-File $TempReportFile -Append
+        "Policy Path - $($Setting.PolicyPath)" | Out-File $TempReportFile -Append
+        "Desired Value - $($Setting.DesiredValue)" | Out-File $TempReportFile -Append
+        "Default Value - $($Setting.DefaultValue)" | Out-File $TempReportFile -Append
 
         $XmlValue = "Not set"
         try {
@@ -573,15 +608,15 @@ foreach ($Computer in $ComputerList) {
                         } else {
                             ($GpXmlLines | Select-String "<[^>]*KeyName>$([regex]::Escape($Setting.XmlName))</[^>]*>|<[^>]*Name>$([regex]::Escape($Setting.XmlName))</[^>]*>" | Select-Object -First 1).LineNumber
                         }
-                        "GPResult Value - $XmlValue (Found in $GpXmlFile at line $LineNumber)" | Out-File $ReportFile -Append
+                        "GPResult Value - $XmlValue (Found in $GpXmlFile at line $LineNumber)" | Out-File $TempReportFile -Append
                         break
                     }
                 }
             }
-            if ($XmlValue -eq "Not set") { "GPResult Value - Not set" | Out-File $ReportFile -Append }
+            if ($XmlValue -eq "Not set") { "GPResult Value - Not set" | Out-File $TempReportFile -Append }
         } catch {
             Write-Log "Error searching XML for $($Setting.SettingName) - $_"
-            "GPResult Value - Not set (search error - $_)" | Out-File $ReportFile -Append
+            "GPResult Value - Not set (search error - $_)" | Out-File $TempReportFile -Append
         }
 
         $RegValue = "Not set"
@@ -602,31 +637,36 @@ foreach ($Computer in $ComputerList) {
                     if ($RegRawValue -eq 1) {"Enabled"} else {"Disabled"}
                 }
             }
-            "Registry Key - $($Setting.RegistryPath)" | Out-File $ReportFile -Append
-            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $ReportFile -Append
-            "Registry Value - $RegValue (Raw: $(if ($RegRawValue -is [byte[]]) { '0x' + ([BitConverter]::ToString($RegRawValue) -replace '-','') } else { $RegRawValue }))" | Out-File $ReportFile -Append
+            "Registry Key - $($Setting.RegistryPath)" | Out-File $TempReportFile -Append
+            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $TempReportFile -Append
+            "Registry Value - $RegValue (Raw: $(if ($RegRawValue -is [byte[]]) { '0x' + ([BitConverter]::ToString($RegRawValue) -replace '-','') } else { $RegRawValue }))" | Out-File $TempReportFile -Append
         } catch {
             Write-Log "Error checking registry for $($Setting.SettingName) - $_"
-            "Registry Key - $($Setting.RegistryPath)" | Out-File $ReportFile -Append
-            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $ReportFile -Append
-            "Registry Value - Not set (check failed - $_)" | Out-File $ReportFile -Append
+            "Registry Key - $($Setting.RegistryPath)" | Out-File $TempReportFile -Append
+            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $TempReportFile -Append
+            "Registry Value - Not set (check failed - $_)" | Out-File $TempReportFile -Append
         }
 
         $ComplianceValue = if ($XmlValue -eq "Enabled" -or $RegValue -eq "Enabled") {"Enabled"} elseif ($XmlValue -eq "Not set" -and $RegValue -eq "Not set") {$Setting.DefaultValue} else {"Disabled"}
-        "Compliance - $(if ($ComplianceValue -eq $Setting.DesiredValue) {'Compliant'} else {'Non-Compliant'})" | Out-File $ReportFile -Append
-        "" | Out-File $ReportFile -Append
+        $Compliance = if ($ComplianceValue -eq $Setting.DesiredValue) {"Compliant"} else {"Non-Compliant"}
+        "Compliance - $Compliance" | Out-File $TempReportFile -Append
+        "" | Out-File $TempReportFile -Append
+        $ComplianceSummary += [PSCustomObject]@{
+            Reference = $Setting.Reference
+            Compliance = $Compliance
+        }
     }
 
     # RDS Settings
-    "=== RDS Settings ===" | Out-File $ReportFile -Append
+    "=== RDS Settings ===" | Out-File $TempReportFile -Append
     foreach ($Setting in $RDSSettings) {
         Write-Log "Checking $($Setting.SettingName)"
-        "Reference - $($Setting.Reference)" | Out-File $ReportFile -Append
-        "Setting - $($Setting.SettingName)" | Out-File $ReportFile -Append
-        "Description - $($Setting.Description)" | Out-File $ReportFile -Append
-        "Policy Path - $($Setting.PolicyPath)" | Out-File $ReportFile -Append
-        "Desired Value - $($Setting.DesiredValue)" | Out-File $ReportFile -Append
-        "Default Value - $($Setting.DefaultValue)" | Out-File $ReportFile -Append
+        "Reference - $($Setting.Reference)" | Out-File $TempReportFile -Append
+        "Setting - $($Setting.SettingName)" | Out-File $TempReportFile -Append
+        "Description - $($Setting.Description)" | Out-File $TempReportFile -Append
+        "Policy Path - $($Setting.PolicyPath)" | Out-File $TempReportFile -Append
+        "Desired Value - $($Setting.DesiredValue)" | Out-File $TempReportFile -Append
+        "Default Value - $($Setting.DefaultValue)" | Out-File $TempReportFile -Append
 
         $RegValue = "Not set"
         $RegRawValue = $null
@@ -640,25 +680,36 @@ foreach ($Computer in $ComputerList) {
             }
             if ($RegValueObj -and $RegValueObj.PSObject.Properties.Name -contains $Setting.RegistryValueName) {
                 $RegRawValue = $RegValueObj.$($Setting.RegistryValueName)
-                $RegValue = if ($Setting.RegistryValueName -eq "fDisableAutoReconnect") { if ($RegRawValue -eq 1) {"Disabled"} else {"Enabled"} } else { if ($RegRawValue -eq 1) {"Enabled"} else {"Disabled"} }
+                $RegValue = if ($Setting.RegistryValueName -eq "fWritableTSCCPermTab") {
+                    if ($RegRawValue -eq 0) {"Enabled"} else {"Disabled"}  # 0 means Enabled for this setting
+                } elseif ($Setting.RegistryValueName -eq "fDisableAutoReconnect") {
+                    if ($RegRawValue -eq 1) {"Disabled"} else {"Enabled"}
+                } else {
+                    if ($RegRawValue -eq 1) {"Enabled"} else {"Disabled"}
+                }
             }
-            "Registry Key - $($Setting.RegistryPath)" | Out-File $ReportFile -Append
-            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $ReportFile -Append
-            "Registry Value - $RegValue (Raw: $RegRawValue)" | Out-File $ReportFile -Append
+            "Registry Key - $($Setting.RegistryPath)" | Out-File $TempReportFile -Append
+            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $TempReportFile -Append
+            "Registry Value - $RegValue (Raw: $RegRawValue)" | Out-File $TempReportFile -Append
         } catch {
             Write-Log "Error checking registry for $($Setting.SettingName) - $_"
-            "Registry Key - $($Setting.RegistryPath)" | Out-File $ReportFile -Append
-            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $ReportFile -Append
-            "Registry Value - Not set (check failed - $_)" | Out-File $ReportFile -Append
+            "Registry Key - $($Setting.RegistryPath)" | Out-File $TempReportFile -Append
+            "Registry Value Name - $($Setting.RegistryValueName)" | Out-File $TempReportFile -Append
+            "Registry Value - Not set (check failed - $_)" | Out-File $TempReportFile -Append
         }
 
         $ComplianceValue = if ($RegValue -eq "Not set") { $Setting.DefaultValue } else { $RegValue }
-        "Compliance - $(if ($ComplianceValue -eq $Setting.DesiredValue) {'Compliant'} else {'Non-Compliant'})" | Out-File $ReportFile -Append
-        "" | Out-File $ReportFile -Append
+        $Compliance = if ($ComplianceValue -eq $Setting.DesiredValue) {"Compliant"} else {"Non-Compliant"}
+        "Compliance - $Compliance" | Out-File $TempReportFile -Append
+        "" | Out-File $TempReportFile -Append
+        $ComplianceSummary += [PSCustomObject]@{
+            Reference = $Setting.Reference
+            Compliance = $Compliance
+        }
     }
 
     # Network Adapter Settings
-    "=== Network Adapter Settings ===" | Out-File $ReportFile -Append
+    "=== Network Adapter Settings ===" | Out-File $TempReportFile -Append
     Write-Log "Checking network adapter configurations for $Computer"
     try {
         $ActiveAdapters = if ($Computer -eq $env:COMPUTERNAME) {
@@ -671,20 +722,20 @@ foreach ($Computer in $ComputerList) {
 
         if ($ActiveAdapters.Count -eq 0) {
             Write-Log "No active Ethernet adapters found on $Computer"
-            "No active Ethernet adapters detected" | Out-File $ReportFile -Append
-            "" | Out-File $ReportFile -Append
+            "No active Ethernet adapters detected" | Out-File $TempReportFile -Append
+            "" | Out-File $TempReportFile -Append
         } else {
             foreach ($Adapter in $ActiveAdapters) {
-                "Adapter - $($Adapter.Name) ($($Adapter.InterfaceDescription))" | Out-File $ReportFile -Append
+                "Adapter - $($Adapter.Name) ($($Adapter.InterfaceDescription))" | Out-File $TempReportFile -Append
                 $IsDEServer = $Computer -match "DE"
                 $ApplicableSettings = if ($IsDEServer) { $NetworkSettings } else { $NetworkSettings | Where-Object { -not $_.AppliesToDE } }
 
                 foreach ($Setting in $ApplicableSettings) {
                     Write-Log "Checking $($Setting.SettingName) for adapter $($Adapter.Name)"
-                    "Reference - $($Setting.Reference)" | Out-File $ReportFile -Append
-                    "Setting - $($Setting.SettingName)" | Out-File $ReportFile -Append
-                    "Description - $($Setting.Description)" | Out-File $ReportFile -Append
-                    "Desired State - $($Setting.DesiredState)" | Out-File $ReportFile -Append
+                    "Reference - $($Setting.Reference)" | Out-File $TempReportFile -Append
+                    "Setting - $($Setting.SettingName)" | Out-File $TempReportFile -Append
+                    "Description - $($Setting.Description)" | Out-File $TempReportFile -Append
+                    "Desired State - $($Setting.DesiredState)" | Out-File $TempReportFile -Append
 
                     $ProtocolState = "Not found"
                     try {
@@ -696,35 +747,39 @@ foreach ($Computer in $ComputerList) {
                             Invoke-Command @InvokeArgs
                         }
                         $ProtocolState = if ($Binding.Enabled) {"Enabled"} else {"Disabled"}
-                        "Protocol State - $ProtocolState" | Out-File $ReportFile -Append
+                        "Protocol State - $ProtocolState" | Out-File $TempReportFile -Append
                     } catch {
                         Write-Log "Error checking $($Setting.SettingName) for $($Adapter.Name) - $_"
-                        "Protocol State - Not found (check failed - $_)" | Out-File $ReportFile -Append
+                        "Protocol State - Not found (check failed - $_)" | Out-File $TempReportFile -Append
                     }
 
                     $Compliance = if ($ProtocolState -eq $Setting.DesiredState) {"Compliant"} else {"Non-Compliant"}
-                    "Compliance - $Compliance" | Out-File $ReportFile -Append
-                    "" | Out-File $ReportFile -Append
+                    "Compliance - $Compliance" | Out-File $TempReportFile -Append
+                    "" | Out-File $TempReportFile -Append
+                    $ComplianceSummary += [PSCustomObject]@{
+                        Reference = $Setting.Reference
+                        Compliance = $Compliance
+                    }
                 }
             }
         }
     } catch {
         Write-Log "Failed to check network adapter configurations for $Computer - $_"
-        "Error checking network adapter configurations - $_" | Out-File $ReportFile -Append
-        "" | Out-File $ReportFile -Append
+        "Error checking network adapter configurations - $_" | Out-File $TempReportFile -Append
+        "" | Out-File $TempReportFile -Append
     }
 
     # Filesystem Permissions Settings
-    "=== Filesystem Permissions Settings ===" | Out-File $ReportFile -Append
+    "=== Filesystem Permissions Settings ===" | Out-File $TempReportFile -Append
     Write-Log "Checking filesystem auditing permissions for $Computer"
     foreach ($Setting in $FilesystemSettings) {
         Write-Log "Checking $($Setting.SettingName)"
-        "Reference - $($Setting.Reference)" | Out-File $ReportFile -Append
-        "Setting - $($Setting.SettingName)" | Out-File $ReportFile -Append
-        "Description - $($Setting.Description)" | Out-File $ReportFile -Append
-        "Path - $($Setting.Path)" | Out-File $ReportFile -Append
-        "Principal - $($Setting.Principal)" | Out-File $ReportFile -Append
-        "Desired Permissions - $($Setting.DesiredPermissions -join ', ')" | Out-File $ReportFile -Append
+        "Reference - $($Setting.Reference)" | Out-File $TempReportFile -Append
+        "Setting - $($Setting.SettingName)" | Out-File $TempReportFile -Append
+        "Description - $($Setting.Description)" | Out-File $TempReportFile -Append
+        "Path - $($Setting.Path)" | Out-File $TempReportFile -Append
+        "Principal - $($Setting.Principal)" | Out-File $TempReportFile -Append
+        "Desired Permissions - $($Setting.DesiredPermissions -join ', ')" | Out-File $TempReportFile -Append
 
         try {
             $Acl = if ($Computer -eq $env:COMPUTERNAME) {
@@ -748,29 +803,37 @@ foreach ($Computer in $ComputerList) {
             }
 
             if ($ActualPermissions.Count -eq 0) {
-                "Actual Permissions - None found" | Out-File $ReportFile -Append
+                "Actual Permissions - None found" | Out-File $TempReportFile -Append
             } else {
-                "Actual Permissions - $($ActualPermissions -join ', ')" | Out-File $ReportFile -Append
+                "Actual Permissions - $($ActualPermissions -join ', ')" | Out-File $TempReportFile -Append
             }
 
             $MissingPermissions = $Setting.DesiredPermissions | Where-Object { $_ -notin $ActualPermissions }
             $Compliance = if ($MissingPermissions.Count -eq 0 -and $ActualPermissions.Count -ge $Setting.DesiredPermissions.Count) {"Compliant"} else {"Non-Compliant"}
-            "Compliance - $Compliance" | Out-File $ReportFile -Append
-            "" | Out-File $ReportFile -Append
+            "Compliance - $Compliance" | Out-File $TempReportFile -Append
+            "" | Out-File $TempReportFile -Append
+            $ComplianceSummary += [PSCustomObject]@{
+                Reference = $Setting.Reference
+                Compliance = $Compliance
+            }
         } catch {
             Write-Log "Error checking filesystem permissions for $($Setting.SettingName) - $_"
-            "Actual Permissions - Check failed ($_)" | Out-File $ReportFile -Append
-            "Compliance - Non-Compliant (check failed)" | Out-File $ReportFile -Append
-            "" | Out-File $ReportFile -Append
+            "Actual Permissions - Check failed ($_)" | Out-File $TempReportFile -Append
+            "Compliance - Non-Compliant (check failed)" | Out-File $TempReportFile -Append
+            "" | Out-File $TempReportFile -Append
+            $ComplianceSummary += [PSCustomObject]@{
+                Reference = $Setting.Reference
+                Compliance = "Non-Compliant"
+            }
         }
     }
 
     # SSL/TLS Protocol Settings (Consolidated under ISS.2.1.9)
-    "=== SSL/TLS Protocol Settings ===" | Out-File $ReportFile -Append
+    "=== SSL/TLS Protocol Settings ===" | Out-File $TempReportFile -Append
     Write-Log "Checking SSL/TLS protocol settings for $Computer"
-    "Reference - ISS.2.1.9" | Out-File $ReportFile -Append
-    "Setting - Secure SSL/TLS Protocol Configuration" | Out-File $ReportFile -Append
-    "Description - Ensures secure communication protocols by enabling only modern TLS versions (TLSv1.2, TLSv1.3) and disabling deprecated protocols (SSLv2, SSLv3, TLSv1.0, TLSv1.1)." | Out-File $ReportFile -Append
+    "Reference - ISS.2.1.9" | Out-File $TempReportFile -Append
+    "Setting - Secure SSL/TLS Protocol Configuration" | Out-File $TempReportFile -Append
+    "Description - Ensures secure communication protocols by enabling only modern TLS versions (TLSv1.2, TLSv1.3) and disabling deprecated protocols (SSLv2, SSLv3, TLSv1.0, TLSv1.1)." | Out-File $TempReportFile -Append
 
     $SSLResults = @{}
     $IsCompliant = $true
@@ -801,15 +864,25 @@ foreach ($Computer in $ComputerList) {
 
         $ActualState = if ($RegValue -eq "Not set" -and $Setting.Protocol -in @("TLSv1.2", "TLSv1.3")) { "Enabled" } else { $RegValue }
         if ($ActualState -ne $Setting.DesiredState) { $IsCompliant = $false }
+        $ComplianceSummary += [PSCustomObject]@{
+            Reference = "ISS.2.1.9 ($($Setting.Protocol))"
+            Compliance = if ($ActualState -eq $Setting.DesiredState) {"Compliant"} else {"Non-Compliant"}
+        }
     }
 
-    "Desired States - SSLv2: Disabled, SSLv3: Disabled, TLSv1.0: Disabled, TLSv1.1: Disabled, TLSv1.2: Enabled, TLSv1.3: Enabled" | Out-File $ReportFile -Append
-    "Current States:" | Out-File $ReportFile -Append
+    "Desired States - SSLv2: Disabled, SSLv3: Disabled, TLSv1.0: Disabled, TLSv1.1: Disabled, TLSv1.2: Enabled, TLSv1.3: Enabled" | Out-File $TempReportFile -Append
+    "Current States:" | Out-File $TempReportFile -Append
     foreach ($Protocol in $SSLResults.Keys) {
-        "  $Protocol - $($SSLResults[$Protocol])" | Out-File $ReportFile -Append
+        "  $Protocol - $($SSLResults[$Protocol])" | Out-File $TempReportFile -Append
     }
-    "Compliance - $(if ($IsCompliant) {'Compliant'} else {'Non-Compliant'})" | Out-File $ReportFile -Append
-    "" | Out-File $ReportFile -Append
+    "Compliance - $(if ($IsCompliant) {'Compliant'} else {'Non-Compliant'})" | Out-File $TempReportFile -Append
+    "" | Out-File $TempReportFile -Append
+
+    # Generate final report with summary at the top
+    $SummaryContent = Format-ComplianceSummary -SummaryData $ComplianceSummary
+    $DetailedContent = Get-Content $TempReportFile -Raw
+    "System Hardening Audit Report - $Computer - $DateStamp`n`n$SummaryContent$DetailedContent" | Out-File $ReportFile
+    Remove-Item $TempReportFile -Force
 
     Write-Log "Completed audit for $Computer. Report saved to $ReportFile"
 }
