@@ -13,7 +13,6 @@ touch $LOG_FILE
     # Verify sudo privileges
     if ! sudo -v; then
         echo "Error: This script requires sudo privileges." | tee -a $LOG_FILE
-        exit 1
     fi
 
     # Update package lists
@@ -22,7 +21,6 @@ touch $LOG_FILE
         echo "Successfully updated package lists." | tee -a $LOG_FILE
     else
         echo "Error occurred while updating package lists." | tee -a $LOG_FILE
-        exit 1
     fi
 
     # Install prerequisites
@@ -31,7 +29,6 @@ touch $LOG_FILE
         echo "Prerequisites installed successfully." | tee -a $LOG_FILE
     else
         echo "Error installing prerequisites." | tee -a $LOG_FILE
-        exit 1
     fi
 
     # Add Docker's official GPG key
@@ -40,7 +37,6 @@ touch $LOG_FILE
         echo "Docker GPG key added successfully." | tee -a $LOG_FILE
     else
         echo "Error adding Docker GPG key." | tee -a $LOG_FILE
-        exit 1
     fi
 
     # Add Docker repository to APT sources
@@ -50,7 +46,6 @@ touch $LOG_FILE
         echo "Docker repository added and updated successfully." | tee -a $LOG_FILE
     else
         echo "Error updating after adding Docker repository." | tee -a $LOG_FILE
-        exit 1
     fi
 
     # Install Docker
@@ -59,7 +54,6 @@ touch $LOG_FILE
         echo "Docker installed successfully." | tee -a $LOG_FILE
     else
         echo "Error installing Docker." | tee -a $LOG_FILE
-        exit 1
     fi
 
     # Verify Docker installation
@@ -68,7 +62,6 @@ touch $LOG_FILE
         echo "Docker installation verified successfully." | tee -a $LOG_FILE
     else
         echo "Error verifying Docker installation." | tee -a $LOG_FILE
-        exit 1
     fi
 
     # Install Docker Compose
@@ -81,7 +74,6 @@ touch $LOG_FILE
         echo "Docker Compose installed successfully." | tee -a $LOG_FILE
     else
         echo "Error installing Docker Compose." | tee -a $LOG_FILE
-        exit 1
     fi
 
     # Verify Docker Compose installation
@@ -90,7 +82,6 @@ touch $LOG_FILE
         echo "Docker Compose installation verified successfully." | tee -a $LOG_FILE
     else
         echo "Error verifying Docker Compose installation." | tee -a $LOG_FILE
-        exit 1
     fi
 
     echo "Script completed on $(date)" | tee -a $LOG_FILE
