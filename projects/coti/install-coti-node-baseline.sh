@@ -13,102 +13,156 @@ The script performs the following actions:
 - Performs a full system upgrade, removes unnecessary packages, and reboots.
 
 .NOTES
-Version:            1.0
+Version:            1.1
 Author:             Darren Pilkington
-Modification Date:  31-05-2024
+Modification Date:  21-03-2025
 '
 
-# Define the scripts directory
+# Configuration
 SCRIPTS_DIR="/source-files/github/monorepo/scripts/bash/ubuntu"
-
-# Define log file name and directory
+PROJECTS_DIR="/source-files/github/monorepo/projects/coti"
 LOG_DIR="/logs"
 LOG_FILE="$LOG_DIR/server-baseline-$(date '+%Y%m%d').log"
+MIN_DISK_SPACE_MB=1024  # Minimum required disk space in MB
+REBOOT=true  # Default reboot behavior
 
-# Create Logs Directory and Log File
-mkdir -p "$LOG_DIR"
-sudo touch "$LOG_FILE"
+# Cleanup function for unexpected exits
+cleanup() {
+    write_log "Script interrupted - cleaning up"
+    # Add any necessary cleanup steps here
+    exit 1
+}
 
-# Ensure log directory exists
-if [ ! -d "$LOG_DIR" ]; then
-    sudo mkdir -p "$LOG_DIR"
-    echo "Created log directory: ${LOG_DIR}"
-fi
+# Set trap for script interruption
+trap cleanup INT TERM
 
 # Function to write log with timestamp
 write_log() {
     local message="$1"
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | sudo tee -a "$LOG_FILE"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | tee -a "$LOG_FILE"
 }
 
-# Log file location
-LOG_FILE="$LOG_DIR/server-baseline-$(date '+%Y%m%d').log"
+# Check Ubuntu version
+check_ubuntu_version() {
+    if ! lsb_release -d | grep -qi "ubuntu"; then
+        write_log "Error: This script is designed for Ubuntu systems only"
+        exit 1
+    fi
+}
+
+# Check available disk space
+check_disk_space() {
+    local available_space=$(df -m / | tail -1 | awk '{print $4}')
+    if [ "$available_space" -lt "$MIN_DISK_SPACE_MB" ]; then
+        write_log "Error: Insufficient disk space. Required: ${MIN_DISK_SPACE_MB}MB, Available: ${available_space}MB"
+        exit 1
+    fi
+}
+
+# Create log directory and file
+setup_logging() {
+    mkdir -p "$LOG_DIR" || {
+        echo "Error: Cannot create log directory $LOG_DIR" >&2
+        exit 1
+    }
+    touch "$LOG_FILE" || {
+        echo "Error: Cannot create log file $LOG_FILE" >&2
+        exit 1
+    }
+    chmod 664 "$LOG_FILE"
+}
+
+# Main execution
+setup_logging
+write_log "Script started"
+
+# Preliminary checks
+check_ubuntu_version
+if ! sudo -n true 2>/dev/null; then
+    write_log "Error: User requires password for sudo"
+    exit 1
+fi
+check_disk_space
 
 # Disable Cloud-Init
 write_log "Disabling Cloud-Init"
-sudo touch /etc/cloud/cloud-init.disabled
+sudo touch /etc/cloud/cloud-init.disabled || {
+    write_log "Failed to disable Cloud-Init"
+    exit 1
+}
 write_log "Cloud-Init disabled successfully"
 
-{
-    echo "Script started on $(date)"
+# List of configuration scripts
+SCRIPTS_TO_RUN=(
+    "packages/install-webmin.sh"
+    "packages/install-docker.sh"
+    "configuration/extend-disks.sh"
+    "configuration/disable-ipv6.sh"
+    "configuration/dns-default-gateway.sh"
+    "configuration/setup-iptables.sh"
+    "configuration/disable-cloud-init.sh"
+)
 
-    # Verify sudo privileges without password
-    if ! sudo -n true 2>/dev/null; then
-        echo "Error: User does not have sudo privileges or requires a password for sudo."
-        exit 1
-    fi
-
-    # List of scripts to run
-    SCRIPTS_TO_RUN=(
-        "packages/install-webmin.sh"
-        "packages/install-docker.sh"
-        "configuration/extend-disks.sh"
-        "configuration/disable-ipv6.sh"
-        "configuration/dns-default-gateway.sh"
-        "configuration/setup-iptables.sh"
-        "configuration/disable-cloud-init.sh"
-    )
-
-    for script in "${SCRIPTS_TO_RUN[@]}"; do
-        script_path="${SCRIPTS_DIR}/${script}"
-
-        # Check if the script exists
-        if [ -f "$script_path" ]; then
-            echo "Processing $script_path"
-
-            # Change permission
-            echo "Changing permission for $script_path"
-            sudo chmod +x "$script_path"
-
-            # Execute the script
-            echo "Executing $script_path"
-            if sudo "$script_path"; then
-                echo "$script executed successfully."
-            else
-                echo "Error occurred while executing $script."
-                exit 1
-            fi
+# Execute configuration scripts
+for script in "${SCRIPTS_TO_RUN[@]}"; do
+    script_path="${SCRIPTS_DIR}/${script}"
+    if [ -f "$script_path" ]; then
+        write_log "Processing $script_path"
+        sudo chmod +x "$script_path"
+        if sudo "$script_path"; then
+            write_log "$script executed successfully"
         else
-            echo "Script $script_path does not exist."
+            write_log "Error executing $script - Exit code: $?"
+            exit 1
         fi
-    done
+    else
+        write_log "Script $script_path not found"
+    fi
+done
 
-    echo "All specified scripts have been executed."
+# Configure COTI IPTABLES
+if [ -d "$PROJECTS_DIR" ]; then
+    cd "$PROJECTS_DIR"
+    if [ -f "configure-coti-iptables.sh" ]; then
+        write_log "Configuring COTI IPTABLES"
+        sudo chmod +x ./configure-coti-iptables.sh
+        if ./configure-coti-iptables.sh; then
+            write_log "COTI IPTABLES configured successfully"
+        else
+            write_log "COTI IPTABLES configuration failed - Exit code: $?"
+            exit 1
+        fi
+    else
+        write_log "Warning: COTI IPTABLES script not found"
+    fi
+else
+    write_log "Warning: PROJECTS_DIR not found"
+fi
 
-    # Add jammy-updates repository
-    write_log "Ensuring jammy-updates repository is included"
-    sudo add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse"
-    write_log "jammy-updates repository added successfully"
+# System updates
+write_log "Performing system updates"
+if ! sudo add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse"; then
+    write_log "Failed to add jammy-updates repository"
+    exit 1
+fi
 
-    # Install Latest Updates
-    write_log "Updating package lists"
-    sudo DEBIAN_FRONTEND=noninteractive apt update -y
-    sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y
-    sudo DEBIAN_FRONTEND=noninteractive apt autoremove -y
-    sudo DEBIAN_FRONTEND=noninteractive apt autoclean -y
-    write_log "Package lists updated successfully"
+if ! sudo DEBIAN_FRONTEND=noninteractive apt update -y || \
+   ! sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y || \
+   ! sudo DEBIAN_FRONTEND=noninteractive apt autoremove -y || \
+   ! sudo DEBIAN_FRONTEND=noninteractive apt autoclean -y; then
+    write_log "System update failed"
+    exit 1
+fi
+write_log "System updates completed successfully"
 
-    echo "Script completed successfully on $(date). The system will reboot in 5 seconds."
+# Completion and reboot
+write_log "Script completed successfully"
+if [ "$REBOOT" = true ]; then
+    write_log "System will reboot in 5 seconds"
     sleep 5
     sudo reboot
-} 2>&1 | tee -a "$LOG_FILE"
+else
+    write_log "Reboot skipped (REBOOT=false)"
+fi
+
+exit 0
