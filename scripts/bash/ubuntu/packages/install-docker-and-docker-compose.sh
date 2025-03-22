@@ -68,7 +68,7 @@ touch $LOG_FILE
     echo "Installing Docker Compose" | tee -a $LOG_FILE
     # Get the latest version of Docker Compose
     DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
-    if curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; then
+    if sudo curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; then
         # Make it executable
         sudo chmod +x /usr/local/bin/docker-compose
         echo "Docker Compose installed successfully." | tee -a $LOG_FILE
