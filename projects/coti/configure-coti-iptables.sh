@@ -57,7 +57,8 @@ touch "$LOG_FILE"
     echo "Adding rules for TCP ports 8545, 8546, and 7000..."
     sudo iptables -A INPUT -p tcp --dport 8545 -s 0.0.0.0/0 -j ACCEPT
     sudo iptables -A INPUT -p tcp --dport 8546 -s 0.0.0.0/0 -j ACCEPT
-    sudo iptables -A INPUT -p tcp --dport 7000 -s 0.0.0.0/0 -j ACCEPT
+    sudo iptables -A INPUT -p tcp --dport 7400 -s 0.0.0.0/0 -j ACCEPT
+    sudo iptables -A INPUT -p udp --dport 7400 -s 0.0.0.0/0 -j ACCEPT
 
     # Allow ICMP (Ping) from private subnets
     echo "Allowing ICMP from private subnets..."
