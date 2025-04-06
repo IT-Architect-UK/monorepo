@@ -9,7 +9,7 @@ fi
 # Step 0: Add current user to docker group
 CURRENT_USER=$(logname)
 echo "Adding user $CURRENT_USER to docker group..."
-usermod -aG docker "$CURRENT_USER"
+sudo usermod -aG docker "$CURRENT_USER"
 
 # Define variables
 IMAGE_NAME="cardanocommunity/cardano-node:latest"
