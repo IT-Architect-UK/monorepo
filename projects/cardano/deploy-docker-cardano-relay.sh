@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Check if script is run with sudo
-if [ "$EUID" -ne 0 ]; then
-  echo "This script must be run with sudo privileges to modify user groups"
-  exit 1
-fi
-
 # Define variables
 IMAGE_NAME="cardanocommunity/cardano-node:latest"
 CONTAINER_NAME="cardano-relay-node"
