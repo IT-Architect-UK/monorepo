@@ -1,7 +1,17 @@
 #!/bin/bash
 
+# Check if script is run with sudo
+if [ "$EUID" -ne 0 ]; then
+  echo "This script must be run with sudo privileges to modify user groups"
+  exit 1
+fi
+
+# Step 0: Add current user to docker group
+CURRENT_USER=$(logname)
+echo "Adding user $CURRENT_USER to docker group..."
+usermod -aG docker "$CURRENT_USER"
+
 # Define variables
-DATA_DIR="/var/cardano/data"
 IMAGE_NAME="cardanocommunity/cardano-node:latest"
 CONTAINER_NAME="cardano-relay-node"
 LOCAL_VOLUMES="/opt/cardano/cnode"
@@ -10,32 +20,18 @@ LOCAL_VOLUMES="/opt/cardano/cnode"
 echo "Pulling the latest Cardano node image..."
 docker pull $IMAGE_NAME
 
-# Step 2: Create the data directory if it doesn't exist
-echo "Creating data directory at $DATA_DIR..."
-mkdir -p $DATA_DIR
-
-# Step 3: Download mainnet configuration files
-echo "Downloading mainnet configuration files..."
-cd $DATA_DIR
-curl -O https://book.world.dev.cardano.org/environments/mainnet/config.json
-curl -O https://book.world.dev.cardano.org/environments/mainnet/topology.json
-curl -O https://book.world.dev.cardano.org/environments/mainnet/byron-genesis.json
-curl -O https://book.world.dev.cardano.org/environments/mainnet/shelley-genesis.json
-curl -O https://book.world.dev.cardano.org/environments/mainnet/alonzo-genesis.json
-curl -O https://book.world.dev.cardano.org/environments/mainnet/conway-genesis.json
-
-# Step 4: Run the Docker container
+# Step 2: Run the Docker container
 echo "Starting the Cardano relay node container..."
 docker run --init -dit \
---name $CONTAINER_NAME \
---security-opt=no-new-privileges \
--e NETWORK=mainnet \
--p 6000:6000 \
--v /opt/cardano/cnode/priv:/opt/cardano/cnode/priv
--v /opt/cardano/cnode/db:/opt/cardano/cnode/db
-$IMAGE_NAME
+  --name $CONTAINER_NAME \
+  --security-opt=no-new-privileges \
+  -e NETWORK=mainnet \
+  -p 6000:6000 \
+  -v /opt/cardano/cnode/priv:/opt/cardano/cnode/priv \
+  -v /opt/cardano/cnode/db:/opt/cardano/cnode/db \
+  $IMAGE_NAME
 
-# Step 5: Verify the node is running
+# Step 3: Verify the container is running
 echo "Checking if the container is running..."
 if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
   echo "Cardano relay node is running."
@@ -44,8 +40,9 @@ else
   exit 1
 fi
 
-# Step 6: Monitor sync progress (optional, runs in a loop every 60 seconds)
+# Step 4: Monitor sync progress (optional, runs in a loop every 60 seconds)
 echo "Monitoring sync progress (press Ctrl+C to stop)..."
+echo "Note: Docker group changes may require logout/login to take effect for the current session"
 while true; do
   SYNC_PROGRESS=$(docker exec $CONTAINER_NAME cardano-cli query tip --mainnet | grep syncProgress)
   echo "Sync Progress: $SYNC_PROGRESS"
