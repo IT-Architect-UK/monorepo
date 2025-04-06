@@ -92,11 +92,6 @@ sudo touch /etc/cloud/cloud-init.disabled || {
 }
 write_log "Cloud-Init disabled successfully"
 
-# Allow specific TCP ports from any source
-write_log "Adding rules for TCP ports 3001"
-echo "Adding rules for TCP ports 3001..."
-sudo iptables -A INPUT -p tcp --dport 3001 -s 0.0.0.0/0 -j ACCEPT
-
 # List of configuration scripts
 SCRIPTS_TO_RUN=(
     "packages/install-webmin.sh"
@@ -126,13 +121,13 @@ for script in "${SCRIPTS_TO_RUN[@]}"; do
     fi
 done
 
-# Configure cardano IPTABLES
+# Configure Cardano IPTABLES
 if [ -d "$PROJECTS_DIR" ]; then
     cd "$PROJECTS_DIR"
-    if [ -f "configure-cardano-iptables.sh" ]; then
+    if [ -f "configure-cardano-node-iptables.sh" ]; then
         write_log "Configuring cardano IPTABLES"
-        sudo chmod +x ./configure-cardano-iptables.sh
-        if ./configure-cardano-iptables.sh; then
+        sudo chmod +x ./configure-cardano-node-iptables.sh
+        if ./configure-cardano-node-iptables.sh; then
             write_log "cardano IPTABLES configured successfully"
         else
             write_log "cardano IPTABLES configuration failed - Exit code: $?"
