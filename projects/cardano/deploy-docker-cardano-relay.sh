@@ -20,7 +20,9 @@ docker run --init -dit \
   --name $CONTAINER_NAME \
   --security-opt=no-new-privileges \
   -e NETWORK=mainnet \
-  -e CARDANO_NODE_SOCKET_PATH=/opt/cardano/cnode/sockets/node.socket \
+  -e CNODE_HOME=/opt/cardano/cnode \
+  -e CARDANO_NODE_SOCKET_PATH=$CNODE_HOME/sockets/node.socket \
+  -e MITHRIL_DOWNLOAD=Y \
   -e NWMAGIC="" \
   -p 6000:6000 \
   -v $LOCAL_VOLUMES/priv:/opt/cardano/cnode/priv \
