@@ -92,14 +92,20 @@ sudo touch /etc/cloud/cloud-init.disabled || {
 }
 write_log "Cloud-Init disabled successfully"
 
+# Allow specific TCP ports from any source
+write_log "Adding rules for TCP ports 3001"
+echo "Adding rules for TCP ports 3001..."
+sudo iptables -A INPUT -p tcp --dport 3001 -s 0.0.0.0/0 -j ACCEPT
+
 # List of configuration scripts
 SCRIPTS_TO_RUN=(
     "packages/install-webmin.sh"
-    "packages/install-docker-and-docker-compose.sh"
     "configuration/extend-disks.sh"
     "configuration/disable-ipv6.sh"
     "configuration/dns-default-gateway.sh"
     "configuration/setup-iptables.sh"
+    "packages/install-docker-and-docker-compose.sh"
+    "packages/install-portainer-agent.sh"
     "configuration/disable-cloud-init.sh"
 )
 

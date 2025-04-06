@@ -95,11 +95,12 @@ write_log "Cloud-Init disabled successfully"
 # List of configuration scripts
 SCRIPTS_TO_RUN=(
     "packages/install-webmin.sh"
-    "packages/install-docker.sh"
     "configuration/extend-disks.sh"
     "configuration/disable-ipv6.sh"
     "configuration/dns-default-gateway.sh"
     "configuration/setup-iptables.sh"
+    "packages/install-docker-and-docker-compose.sh"
+    "packages/install-portainer-agent.sh"
     "configuration/disable-cloud-init.sh"
 )
 
