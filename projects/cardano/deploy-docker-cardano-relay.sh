@@ -6,11 +6,6 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# Step 0: Add current user to docker group
-CURRENT_USER=$(logname)
-echo "Adding user $CURRENT_USER to docker group..."
-sudo usermod -aG docker "$CURRENT_USER"
-
 # Define variables
 IMAGE_NAME="cardanocommunity/cardano-node:latest"
 CONTAINER_NAME="cardano-relay-node"

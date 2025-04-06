@@ -121,6 +121,11 @@ for script in "${SCRIPTS_TO_RUN[@]}"; do
     fi
 done
 
+# Add current user to docker group
+CURRENT_USER=$(logname)
+echo "Adding user $CURRENT_USER to docker group..."
+sudo usermod -aG docker "$CURRENT_USER"
+
 # Configure Cardano IPTABLES
 if [ -d "$PROJECTS_DIR" ]; then
     cd "$PROJECTS_DIR"
