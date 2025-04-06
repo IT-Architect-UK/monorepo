@@ -4,6 +4,7 @@
 DATA_DIR="/var/cardano/data"
 IMAGE_NAME="cardanocommunity/cardano-node:latest"
 CONTAINER_NAME="cardano-relay-node"
+LOCAL_VOLUMES="/opt/cardano/cnode"
 
 # Step 1: Pull the latest Docker image
 echo "Pulling the latest Cardano node image..."
@@ -25,12 +26,14 @@ curl -O https://book.world.dev.cardano.org/environments/mainnet/conway-genesis.j
 
 # Step 4: Run the Docker container
 echo "Starting the Cardano relay node container..."
-docker run -d \
-  --name $CONTAINER_NAME \
-  -v $DATA_DIR:/opt/cardano/data \
-  -e NETWORK=mainnet \
-  -p 3001:3001 \
-  $IMAGE_NAME
+docker run --init -dit \
+--name $CONTAINER_NAME \
+--security-opt=no-new-privileges \
+-e NETWORK=mainnet \
+-p 6000:6000 \
+-v /opt/cardano/cnode/priv:/opt/cardano/cnode/priv
+-v /opt/cardano/cnode/db:/opt/cardano/cnode/db
+$IMAGE_NAME
 
 # Step 5: Verify the node is running
 echo "Checking if the container is running..."

@@ -54,8 +54,8 @@ touch "$LOG_FILE"
     sudo iptables -A INPUT -p tcp --dport "$SSH_PORT" -j ACCEPT
 
     # Allow specific TCP ports from any source
-    echo "Adding rules for TCP ports 8545, 8546, and 7000..."
-    sudo iptables -A INPUT -p tcp --dport 3001 -s 0.0.0.0/0 -j ACCEPT
+    echo "Adding rules for TCP ports 6000..."
+    sudo iptables -A INPUT -p tcp --dport 6000 -s 0.0.0.0/0 -j ACCEPT
 
     # Allow ICMP (Ping) from private subnets
     echo "Allowing ICMP from private subnets..."
