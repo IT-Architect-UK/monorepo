@@ -142,7 +142,7 @@ sudo usermod -aG docker "$CURRENT_USER"
 if [ -f "$PROJECTS_DIR/guild-deploy-prereqs.sh" ]; then
     write_log "Installing Cardano Guild Prerequisites"
     chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh" 2>/dev/null || sudo chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh"
-    if sudo "$PROJECTS_DIR/guild-deploy-prereqs.sh"; then
+    if "$PROJECTS_DIR/guild-deploy-prereqs.sh"; then
         write_log "Cardano Guild Prerequisites installed successfully"
     else
         write_log "Error installing Cardano Guild Prerequisites - Exit code: $?"
