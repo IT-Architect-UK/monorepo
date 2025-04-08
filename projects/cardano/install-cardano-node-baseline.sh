@@ -96,6 +96,20 @@ if ! sudo -n true 2>/dev/null; then
 fi
 check_disk_space
 
+# Install Cardano Guild Prereqs
+if [ -f "$PROJECTS_DIR/guild-deploy-prereqs.sh" ]; then
+    write_log "Installing Cardano Guild Prerequisites"
+    chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh" 2>/dev/null || sudo chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh"
+    if "$PROJECTS_DIR/guild-deploy-prereqs.sh"; then
+        write_log "Cardano Guild Prerequisites installed successfully"
+    else
+        write_log "Error installing Cardano Guild Prerequisites - Exit code: $?"
+        exit 1
+    fi
+else
+    write_log "Warning: Cardano Guild Prerequisites script not found"
+fi
+
 # Disable Cloud-Init (requires sudo)
 write_log "Disabling Cloud-Init"
 sudo touch /etc/cloud/cloud-init.disabled || {
@@ -137,20 +151,6 @@ done
 CURRENT_USER=$(logname)
 echo "Adding user $CURRENT_USER to docker group..."
 sudo usermod -aG docker "$CURRENT_USER"
-
-# Install Cardano Guild Prereqs
-if [ -f "$PROJECTS_DIR/guild-deploy-prereqs.sh" ]; then
-    write_log "Installing Cardano Guild Prerequisites"
-    chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh" 2>/dev/null || sudo chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh"
-    if "$PROJECTS_DIR/guild-deploy-prereqs.sh"; then
-        write_log "Cardano Guild Prerequisites installed successfully"
-    else
-        write_log "Error installing Cardano Guild Prerequisites - Exit code: $?"
-        exit 1
-    fi
-else
-    write_log "Warning: Cardano Guild Prerequisites script not found"
-fi
 
 # Configure Cardano IPTABLES
 if [ -d "$PROJECTS_DIR" ]; then
