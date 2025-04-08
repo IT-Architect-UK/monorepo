@@ -79,9 +79,6 @@ setup_logging() {
         exit 1
     }
 
-Parece que hubo un corte en el mensaje anterior. Aquí está la continuación del script completo:
-
-```bash
     # Set file permissions
     sudo chown "$USER:$(id -gn)" "$LOG_FILE" 2>/dev/null
     sudo chmod 664 "$LOG_FILE" 2>/dev/null
