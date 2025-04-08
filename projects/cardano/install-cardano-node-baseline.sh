@@ -61,15 +61,16 @@ check_disk_space() {
 
 # Create log directory and file
 setup_logging() {
-    mkdir -p "$LOG_DIR" || {
+    # Only use sudo if directory creation fails due to permissions
+    mkdir -p "$LOG_DIR" 2>/dev/null || sudo mkdir -p "$LOG_DIR" || {
         echo "Error: Cannot create log directory $LOG_DIR" >&2
         exit 1
     }
-    touch "$LOG_FILE" || {
+    touch "$LOG_FILE" 2>/dev/null || sudo touch "$LOG_FILE" || {
         echo "Error: Cannot create log file $LOG_FILE" >&2
         exit 1
     }
-    chmod 664 "$LOG_FILE"
+    chmod 664 "$LOG_FILE" 2>/dev/null || sudo chmod 664 "$LOG_FILE"
 }
 
 # Main execution
@@ -84,7 +85,7 @@ if ! sudo -n true 2>/dev/null; then
 fi
 check_disk_space
 
-# Disable Cloud-Init
+# Disable Cloud-Init (requires sudo)
 write_log "Disabling Cloud-Init"
 sudo touch /etc/cloud/cloud-init.disabled || {
     write_log "Failed to disable Cloud-Init"
@@ -109,7 +110,7 @@ for script in "${SCRIPTS_TO_RUN[@]}"; do
     script_path="${SCRIPTS_DIR}/${script}"
     if [ -f "$script_path" ]; then
         write_log "Processing $script_path"
-        sudo chmod +x "$script_path"
+        chmod +x "$script_path" 2>/dev/null || sudo chmod +x "$script_path"
         if sudo "$script_path"; then
             write_log "$script executed successfully"
         else
@@ -121,7 +122,7 @@ for script in "${SCRIPTS_TO_RUN[@]}"; do
     fi
 done
 
-# Add current user to docker group
+# Add current user to docker group (requires sudo)
 CURRENT_USER=$(logname)
 echo "Adding user $CURRENT_USER to docker group..."
 sudo usermod -aG docker "$CURRENT_USER"
@@ -129,8 +130,8 @@ sudo usermod -aG docker "$CURRENT_USER"
 # Install Cardano Guild Prereqs
 if [ -f "$PROJECTS_DIR/guild-deploy-prereqs.sh" ]; then
     write_log "Installing Cardano Guild Prerequisites"
-    sudo chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh"
-    if sudo "$PROJECTS_DIR/guild-deploy-prereqs.sh"; then
+    chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh" 2>/dev/null || sudo chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh"
+    if "$PROJECTS_DIR/guild-deploy-prereqs.sh"; then
         write_log "Cardano Guild Prerequisites installed successfully"
     else
         write_log "Error installing Cardano Guild Prerequisites - Exit code: $?"
@@ -145,8 +146,8 @@ if [ -d "$PROJECTS_DIR" ]; then
     cd "$PROJECTS_DIR"
     if [ -f "configure-cardano-node-iptables.sh" ]; then
         write_log "Configuring cardano IPTABLES"
-        sudo chmod +x ./configure-cardano-node-iptables.sh
-        if ./configure-cardano-node-iptables.sh; then
+        chmod +x ./configure-cardano-node-iptables.sh 2>/dev/null || sudo chmod +x ./configure-cardano-node-iptables.sh
+        if sudo ./configure-cardano-node-iptables.sh; then  # Assuming this needs sudo based on typical iptables usage
             write_log "cardano IPTABLES configured successfully"
         else
             write_log "cardano IPTABLES configuration failed - Exit code: $?"
@@ -159,7 +160,7 @@ else
     write_log "Warning: PROJECTS_DIR not found"
 fi
 
-# System updates
+# System updates (requires sudo)
 write_log "Performing system updates"
 if ! sudo add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse"; then
     write_log "Failed to add jammy-updates repository"
