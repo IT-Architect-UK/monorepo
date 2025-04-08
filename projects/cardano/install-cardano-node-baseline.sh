@@ -28,8 +28,7 @@ REBOOT=true  # Default reboot behavior
 
 # Cleanup function for unexpected exits
 cleanup() {
-    write_log "Script interrupted - cleaning up"
-    # Add any necessary cleanup steps here
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Script interrupted - cleaning up" >&2
     exit 1
 }
 
@@ -39,7 +38,10 @@ trap cleanup INT TERM
 # Function to write log with timestamp
 write_log() {
     local message="$1"
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | tee -a "$LOG_FILE"
+    # Try to write without sudo, if fails use sudo, if that fails use stderr
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | tee -a "$LOG_FILE" 2>/dev/null || \
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | sudo tee -a "$LOG_FILE" >/dev/null || \
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" >&2
 }
 
 # Check Ubuntu version
@@ -61,16 +63,28 @@ check_disk_space() {
 
 # Create log directory and file
 setup_logging() {
-    # Only use sudo if directory creation fails due to permissions
+    # Try creating directory as user first, then with sudo if needed
     mkdir -p "$LOG_DIR" 2>/dev/null || sudo mkdir -p "$LOG_DIR" || {
         echo "Error: Cannot create log directory $LOG_DIR" >&2
         exit 1
     }
+
+    # Set directory permissions
+    sudo chown "$USER:$(id -gn)" "$LOG_DIR" 2>/dev/null
+    sudo chmod 775 "$LOG_DIR" 2>/dev/null
+
+    # Create log file
     touch "$LOG_FILE" 2>/dev/null || sudo touch "$LOG_FILE" || {
         echo "Error: Cannot create log file $LOG_FILE" >&2
         exit 1
     }
-    chmod 664 "$LOG_FILE" 2>/dev/null || sudo chmod 664 "$LOG_FILE"
+
+Parece que hubo un corte en el mensaje anterior. Aquí está la continuación del script completo:
+
+```bash
+    # Set file permissions
+    sudo chown "$USER:$(id -gn)" "$LOG_FILE" 2>/dev/null
+    sudo chmod 664 "$LOG_FILE" 2>/dev/null
 }
 
 # Main execution
@@ -131,7 +145,7 @@ sudo usermod -aG docker "$CURRENT_USER"
 if [ -f "$PROJECTS_DIR/guild-deploy-prereqs.sh" ]; then
     write_log "Installing Cardano Guild Prerequisites"
     chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh" 2>/dev/null || sudo chmod +x "$PROJECTS_DIR/guild-deploy-prereqs.sh"
-    if "$PROJECTS_DIR/guild-deploy-prereqs.sh"; then
+    if sudo "$PROJECTS_DIR/guild-deploy-prereqs.sh"; then
         write_log "Cardano Guild Prerequisites installed successfully"
     else
         write_log "Error installing Cardano Guild Prerequisites - Exit code: $?"
@@ -147,7 +161,7 @@ if [ -d "$PROJECTS_DIR" ]; then
     if [ -f "configure-cardano-node-iptables.sh" ]; then
         write_log "Configuring cardano IPTABLES"
         chmod +x ./configure-cardano-node-iptables.sh 2>/dev/null || sudo chmod +x ./configure-cardano-node-iptables.sh
-        if sudo ./configure-cardano-node-iptables.sh; then  # Assuming this needs sudo based on typical iptables usage
+        if sudo ./configure-cardano-node-iptables.sh; then
             write_log "cardano IPTABLES configured successfully"
         else
             write_log "cardano IPTABLES configuration failed - Exit code: $?"
