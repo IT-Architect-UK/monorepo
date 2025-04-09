@@ -58,12 +58,7 @@ else
   exit 1
 fi
 
-# Step 5: Adjust permissions inside the container
-echo "Adjusting permissions inside the container for $USER:$GROUP (UID: $GUILD_UID, GID: $GUILD_GID)..."
-docker exec "$CONTAINER_NAME" chown -R "$GUILD_UID:$GUILD_GID" /opt/cardano/cnode
-docker exec "$CONTAINER_NAME" chmod -R 770 /opt/cardano/cnode
-
-# Step 6: Wait for socket to be available
+# Step 5: Wait for socket to be available
 echo "Waiting for node socket to be available (timeout 10 minutes)..."
 TIMEOUT=600
 ELAPSED=0
@@ -81,7 +76,7 @@ until docker exec "$CONTAINER_NAME" test -S "$SOCKET_PATH"; do
 done
 echo "Node socket is available."
 
-# Step 7: Wait for container to become healthy
+# Step 6: Wait for container to become healthy
 echo "Waiting for container to become healthy (timeout 5 minutes)..."
 TIMEOUT=300
 ELAPSED=0
@@ -96,11 +91,3 @@ until [ "$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME)" 
   ELAPSED=$((ELAPSED + 10))
 done
 echo "Container is healthy."
-
-# Step 8: Monitor sync progress (optional, runs in a loop every 60 seconds)
-echo "Monitoring sync progress (press Ctrl+C to stop)..."
-while true; do
-  SYNC_PROGRESS=$(docker exec "$CONTAINER_NAME" cardano-cli query tip --mainnet --socket-path "$SOCKET_PATH" | grep syncProgress)
-  echo "Sync Progress: $SYNC_PROGRESS"
-  sleep 60
-done
