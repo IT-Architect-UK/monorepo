@@ -9,8 +9,8 @@ USER="guild"
 GROUP="guild"
 
 # Get UID and GID of the guild user
-UID=$(id -u "$USER")
-GID=$(id -g "$GROUP")
+GUILD_UID=$(id -u "$USER")
+GUILD_GID=$(id -g "$GROUP")
 
 # Step 0: Ensure proper permissions on the local volumes
 echo "Setting permissions for $LOCAL_VOLUMES..."
@@ -31,12 +31,11 @@ docker pull "$IMAGE_NAME"
 docker stop "$CONTAINER_NAME" 2>/dev/null
 docker rm "$CONTAINER_NAME" 2>/dev/null
 
-# Step 3: Run the Docker container with matching UID/GID
+# Step 3: Run the Docker container (as root, default behavior)
 echo "Starting the Cardano relay node container..."
 docker run --init -dit \
   --name "$CONTAINER_NAME" \
   --security-opt=no-new-privileges \
-  --user "$UID:$GID" \
   -e NETWORK=mainnet \
   -e CNODE_HOME=/opt/cardano/cnode \
   -e CARDANO_NODE_SOCKET_PATH="$CNODE_HOME/sockets/node.socket" \
@@ -59,7 +58,12 @@ else
   exit 1
 fi
 
-# Step 5: Wait for socket to be available
+# Step 5: Adjust permissions inside the container
+echo "Adjusting permissions inside the container for $USER:$GROUP (UID: $GUILD_UID, GID: $GUILD_GID)..."
+docker exec "$CONTAINER_NAME" chown -R "$GUILD_UID:$GUILD_GID" /opt/cardano/cnode
+docker exec "$CONTAINER_NAME" chmod -R 770 /opt/cardano/cnode
+
+# Step 6: Wait for socket to be available
 echo "Waiting for node socket to be available (timeout 10 minutes)..."
 TIMEOUT=600
 ELAPSED=0
@@ -77,7 +81,7 @@ until docker exec "$CONTAINER_NAME" test -S "$SOCKET_PATH"; do
 done
 echo "Node socket is available."
 
-# Step 6: Wait for container to become healthy
+# Step 7: Wait for container to become healthy
 echo "Waiting for container to become healthy (timeout 5 minutes)..."
 TIMEOUT=300
 ELAPSED=0
@@ -93,7 +97,7 @@ until [ "$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME)" 
 done
 echo "Container is healthy."
 
-# Step 7: Monitor sync progress (optional, runs in a loop every 60 seconds)
+# Step 8: Monitor sync progress (optional, runs in a loop every 60 seconds)
 echo "Monitoring sync progress (press Ctrl+C to stop)..."
 while true; do
   SYNC_PROGRESS=$(docker exec "$CONTAINER_NAME" cardano-cli query tip --mainnet --socket-path "$SOCKET_PATH" | grep syncProgress)
