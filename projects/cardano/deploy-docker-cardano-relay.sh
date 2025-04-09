@@ -53,25 +53,7 @@ else
   exit 1
 fi
 
-# Step 5: Wait for socket to be available
-echo "Waiting for node socket to be available (timeout 10 minutes)..."
-TIMEOUT=600
-ELAPSED=0
-until docker exec "$CONTAINER_NAME" test -S "$SOCKET_PATH"; do
-  if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-    echo "Timeout waiting for socket. Check logs for details:"
-    docker logs "$CONTAINER_NAME"
-    echo "Checking running processes:"
-    docker exec "$CONTAINER_NAME" ps aux
-    exit 1
-  fi
-  echo "Socket not ready yet, waiting 10 seconds... (Elapsed: $ELAPSED seconds)"
-  sleep 10
-  ELAPSED=$((ELAPSED + 10))
-done
-echo "Node socket is available."
-
-# Step 6: Wait for container to become healthy
+# Step 5: Wait for container to become healthy
 echo "Waiting for container to become healthy (timeout 5 minutes)..."
 TIMEOUT=300
 ELAPSED=0
