@@ -8,6 +8,10 @@ SOCKET_PATH="/opt/cardano/cnode/sockets/node.socket"
 USER="guild"
 GROUP="guild"
 
+# Get UID and GID of the guild user
+UID=$(id -u "$USER")
+GID=$(id -g "$GROUP")
+
 # Step 0: Ensure proper permissions on the local volumes
 echo "Setting permissions for $LOCAL_VOLUMES..."
 if [ ! -d "$LOCAL_VOLUMES" ]; then
@@ -27,11 +31,12 @@ docker pull "$IMAGE_NAME"
 docker stop "$CONTAINER_NAME" 2>/dev/null
 docker rm "$CONTAINER_NAME" 2>/dev/null
 
-# Step 3: Run the Docker container
+# Step 3: Run the Docker container with matching UID/GID
 echo "Starting the Cardano relay node container..."
 docker run --init -dit \
   --name "$CONTAINER_NAME" \
   --security-opt=no-new-privileges \
+  --user "$UID:$GID" \
   -e NETWORK=mainnet \
   -e CNODE_HOME=/opt/cardano/cnode \
   -e CARDANO_NODE_SOCKET_PATH="$CNODE_HOME/sockets/node.socket" \
