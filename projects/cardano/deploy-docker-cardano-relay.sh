@@ -37,14 +37,9 @@ docker run --init -dit \
   --name "$CONTAINER_NAME" \
   --security-opt=no-new-privileges \
   -e NETWORK=mainnet \
-  -e CNODE_HOME=/opt/cardano/cnode \
-  -e CARDANO_NODE_SOCKET_PATH="$CNODE_HOME/sockets/node.socket" \
   -e MITHRIL_DOWNLOAD=Y \
-  -e NWMAGIC="" \
   -p 6000:6000 \
   -v "$LOCAL_VOLUMES/priv:/opt/cardano/cnode/priv" \
-  -v "$LOCAL_VOLUMES/db:/opt/cardano/cnode/db" \
-  -v "$LOCAL_VOLUMES/sockets:/opt/cardano/cnode/sockets" \
   -v "$LOCAL_VOLUMES/files:/opt/cardano/cnode/files" \
   "$IMAGE_NAME"
 
