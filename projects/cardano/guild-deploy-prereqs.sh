@@ -2,6 +2,7 @@
 
 # Use existing user (no user creation steps)
 echo "Using current user: $USER"
+cd "${HOME}" || { echo 'Failed to change directory to HOME'; exit 1; }
 
 # Install curl (still requires sudo privileges)
 sudo apt -y install curl || { echo 'Failed to install curl'; exit 1; }
