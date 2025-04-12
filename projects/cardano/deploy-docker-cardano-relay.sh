@@ -19,9 +19,9 @@ if [ ! -d "$LOCAL_VOLUMES" ]; then
   sudo mkdir -p "$LOCAL_VOLUMES/priv" "$LOCAL_VOLUMES/db" "$LOCAL_VOLUMES/sockets" "$LOCAL_VOLUMES/files"
 fi
 
-# Change ownership to guild:guild and set full permissions
+# Change ownership to guild:guild and set permissions
 sudo chown -R "$USER:$GROUP" "$LOCAL_VOLUMES"
-sudo chmod -R 770 "$LOCAL_VOLUMES"
+sudo chmod -R u=rwX,g=rwX,o= "$LOCAL_VOLUMES"  # Equivalent to 770 but more explicit
 
 # Step 1: Pull the latest Docker image
 echo "Pulling the latest Cardano node image..."
@@ -31,15 +31,18 @@ docker pull "$IMAGE_NAME"
 docker stop "$CONTAINER_NAME" 2>/dev/null
 docker rm "$CONTAINER_NAME" 2>/dev/null
 
-# Step 3: Run the Docker container (as root, default behavior)
+# Step 3: Run the Docker container as guild user
 echo "Starting the Cardano relay node container..."
 docker run --init -dit \
   --name "$CONTAINER_NAME" \
   --security-opt=no-new-privileges \
+  -u "$GUILD_UID:$GUILD_GID" \
   -e NETWORK=mainnet \
   -e MITHRIL_DOWNLOAD=Y \
   -p 6000:6000 \
   -v "$LOCAL_VOLUMES/priv:/opt/cardano/cnode/priv" \
+  -v "$LOCAL_VOLUMES/db:/opt/cardano/cnode/db" \
+  -v "$LOCAL_VOLUMES/sockets:/opt/cardano/cnode/sockets" \
   -v "$LOCAL_VOLUMES/files:/opt/cardano/cnode/files" \
   "$IMAGE_NAME"
 
@@ -47,7 +50,7 @@ docker run --init -dit \
 echo "Checking if the container is running..."
 if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
   echo "Cardano relay node is running. Initial logs:"
-  docker logs "$CONTAINER_NAME"
+  docker logs "$CONTAINER_NAME" --tail 20
 else
   echo "Failed to start the container. Check logs with 'docker logs $CONTAINER_NAME'."
   exit 1
@@ -60,7 +63,7 @@ ELAPSED=0
 until [ "$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME)" == "healthy" ]; do
   if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
     echo "Timeout waiting for container to become healthy. Check logs:"
-    docker logs "$CONTAINER_NAME"
+    docker logs "$CONTAINER_NAME" --tail 50
     exit 1
   fi
   echo "Container not healthy yet, waiting 10 seconds... (Elapsed: $ELAPSED seconds)"
@@ -68,3 +71,5 @@ until [ "$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME)" 
   ELAPSED=$((ELAPSED + 10))
 done
 echo "Container is healthy."
+
+exit 0
