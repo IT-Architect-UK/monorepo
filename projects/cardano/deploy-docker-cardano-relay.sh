@@ -21,7 +21,7 @@ fi
 
 # Change ownership to guild:guild and set permissions
 sudo chown -R "$USER:$GROUP" "$LOCAL_VOLUMES"
-sudo chmod -R u=rwX,g=rwX,o= "$LOCAL_VOLUMES"  # Equivalent to 770 but more explicit
+sudo chmod -R u=rwX,g=rwX,o= "$LOCAL_VOLUMES"
 
 # Step 1: Pull the latest Docker image
 echo "Pulling the latest Cardano node image..."
@@ -31,7 +31,7 @@ docker pull "$IMAGE_NAME"
 docker stop "$CONTAINER_NAME" 2>/dev/null
 docker rm "$CONTAINER_NAME" 2>/dev/null
 
-# Step 3: Run the Docker container as guild user
+# Step 3: Run the Docker container as guild user with permission fix
 echo "Starting the Cardano relay node container..."
 docker run --init -dit \
   --name "$CONTAINER_NAME" \
@@ -44,7 +44,8 @@ docker run --init -dit \
   -v "$LOCAL_VOLUMES/db:/opt/cardano/cnode/db" \
   -v "$LOCAL_VOLUMES/sockets:/opt/cardano/cnode/sockets" \
   -v "$LOCAL_VOLUMES/files:/opt/cardano/cnode/files" \
-  "$IMAGE_NAME"
+  "$IMAGE_NAME" \
+  /bin/bash -c "chmod +x /home/guild/entrypoint.sh && /home/guild/entrypoint.sh"
 
 # Step 4: Verify the container is running
 echo "Checking if the container is running..."
