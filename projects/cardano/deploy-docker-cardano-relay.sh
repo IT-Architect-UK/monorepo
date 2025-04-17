@@ -42,10 +42,8 @@ docker run --init -dit \
   -p 6000:6000 \
   -v "$LOCAL_VOLUMES/priv:/opt/cardano/cnode/priv" \
   -v "$LOCAL_VOLUMES/db:/opt/cardano/cnode/db" \
-  -v "$LOCAL_VOLUMES/sockets:/opt/cardano/cnode/sockets" \
-  -v "$LOCAL_VOLUMES/files:/opt/cardano/cnode/files" \
-  "$IMAGE_NAME" \
-  /bin/bash -c "chmod +x /home/guild/entrypoint.sh && /home/guild/entrypoint.sh"
+  "$IMAGE_NAME"
+
 
 # Step 4: Verify the container is running
 echo "Checking if the container is running..."
