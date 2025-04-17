@@ -1,74 +1,84 @@
 #!/bin/bash
 
-# Define variables
-IMAGE_NAME="cardanocommunity/cardano-node:latest"
-CONTAINER_NAME="cardano-relay-node"
-LOCAL_VOLUMES="/opt/cardano/cnode"
-SOCKET_PATH="/opt/cardano/cnode/sockets/node.socket"
-USER="guild"
-GROUP="guild"
+# This script deploys a Cardano node and Prometheus using Docker on Ubuntu 24.
+# It also configures IPTABLES to allow inbound traffic on port 3001 for the Cardano node.
 
-# Get UID and GID of the guild user
-GUILD_UID=$(id -u "$USER")
-GUILD_GID=$(id -g "$GROUP")
-
-# Step 0: Ensure proper permissions on the local volumes
-echo "Setting permissions for $LOCAL_VOLUMES..."
-if [ ! -d "$LOCAL_VOLUMES" ]; then
-  echo "Directory $LOCAL_VOLUMES does not exist, creating it..."
-  sudo mkdir -p "$LOCAL_VOLUMES/priv" "$LOCAL_VOLUMES/db" "$LOCAL_VOLUMES/sockets" "$LOCAL_VOLUMES/files"
-fi
-
-# Change ownership to guild:guild and set permissions
-sudo chown -R "$USER:$GROUP" "$LOCAL_VOLUMES"
-sudo chmod -R u=rwX,g=rwX,o= "$LOCAL_VOLUMES"
-
-# Step 1: Pull the latest Docker image
-echo "Pulling the latest Cardano node image..."
-docker pull "$IMAGE_NAME"
-
-# Step 2: Stop and remove any existing container
-docker stop "$CONTAINER_NAME" 2>/dev/null
-docker rm "$CONTAINER_NAME" 2>/dev/null
-
-# Step 3: Run the Docker container as guild user with permission fix
-echo "Starting the Cardano relay node container..."
-docker run --init -dit \
-  --name "$CONTAINER_NAME" \
-  --security-opt=no-new-privileges \
-  -u "$GUILD_UID:$GUILD_GID" \
-  -e NETWORK=mainnet \
-  -e MITHRIL_DOWNLOAD=Y \
-  -p 6000:6000 \
-  -v "$LOCAL_VOLUMES/priv:/opt/cardano/cnode/priv" \
-  -v "$LOCAL_VOLUMES/db:/opt/cardano/cnode/db" \
-  "$IMAGE_NAME"
-
-
-# Step 4: Verify the container is running
-echo "Checking if the container is running..."
-if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
-  echo "Cardano relay node is running. Initial logs:"
-  docker logs "$CONTAINER_NAME" --tail 20
-else
-  echo "Failed to start the container. Check logs with 'docker logs $CONTAINER_NAME'."
+# Ensure the script is run with sudo
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run this script with sudo."
   exit 1
 fi
 
-# Step 5: Wait for container to become healthy
-echo "Waiting for container to become healthy (timeout 5 minutes)..."
-TIMEOUT=300
-ELAPSED=0
-until [ "$(docker inspect --format='{{.State.Health.Status}}' $CONTAINER_NAME)" == "healthy" ]; do
-  if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-    echo "Timeout waiting for container to become healthy. Check logs:"
-    docker logs "$CONTAINER_NAME" --tail 50
-    exit 1
+# Configure IPTABLES for Cardano node
+echo "Configuring IPTABLES..."
+if ! dpkg -s iptables-persistent > /dev/null 2>&1; then
+  echo "iptables-persistent is not installed. Installing and configuring..."
+  # Add the IPTABLES rule for Cardano node
+  iptables -A INPUT -p tcp --dport 3001 -j ACCEPT
+  # Set debconf selections to autosave rules
+  echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
+  echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
+  # Install iptables-persistent
+  apt-get install -y iptables-persistent
+else
+  echo "iptables-persistent is already installed."
+  # Check if the rule already exists
+  if ! iptables -C INPUT -p tcp --dport 3001 -j ACCEPT > /dev/null 2>&1; then
+    echo "Adding IPTABLES rule for port 3001..."
+    iptables -A INPUT -p tcp --dport 3001 -j ACCEPT
+    # Save the rules
+    netfilter-persistent save
+  else
+    echo "IPTABLES rule for port 3001 already exists."
   fi
-  echo "Container not healthy yet, waiting 10 seconds... (Elapsed: $ELAPSED seconds)"
-  sleep 10
-  ELAPSED=$((ELAPSED + 10))
-done
-echo "Container is healthy."
+fi
 
-exit 0
+# Pull the Cardano node Docker image
+echo "Pulling Cardano node Docker image..."
+docker pull ghcr.io/blinklabs-io/cardano-node
+
+# Create Docker volumes for Cardano data and IPC
+echo "Creating Docker volumes..."
+docker volume create cardano-data
+docker volume create cardano-ipc
+
+# Create a Docker network for the containers
+echo "Creating Docker network..."
+docker network create cardano-network
+
+# Run the Cardano node container with Mithril enabled for faster initial download
+echo "Running Cardano node container..."
+docker run --detach --name cardano-node \
+  --network cardano-network \
+  -e NETWORK=mainnet \
+  -v cardano-data:/opt/cardano/data \
+  -v cardano-ipc:/opt/cardano/ipc \
+  -p 3001:3001 \
+  -p 12798:12798 \
+  ghcr.io/blinklabs-io/cardano-node
+
+# Pull the Prometheus Docker image for monitoring
+echo "Pulling Prometheus Docker image..."
+docker pull prom/prometheus
+
+# Create a prometheus.yml configuration file to scrape metrics from the Cardano node
+echo "Creating Prometheus configuration..."
+cat <<EOF > prometheus.yml
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: 'cardano-node'
+    static_configs:
+      - targets: ['cardano-node:12798']
+EOF
+
+# Run the Prometheus container
+echo "Running Prometheus container..."
+docker run --detach --name prometheus \
+  --network cardano-network \
+  -v $(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml \
+  -p 9090:9090 \
+  prom/prometheus
+
+echo "Cardano node and Prometheus are running."
+echo "Access Prometheus at http://localhost:9090"
