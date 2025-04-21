@@ -119,12 +119,10 @@ echo "Configuring MOTD with company name: $company_name..."
 cat << EOF | sudo tee /etc/update-motd.d/00-header
 #!/bin/sh
 printf "\\033[${color_code};40m"
+printf " \\n"
+printf " \\n"
 printf "Welcome to %s\\n\\n" "$company_name"
-printf "*****************************************************\\n"
-printf "* WARNING: Unauthorized access is prohibited.        *\\n"
-printf "* All activities are monitored and logged.           *\\n"
-printf "*****************************************************\\n"
-printf "\\033[m"
+printf " \\n"
 EOF
 sudo chmod +x /etc/update-motd.d/00-header
 
