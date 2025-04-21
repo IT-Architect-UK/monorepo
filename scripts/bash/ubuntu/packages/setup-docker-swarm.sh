@@ -5,6 +5,9 @@
 # prompting for the number of hosts, node role, host FQDNs, and private subnet. It sets up IPTABLES firewall rules
 # to secure Swarm communication and logs all actions to /logs/setup-docker-swarm-YYYYMMDD.log.
 # Prerequisites: Docker installed, sudo privileges, DNS-resolvable FQDNs for all nodes.
+# Note on node availability: The manager node must be online when workers join, but not all nodes need to be online
+# when initializing the manager or joining as workers. Offline nodes can join later using the same join token.
+# Firewall note: Uses a dedicated DOCKER-SWARM chain to preserve existing iptables rules, ensuring SSH connectivity is not disrupted.
 
 # Define log file name
 # Note: The log file is timestamped to avoid overwrites and stored in /logs for centralized logging.
@@ -77,20 +80,28 @@ touch $LOG_FILE
     echo "This node's FQDN is $THIS_HOST" | tee -a $LOG_FILE
 
     # Configure IPTABLES firewall rules
-    # Note: Sets up a secure firewall configuration to allow only necessary traffic for Docker Swarm.
-    # Clears existing rules, allows established connections, loopback, SSH, Swarm ports, and ICMP, then drops all else.
-    echo "Configuring IPTABLES firewall rules" | tee -a $LOG_FILE
-    sudo iptables -F
-    sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-    sudo iptables -A INPUT -i lo -j ACCEPT
-    sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
-    sudo iptables -A INPUT -p tcp --dport 2377 -j ACCEPT
-    sudo iptables -A INPUT -p tcp --dport 7946 -j ACCEPT
-    sudo iptables -A INPUT -p udp --dport 7946 -j ACCEPT
-    sudo iptables -A INPUT -p udp --dport 4789 -j ACCEPT
-    sudo iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
-    sudo iptables -A INPUT -j DROP
-    # Note: Saves rules to /etc/iptables/rules.v4 for persistence (requires iptables-persistent package).
+    # Note: Creates a new chain for Docker Swarm rules to avoid modifying existing rules.
+    # This ensures existing SSH rules are preserved while adding necessary Swarm ports.
+    echo "Configuring IPTABLES firewall rules for Docker Swarm" | tee -a $LOG_FILE
+
+    # Create a new chain for Docker Swarm rules
+    sudo iptables -N DOCKER-SWARM 2>/dev/null || true
+    # Flush only the DOCKER-SWARM chain to avoid affecting other rules
+    sudo iptables -F DOCKER-SWARM
+    # Add the DOCKER-SWARM chain to INPUT if not already present
+    sudo iptables -C INPUT -j DOCKER-SWARM 2>/dev/null || sudo iptables -A INPUT -j DOCKER-SWARM
+
+    # Add rules to the DOCKER-SWARM chain
+    sudo iptables -A DOCKER-SWARM -m state --state ESTABLISHED,RELATED -j ACCEPT
+    sudo iptables -A DOCKER-SWARM -i lo -j ACCEPT
+    sudo iptables -A DOCKER-SWARM -p tcp --dport 2377 -j ACCEPT
+    sudo iptables -A DOCKER-SWARM -p tcp --dport 7946 -j ACCEPT
+    sudo iptables -A DOCKER-SWARM -p udp --dport 7946 -j ACCEPT
+    sudo iptables -A DOCKER-SWARM -p udp --dport 4789 -j ACCEPT
+    sudo iptables -A DOCKER-SWARM -p icmp --icmp-type echo-request -j ACCEPT
+    # Note: No DROP rule in DOCKER-SWARM chain to avoid interfering with existing rules
+
+    # Save rules to /etc/iptables/rules.v4 for persistence
     if sudo iptables-save > /etc/iptables/rules.v4; then
         echo "IPTABLES rules saved successfully." | tee -a $LOG_FILE
     else
