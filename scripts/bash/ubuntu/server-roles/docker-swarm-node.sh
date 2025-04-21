@@ -68,6 +68,8 @@ write_log "Cloud-Init disabled successfully"
         "configuration/disable-cloud-init.sh"
         "packages/install-docker-and-docker-compose.sh"
         "packages/install-portainer-agent.sh"
+        "packages/apply-branding.sh"
+        "packages/mount-nfs-volume.sh"
     )
 
     for script in "${SCRIPTS_TO_RUN[@]}"; do
