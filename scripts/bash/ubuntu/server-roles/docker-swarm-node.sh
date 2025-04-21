@@ -69,6 +69,7 @@ write_log "Cloud-Init disabled successfully"
         "configuration/disable-cloud-init.sh"
         "configuration/mount-nfs-volume.sh"
         "packages/install-docker-and-docker-compose.sh"
+        "packages/setup-docker-swarm.sh"
     )
 
     for script in "${SCRIPTS_TO_RUN[@]}"; do
