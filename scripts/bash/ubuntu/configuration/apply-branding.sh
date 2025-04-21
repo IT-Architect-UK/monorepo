@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to brand an Ubuntu server with custom company name and console text color for all users
+# Script to brand an Ubuntu 24.04 server with custom company name and console text color for all users
 
 # Default values
 DEFAULT_COMPANY="Love Nodes"
@@ -32,11 +32,18 @@ show_colors() {
     done
 }
 
-# Prompt with countdown
-echo "You have 5 seconds to specify custom options (press Enter to skip and use defaults)."
+# Prompt with visible countdown
+echo "You have 5 seconds to press any key to modify variables (or wait for defaults)."
 echo "Default company name: $DEFAULT_COMPANY"
 echo "Default text color: $DEFAULT_COLOR"
-read -t 5 -p "Press Enter to continue with defaults or type 'custom' to specify options: " choice
+for i in 5 4 3 2 1; do
+    echo -n "$i... "
+    if read -t 1 -n 1; then
+        choice="custom"
+        break
+    fi
+done
+echo ""
 
 if [ "$choice" = "custom" ]; then
     # Prompt for company name
@@ -116,10 +123,17 @@ else
     sudo sed -i 's|^#*Banner.*|Banner /etc/issue|' /etc/ssh/sshd_config
 fi
 
-# Restart SSH service to apply changes
-sudo systemctl restart sshd
+# Step 5: Restart SSH service (handle both ssh and sshd)
+echo "Restarting SSH service..."
+if systemctl is-active --quiet ssh.service; then
+    sudo systemctl restart ssh.service
+elif systemctl is-active --quiet sshd.service; then
+    sudo systemctl restart sshd.service
+else
+    echo "Warning: No SSH service (ssh or sshd) found. Skipping restart."
+fi
 
-# Step 5: Notify user
+# Step 6: Notify user
 echo "Branding complete!"
 echo "Company name: $company_name"
 echo "Text color: $text_color"
