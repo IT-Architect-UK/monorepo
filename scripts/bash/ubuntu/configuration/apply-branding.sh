@@ -12,7 +12,7 @@ COLORS=(
     ["Red"]="31"
     ["Green"]="32"
     ["Yellow"]="33"
-    ["Blue"]="34"
+    ["BLUE"]="34"
     ["Magenta"]="35"
     ["Cyan"]="36"
     ["White"]="37"
@@ -88,7 +88,8 @@ echo "Applying color settings to the current session..."
 export PS1="\[\e[${color_code};40m\]\u@\h:\w\$ \[\e[m\]"
 echo -e "\033[${color_code};40m"
 
-# Step 2: Configure login prompt with company name and warning (/etc/issue.net for SSH)
+# Step 2: Configure login prompt with company name and warning
+# /etc/issue.net for SSH (clean, no escape codes)
 echo "Configuring SSH login banner with company name: $company_name..."
 cat << EOF | sudo tee /etc/issue.net
 Welcome to $company_name
@@ -100,7 +101,7 @@ Welcome to $company_name
 *****************************************************
 EOF
 
-# Configure /etc/issue for console logins (includes \l for login prompt)
+# /etc/issue for console logins (includes \l for login prompt)
 cat << EOF | sudo tee /etc/issue
 Welcome to $company_name
 
@@ -113,15 +114,17 @@ Welcome to $company_name
 \l
 EOF
 
-# Step 3: Configure MOTD for post-login welcome
+# Step 3: Configure MOTD for post-login welcome with yellow text
 echo "Configuring MOTD with company name: $company_name..."
 cat << EOF | sudo tee /etc/update-motd.d/00-header
 #!/bin/sh
-printf "Welcome to %s\n\n" "$company_name"
-printf "*****************************************************\n"
-printf "* WARNING: Unauthorized access is prohibited.        *\n"
-printf "* All activities are monitored and logged.           *\n"
-printf "*****************************************************\n"
+printf "\\033[${color_code};40m"
+printf "Welcome to %s\\n\\n" "$company_name"
+printf "*****************************************************\\n"
+printf "* WARNING: Unauthorized access is prohibited.        *\\n"
+printf "* All activities are monitored and logged.           *\\n"
+printf "*****************************************************\\n"
+printf "\\033[m"
 EOF
 sudo chmod +x /etc/update-motd.d/00-header
 
@@ -129,12 +132,19 @@ sudo chmod +x /etc/update-motd.d/00-header
 sudo chmod -x /etc/update-motd.d/* 2>/dev/null || true
 sudo chmod +x /etc/update-motd.d/00-header
 
-# Step 4: Ensure SSH displays the login banner
+# Step 4: Ensure SSH displays the login banner cleanly
 echo "Configuring SSH to display the login banner..."
 if ! grep -q "^Banner" /etc/ssh/sshd_config; then
     echo "Banner /etc/issue.net" | sudo tee -a /etc/ssh/sshd_config
 else
     sudo sed -i 's|^#*Banner.*|Banner /etc/issue.net|' /etc/ssh/sshd_config
+fi
+
+# Disable MOTD banner to avoid duplication
+if ! grep -q "^PrintMotd" /etc/ssh/sshd_config; then
+    echo "PrintMotd no" | sudo tee -a /etc/ssh/sshd_config
+else
+    sudo sed -i 's|^#*PrintMotd.*|PrintMotd no|' /etc/ssh/sshd_config
 fi
 
 # Step 5: Restart SSH service (handle both ssh and sshd)
