@@ -60,6 +60,7 @@ write_log "Cloud-Init disabled successfully"
 
     # List of scripts to run
     SCRIPTS_TO_RUN=(
+        "configuration/apply-branding.sh"
         "packages/install-webmin.sh"
         "configuration/extend-disks.sh"
         "configuration/disable-ipv6.sh"
@@ -68,7 +69,6 @@ write_log "Cloud-Init disabled successfully"
         "configuration/disable-cloud-init.sh"
         "configuration/mount-nfs-volume.sh"
         "packages/install-docker-and-docker-compose.sh"
-        "configuration/apply-branding.sh"
     )
 
     for script in "${SCRIPTS_TO_RUN[@]}"; do
