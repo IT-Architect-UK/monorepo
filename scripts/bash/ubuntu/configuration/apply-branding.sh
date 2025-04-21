@@ -33,9 +33,10 @@ show_colors() {
 }
 
 # Prompt with visible countdown
-echo "You have 5 seconds to press any key to modify variables (or wait for defaults)."
+echo "Press any key within 5 seconds to specify custom company name and text color."
 echo "Default company name: $DEFAULT_COMPANY"
 echo "Default text color: $DEFAULT_COLOR"
+echo -n "Starting in: "
 for i in 5 4 3 2 1; do
     echo -n "$i... "
     if read -t 1 -n 1; then
@@ -82,8 +83,24 @@ cat << EOF | sudo tee -a /etc/bash.bashrc
 export PS1='\\[\e[${color_code};40m\\]\\u@\\h:\\w\\\$ \\[\e[m\\]'
 EOF
 
-# Step 2: Configure login prompt with company name and warning (/etc/issue)
-echo "Configuring login prompt with company name: $company_name..."
+# Apply color settings to the current session
+echo "Applying color settings to the current session..."
+export PS1="\[\e[${color_code};40m\]\u@\h:\w\$ \[\e[m\]"
+echo -e "\033[${color_code};40m"
+
+# Step 2: Configure login prompt with company name and warning (/etc/issue.net for SSH)
+echo "Configuring SSH login banner with company name: $company_name..."
+cat << EOF | sudo tee /etc/issue.net
+Welcome to $company_name
+
+*****************************************************
+* WARNING: Unauthorized access to this system is     *
+* prohibited and may result in legal action.         *
+* All activities are monitored and logged.           *
+*****************************************************
+EOF
+
+# Configure /etc/issue for console logins (includes \l for login prompt)
 cat << EOF | sudo tee /etc/issue
 Welcome to $company_name
 
@@ -100,27 +117,24 @@ EOF
 echo "Configuring MOTD with company name: $company_name..."
 cat << EOF | sudo tee /etc/update-motd.d/00-header
 #!/bin/sh
-echo -e "\\033[${color_code};40m"
-echo "Welcome to $company_name"
-echo ""
-echo "*****************************************************"
-echo "* WARNING: Unauthorized access is prohibited.        *"
-echo "* All activities are monitored and logged.           *"
-echo "*****************************************************"
-echo -e "\\033[m"
+printf "Welcome to %s\n\n" "$company_name"
+printf "*****************************************************\n"
+printf "* WARNING: Unauthorized access is prohibited.        *\n"
+printf "* All activities are monitored and logged.           *\n"
+printf "*****************************************************\n"
 EOF
 sudo chmod +x /etc/update-motd.d/00-header
 
-# Disable other MOTD scripts to keep it clean
+# Disable other MOTD scripts to prevent duplication
 sudo chmod -x /etc/update-motd.d/* 2>/dev/null || true
 sudo chmod +x /etc/update-motd.d/00-header
 
 # Step 4: Ensure SSH displays the login banner
 echo "Configuring SSH to display the login banner..."
 if ! grep -q "^Banner" /etc/ssh/sshd_config; then
-    echo "Banner /etc/issue" | sudo tee -a /etc/ssh/sshd_config
+    echo "Banner /etc/issue.net" | sudo tee -a /etc/ssh/sshd_config
 else
-    sudo sed -i 's|^#*Banner.*|Banner /etc/issue|' /etc/ssh/sshd_config
+    sudo sed -i 's|^#*Banner.*|Banner /etc/issue.net|' /etc/ssh/sshd_config
 fi
 
 # Step 5: Restart SSH service (handle both ssh and sshd)
@@ -137,5 +151,5 @@ fi
 echo "Branding complete!"
 echo "Company name: $company_name"
 echo "Text color: $text_color"
-echo "Changes applied for all users."
-echo "Please log out and log back in (via console or SSH) to verify the new branding."
+echo "Changes applied for all users and current session."
+echo "Verify the new branding via console or SSH login."
