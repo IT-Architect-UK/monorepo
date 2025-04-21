@@ -5,13 +5,13 @@
 # Purpose:
 #   This script automates the process of mounting an NFS (Network File System) share
 #   on an Ubuntu system. It checks for required dependencies, validates user-provided
-#   or hardcoded NFS server details, creates a local mount point, mounts the NFS share,
-#   and optionally adds the mount to /etc/fstab for persistence across reboots.
+#   NFS server details, creates a local mount point, mounts the NFS share, and
+#   optionally adds the mount to /etc/fstab for persistence across reboots.
 #
 # Usage:
-#   1. Update the hardcoded NFS_HOST, NFS_PATH, and MOUNT_POINT variables below to
-#      match your NFS server configuration.
-#   2. Run the script with root privileges: `sudo ./nfs_mount.sh`
+#   1. Run the script with root privileges: `sudo ./nfs_mount.sh`
+#   2. Follow the prompts to enter the NFS server hostname/IP, export path, and
+#      local mount point.
 #   3. Check the log file (/var/log/nfs_mount.log) and terminal output for status
 #      messages and errors.
 #
@@ -29,7 +29,7 @@
 #   - Ensure the NFS server is configured to allow mounts from this client (check
 #     /etc/exports on the server).
 #   - The script uses NFS version 4 by default (vers=4).
-#   - Modify hardcoded values as needed or revert to interactive prompts if desired.
+#   - Input is validated to prevent empty or invalid values.
 
 # Log file setup
 LOG_FILE="/var/log/nfs_mount.log"
@@ -58,9 +58,11 @@ if ! dpkg -l | grep -q nfs-common; then
     fi
 fi
 
-# Define NFS server details (replace with your values)
-NFS_HOST="192.168.1.100"  # Replace with your NFS server IP/hostname
-log_message "Using NFS server: $NFS_HOST"
+# Prompt for NFS server hostname
+echo "Enter the NFS server hostname or IP address" > /dev/tty
+echo "Example: nfs-server.example.com or 192.168.1.100" > /dev/tty
+read -p "NFS Server: " NFS_HOST < /dev/tty
+log_message "User entered NFS server: $NFS_HOST"
 
 # Validate hostname/IP
 if [[ -z "$NFS_HOST" ]]; then
@@ -69,9 +71,11 @@ if [[ -z "$NFS_HOST" ]]; then
     exit 1
 fi
 
-# Define NFS export path
-NFS_PATH="/export/data"  # Replace with your NFS export path
-log_message "Using NFS path: $NFS_PATH"
+# Prompt for NFS export path
+echo "Enter the NFS export path" > /dev/tty
+echo "Example: /export/data or /nfs/share" > /dev/tty
+read -p "NFS Path: " NFS_PATH < /dev/tty
+log_message "User entered NFS path: $NFS_PATH"
 
 # Validate NFS path
 if [[ -z "$NFS_PATH" || ! "$NFS_PATH" =~ ^/.* ]]; then
@@ -80,9 +84,11 @@ if [[ -z "$NFS_PATH" || ! "$NFS_PATH" =~ ^/.* ]]; then
     exit 1
 fi
 
-# Define local mount point
-MOUNT_POINT="/mnt/nfs"  # Replace with your mount point
-log_message "Using mount point: $MOUNT_POINT"
+# Prompt for local mount point
+echo "Enter the local mount point directory" > /dev/tty
+echo "Example: /mnt/nfs or /data" > /dev/tty
+read -p "Mount Point: " MOUNT_POINT < /dev/tty
+log_message "User entered mount point: $MOUNT_POINT"
 
 # Validate and create mount point
 if [[ -z "$MOUNT_POINT" || ! "$MOUNT_POINT" =~ ^/.* ]]; then
