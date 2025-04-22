@@ -2,9 +2,10 @@
 
 # Introduction (within script comments):
 # This script configures a Docker Swarm cluster on Ubuntu servers, supporting a mix of manager and worker nodes.
-# It detects if the node is the first manager (leader) and initializes the Swarm, pausing to share manager and worker join tokens.
-# For subsequent nodes, it joins the existing Swarm using the appropriate token (manager or worker).
+# It prompts the user to specify if the node is the first manager (leader) or joining an existing Swarm cluster.
 # If the node is already part of a Swarm, it prompts to leave before joining the new cluster.
+# For the first manager, it initializes the Swarm and pauses to share manager and worker join tokens.
+# For other nodes, it joins the existing Swarm using the provided leader FQDN and join token (manager or worker).
 # It sets up IPTABLES firewall rules to secure Swarm communication and logs all actions to /home/$USER/logs/setup-docker-swarm-YYYYMMDD.log or /logs if writable.
 # Prerequisites: Docker installed, sudo privileges, DNS-resolvable FQDNs for all nodes.
 # Enhanced error handling for Docker permissions, DNS resolution, Swarm membership, and join validation.
@@ -136,28 +137,36 @@ fi
         echo "Error saving IPTABLES rules." | tee -a "$LOG_FILE"
     fi
 
-    # Check if this is the first manager (leader)
-    # Note: Attempts to initialize the Swarm; if it fails, assumes the node should join an existing Swarm.
-    echo "Checking if this is the first manager node..." | tee -a "$LOG_FILE"
-    MANAGER_IP=$(dig +short $THIS_HOST)
-    if [ -z "$MANAGER_IP" ]; then
-        echo "Error: Could not resolve IP for $THIS_HOST." | tee -a "$LOG_FILE"
-        exit 1
-    fi
-    if docker swarm init --advertise-addr "$MANAGER_IP" --default-addr-pool "$DOCKER_SUBNET" > /tmp/swarm-init.out 2>&1; then
-        echo "Docker Swarm initialized successfully on first manager ($THIS_HOST)." | tee -a "$LOG_FILE"
-        MANAGER_TOKEN=$(docker swarm join-token -q manager)
-        WORKER_TOKEN=$(docker swarm join-token -q worker)
-        echo "Manager join token: $MANAGER_TOKEN" | tee -a "$LOG_FILE"
-        echo "Worker join token: $WORKER_TOKEN" | tee -a "$LOG_FILE"
-        echo "Run the following commands on other nodes to join the swarm:" | tee -a "$LOG_FILE"
-        echo "For manager nodes: docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377" | tee -a "$LOG_FILE"
-        echo "For worker nodes: docker swarm join --token $WORKER_TOKEN $MANAGER_IP:2377" | tee -a "$LOG_FILE"
-        echo "Press Enter to continue after copying the tokens..."
-        read -r
+    # Prompt if this is the first manager or joining an existing Swarm
+    # Note: Determines whether to initialize a new Swarm or join an existing one.
+    echo "Is this the first manager node (leader) of the Swarm? (y/n)"
+    read IS_FIRST_MANAGER
+    if [ "$IS_FIRST_MANAGER" = "y" ] || [ "$IS_FIRST_MANAGER" = "Y" ]; then
+        # Initialize Swarm on first manager
+        echo "Initializing Docker Swarm on first manager ($THIS_HOST)" | tee -a "$LOG_FILE"
+        MANAGER_IP=$(dig +short $THIS_HOST)
+        if [ -z "$MANAGER_IP" ]; then
+            echo "Error: Could not resolve IP for $THIS_HOST." | tee -a "$LOG_FILE"
+            exit 1
+        fi
+        if docker swarm init --advertise-addr "$MANAGER_IP" --default-addr-pool "$DOCKER_SUBNET" > /tmp/swarm-init.out 2>&1; then
+            echo "Docker Swarm initialized successfully." | tee -a "$LOG_FILE"
+            MANAGER_TOKEN=$(docker swarm join-token -q manager)
+            WORKER_TOKEN=$(docker swarm join-token -q worker)
+            echo "Manager join token: $MANAGER_TOKEN" | tee -a "$LOG_FILE"
+            echo "Worker join token: $WORKER_TOKEN" | tee -a "$LOG_FILE"
+            echo "Run the following commands on other nodes to join the swarm:" | tee -a "$LOG_FILE"
+            echo "For manager nodes: docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377" | tee -a "$LOG_FILE"
+            echo "For worker nodes: docker swarm join --token $WORKER_TOKEN $MANAGER_IP:2377" | tee -a "$LOG_FILE"
+            echo "Press Enter to continue after copying the tokens..."
+            read -r
+        else
+            echo "Error initializing Docker Swarm." | tee -a "$LOG_FILE"
+            cat /tmp/swarm-init.out | tee -a "$LOG_FILE"
+            exit 1
+        fi
     else
-        echo "Swarm initialization failed, assuming this node should join an existing Swarm." | tee -a "$LOG_FILE"
-        cat /tmp/swarm-init.out | tee -a "$LOG_FILE"
+        # Join an existing Swarm
         if [ "$NODE_ROLE" = "manager" ]; then
             echo "Joining Docker Swarm as manager node ($THIS_HOST)" | tee -a "$LOG_FILE"
             echo "Enter the leader node's FQDN (e.g., POSLXPDSWARM01):"
