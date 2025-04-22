@@ -1,97 +1,128 @@
 #!/bin/bash
 
 # Introduction (within script comments):
-# This script configures a Docker Swarm cluster on Ubuntu servers. It supports both manager and worker nodes,
-# prompting for the number of hosts, node role, host FQDNs, and private subnet. It sets up IPTABLES firewall rules
-# to secure Swarm communication and logs all actions to /logs/setup-docker-swarm-YYYYMMDD.log.
+# This script configures a Docker Swarm cluster on Ubuntu servers, supporting a mix of manager and worker nodes.
+# It detects if the node is the first manager (leader) and initializes the Swarm, pausing to share manager and worker join tokens.
+# For subsequent nodes, it joins the existing Swarm using the appropriate token (manager or worker).
+# If the node is already part of a Swarm, it prompts to leave before joining the new cluster.
+# It sets up IPTABLES firewall rules to secure Swarm communication and logs all actions to /home/$USER/logs/setup-docker-swarm-YYYYMMDD.log or /logs if writable.
 # Prerequisites: Docker installed, sudo privileges, DNS-resolvable FQDNs for all nodes.
-# Note on node availability: The manager node must be online when workers join, but not all nodes need to be online
-# when initializing the manager or joining as workers. Offline nodes can join later using the same join token.
-# Firewall note: Uses a dedicated DOCKER-SWARM chain to preserve existing iptables rules, ensuring SSH connectivity is not disrupted.
+# Enhanced error handling for Docker permissions, DNS resolution, Swarm membership, and join validation.
 
 # Define log file name
-# Note: The log file is timestamped to avoid overwrites and stored in /logs for centralized logging.
-LOG_FILE="/logs/setup-docker-swarm-$(date '+%Y%m%d').log"
+# Note: Uses /home/$USER/logs as fallback if /logs is not writable.
+LOG_DIR="/logs"
+FALLBACK_LOG_DIR="/home/$USER/logs"
+LOG_FILE="$LOG_DIR/setup-docker-swarm-$(date '+%Y%m%d').log"
 
-# Create Logs Directory and Log File
-# Note: Ensures the /logs directory exists and creates the log file if it doesn't. This allows tracking of all script actions.
-mkdir -p /logs
-touch $LOG_FILE
+# Check and set log directory
+# Note: Ensures the log directory is writable, falling back to user’s home directory if needed.
+if ! mkdir -p "$LOG_DIR" 2>/dev/null || ! touch "$LOG_FILE" 2>/dev/null; then
+    echo "Warning: Cannot write to $LOG_DIR. Using $FALLBACK_LOG_DIR instead." | tee /dev/stderr
+    LOG_DIR="$FALLBACK_LOG_DIR"
+    LOG_FILE="$LOG_DIR/setup-docker-swarm-$(date '+%Y%m%d').log"
+    mkdir -p "$LOG_DIR" || { echo "Error: Cannot create $LOG_DIR."; exit 1; }
+    touch "$LOG_FILE" || { echo "Error: Cannot create $LOG_FILE."; exit 1; }
+fi
 
 {
-    echo "Script started on $(date)" | tee -a $LOG_FILE
+    echo "Script started on $(date)" | tee -a "$LOG_FILE"
 
     # Verify sudo privileges
-    # Note: Checks if the user has sudo access, as many operations (e.g., iptables, Docker commands) require elevated privileges.
+    # Note: Checks if the user has sudo access for iptables and Docker commands.
     if ! sudo -v; then
-        echo "Error: This script requires sudo privileges." | tee -a $LOG_FILE
+        echo "Error: This script requires sudo privileges." | tee -a "$LOG_FILE"
         exit 1
     fi
 
     # Verify Docker is installed
-    # Note: Ensures Docker is installed and available, as the script depends on Docker commands for Swarm setup.
+    # Note: Ensures Docker is installed and available.
     if ! command -v docker &> /dev/null; then
-        echo "Error: Docker is not installed. Please install Docker first." | tee -a $LOG_FILE
+        echo "Error: Docker is not installed. Please install Docker first." | tee -a "$LOG_FILE"
         exit 1
+    fi
+
+    # Check Docker daemon access
+    # Note: Verifies the user can access the Docker daemon without sudo.
+    if ! docker info &> /dev/null; then
+        echo "Error: Cannot access Docker daemon. Ensure you are in the 'docker' group or run with sudo." | tee -a "$LOG_FILE"
+        echo "To add yourself to the docker group, run: sudo usermod -aG docker $USER && newgrp docker" | tee -a "$LOG_FILE"
+        echo "Alternatively, re-run the script with sudo: sudo $0" | tee -a "$LOG_FILE"
+        exit 1
+    fi
+
+    # Check if node is already in a Swarm
+    # Note: Prompts to leave if the node is part of an existing Swarm.
+    SWARM_STATE=$(docker info --format '{{.Swarm.LocalNodeState}}')
+    if [ "$SWARM_STATE" = "active" ]; then
+        echo "Warning: This node is already part of a Swarm (state: $SWARM_STATE)." | tee -a "$LOG_FILE"
+        docker node ls | tee -a "$LOG_FILE"
+        echo "Do you want to leave the current Swarm and join a new one? (y/n)"
+        read LEAVE_SWARM
+        if [ "$LEAVE_SWARM" = "y" ] || [ "$LEAVE_SWARM" = "Y" ]; then
+            if docker swarm leave --force > /tmp/swarm-leave.out 2>&1; then
+                echo "Successfully left the current Swarm." | tee -a "$LOG_FILE"
+            else
+                echo "Error leaving the current Swarm." | tee -a "$LOG_FILE"
+                cat /tmp/swarm-leave.out | tee -a "$LOG_FILE"
+                exit 1
+            fi
+        else
+            echo "Exiting without modifying Swarm membership." | tee -a "$LOG_FILE"
+            exit 0
+        fi
     fi
 
     # Prompt for cluster configuration
-    # Note: Collects the total number of hosts in the cluster to validate the number of FQDNs provided later.
+    # Note: Collects the total number of hosts in the cluster.
     echo "Enter the number of hosts in the Docker Swarm cluster:"
     read NUM_HOSTS
     if ! [[ "$NUM_HOSTS" =~ ^[0-9]+$ ]] || [ "$NUM_HOSTS" -lt 1 ]; then
-        echo "Error: Invalid number of hosts." | tee -a $LOG_FILE
+        echo "Error: Invalid number of hosts." | tee -a "$LOG_FILE"
         exit 1
     fi
 
-    # Note: Prompts for the role of the current node (manager or worker) to determine the Swarm setup logic.
+    # Prompt for node role
+    # Note: Supports both manager and worker roles.
     echo "Enter the role of this node (manager/worker):"
     read NODE_ROLE
     if [[ "$NODE_ROLE" != "manager" && "$NODE_ROLE" != "worker" ]]; then
-        echo "Error: Role must be 'manager' or 'worker'." | tee -a $LOG_FILE
+        echo "Error: Role must be 'manager' or 'worker'." | tee -a "$LOG_FILE"
         exit 1
     fi
 
     # Collect hostnames
-    # Note: Gathers FQDNs for all nodes to ensure proper identification and communication.
-    # Validates DNS resolution for each FQDN to catch potential network issues early.
+    # Note: Gathers FQDNs for all nodes and validates DNS resolution.
     HOSTS=()
     echo "Enter the FQDNs of all hosts in the cluster (one per line, $NUM_HOSTS total):"
     for ((i=1; i<=NUM_HOSTS; i++)); do
         read HOST
         HOSTS+=("$HOST")
         if ! ping -c 1 "$HOST" &> /dev/null; then
-            echo "Warning: Could not resolve $HOST via DNS." | tee -a $LOG_FILE
+            echo "Warning: Could not resolve $HOST via DNS. This may cause join failures." | tee -a "$LOG_FILE"
         fi
     done
 
-    # Prompt for private subnet for Docker Swarm
-    # Note: Requests a private subnet (e.g., 10.20.0.0/16) for Docker Swarm’s overlay network to avoid IP conflicts.
+    # Prompt for private subnet
+    # Note: Requests a private subnet for Docker Swarm’s overlay network.
     echo "Enter the private subnet for Docker Swarm (e.g., 10.20.0.0/16):"
     read DOCKER_SUBNET
     if ! [[ "$DOCKER_SUBNET" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}$ ]]; then
-        echo "Error: Invalid subnet format." | tee -a $LOG_FILE
+        echo "Error: Invalid subnet format." | tee -a "$LOG_FILE"
         exit 1
     fi
 
     # Get this node's FQDN
-    # Note: Retrieves the current node’s FQDN to identify it within the cluster and for manager IP resolution.
+    # Note: Retrieves the current node’s FQDN for identification.
     THIS_HOST=$(hostname -f)
-    echo "This node's FQDN is $THIS_HOST" | tee -a $LOG_FILE
+    echo "This node's FQDN is $THIS_HOST" | tee -a "$LOG_FILE"
 
     # Configure IPTABLES firewall rules
-    # Note: Creates a new chain for Docker Swarm rules to avoid modifying existing rules.
-    # This ensures existing SSH rules are preserved while adding necessary Swarm ports.
-    echo "Configuring IPTABLES firewall rules for Docker Swarm" | tee -a $LOG_FILE
-
-    # Create a new chain for Docker Swarm rules
+    # Note: Creates a new chain for Docker Swarm rules to preserve existing rules.
+    echo "Configuring IPTABLES firewall rules for Docker Swarm" | tee -a "$LOG_FILE"
     sudo iptables -N DOCKER-SWARM 2>/dev/null || true
-    # Flush only the DOCKER-SWARM chain to avoid affecting other rules
     sudo iptables -F DOCKER-SWARM
-    # Add the DOCKER-SWARM chain to INPUT if not already present
     sudo iptables -C INPUT -j DOCKER-SWARM 2>/dev/null || sudo iptables -A INPUT -j DOCKER-SWARM
-
-    # Add rules to the DOCKER-SWARM chain
     sudo iptables -A DOCKER-SWARM -m state --state ESTABLISHED,RELATED -j ACCEPT
     sudo iptables -A DOCKER-SWARM -i lo -j ACCEPT
     sudo iptables -A DOCKER-SWARM -p tcp --dport 2377 -j ACCEPT
@@ -99,70 +130,76 @@ touch $LOG_FILE
     sudo iptables -A DOCKER-SWARM -p udp --dport 7946 -j ACCEPT
     sudo iptables -A DOCKER-SWARM -p udp --dport 4789 -j ACCEPT
     sudo iptables -A DOCKER-SWARM -p icmp --icmp-type echo-request -j ACCEPT
-    # Note: No DROP rule in DOCKER-SWARM chain to avoid interfering with existing rules
-
-    # Save rules to /etc/iptables/rules.v4 for persistence
     if sudo iptables-save > /etc/iptables/rules.v4; then
-        echo "IPTABLES rules saved successfully." | tee -a $LOG_FILE
+        echo "IPTABLES rules saved successfully." | tee -a "$LOG_FILE"
     else
-        echo "Error saving IPTABLES rules." | tee -a $LOG_FILE
+        echo "Error saving IPTABLES rules." | tee -a "$LOG_FILE"
     fi
 
-    # Configure Docker Swarm
-    if [ "$NODE_ROLE" = "manager" ]; then
-        # Note: For the manager node, initializes the Swarm with the specified subnet and the node’s IP.
-        echo "Initializing Docker Swarm on manager node" | tee -a $LOG_FILE
-        MANAGER_IP=$(dig +short $THIS_HOST)
-        if [ -z "$MANAGER_IP" ]; then
-            echo "Error: Could not resolve IP for $THIS_HOST." | tee -a $LOG_FILE
-            exit 1
-        fi
-        # Note: Initializes Swarm and captures output for debugging. Outputs the worker join token for use on other nodes.
-        if docker swarm init --advertise-addr "$MANAGER_IP" --default-addr-pool "$DOCKER_SUBNET" > /tmp/swarm-init.out 2>&1; then
-            echo "Docker Swarm initialized successfully." | tee -a $LOG_FILE
-            JOIN_TOKEN=$(docker swarm join-token -q worker)
-            echo "Worker join token: $JOIN_TOKEN" | tee -a $LOG_FILE
-            echo "Run the following command on worker nodes to join the swarm:" | tee -a $LOG_FILE
-            echo "docker swarm join --token $JOIN_TOKEN $MANAGER_IP:2377" | tee -a $LOG_FILE
-        else
-            echo "Error initializing Docker Swarm." | tee -a $LOG_FILE
-            cat /tmp/swarm-init.out | tee -a $LOG_FILE
-            exit 1
-        fi
+    # Check if this is the first manager (leader)
+    # Note: Attempts to initialize the Swarm; if it fails, assumes the node should join an existing Swarm.
+    echo "Checking if this is the first manager node..." | tee -a "$LOG_FILE"
+    MANAGER_IP=$(dig +short $THIS_HOST)
+    if [ -z "$MANAGER_IP" ]; then
+        echo "Error: Could not resolve IP for $THIS_HOST." | tee -a "$LOG_FILE"
+        exit 1
+    fi
+    if docker swarm init --advertise-addr "$MANAGER_IP" --default-addr-pool "$DOCKER_SUBNET" > /tmp/swarm-init.out 2>&1; then
+        echo "Docker Swarm initialized successfully on first manager ($THIS_HOST)." | tee -a "$LOG_FILE"
+        MANAGER_TOKEN=$(docker swarm join-token -q manager)
+        WORKER_TOKEN=$(docker swarm join-token -q worker)
+        echo "Manager join token: $MANAGER_TOKEN" | tee -a "$LOG_FILE"
+        echo "Worker join token: $WORKER_TOKEN" | tee -a "$LOG_FILE"
+        echo "Run the following commands on other nodes to join the swarm:" | tee -a "$LOG_FILE"
+        echo "For manager nodes: docker swarm join --token $MANAGER_TOKEN $MANAGER_IP:2377" | tee -a "$LOG_FILE"
+        echo "For worker nodes: docker swarm join --token $WORKER_TOKEN $MANAGER_IP:2377" | tee -a "$LOG_FILE"
+        echo "Press Enter to continue after copying the tokens..."
+        read -r
     else
-        # Note: For worker nodes, prompts for the manager’s FQDN and join token to join the Swarm.
-        echo "Joining Docker Swarm as worker node" | tee -a $LOG_FILE
-        echo "Enter the manager node's FQDN:"
-        read MANAGER_FQDN
-        MANAGER_IP=$(dig +short $MANAGER_FQDN)
-        if [ -z "$MANAGER_IP" ]; then
-            echo "Error: Could not resolve IP for $MANAGER_FQDN." | tee -a $LOG_FILE
-            exit 1
+        echo "Swarm initialization failed, assuming this node should join an existing Swarm." | tee -a "$LOG_FILE"
+        cat /tmp/swarm-init.out | tee -a "$LOG_FILE"
+        if [ "$NODE_ROLE" = "manager" ]; then
+            echo "Joining Docker Swarm as manager node ($THIS_HOST)" | tee -a "$LOG_FILE"
+            echo "Enter the leader node's FQDN (e.g., POSLXPDSWARM01):"
+            read MANAGER_FQDN
+            MANAGER_IP=$(dig +short $MANAGER_FQDN)
+            if [ -z "$MANAGER_IP" ]; then
+                echo "Error: Could not resolve IP for $MANAGER_FQDN." | tee -a "$LOG_FILE"
+                exit 1
+            fi
+            echo "Enter the manager join token:"
+            read JOIN_TOKEN
+        else
+            echo "Joining Docker Swarm as worker node ($THIS_HOST)" | tee -a "$LOG_FILE"
+            echo "Enter the leader node's FQDN (e.g., POSLXPDSWARM01):"
+            read MANAGER_FQDN
+            MANAGER_IP=$(dig +short $MANAGER_FQDN)
+            if [ -z "$MANAGER_IP" ]; then
+                echo "Error: Could not resolve IP for $MANAGER_FQDN." | tee -a "$LOG_FILE"
+                exit 1
+            fi
+            echo "Enter the worker join token:"
+            read JOIN_TOKEN
         fi
-        echo "Enter the worker join token:"
-        read JOIN_TOKEN
-        # Note: Attempts to join the Swarm and logs the result for debugging.
         if docker swarm join --token "$JOIN_TOKEN" "$MANAGER_IP:2377" > /tmp/swarm-join.out 2>&1; then
-            echo "Successfully joined Docker Swarm as worker." | tee -a $LOG_FILE
+            echo "Successfully joined Docker Swarm as $NODE_ROLE." | tee -a "$LOG_FILE"
         else
-            echo "Error joining Docker Swarm." | tee -a $LOG_FILE
-            cat /tmp/swarm-join.out | tee -a $LOG_FILE
+            echo "Error joining Docker Swarm." | tee -a "$LOG_FILE"
+            cat /tmp/swarm-join.out | tee -a "$LOG_FILE"
             exit 1
         fi
     fi
 
-    # Verify Swarm status (on manager only)
-    # Note: On the manager node, lists all nodes in the Swarm to confirm the cluster is operational.
-    if [ "$NODE_ROLE" = "manager" ]; then
-        echo "Verifying Swarm status" | tee -a $LOG_FILE
-        if docker node ls > /tmp/swarm-status.out 2>&1; then
-            echo "Swarm status:" | tee -a $LOG_FILE
-            cat /tmp/swarm-status.out | tee -a $LOG_FILE
-        else
-            echo "Error retrieving Swarm status." | tee -a $LOG_FILE
-            cat /tmp/swarm-status.out | tee -a $LOG_FILE
-        fi
+    # Verify Swarm status
+    # Note: Lists all nodes to confirm the cluster is operational (if manager).
+    echo "Verifying Swarm status" | tee -a "$LOG_FILE"
+    if docker node ls > /tmp/swarm-status.out 2>&1; then
+        echo "Swarm status:" | tee -a "$LOG_FILE"
+        cat /tmp/swarm-status.out | tee -a "$LOG_FILE"
+    else
+        echo "Warning: Cannot retrieve Swarm status (not a manager or not fully joined?)." | tee -a "$LOG_FILE"
+        cat /tmp/swarm-status.out | tee -a "$LOG_FILE"
     fi
 
-    echo "Script completed on $(date)" | tee -a $LOG_FILE
-} 2>&1 | tee -a $LOG_FILE
+    echo "Script completed on $(date)" | tee -a "$LOG_FILE"
+} 2>&1 | tee -a "$LOG_FILE"
