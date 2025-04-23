@@ -1,3 +1,4 @@
+```bash
 #!/bin/bash
 
 # Introduction
@@ -6,7 +7,10 @@
 # - Offers to remove or upgrade existing versions
 # - Installs the specified version of Vault
 # - Configures logging for all operations
-# - Provides user notification on how to access Vault
+# - Configures firewall rules for web interface access (port 80 or 443)
+# - Supports HTTPS with self-signed certificate option
+# - Offers to initialize Vault in production mode
+# - Prompts for FQDN and provides access URL
 # - Is designed for reliability and ease of use in a GitHub repository
 
 # Variables (modify these as needed)
@@ -16,6 +20,13 @@ LOG_FILE="/var/log/vault_install.log"  # Log file location
 VAULT_ZIP="vault_${VAULT_VERSION}_linux_amd64.zip"  # Vault zip file name
 VAULT_URL="https://releases.hashicorp.com/vault/${VAULT_VERSION}/${VAULT_ZIP}"  # Download URL
 TEMP_DIR="/tmp/vault_install"  # Temporary directory for installation
+VAULT_CONFIG_DIR="/etc/vault.d"  # Vault configuration directory
+VAULT_DATA_DIR="/opt/vault/data"  # Vault data directory
+VAULT_CONFIG_FILE="$VAULT_CONFIG_DIR/vault.hcl"  # Vault configuration file
+VAULT_USER="vault"  # Vault service user
+CERT_DIR="/etc/vault.d/certs"  # Directory for TLS certificates
+CERT_FILE="$CERT_DIR/vault.crt"  # Certificate file
+KEY_FILE="$CERT_DIR/vault.key"  # Key file
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")"
@@ -41,7 +52,7 @@ log "Starting Vault installation script"
 
 # Check for required dependencies
 log "Checking for required dependencies"
-for cmd in curl unzip jq; do
+for cmd in curl unzip jq ufw openssl; do
     if ! command -v "$cmd" &> /dev/null; then
         log "Installing $cmd"
         apt-get update && apt-get install -y "$cmd" || error_exit "Failed to install $cmd"
@@ -108,6 +119,162 @@ install_vault() {
     rm -rf "$TEMP_DIR" || log "Warning: Failed to clean up temporary directory"
 }
 
+# Configure Vault user and directories
+configure_vault_user() {
+    log "Configuring Vault user and directories"
+    if ! id "$VAULT_USER" &>/dev/null; then
+        useradd -r -s /bin/false "$VAULT_USER" || error_exit "Failed to create Vault user"
+    fi
+    mkdir -p "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" "$CERT_DIR" || error_exit "Failed to create Vault directories"
+    chown -R "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" "$CERT_DIR" || error_exit "Failed to set Vault directory permissions"
+}
+
+# Prompt for protocol and port
+prompt_for_protocol() {
+    log "Prompting for protocol and port"
+    echo "Select the protocol for Vault web interface:"
+    echo "1) HTTPS (port 443, recommended for production)"
+    echo "2) HTTP (port 80)"
+    read -p "Select an option [1-2]: " proto_choice
+    case $proto_choice in
+        1)
+            PROTOCOL="https"
+            VAULT_PORT=443
+            USE_TLS=true
+            log "User selected HTTPS on port 443"
+            ;;
+        2)
+            PROTOCOL="http"
+            VAULT_PORT=80
+            USE_TLS=false
+            log "User selected HTTP on port 80"
+            ;;
+        *)
+            error_exit "Invalid option selected"
+            ;;
+    esac
+}
+
+# Generate self-signed certificate for HTTPS
+generate_self_signed_cert() {
+    if [[ "$USE_TLS" == true ]]; then
+        log "Generating self-signed certificate for $FQDN"
+        openssl req -x509 -newkey rsa:4096 -nodes -out "$CERT_FILE" -keyout "$KEY_FILE" \
+            -days 365 -subj "/CN=$FQDN" || error_exit "Failed to generate self-signed certificate"
+        chown "$VAULT_USER:$VAULT_USER" "$CERT_FILE" "$KEY_FILE" || error_exit "Failed to set certificate permissions"
+        chmod 600 "$KEY_FILE" || error_exit "Failed to set key permissions"
+        log "Self-signed certificate generated at $CERT_FILE"
+    fi
+}
+
+# Create Vault configuration
+create_vault_config() {
+    log "Creating Vault configuration file"
+    cat > "$VAULT_CONFIG_FILE" << EOF
+storage "file" {
+  path = "$VAULT_DATA_DIR"
+}
+
+listener "tcp" {
+  address = "0.0.0.0:$VAULT_PORT"
+  tls_disable = $USE_TLS
+EOF
+    if [[ "$USE_TLS" == true ]]; then
+        cat >> "$VAULT_CONFIG_FILE" << EOF
+  tls_cert_file = "$CERT_FILE"
+  tls_key_file = "$KEY_FILE"
+EOF
+    fi
+    cat >> "$VAULT_CONFIG_FILE" << EOF
+}
+
+api_addr = "$PROTOCOL://$FQDN:$VAULT_PORT"
+ui = true
+EOF
+    chown "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_FILE" || error_exit "Failed to set Vault config permissions"
+}
+
+# Configure firewall rules
+configure_firewall() {
+    log "Configuring firewall rules for Vault on port $VAULT_PORT"
+    ufw allow "$VAULT_PORT/tcp" || error_exit "Failed to configure firewall rules"
+    ufw reload || error_exit "Failed to reload firewall"
+    log "Firewall rules configured to allow port $VAULT_PORT"
+}
+
+# Create systemd service
+create_systemd_service() {
+    log "Creating Vault systemd service"
+    cat > /etc/systemd/system/vault.service << EOF
+[Unit]
+Description=HashiCorp Vault
+After=network.target
+Requires=network.target
+
+[Service]
+User=$VAULT_USER
+Group=$VAULT_USER
+ExecStart=$INSTALL_DIR/vault server -config=$VAULT_CONFIG_FILE
+ExecReload=/bin/kill --signal HUP \$MAINPID
+KillMode=process
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload || error_exit "Failed to reload systemd daemon"
+    systemctl enable vault.service || error_exit "Failed to enable Vault service"
+}
+
+# Initialize Vault
+initialize_vault() {
+    log "Initializing Vault"
+    export VAULT_ADDR="$PROTOCOL://127.0.0.1:$VAULT_PORT"
+    systemctl start vault.service || error_exit "Failed to start Vault service"
+    sleep 5  # Wait for Vault to start
+    vault operator init -key-shares=1 -key-threshold=1 > /tmp/vault_init.txt || error_exit "Failed to initialize Vault"
+    log "Vault initialized successfully"
+    echo "Vault initialization details saved to /tmp/vault_init.txt"
+    echo "Please store the unseal key and root token securely!"
+}
+
+# Prompt for initialization
+prompt_for_initialization() {
+    log "Prompting for Vault initialization"
+    echo "Would you like to initialize Vault in production mode?"
+    echo "1) Yes"
+    echo "2) No"
+    read -p "Select an option [1-2]: " init_choice
+    case $init_choice in
+        1)
+            log "User chose to initialize Vault"
+            initialize_vault
+            return 0
+            ;;
+        2)
+            log "User chose not to initialize Vault"
+            return 0
+            ;;
+enclosed
+            ;;
+        *)
+            error_exit "Invalid option selected"
+            ;;
+    esac
+}
+
+# Prompt for FQDN
+prompt_for_fqdn() {
+    log "Prompting for FQDN"
+    read -p "Enter the Fully Qualified Domain Name (FQDN) for Vault access (e.g., vault.example.com): " FQDN
+    if [[ -z "$FQDN" ]]; then
+        error_exit "FQDN cannot be empty"
+    fi
+    log "FQDN set to $FQDN"
+}
+
 # Verify installation
 verify_installation() {
     if command -v vault &> /dev/null; then
@@ -126,6 +293,11 @@ verify_installation() {
 # Notify user on how to access Vault
 notify_user() {
     log "Providing user notification for Vault access"
+    ACCESS_URL="$PROTOCOL://$FQDN:$VAULT_PORT"
+    CERT_WARNING=""
+    if [[ "$USE_TLS" == true ]]; then
+        CERT_WARNING="Note: Using a self-signed certificate. For production, replace with a trusted certificate.\nSee: https://developer.hashicorp.com/vault/docs/configuration/listener/tcp#tls-configuration"
+    fi
     cat << EOF | tee -a "$LOG_FILE"
 
 ============================================================
@@ -133,19 +305,22 @@ Vault Access Instructions
 ============================================================
 Vault has been successfully installed at: $INSTALL_DIR/vault
 
-To start using Vault:
+To access Vault:
+- Web Interface: $ACCESS_URL
+- CLI: export VAULT_ADDR='$ACCESS_URL'
 
-1. Initialize and start Vault server:
-   $ vault server -dev
-   (Note: This runs Vault in development mode. For production, refer to official documentation)
+To manage Vault:
+1. Start the service:
+   $ systemctl start vault
 
-2. In a new terminal, set the Vault address:
-   $ export VAULT_ADDR='http://127.0.0.1:8200'
+2. Check status:
+   $ systemctl status vault
 
-3. Check Vault status:
-   $ vault status
+3. If initialized, use the unseal key and root token from /tmp/vault_init.txt
 
-4. For full documentation and configuration:
+$CERT_WARNING
+
+For full documentation and configuration:
    Visit https://developer.hashicorp.com/vault/docs
 
 Logs for this installation are available at: $LOG_FILE
@@ -160,8 +335,17 @@ if check_existing_vault; then
 fi
 
 install_vault
+configure_vault_user
+prompt_for_fqdn
+prompt_for_protocol
+generate_self_signed_cert
+create_vault_config
+configure_firewall
+create_systemd_service
 verify_installation
+prompt_for_initialization
 notify_user
 
 log "Script execution completed successfully"
 echo "Installation complete. Logs available at $LOG_FILE"
+```
