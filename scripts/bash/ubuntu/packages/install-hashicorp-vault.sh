@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # This script installs HashiCorp Vault on an Ubuntu system using HTTP on port 80.
-# It ensures compatibility with bash, uses iptables for firewall management, and provides detailed logging.
-# It also checks for prerequisites and notifies the user of potential issues.
+# It checks for prerequisites, handles configuration dynamically, prompts the user for changes,
+# and ensures the service starts correctly by identifying and fixing issues.
 
 # Check if running in bash
 if [ -z "$BASH_VERSION" ]; then
@@ -61,8 +61,8 @@ done
 log "Performing prerequisite checks"
 
 # Check if port 80 is in use
-if ss -tuln | grep -q ":80 "; then
-    error_exit "Port 80 is already in use. Please free the port or choose a different one."
+if ss -tuln | grep -q ":$VAULT_PORT "; then
+    error_exit "Port $VAULT_PORT is already in use. Please free the port or choose a different one."
 fi
 
 # Check available disk space in /opt for Vault data directory
@@ -227,12 +227,102 @@ EOF
     systemctl enable vault.service || error_exit "Failed to enable Vault service"
 }
 
+# Check if Vault service starts successfully
+check_vault_service() {
+    log "Starting Vault service"
+    systemctl start vault.service
+    sleep 5
+    if ! systemctl is-active --quiet vault.service; then
+        log "Vault service failed to start. Analyzing logs..."
+        analyze_vault_logs
+    else
+        log "Vault service started successfully"
+        echo "Vault service is running successfully."
+    fi
+}
+
+# Analyze Vault logs for common issues and prompt for fixes
+analyze_vault_logs() {
+    log "Checking Vault logs for errors"
+    JOURNAL_LOG=$(journalctl -u vault.service -n 50)
+
+    # Check for storage backend issues
+    if echo "$JOURNAL_LOG" | grep -q "storage configured to use \"file\""; then
+        echo "Detected issue: Incorrect storage backend. Vault requires 'raft' or 'consul' instead of 'file'."
+        read -p "Do you want to update the configuration to use 'raft' storage? (y/n): " update_storage
+        if [ "$update_storage" = "y" ]; then
+            update_storage_backend
+            systemctl restart vault.service
+            sleep 5
+            if systemctl is-active --quiet vault.service; then
+                log "Vault service started successfully after fixing storage backend"
+                echo "Vault service is now running with 'raft' storage."
+            else
+                error_exit "Vault service still failed to start after storage backend fix"
+            fi
+        else
+            log "User declined to update storage backend"
+            echo "Storage backend not updated. Vault may not function correctly."
+        fi
+    fi
+
+    # Check for mlock errors
+    if echo "$JOURNAL_LOG" | grep -q "Failed to lock memory"; then
+        echo "Detected issue: Vault cannot lock memory (mlock error)."
+        echo "Options:"
+        echo "1) Disable mlock (less secure)"
+        echo "2) Adjust system limits in /etc/security/limits.conf (recommended, requires manual edit and reboot)"
+        read -p "Do you want to disable mlock in the configuration? (y/n): " disable_mlock
+        if [ "$disable_mlock" = "y" ]; then
+            disable_mlock_config
+            systemctl restart vault.service
+            sleep 5
+            if systemctl is-active --quiet vault.service; then
+                log "Vault service started successfully after disabling mlock"
+                echo "Vault service is now running with mlock disabled."
+            else
+                error_exit "Vault service still failed to start after disabling mlock"
+            fi
+        else
+            log "User declined to disable mlock"
+            echo "mlock not disabled. Please adjust system limits manually and restart the service."
+            echo "Add to /etc/security/limits.conf:"
+            echo "vault soft memlock unlimited"
+            echo "vault hard memlock unlimited"
+        fi
+    fi
+
+    # If no specific fix applied and service still down
+    if ! systemctl is-active --quiet vault.service; then
+        error_exit "Vault service failed to start. Check logs with 'journalctl -u vault.service' for details."
+    fi
+}
+
+# Update storage backend to raft
+update_storage_backend() {
+    log "Updating storage backend to 'raft'"
+    sed -i 's/storage "file"/storage "raft"/' "$VAULT_CONFIG_FILE" || {
+        echo "storage \"raft\" {" > "$VAULT_CONFIG_FILE.tmp"
+        echo "  path = \"$VAULT_DATA_DIR\"" >> "$VAULT_CONFIG_FILE.tmp"
+        echo "  node_id = \"raft_node_1\"" >> "$VAULT_CONFIG_FILE.tmp"
+        echo "}" >> "$VAULT_CONFIG_FILE.tmp"
+        grep -v "storage \"file\"" "$VAULT_CONFIG_FILE" >> "$VAULT_CONFIG_FILE.tmp"
+        mv "$VAULT_CONFIG_FILE.tmp" "$VAULT_CONFIG_FILE" || error_exit "Failed to update storage backend"
+    }
+    log "Storage backend updated to 'raft'"
+}
+
+# Disable mlock in configuration
+disable_mlock_config() {
+    log "Disabling mlock in Vault configuration"
+    echo "disable_mlock = true" >> "$VAULT_CONFIG_FILE" || error_exit "Failed to disable mlock in config"
+    log "mlock disabled in configuration"
+}
+
 # Initialize Vault
 initialize_vault() {
     log "Initializing Vault"
     export VAULT_ADDR="$PROTOCOL://127.0.0.1:$VAULT_PORT"
-    systemctl start vault.service || error_exit "Failed to start Vault service"
-    sleep 5
     vault operator init -key-shares=1 -key-threshold=1 > /tmp/vault_init.txt || error_exit "Failed to initialize Vault"
     log "Vault initialized successfully"
     echo "Vault initialization details saved to /tmp/vault_init.txt"
@@ -311,9 +401,6 @@ To manage Vault:
 
 3. If initialized, use the unseal key and root token from /tmp/vault_init.txt
 
-If Vault fails to start due to mlock errors, ensure that the 'vault' user has sufficient locked memory limit.
-You can disable mlock by adding 'disable_mlock = true' to $VAULT_CONFIG_FILE, but this reduces security.
-
 For full documentation and configuration:
    Visit https://developer.hashicorp.com/vault/docs
 
@@ -335,6 +422,7 @@ create_vault_config
 configure_firewall
 create_systemd_service
 verify_installation
+check_vault_service  # Check if service starts, analyze logs and fix if needed
 prompt_for_initialization
 notify_user
 
