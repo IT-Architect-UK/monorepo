@@ -3,11 +3,10 @@
 # Introduction (within script comments):
 # This script deploys the Portainer Agent on a Docker Swarm cluster, using a user-specified storage path.
 # Prompts once for SSH username and password, reusing them for all SSH and sudo commands, or uses SSH key-based authentication.
-# Checks for sshpass and offers to install it or proceed with SSH keys.
-# Removes existing Portainer Agent services/images, verifies IPTABLES rules, creates an overlay network,
-# sets up the storage directory, and deploys the Portainer Agent globally.
+# Ensures permissions for /etc/iptables/rules.v4, checks/removes existing Portainer Agent services/images, verifies IPTABLES rules,
+# creates an overlay network, sets up the storage directory, and deploys the Portainer Agent globally.
 # Includes retries, node health checks, IPTABLES validation, and detailed logging.
-# Prerequisites: Docker Swarm initialized, storage path accessible, sudo privileges, Docker installed.
+# Prerequisites: Docker Swarm initialized, storage path accessible, sudo privileges, Docker installed, sshpass installed (if using password auth).
 # Logs to /home/$USER/logs/deploy-portainer-agent-YYYYMMDD.log or /logs if writable.
 # Note: Deploys only the Portainer Agent, assuming an existing Portainer Server.
 
@@ -130,6 +129,22 @@ fi
         cat /tmp/portainer-agent-node-status.out | tee -a "$LOG_FILE"
         exit 1
     fi
+
+    # Fix IPTABLES permissions
+    echo "Fixing IPTABLES permissions on all nodes..." | tee -a "$LOG_FILE"
+    for node in "${NODES[@]}"; do
+        if [ "$USE_SSH_KEYS" = "y" ] || [ "$USE_SSH_KEYS" = "Y" ]; then
+            ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$node "sudo -n mkdir -p /etc/iptables && sudo -n touch /etc/iptables/rules.v4 && sudo -n chown root:root /etc/iptables /etc/iptables/rules.v4 && sudo -n chmod 644 /etc/iptables/rules.v4 && sudo -n chmod 755 /etc/iptables" || {
+                echo "Error fixing IPTABLES permissions on $node." | tee -a "$LOG_FILE"
+                exit 1
+            }
+        else
+            sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$node "echo '$SSH_PASSWORD' | sudo -S mkdir -p /etc/iptables && echo '$SSH_PASSWORD' | sudo -S touch /etc/iptables/rules.v4 && echo '$SSH_PASSWORD' | sudo -S chown root:root /etc/iptables /etc/iptables/rules.v4 && echo '$SSH_PASSWORD' | sudo -S chmod 644 /etc/iptables/rules.v4 && echo '$SSH_PASSWORD' | sudo -S chmod 755 /etc/iptables" || {
+                echo "Error fixing IPTABLES permissions on $node." | tee -a "$LOG_FILE"
+                exit 1
+            }
+        fi
+    done
 
     # Verify IPTABLES rules
     echo "Checking IPTABLES rules for required ports..." | tee -a "$LOG_FILE"
