@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# This script installs the latest version of HashiCorp Vault on an Ubuntu system.
+# This script installs HashiCorp Vault on an Ubuntu system using HTTP on port 80.
+# It ensures compatibility with bash, uses iptables for firewall management, and provides detailed logging.
+# It also checks for prerequisites and notifies the user of potential issues.
 
 # Check if running in bash
 if [ -z "$BASH_VERSION" ]; then
@@ -17,9 +19,8 @@ VAULT_CONFIG_DIR="/etc/vault.d"
 VAULT_DATA_DIR="/opt/vault/data"
 VAULT_CONFIG_FILE="$VAULT_CONFIG_DIR/vault.hcl"
 VAULT_USER="vault"
-CERT_DIR="/etc/vault.d/certs"
-CERT_FILE="$CERT_DIR/vault.crt"
-KEY_FILE="$CERT_DIR/vault.key"
+VAULT_PORT=80
+PROTOCOL="http"
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")" || {
@@ -49,12 +50,38 @@ log "Starting Vault installation script"
 
 # Check for required dependencies
 log "Checking for required dependencies"
-for cmd in curl unzip jq iptables openssl; do
+for cmd in curl unzip jq iptables ss; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
         log "Installing $cmd"
         apt-get update && apt-get install -y "$cmd" || error_exit "Failed to install $cmd"
     fi
 done
+
+# Prerequisite Checks
+log "Performing prerequisite checks"
+
+# Check if port 80 is in use
+if ss -tuln | grep -q ":80 "; then
+    error_exit "Port 80 is already in use. Please free the port or choose a different one."
+fi
+
+# Check available disk space in /opt for Vault data directory
+AVAILABLE_SPACE=$(df -k /opt | tail -1 | awk '{print $4}')
+if [ "$AVAILABLE_SPACE" -lt 102400 ]; then  # Less than 100 MB
+    log "WARNING: Low disk space in /opt: $AVAILABLE_SPACE KB available."
+    echo "Vault requires sufficient disk space for its data directory."
+    echo "Ensure at least 100 MB is available in /opt."
+fi
+
+# Inform user about locked memory requirements
+echo "Vault requires the ability to lock memory to prevent sensitive data from being swapped to disk."
+echo "Ensure that the 'vault' user has sufficient locked memory limit."
+echo "After installation, you can check it with: sudo su - vault -c 'ulimit -l'"
+echo "If it's too low, edit /etc/security/limits.conf and add:"
+echo "vault soft memlock unlimited"
+echo "vault hard memlock unlimited"
+echo "Then, reboot or run 'sudo sysctl -p' to apply changes."
+echo "Alternatively, you can disable mlock by adding 'disable_mlock = true' to $VAULT_CONFIG_FILE, but this reduces security."
 
 # Fetch the latest Vault version
 log "Fetching the latest Vault version"
@@ -140,67 +167,22 @@ configure_vault_user() {
     if ! id "$VAULT_USER" >/dev/null 2>&1; then
         useradd -r -s /bin/false "$VAULT_USER" || error_exit "Failed to create Vault user"
     fi
-    mkdir -p "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" "$CERT_DIR" || error_exit "Failed to create Vault directories"
-    chown -R "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" "$CERT_DIR" || error_exit "Failed to set Vault directory permissions"
+    mkdir -p "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" || error_exit "Failed to create Vault directories"
+    chown -R "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" || error_exit "Failed to set Vault directory permissions"
 }
 
-# Prompt for protocol and port
-prompt_for_protocol() {
-    log "Prompting for protocol and port"
-    echo "Select the protocol for Vault web interface:"
-    echo "1) HTTPS (port 443, recommended for production)"
-    echo "2) HTTP (port 80)"
-    read -p "Select an option [1-2]: " proto_choice
-    case $proto_choice in
-        1)
-            PROTOCOL="https"
-            VAULT_PORT=443
-            USE_TLS=true
-            log "User selected HTTPS on port 443"
-            ;;
-        2)
-            PROTOCOL="http"
-            VAULT_PORT=80
-            USE_TLS=false
-            log "User selected HTTP on port 80"
-            ;;
-        *)
-            error_exit "Invalid option selected"
-            ;;
-    esac
-}
-
-# Generate self-signed certificate for HTTPS
-generate_self_signed_cert() {
-    if [ "$USE_TLS" = true ]; then
-        log "Generating self-signed certificate for $FQDN"
-        openssl req -x509 -newkey rsa:4096 -nodes -out "$CERT_FILE" -keyout "$KEY_FILE" \
-            -days 365 -subj "/CN=$FQDN" || error_exit "Failed to generate self-signed certificate"
-        chown "$VAULT_USER:$VAULT_USER" "$CERT_FILE" "$KEY_FILE" || error_exit "Failed to set certificate permissions"
-        chmod 600 "$KEY_FILE" || error_exit "Failed to set key permissions"
-        log "Self-signed certificate generated at $CERT_FILE"
-    fi
-}
-
-# Create Vault configuration
+# Create Vault configuration for HTTP on port 80
 create_vault_config() {
     log "Creating Vault configuration file"
     cat > "$VAULT_CONFIG_FILE" << EOF
-storage "file" {
+storage "raft" {
   path = "$VAULT_DATA_DIR"
+  node_id = "raft_node_1"
 }
 
 listener "tcp" {
   address = "0.0.0.0:$VAULT_PORT"
-  tls_disable = $USE_TLS
-EOF
-    if [ "$USE_TLS" = true ]; then
-        cat >> "$VAULT_CONFIG_FILE" << EOF
-  tls_cert_file = "$CERT_FILE"
-  tls_key_file = "$KEY_FILE"
-EOF
-    fi
-    cat >> "$VAULT_CONFIG_FILE" << EOF
+  tls_disable = true
 }
 
 api_addr = "$PROTOCOL://$FQDN:$VAULT_PORT"
@@ -209,7 +191,7 @@ EOF
     chown "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_FILE" || error_exit "Failed to set Vault config permissions"
 }
 
-# Configure iptables firewall rules
+# Configure iptables firewall rules for port 80
 configure_firewall() {
     log "Configuring iptables rules for Vault on port $VAULT_PORT"
     iptables -A INPUT -p tcp --dport "$VAULT_PORT" -j ACCEPT || error_exit "Failed to add iptables rule for port $VAULT_PORT"
@@ -217,7 +199,7 @@ configure_firewall() {
     log "iptables rules configured to allow port $VAULT_PORT"
 }
 
-# Create systemd service
+# Create systemd service for Vault with mlock capabilities
 create_systemd_service() {
     log "Creating Vault systemd service"
     cat > /etc/systemd/system/vault.service << EOF
@@ -235,6 +217,8 @@ KillMode=process
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
+CapabilityBoundingSet=CAP_IPC_LOCK
+AmbientCapabilities=CAP_IPC_LOCK
 
 [Install]
 WantedBy=multi-user.target
@@ -307,10 +291,6 @@ verify_installation() {
 notify_user() {
     log "Providing user notification for Vault access"
     ACCESS_URL="$PROTOCOL://$FQDN:$VAULT_PORT"
-    CERT_WARNING=""
-    if [ "$USE_TLS" = true ]; then
-        CERT_WARNING="Note: Using a self-signed certificate. For production, replace with a trusted certificate.\nSee: https://developer.hashicorp.com/vault/docs/configuration/listener/tcp#tls-configuration"
-    fi
     cat << EOF | tee -a "$LOG_FILE"
 
 ============================================================
@@ -331,7 +311,8 @@ To manage Vault:
 
 3. If initialized, use the unseal key and root token from /tmp/vault_init.txt
 
-$CERT_WARNING
+If Vault fails to start due to mlock errors, ensure that the 'vault' user has sufficient locked memory limit.
+You can disable mlock by adding 'disable_mlock = true' to $VAULT_CONFIG_FILE, but this reduces security.
 
 For full documentation and configuration:
    Visit https://developer.hashicorp.com/vault/docs
@@ -350,8 +331,6 @@ fi
 install_vault
 configure_vault_user
 prompt_for_fqdn
-prompt_for_protocol
-generate_self_signed_cert
 create_vault_config
 configure_firewall
 create_systemd_service
