@@ -2,12 +2,12 @@
 
 # Introduction (within script comments):
 # This script deploys Portainer (Server and Agent) on a Docker Swarm cluster, using a user-specified storage path for persistent data.
-# It creates an overlay network, sets up the storage directory, generates an admin password, deploys the Portainer Agent globally,
-# deploys the Portainer Server on a manager node, and verifies the deployment.
+# It checks for and offers to remove existing Portainer services and images, creates an overlay network, sets up the storage directory,
+# generates an admin password, deploys the Portainer Agent globally, deploys the Portainer Server on a manager node, and verifies the deployment.
 # The storage path is prompted (default: /mnt/nfs/docker/portainer) and validated for writability.
 # Prerequisites: Docker Swarm cluster initialized, storage path accessible on all nodes, sudo privileges, Docker installed.
 # The script logs all actions to /home/$USER/logs/deploy-portainer-YYYYMMDD.log or /logs if writable.
-# Enhanced error handling with timeouts and detailed logging to prevent hanging.
+# Enhanced error handling with timeouts, service/image cleanup, and detailed logging.
 
 # Define log file name
 # Note: Uses /home/$USER/logs as fallback if /logs is not writable.
@@ -64,6 +64,58 @@ fi
     if ! docker node ls &> /dev/null; then
         echo "Error: This node is not a Swarm manager. Run the script on a manager node." | tee -a "$LOG_FILE"
         exit 1
+    fi
+
+    # Check for existing Portainer services
+    # Note: Prompts to remove existing portainer_agent and portainer services if they exist.
+    EXISTING_SERVICES=$(docker service ls --filter name=portainer -q | wc -l)
+    if [ "$EXISTING_SERVICES" -gt 0 ]; then
+        echo "Warning: Existing Portainer services detected:" | tee -a "$LOG_FILE"
+        docker service ls --filter name=portainer | tee -a "$LOG_FILE"
+        echo "Do you want to remove these services? (y/n)"
+        read REMOVE_SERVICES
+        if [ "$REMOVE_SERVICES" = "y" ] || [ "$REMOVE_SERVICES" = "Y" ]; then
+            for service in portainer_agent portainer; do
+                if docker service ls --filter name=$service -q | grep -q .; then
+                    echo "Removing service $service..." | tee -a "$LOG_FILE"
+                    if docker service rm $service > /tmp/portainer-service-rm-$service.out 2>&1; then
+                        echo "Service $service removed successfully." | tee -a "$LOG_FILE"
+                    else
+                        echo "Error removing service $service." | tee -a "$LOG_FILE"
+                        cat /tmp/portainer-service-rm-$service.out | tee -a "$LOG_FILE"
+                        exit 1
+                    fi
+                fi
+            done
+        else
+            echo "Exiting without removing existing services." | tee -a "$LOG_FILE"
+            exit 1
+        fi
+    fi
+
+    # Check for existing Portainer images
+    # Note: Prompts to remove portainer/agent:latest and portainer/portainer-ce:latest images if desired.
+    EXISTING_IMAGES=$(docker images -q portainer/agent:latest portainer/portainer-ce:latest | sort -u | wc -l)
+    if [ "$EXISTING_IMAGES" -gt 0 ]; then
+        echo "Warning: Existing Portainer images detected on this node:" | tee -a "$LOG_FILE"
+        docker images portainer/agent:latest portainer/portainer-ce:latest | tee -a "$LOG_FILE"
+        echo "Do you want to remove these images on all nodes? (y/n)"
+        read REMOVE_IMAGES
+        if [ "$REMOVE_IMAGES" = "y" ] || [ "$REMOVE_IMAGES" = "Y" ]; then
+            # Get all node hostnames
+            NODES=$(docker node ls --format '{{.Hostname}}')
+            for node in $NODES; do
+                echo "Removing Portainer images on $node..." | tee -a "$LOG_FILE"
+                ssh pos-admin@$node 'docker rmi -f portainer/agent:latest portainer/portainer-ce:latest' > /tmp/portainer-image-rm-$node.out 2>&1
+                if [ $? -eq 0 ]; then
+                    echo "Images removed successfully on $node." | tee -a "$LOG_FILE"
+                else
+                    echo "Error removing images on $node." | tee -a "$LOG_FILE"
+                    cat /tmp/portainer-image-rm-$node.out | tee -a "$LOG_FILE"
+                    # Continue despite errors, as images may not exist on all nodes
+                fi
+            done
+        fi
     fi
 
     # Prompt for storage path
