@@ -6,6 +6,7 @@
 # - Offers to remove or upgrade existing versions
 # - Installs the specified version of Vault
 # - Configures logging for all operations
+# - Provides user notification on how to access Vault
 # - Is designed for reliability and ease of use in a GitHub repository
 
 # Variables (modify these as needed)
@@ -122,6 +123,36 @@ verify_installation() {
     fi
 }
 
+# Notify user on how to access Vault
+notify_user() {
+    log "Providing user notification for Vault access"
+    cat << EOF | tee -a "$LOG_FILE"
+
+============================================================
+Vault Access Instructions
+============================================================
+Vault has been successfully installed at: $INSTALL_DIR/vault
+
+To start using Vault:
+
+1. Initialize and start Vault server:
+   $ vault server -dev
+   (Note: This runs Vault in development mode. For production, refer to official documentation)
+
+2. In a new terminal, set the Vault address:
+   $ export VAULT_ADDR='http://127.0.0.1:8200'
+
+3. Check Vault status:
+   $ vault status
+
+4. For full documentation and configuration:
+   Visit https://developer.hashicorp.com/vault/docs
+
+Logs for this installation are available at: $LOG_FILE
+============================================================
+EOF
+}
+
 # Main execution
 log "Script execution started"
 if check_existing_vault; then
@@ -130,6 +161,7 @@ fi
 
 install_vault
 verify_installation
+notify_user
 
 log "Script execution completed successfully"
 echo "Installation complete. Logs available at $LOG_FILE"
