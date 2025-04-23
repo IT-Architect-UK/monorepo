@@ -7,7 +7,7 @@
 # - Offers to remove or upgrade existing versions
 # - Installs the specified version of Vault
 # - Configures logging for all operations
-# - Configures firewall rules for web interface access (port 80 or 443)
+# - Configures iptables firewall rules for web interface access (port 80 or 443)
 # - Supports HTTPS with self-signed certificate option
 # - Offers to initialize Vault in production mode
 # - Prompts for FQDN and provides access URL
@@ -52,12 +52,18 @@ log "Starting Vault installation script"
 
 # Check for required dependencies
 log "Checking for required dependencies"
-for cmd in curl unzip jq ufw openssl; do
+for cmd in curl unzip jq iptables openssl; do
     if ! command -v "$cmd" &> /dev/null; then
         log "Installing $cmd"
         apt-get update && apt-get install -y "$cmd" || error_exit "Failed to install $cmd"
     fi
 done
+
+# Install iptables-persistent to save rules
+if ! dpkg -l | grep -q iptables-persistent; then
+    log "Installing iptables-persistent"
+    apt-get install -y iptables-persistent || error_exit "Failed to install iptables-persistent"
+fi
 
 # Check for existing Vault installation
 check_existing_vault() {
@@ -194,12 +200,14 @@ EOF
     chown "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_FILE" || error_exit "Failed to set Vault config permissions"
 }
 
-# Configure firewall rules
+# Configure iptables firewall rules
 configure_firewall() {
-    log "Configuring firewall rules for Vault on port $VAULT_PORT"
-    ufw allow "$VAULT_PORT/tcp" || error_exit "Failed to configure firewall rules"
-    ufw reload || error_exit "Failed to reload firewall"
-    log "Firewall rules configured to allow port $VAULT_PORT"
+    log "Configuring iptables rules for Vault on port $VAULT_PORT"
+    # Allow incoming TCP traffic on the selected port
+    iptables -A INPUT -p tcp --dport "$VAULT_PORT" -j ACCEPT || error_exit "Failed to add iptables rule for port $VAULT_PORT"
+    # Save iptables rules
+    iptables-save > /etc/iptables/rules.v4 || error_exit "Failed to save iptables rules"
+    log "iptables rules configured to allow port $VAULT_PORT"
 }
 
 # Create systemd service
@@ -256,8 +264,6 @@ prompt_for_initialization() {
         2)
             log "User chose not to initialize Vault"
             return 0
-            ;;
-enclosed
             ;;
         *)
             error_exit "Invalid option selected"
