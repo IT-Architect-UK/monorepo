@@ -254,4 +254,90 @@ fi
                 exit 1
             fi
         else
-            if sshpass -p "$SSH_PASSWORD" ssh
+            if sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$node "echo '$SSH_PASSWORD' | sudo -S mkdir -p \"$STORAGE_PATH\" && echo '$SSH_PASSWORD' | sudo -S chmod -R 777 \"$STORAGE_PATH\""; then
+                echo "Storage directory created and permissions set on $node." | tee -a "$LOG_FILE"
+            else
+                echo "Error: Failed to create storage directory $STORAGE_PATH on $node." | tee -a "$LOG_FILE"
+                exit 1
+            fi
+        fi
+    done
+
+    # Create overlay network for Portainer
+    echo "Creating overlay network portainer_agent_network" | tee -a "$LOG_FILE"
+    if ! docker network ls --filter name=portainer_agent_network -q | grep -q .; then
+        if docker network create \
+            --driver overlay \
+            --attachable \
+            portainer_agent_network > /tmp/portainer-agent-network.out 2>&1; then
+            echo "Overlay network created successfully." | tee -a "$LOG_FILE"
+        else
+            echo "Error creating overlay network." | tee -a "$LOG_FILE"
+            cat /tmp/portainer-agent-network.out | tee -a "$LOG_FILE"
+            exit 1
+        fi
+    else
+        echo "Overlay network portainer_agent_network already exists." | tee -a "$LOG_FILE"
+    fi
+
+    # Deploy Portainer Agent with retries
+    echo "Deploying Portainer Agent" | tee -a "$LOG_FILE"
+    RETRIES=3
+    ATTEMPT=1
+    while [ $ATTEMPT -le $RETRIES ]; do
+        echo "Attempt $ATTEMPT of $RETRIES for Portainer Agent deployment..." | tee -a "$LOG_FILE"
+        if timeout 120 docker service create \
+            --name portainer_agent \
+            --network portainer_agent_network \
+            --mode global \
+            --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+            --mount type=bind,src="$STORAGE_PATH",dst=/data \
+            --publish mode=host,target=9001,published=9001 \
+            portainer/agent:latest > /tmp/portainer-agent.out 2>&1; then
+            echo "Portainer Agent deployed successfully." | tee -a "$LOG_FILE"
+            break
+        else
+            echo "Error deploying Portainer Agent on attempt $ATTEMPT." | tee -a "$LOG_FILE"
+            cat /tmp/portainer-agent.out | tee -a "$LOG_FILE"
+            if [ $ATTEMPT -eq $RETRIES ]; then
+                echo "Failed to deploy Portainer Agent after $RETRIES attempts." | tee -a "$LOG_FILE"
+                docker service ps portainer_agent --no-trunc > /tmp/portainer-agent-ps.out 2>&1
+                echo "Portainer Agent task status:" | tee -a "$LOG_FILE"
+                cat /tmp/portainer-agent-ps.out | tee -a "$LOG_FILE"
+                for node in "${NODES[@]}"; do
+                    echo "Inspecting node $node..." | tee -a "$LOG_FILE"
+                    docker node inspect $node > /tmp/portainer-node-$node.out 2>&1
+                    cat /tmp/portainer-node-$node.out | tee -a "$LOG_FILE"
+                done
+                exit 1
+            fi
+            sleep 10
+        fi
+        ((ATTEMPT++))
+    done
+
+    # Wait for service to stabilize
+    echo "Waiting for Portainer Agent service to stabilize" | tee -a "$LOG_FILE"
+    sleep 10
+
+    # Verify Portainer Agent deployment
+    echo "Verifying Portainer Agent deployment" | tee -a "$LOG_FILE"
+    if docker service ls --filter name=portainer_agent > /tmp/portainer-agent-status.out 2>&1; then
+        echo "Portainer Agent service status:" | tee -a "$LOG_FILE"
+        cat /tmp/portainer-agent-status.out | tee -a "$LOG_FILE"
+        echo "Portainer Agent tasks:" | tee -a "$LOG_FILE"
+        docker service ps portainer_agent --no-trunc | tee -a "$LOG_FILE"
+    else
+        echo "Error retrieving Portainer Agent service status." | tee -a "$LOG_FILE"
+        cat /tmp/portainer-agent-status.out | tee -a "$LOG_FILE"
+        exit 1
+    fi
+
+    # Provide connection instructions
+    MANAGER_IP=$(docker node ls --filter role=manager --format '{{.Hostname}}' | head -n 1)
+    echo "Portainer Agent deployment completed." | tee -a "$LOG_FILE"
+    echo "Connect your existing Portainer Server to the agent at http://$MANAGER_IP:9001" | tee -a "$LOG_FILE"
+    echo "Ensure the Portainer Server is configured to use the Swarm environment." | tee -a "$LOG_FILE"
+
+    echo "Script completed on $(date)" | tee -a "$LOG_FILE"
+} 2>&1 | tee -a "$LOG_FILE"
