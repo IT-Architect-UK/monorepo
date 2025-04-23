@@ -5,9 +5,9 @@
 # It checks for and offers to remove existing Portainer services and images, creates an overlay network, sets up the storage directory,
 # generates an admin password, deploys the Portainer Agent globally, deploys the Portainer Server on a manager node, and verifies the deployment.
 # The storage path is prompted (default: /mnt/nfs/docker/portainer) and validated for writability.
+# Includes retries with timeouts for service creation, node health checks, and detailed logging to diagnose hangs.
 # Prerequisites: Docker Swarm cluster initialized, storage path accessible on all nodes, sudo privileges, Docker installed.
-# The script logs all actions to /home/$USER/logs/deploy-portainer-YYYYMMDD.log or /logs if writable.
-# Enhanced error handling with timeouts, service/image cleanup, and detailed logging.
+# Logs all actions to /home/$USER/logs/deploy-portainer-YYYYMMDD.log or /logs if writable.
 
 # Define log file name
 # Note: Uses /home/$USER/logs as fallback if /logs is not writable.
@@ -66,6 +66,19 @@ fi
         exit 1
     fi
 
+    # Check node health
+    # Note: Logs node status to ensure all nodes are ready before deployment.
+    echo "Checking Swarm node health..." | tee -a "$LOG_FILE"
+    docker node ls > /tmp/portainer-node-status.out 2>&1
+    if [ $? -eq 0 ]; then
+        echo "Swarm node status:" | tee -a "$LOG_FILE"
+        cat /tmp/portainer-node-status.out | tee -a "$LOG_FILE"
+    else
+        echo "Error retrieving Swarm node status." | tee -a "$LOG_FILE"
+        cat /tmp/portainer-node-status.out | tee -a "$LOG_FILE"
+        exit 1
+    fi
+
     # Check for existing Portainer services
     # Note: Prompts to remove existing portainer_agent and portainer services if they exist.
     EXISTING_SERVICES=$(docker service ls --filter name=portainer -q | wc -l)
@@ -95,10 +108,10 @@ fi
 
     # Check for existing Portainer images
     # Note: Prompts to remove portainer/agent:latest and portainer/portainer-ce:latest images if desired.
-    EXISTING_IMAGES=$(docker images -q portainer/agent:latest portainer/portainer-ce:latest | sort -u | wc -l)
+    EXISTING_IMAGES=$(docker image ls -q --filter reference='portainer/agent:latest' --filter reference='portainer/portainer-ce:latest' | sort -u | wc -l)
     if [ "$EXISTING_IMAGES" -gt 0 ]; then
         echo "Warning: Existing Portainer images detected on this node:" | tee -a "$LOG_FILE"
-        docker images portainer/agent:latest portainer/portainer-ce:latest | tee -a "$LOG_FILE"
+        docker image ls portainer/agent:latest portainer/portainer-ce:latest | tee -a "$LOG_FILE"
         echo "Do you want to remove these images on all nodes? (y/n)"
         read REMOVE_IMAGES
         if [ "$REMOVE_IMAGES" = "y" ] || [ "$REMOVE_IMAGES" = "Y" ]; then
@@ -110,9 +123,8 @@ fi
                 if [ $? -eq 0 ]; then
                     echo "Images removed successfully on $node." | tee -a "$LOG_FILE"
                 else
-                    echo "Error removing images on $node." | tee -a "$LOG_FILE"
+                    echo "Error removing images on $node (continuing)." | tee -a "$LOG_FILE"
                     cat /tmp/portainer-image-rm-$node.out | tee -a "$LOG_FILE"
-                    # Continue despite errors, as images may not exist on all nodes
                 fi
             done
         fi
@@ -181,43 +193,71 @@ fi
         exit 1
     fi
 
-    # Deploy Portainer Agent
-    # Note: Deploys the Portainer Agent as a global service with a timeout.
+    # Deploy Portainer Agent with retries
+    # Note: Deploys the Portainer Agent as a global service with retries and a timeout.
     echo "Deploying Portainer Agent" | tee -a "$LOG_FILE"
-    if timeout 300 docker service create \
-        --name portainer_agent \
-        --network portainer_agent_network \
-        --mode global \
-        --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
-        --mount type=bind,src="$STORAGE_PATH",dst=/data \
-        --publish mode=host,target=9001,published=9001 \
-        portainer/agent:latest > /tmp/portainer-agent.out 2>&1; then
-        echo "Portainer Agent deployed successfully." | tee -a "$LOG_FILE"
-    else
-        echo "Error deploying Portainer Agent (possible timeout or failure)." | tee -a "$LOG_FILE"
-        cat /tmp/portainer-agent.out | tee -a "$LOG_FILE"
-        exit 1
-    fi
+    RETRIES=3
+    ATTEMPT=1
+    while [ $ATTEMPT -le $RETRIES ]; do
+        echo "Attempt $ATTEMPT of $RETRIES for Portainer Agent deployment..." | tee -a "$LOG_FILE"
+        if timeout 120 docker service create \
+            --name portainer_agent \
+            --network portainer_agent_network \
+            --mode global \
+            --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+            --mount type=bind,src="$STORAGE_PATH",dst=/data \
+            --publish mode=host,target=9001,published=9001 \
+            portainer/agent:latest > /tmp/portainer-agent.out 2>&1; then
+            echo "Portainer Agent deployed successfully." | tee -a "$LOG_FILE"
+            break
+        else
+            echo "Error deploying Portainer Agent on attempt $ATTEMPT." | tee -a "$LOG_FILE"
+            cat /tmp/portainer-agent.out | tee -a "$LOG_FILE"
+            if [ $ATTEMPT -eq $RETRIES ]; then
+                echo "Failed to deploy Portainer Agent after $RETRIES attempts." | tee -a "$LOG_FILE"
+                # Log detailed task status for debugging
+                docker service ps portainer_agent > /tmp/portainer-agent-ps.out 2>&1
+                echo "Portainer Agent task status:" | tee -a "$LOG_FILE"
+                cat /tmp/portainer-agent-ps.out | tee -a "$LOG_FILE"
+                exit 1
+            fi
+            sleep 10
+        fi
+        ((ATTEMPT++))
+    done
 
-    # Deploy Portainer Server
-    # Note: Deploys the Portainer Server as a single replica with a timeout.
+    # Deploy Portainer Server with retries
+    # Note: Deploys the Portainer Server as a single replica with retries and a timeout.
     echo "Deploying Portainer Server" | tee -a "$LOG_FILE"
-    if timeout 300 docker service create \
-        --name portainer \
-        --network portainer_agent_network \
-        --replicas 1 \
-        --mount type=bind,src="$STORAGE_PATH",dst=/data \
-        --publish published=9000,target=9000 \
-        --publish published=8000,target=8000 \
-        --constraint 'node.role == manager' \
-        portainer/portainer-ce:latest \
-        --admin-password-file=/data/admin.pass > /tmp/portainer-server.out 2>&1; then
-        echo "Portainer Server deployed successfully." | tee -a "$LOG_FILE"
-    else
-        echo "Error deploying Portainer Server (possible timeout or failure)." | tee -a "$LOG_FILE"
-        cat /tmp/portainer-server.out | tee -a "$LOG_FILE"
-        exit 1
-    fi
+    ATTEMPT=1
+    while [ $ATTEMPT -le $RETRIES ]; do
+        echo "Attempt $ATTEMPT of $RETRIES for Portainer Server deployment..." | tee -a "$LOG_FILE"
+        if timeout 120 docker service create \
+            --name portainer \
+            --network portainer_agent_network \
+            --replicas 1 \
+            --mount type=bind,src="$STORAGE_PATH",dst=/data \
+            --publish published=9000,target=9000 \
+            --publish published=8000,target=8000 \
+            --constraint 'node.role == manager' \
+            portainer/portainer-ce:latest \
+            --admin-password-file=/data/admin.pass > /tmp/portainer-server.out 2>&1; then
+            echo "Portainer Server deployed successfully." | tee -a "$LOG_FILE"
+            break
+        else
+            echo "Error deploying Portainer Server on attempt $ATTEMPT." | tee -a "$LOG_FILE"
+            cat /tmp/portainer-server.out | tee -a "$LOG_FILE"
+            if [ $ATTEMPT -eq $RETRIES ]; then
+                echo "Failed to deploy Portainer Server after $RETRIES attempts." | tee -a "$LOG_FILE"
+                docker service ps portainer > /tmp/portainer-server-ps.out 2>&1
+                echo "Portainer Server task status:" | tee -a "$LOG_FILE"
+                cat /tmp/portainer-server-ps.out | tee -a "$LOG_FILE"
+                exit 1
+            fi
+            sleep 10
+        fi
+        ((ATTEMPT++))
+    done
 
     # Wait for services to stabilize
     # Note: Waits briefly to ensure services are running before verification.
