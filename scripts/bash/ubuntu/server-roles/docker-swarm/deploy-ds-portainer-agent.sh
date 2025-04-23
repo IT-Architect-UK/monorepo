@@ -2,13 +2,13 @@
 
 # Introduction (within script comments):
 # This script deploys the Portainer Agent on a Docker Swarm cluster, using a user-specified storage path for persistent data.
-# It checks for and offers to remove existing Portainer Agent services and images, creates an overlay network,
-# sets up the storage directory, and deploys the Portainer Agent globally.
+# It checks for and offers to remove existing Portainer Agent services and images, verifies IPTABLES rules,
+# creates an overlay network, sets up the storage directory, and deploys the Portainer Agent globally.
 # The storage path is prompted (default: /mnt/nfs/docker/portainer) and validated for writability.
-# Includes retries with timeouts, node health checks, and detailed logging to diagnose hangs.
+# Includes retries with timeouts, node health checks, IPTABLES validation, and detailed logging to diagnose issues.
 # Prerequisites: Docker Swarm cluster initialized, storage path accessible on all nodes, sudo privileges, Docker installed.
 # Logs all actions to /home/$USER/logs/deploy-portainer-agent-YYYYMMDD.log or /logs if writable.
-# Note: This script deploys only the Portainer Agent, assuming an existing Portainer Server instance.
+# Note: Deploys only the Portainer Agent, assuming an existing Portainer Server instance.
 
 # Define log file name
 # Note: Uses /home/$USER/logs as fallback if /logs is not writable.
@@ -30,7 +30,7 @@ fi
     echo "Script started on $(date)" | tee -a "$LOG_FILE"
 
     # Verify sudo privileges
-    # Note: Checks if the user has sudo access for operations like creating directories.
+    # Note: Checks if the user has sudo access for operations like creating directories and IPTABLES.
     if ! sudo -v; then
         echo "Error: This script requires sudo privileges." | tee -a "$LOG_FILE"
         exit 1
@@ -80,11 +80,30 @@ fi
         exit 1
     fi
 
+    # Verify IPTABLES rules
+    # Note: Ensures required Swarm and Portainer Agent ports are open.
+    echo "Checking IPTABLES rules for required ports..." | tee -a "$LOG_FILE"
+    REQUIRED_PORTS=("2377/tcp" "7946/tcp" "7946/udp" "4789/udp" "9001/tcp")
+    for node in POSLXPDSWARM01 POSLXPDSWARM02 POSLXPDSWARM03; do
+        echo "IPTABLES rules on $node:" | tee -a "$LOG_FILE"
+        ssh pos-admin@$node 'sudo iptables -L DOCKER-SWARM -v -n' > /tmp/portainer-iptables-$node.out 2>&1
+        cat /tmp/portainer-iptables-$node.out | tee -a "$LOG_FILE"
+        for port in "${REQUIRED_PORTS[@]}"; do
+            proto=$(echo $port | cut -d'/' -f2)
+            port_num=$(echo $port | cut -d'/' -f1)
+            if ! grep -q "dpt:$port_num" /tmp/portainer-iptables-$node.out; then
+                echo "Adding IPTABLES rule for $port on $node..." | tee -a "$LOG_FILE"
+                ssh pos-admin@$node "sudo iptables -A DOCKER-SWARM -p $proto --dport $port_num -j ACCEPT && sudo iptables-save > /etc/iptables/rules.v4"
+            fi
+        done
+    done
+
     # Check for existing Portainer Agent service
     # Note: Prompts to remove existing portainer_agent service if it exists.
     if docker service ls --filter name=portainer_agent -q | grep -q .; then
         echo "Warning: Existing Portainer Agent service detected:" | tee -a "$LOG_FILE"
         docker service ls --filter name=portainer_agent | tee -a "$LOG_FILE"
+        docker service ps portainer_agent --no-trunc | tee -a "$LOG_FILE"
         echo "Do you want to remove this service? (y/n)"
         read REMOVE_SERVICE
         if [ "$REMOVE_SERVICE" = "y" ] || [ "$REMOVE_SERVICE" = "Y" ]; then
@@ -134,25 +153,29 @@ fi
     echo "Using storage path: $STORAGE_PATH" | tee -a "$LOG_FILE"
 
     # Verify storage path
-    # Note: Checks if the storage path is a writable directory.
-    if ! sudo mkdir -p "$STORAGE_PATH" || ! [ -d "$STORAGE_PATH" ] || ! [ -w "$STORAGE_PATH" ]; then
-        echo "Error: Storage path $STORAGE_PATH is not a writable directory." | tee -a "$LOG_FILE"
-        exit 1
-    fi
-    if mount | grep -q "$(dirname "$STORAGE_PATH")"; then
-        echo "Storage path appears to be on a mounted filesystem (e.g., NFS)." | tee -a "$LOG_FILE"
-    fi
+    # Note: Checks if the storage path is a writable directory on all nodes.
+    for node in POSLXPDSWARM01 POSLXPDSWARM02 POSLXPDSWARM03; do
+        echo "Verifying storage path on $node..." | tee -a "$LOG_FILE"
+        if ! ssh pos-admin@$node "sudo mkdir -p \"$STORAGE_PATH\" && [ -d \"$STORAGE_PATH\" ] && [ -w \"$STORAGE_PATH\" ]"; then
+            echo "Error: Storage path $STORAGE_PATH is not a writable directory on $node." | tee -a "$LOG_FILE"
+            exit 1
+        fi
+        if ssh pos-admin@$node "mount | grep -q \"$(dirname \"$STORAGE_PATH\")\""; then
+            echo "Storage path on $node appears to be on a mounted filesystem (e.g., NFS)." | tee -a "$LOG_FILE"
+        fi
+    done
 
     # Create storage directory for Portainer Agent
     # Note: Sets permissive permissions for container access.
     echo "Creating storage directory for Portainer Agent at $STORAGE_PATH" | tee -a "$LOG_FILE"
-    if sudo mkdir -p "$STORAGE_PATH"; then
-        sudo chmod -R 777 "$STORAGE_PATH"
-        echo "Storage directory created and permissions set." | tee -a "$LOG_FILE"
-    else
-        echo "Error: Failed to create storage directory $STORAGE_PATH." | tee -a "$LOG_FILE"
-        exit 1
-    fi
+    for node in POSLXPDSWARM01 POSLXPDSWARM02 POSLXPDSWARM03; do
+        if ssh pos-admin@$node "sudo mkdir -p \"$STORAGE_PATH\" && sudo chmod -R 777 \"$STORAGE_PATH\""; then
+            echo "Storage directory created and permissions set on $node." | tee -a "$LOG_FILE"
+        else
+            echo "Error: Failed to create storage directory $STORAGE_PATH on $node." | tee -a "$LOG_FILE"
+            exit 1
+        fi
+    done
 
     # Create overlay network for Portainer
     # Note: Creates an overlay network for communication with the Portainer Server.
@@ -195,7 +218,7 @@ fi
             if [ $ATTEMPT -eq $RETRIES ]; then
                 echo "Failed to deploy Portainer Agent after $RETRIES attempts." | tee -a "$LOG_FILE"
                 # Log detailed task status for debugging
-                docker service ps portainer_agent > /tmp/portainer-agent-ps.out 2>&1
+                docker service ps portainer_agent --no-trunc > /tmp/portainer-agent-ps.out 2>&1
                 echo "Portainer Agent task status:" | tee -a "$LOG_FILE"
                 cat /tmp/portainer-agent-ps.out | tee -a "$LOG_FILE"
                 # Log node details
@@ -223,7 +246,7 @@ fi
         echo "Portainer Agent service status:" | tee -a "$LOG_FILE"
         cat /tmp/portainer-agent-status.out | tee -a "$LOG_FILE"
         echo "Portainer Agent tasks:" | tee -a "$LOG_FILE"
-        docker service ps portainer_agent | tee -a "$LOG_FILE"
+        docker service ps portainer_agent --no-trunc | tee -a "$LOG_FILE"
     else
         echo "Error retrieving Portainer Agent service status." | tee -a "$LOG_FILE"
         cat /tmp/portainer-agent-status.out | tee -a "$LOG_FILE"
