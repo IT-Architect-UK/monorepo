@@ -1,13 +1,12 @@
 #!/bin/bash
 
-# This script installs HashiCorp Vault on an Ubuntu system using HTTP on port 8200.
-# It ensures secure configurations, uses best practices, and resumes after reboots if needed.
+# This script installs HashiCorp Vault on an Ubuntu system, ensures it starts successfully,
+# and handles initialization and permissions automatically.
 
-# Check if running in bash
-if [ -z "$BASH_VERSION" ]; then
-    echo "Error: This script must be run with bash."
-    echo "Run it as: bash install-hashicorp-vault.sh or ./install-hashicorp-vault.sh"
-    exit 1
+# Check for root privileges and prompt for sudo if needed
+if [ "$EUID" -ne 0 ]; then
+    echo "This script requires root privileges. Please enter your sudo password."
+    exec sudo "$0" "$@"
 fi
 
 # Variables
@@ -20,8 +19,6 @@ VAULT_CONFIG_FILE="$VAULT_CONFIG_DIR/vault.hcl"
 VAULT_USER="vault"
 VAULT_PORT=8200
 PROTOCOL="http"
-STATE_FILE="/var/run/vault_install_state"
-RESUME_SERVICE="/etc/systemd/system/vault-install-resume.service"
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")" || {
@@ -39,17 +36,8 @@ log() {
 error_exit() {
     log "ERROR: $1"
     echo "Error: $1" >&2
-    rm -f "$STATE_FILE"
-    systemctl disable vault-install-resume.service >/dev/null 2>&1
-    systemctl stop vault-install-resume.service >/dev/null 2>&1
-    rm -f "$RESUME_SERVICE"
     exit 1
 }
-
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
-    error_exit "This script must be run as root (use sudo)"
-fi
 
 log "Starting Vault installation script"
 
@@ -62,71 +50,60 @@ for cmd in curl unzip jq iptables ss; do
     fi
 done
 
-# Function to create resume service
-create_resume_service() {
-    log "Creating systemd service to resume script after reboot"
-    cat > "$RESUME_SERVICE" << EOF
-[Unit]
-Description=Resume Vault Installation After Reboot
-After=network.target
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash $0 --resume
-RemainAfterExit=no
-User=root
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    systemctl daemon-reload || error_exit "Failed to reload systemd daemon for resume service"
-    systemctl enable vault-install-resume.service || error_exit "Failed to enable resume service"
-}
-
-# Check if resuming after reboot
-if [ "$1" = "--resume" ]; then
-    log "Resuming installation after reboot"
-    if [ ! -f "$STATE_FILE" ]; then
-        error_exit "State file not found, cannot resume installation"
-    fi
-    STATE=$(cat "$STATE_FILE")
-    log "Resuming from state: $STATE"
-else
-    STATE="start"
-fi
-
-# Configure memory lock limits for vault user
-configure_mlock_limits() {
-    if [ "$STATE" != "post-reboot" ]; then
-        log "Configuring memory lock limits for vault user"
-        if ! grep -q "vault.*memlock" /etc/security/limits.conf; then
-            echo "vault soft memlock unlimited" | tee -a /etc/security/limits.conf
-            echo "vault hard memlock unlimited" | tee -a /etc/security/limits.conf
-            log "Memory lock limits configured. Reboot required."
-            echo "post-reboot" > "$STATE_FILE"
-            create_resume_service
-            log "Rebooting system..."
-            reboot
-            exit 0
-        else
-            log "Memory lock limits already configured."
-        fi
-    fi
-}
-
 # Fetch the latest Vault version
-fetch_vault_version() {
-    log "Fetching the latest Vault version"
-    VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/index.json | jq -r '.versions | keys[]' | sort -V | tail -n 1)
-    if [ -z "$VAULT_VERSION" ]; then
-        error_exit "Failed to fetch the latest Vault version"
+log "Fetching the latest Vault version"
+VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/index.json | jq -r '.versions | keys[]' | sort -V | tail -n 1)
+if [ -z "$VAULT_VERSION" ]; then
+    error_exit "Failed to fetch the latest Vault version"
+fi
+log "Latest Vault version: $VAULT_VERSION"
+
+# Set VAULT_ZIP and VAULT_URL based on the latest version
+VAULT_ZIP="vault_${VAULT_VERSION}_linux_amd64.zip"
+VAULT_URL="https://releases.hashicorp.com/vault/${VAULT_VERSION}/${VAULT_ZIP}"
+
+# Check for existing Vault installation
+check_existing_vault() {
+    if command -v vault >/dev/null 2>&1; then
+        CURRENT_VERSION=$(vault --version | awk '{print $2}' | sed 's/v//')
+        log "Found existing Vault version: $CURRENT_VERSION"
+        return 0
+    else
+        log "No existing Vault installation found"
+        return 1
     fi
-    log "Latest Vault version: $VAULT_VERSION"
-    VAULT_ZIP="vault_${VAULT_VERSION}_linux_amd64.zip"
-    VAULT_URL="https://releases.hashicorp.com/vault/${VAULT_VERSION}/${VAULT_ZIP}"
 }
 
-# Install Vault
+# Prompt for action if Vault exists
+handle_existing_vault() {
+    log "Vault version $CURRENT_VERSION is already installed"
+    echo "Existing Vault version $CURRENT_VERSION found"
+    echo "1) Remove and install the latest version ($VAULT_VERSION)"
+    echo "2) Upgrade to the latest version ($VAULT_VERSION)"
+    echo "3) Exit"
+    read -p "Select an option [1-3]: " choice
+    case $choice in
+        1)
+            log "Removing existing Vault installation"
+            rm -f "$INSTALL_DIR/vault" || error_exit "Failed to remove existing Vault"
+            log "Existing Vault removed"
+            return 0
+            ;;
+        2)
+            log "Proceeding with upgrade to version $VAULT_VERSION"
+            return 0
+            ;;
+        3)
+            log "User chose to exit"
+            exit 0
+            ;;
+        *)
+            error_exit "Invalid option selected"
+            ;;
+    esac
+}
+
+# Download and install Vault
 install_vault() {
     log "Creating temporary directory: $TEMP_DIR"
     mkdir -p "$TEMP_DIR" || error_exit "Failed to create temporary directory"
@@ -153,75 +130,7 @@ configure_vault_user() {
     fi
     mkdir -p "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" || error_exit "Failed to create Vault directories"
     chown -R "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" || error_exit "Failed to set Vault directory permissions"
-}
-
-# Create Vault configuration with raft storage
-create_vault_config() {
-    log "Creating Vault configuration file"
-    cat > "$VAULT_CONFIG_FILE" << EOF
-storage "raft" {
-  path = "$VAULT_DATA_DIR"
-  node_id = "raft_node_1"
-}
-
-listener "tcp" {
-  address = "0.0.0.0:$VAULT_PORT"
-  tls_disable = true
-}
-
-api_addr = "$PROTOCOL://$FQDN:$VAULT_PORT"
-ui = true
-EOF
-    chown "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_FILE" || error_exit "Failed to set Vault config permissions"
-}
-
-# Configure iptables firewall rules
-configure_firewall() {
-    log "Configuring iptables rules for Vault on port $VAULT_PORT"
-    apt-get install -y iptables-persistent || error_exit "Failed to install iptables-persistent"
-    iptables -A INPUT -p tcp --dport "$VAULT_PORT" -j ACCEPT || error_exit "Failed to add iptables rule"
-    iptables-save > /etc/iptables/rules.v4 || error_exit "Failed to save iptables rules"
-}
-
-# Create systemd service with CAP_IPC_LOCK
-create_systemd_service() {
-    log "Creating Vault systemd service"
-    cat > /etc/systemd/system/vault.service << EOF
-[Unit]
-Description=HashiCorp Vault
-After=network.target
-Requires=network.target
-
-[Service]
-User=$VAULT_USER
-Group=$VAULT_USER
-ExecStart=$INSTALL_DIR/vault server -config=$VAULT_CONFIG_FILE
-ExecReload=/bin/kill --signal HUP \$MAINPID
-KillMode=process
-Restart=on-failure
-RestartSec=5
-LimitNOFILE=65536
-CapabilityBoundingSet=CAP_IPC_LOCK
-AmbientCapabilities=CAP_IPC_LOCK
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    systemctl daemon-reload || error_exit "Failed to reload systemd daemon"
-    systemctl enable vault.service || error_exit "Failed to enable Vault service"
-}
-
-# Check Vault service
-check_vault_service() {
-    log "Starting Vault service"
-    systemctl start vault.service
-    sleep 5
-    if systemctl is-active --quiet vault.service; then
-        log "Vault service started successfully"
-        echo "Vault service is running successfully."
-    else
-        error_exit "Vault service failed to start. Check logs with 'journalctl -u vault.service'"
-    fi
+    chmod -R 750 "$VAULT_DATA_DIR" || error_exit "Failed to set Vault data directory permissions"
 }
 
 # Prompt for FQDN with default value
@@ -242,11 +151,102 @@ prompt_for_fqdn() {
     log "FQDN set to $FQDN"
 }
 
+# Create Vault configuration for HTTP on port 8200
+create_vault_config() {
+    log "Creating Vault configuration file"
+    cat > "$VAULT_CONFIG_FILE" << EOF
+storage "raft" {
+  path = "$VAULT_DATA_DIR"
+  node_id = "raft_node_1"
+}
+
+listener "tcp" {
+  address = "0.0.0.0:$VAULT_PORT"
+  tls_disable = true
+}
+
+api_addr = "$PROTOCOL://$FQDN:$VAULT_PORT"
+ui = true
+EOF
+    chown "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_FILE" || error_exit "Failed to set Vault config permissions"
+    chmod 640 "$VAULT_CONFIG_FILE" || error_exit "Failed to set Vault config file permissions"
+}
+
+# Configure iptables firewall rules for port 8200
+configure_firewall() {
+    log "Configuring iptables rules for Vault on port $VAULT_PORT"
+    apt-get install -y iptables-persistent || error_exit "Failed to install iptables-persistent"
+    iptables -A INPUT -p tcp --dport "$VAULT_PORT" -j ACCEPT || error_exit "Failed to add iptables rule for port $VAULT_PORT"
+    iptables-save > /etc/iptables/rules.v4 || error_exit "Failed to save iptables rules"
+    log "iptables rules configured to allow port $VAULT_PORT"
+}
+
+# Create systemd service for Vault
+create_systemd_service() {
+    log "Creating Vault systemd service"
+    cat > /etc/systemd/system/vault.service << EOF
+[Unit]
+Description=HashiCorp Vault
+After=network.target
+Requires=network.target
+
+[Service]
+User=$VAULT_USER
+Group=$VAULT_USER
+ExecStart=$INSTALL_DIR/vault server -config=$VAULT_CONFIG_FILE
+ExecReload=/bin/kill --signal HUP \$MAINPID
+KillMode=process
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload || error_exit "Failed to reload systemd daemon"
+    systemctl enable vault.service || error_exit "Failed to enable Vault service"
+}
+
+# Initialize Vault
+initialize_vault() {
+    log "Initializing Vault"
+    export VAULT_ADDR="$PROTOCOL://127.0.0.1:$VAULT_PORT"
+    systemctl start vault.service || error_exit "Failed to start Vault service"
+    sleep 5
+    vault operator init -key-shares=1 -key-threshold=1 > /tmp/vault_init.txt || error_exit "Failed to initialize Vault"
+    log "Vault initialized successfully"
+    echo "Vault initialization details saved to /tmp/vault_init.txt"
+    echo "Please store the unseal key and root token securely!"
+}
+
+# Prompt for initialization
+prompt_for_initialization() {
+    log "Prompting for Vault initialization"
+    echo "Would you like to initialize Vault in production mode?"
+    echo "1) Yes"
+    echo "2) No"
+    read -p "Select an option [1-2]: " init_choice
+    case $init_choice in
+        1)
+            log "User chose to initialize Vault"
+            initialize_vault
+            return 0
+            ;;
+        2)
+            log "User chose not to initialize Vault"
+            return 0
+            ;;
+        *)
+            error_exit "Invalid option selected"
+            ;;
+    esac
+}
+
 # Verify installation
 verify_installation() {
     if command -v vault >/dev/null 2>&1; then
         INSTALLED_VERSION=$(vault --version | awk '{print $2}' | sed 's/v//')
-        if [ "$INSTALLED_VERSION" = "$VAULT_VERSION" ]; then
+        if [[ "$INSTALLED_VERSION" == "$VAULT_VERSION" ]]; then
             log "Vault version $VAULT_VERSION successfully installed"
             echo "Vault version $VAULT_VERSION installed successfully"
         else
@@ -257,67 +257,53 @@ verify_installation() {
     fi
 }
 
-# Notify user
+# Notify user on how to access Vault
 notify_user() {
-    log "Providing user notification"
+    log "Providing user notification for Vault access"
     ACCESS_URL="$PROTOCOL://$FQDN:$VAULT_PORT"
     cat << EOF | tee -a "$LOG_FILE"
 
 ============================================================
-Vault Installation Complete
+Vault Access Instructions
 ============================================================
-Vault is installed at: $INSTALL_DIR/vault
-Access it via:
+Vault has been successfully installed at: $INSTALL_DIR/vault
+
+To access Vault:
 - Web Interface: $ACCESS_URL
 - CLI: export VAULT_ADDR='$ACCESS_URL'
 
-Manage Vault:
-1. Start: systemctl start vault
-2. Status: systemctl status vault
+To manage Vault:
+1. Start the service:
+   $ systemctl start vault
 
-Logs: $LOG_FILE
-Docs: https://developer.hashicorp.com/vault/docs
+2. Check status:
+   $ systemctl status vault
+
+3. If initialized, use the unseal key and root token from /tmp/vault_init.txt
+
+For full documentation and configuration:
+   Visit https://developer.hashicorp.com/vault/docs
+
+Logs for this installation are available at: $LOG_FILE
 ============================================================
 EOF
 }
 
 # Main execution
-case "$STATE" in
-    "start")
-        configure_mlock_limits
-        fetch_vault_version
-        install_vault
-        configure_vault_user
-        prompt_for_fqdn
-        create_vault_config
-        configure_firewall
-        create_systemd_service
-        verify_installation
-        check_vault_service
-        notify_user
-        ;;
-    "post-reboot")
-        fetch_vault_version
-        install_vault
-        configure_vault_user
-        prompt_for_fqdn
-        create_vault_config
-        configure_firewall
-        create_systemd_service
-        verify_installation
-        check_vault_service
-        notify_user
-        ;;
-    *)
-        error_exit "Invalid state: $STATE"
-        ;;
-esac
+log "Script execution started"
+if check_existing_vault; then
+    handle_existing_vault
+fi
 
-# Cleanup
-rm -f "$STATE_FILE"
-systemctl disable vault-install-resume.service >/dev/null 2>&1
-systemctl stop vault-install-resume.service >/dev/null 2>&1
-rm -f "$RESUME_SERVICE"
+install_vault
+configure_vault_user
+prompt_for_fqdn
+create_vault_config
+configure_firewall
+create_systemd_service
+verify_installation
+prompt_for_initialization
+notify_user
 
 log "Script execution completed successfully"
-echo "Installation complete. Logs at $LOG_FILE"
+echo "Installation complete. Logs available at $LOG_FILE"
