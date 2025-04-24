@@ -224,10 +224,18 @@ check_vault_service() {
     fi
 }
 
-# Prompt for FQDN
+# Prompt for FQDN with default value
 prompt_for_fqdn() {
     log "Prompting for FQDN"
-    read -p "Enter the Fully Qualified Domain Name (FQDN) for Vault access (e.g., vault.example.com): " FQDN
+    HOSTNAME=$(hostname)
+    DOMAIN=$(grep -E '^(domain|search)' /etc/resolv.conf | awk '{print $2}' | head -1)
+    if [ -n "$DOMAIN" ]; then
+        DEFAULT_FQDN="$HOSTNAME.$DOMAIN"
+    else
+        DEFAULT_FQDN="$HOSTNAME"
+    fi
+    read -e -p "Enter the Fully Qualified Domain Name (FQDN) for Vault access [default: $DEFAULT_FQDN]: " FQDN
+    FQDN=${FQDN:-$DEFAULT_FQDN}
     if [ -z "$FQDN" ]; then
         error_exit "FQDN cannot be empty"
     fi
