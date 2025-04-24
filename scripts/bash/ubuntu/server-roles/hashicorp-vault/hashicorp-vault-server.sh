@@ -135,16 +135,6 @@ write_log "System updated successfully"
 # Final success confirmation
 write_log "All configuration steps completed successfully on $(date)"
 
-# Final instructions for the user
-log "Vault setup complete!"
-echo "Vault is running at $VAULT_ADDR"
-echo "Unseal Key: $UNSEAL_KEY"
-echo "Root Token: $ROOT_TOKEN"
-echo "Unseal Key and Root Token saved to $KEY_TOKEN_FILE"
-echo "Delete $KEY_TOKEN_FILE as soon you have stored the keys securely."
-echo "Please store the unseal key and root token securely!"
-echo "To log in, run: export VAULT_ADDR='https://$FQDN:8200' && vault login $ROOT_TOKEN"
-
 # Reboot prompt
 read -p "Do you want to reboot now? (y/N): " reboot_now
 if [[ "$reboot_now" =~ ^[Yy]$ ]]; then
