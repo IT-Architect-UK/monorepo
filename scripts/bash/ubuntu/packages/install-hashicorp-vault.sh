@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# This script installs HashiCorp Vault on an Ubuntu system, ensures it starts successfully,
-# and handles initialization and permissions automatically.
+# This script installs HashiCorp Vault on an Ubuntu system, ensures Raft storage,
+# removes request limiter settings, and handles initialization automatically.
 
 # Check for root privileges and prompt for sudo if needed
 if [ "$EUID" -ne 0 ]; then
@@ -17,7 +17,7 @@ VAULT_CONFIG_DIR="/etc/vault.d"
 VAULT_DATA_DIR="/opt/vault/data"
 VAULT_CONFIG_FILE="$VAULT_CONFIG_DIR/vault.hcl"
 VAULT_USER="vault"
-VAULT_PORT=8200
+VAULT_PORT=8200  # Default port, kept for clarity
 PROTOCOL="http"
 
 # Ensure log directory exists
@@ -53,12 +53,9 @@ done
 # Fetch the latest Vault version
 log "Fetching the latest Vault version"
 VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/index.json | jq -r '.versions | keys[]' | sort -V | tail -n 1)
-if [ -z "$VAULT_VERSION" ]; then
-    error_exit "Failed to fetch the latest Vault version"
-fi
+[ -z "$VAULT_VERSION" ] && error_exit "Failed to fetch the latest Vault version"
 log "Latest Vault version: $VAULT_VERSION"
 
-# Set VAULT_ZIP and VAULT_URL based on the latest version
 VAULT_ZIP="vault_${VAULT_VERSION}_linux_amd64.zip"
 VAULT_URL="https://releases.hashicorp.com/vault/${VAULT_VERSION}/${VAULT_ZIP}"
 
@@ -74,86 +71,65 @@ check_existing_vault() {
     fi
 }
 
-# Prompt for action if Vault exists
+# Handle existing Vault
 handle_existing_vault() {
     log "Vault version $CURRENT_VERSION is already installed"
     echo "Existing Vault version $CURRENT_VERSION found"
-    echo "1) Remove and install the latest version ($VAULT_VERSION)"
-    echo "2) Upgrade to the latest version ($VAULT_VERSION)"
+    echo "1) Remove and install $VAULT_VERSION"
+    echo "2) Upgrade to $VAULT_VERSION"
     echo "3) Exit"
     read -p "Select an option [1-3]: " choice
     case $choice in
-        1)
-            log "Removing existing Vault installation"
-            rm -f "$INSTALL_DIR/vault" || error_exit "Failed to remove existing Vault"
-            log "Existing Vault removed"
-            return 0
-            ;;
-        2)
-            log "Proceeding with upgrade to version $VAULT_VERSION"
-            return 0
-            ;;
-        3)
-            log "User chose to exit"
-            exit 0
-            ;;
-        *)
-            error_exit "Invalid option selected"
-            ;;
+        1) log "Removing existing Vault"; rm -f "$INSTALL_DIR/vault" || error_exit "Failed to remove Vault"; return 0;;
+        2) log "Proceeding with upgrade"; return 0;;
+        3) log "User chose to exit"; exit 0;;
+        *) error_exit "Invalid option";;
     esac
 }
 
-# Download and install Vault
+# Install Vault
 install_vault() {
-    log "Creating temporary directory: $TEMP_DIR"
-    mkdir -p "$TEMP_DIR" || error_exit "Failed to create temporary directory"
+    log "Creating temp directory: $TEMP_DIR"
+    mkdir -p "$TEMP_DIR" || error_exit "Failed to create temp directory"
 
-    log "Downloading Vault version $VAULT_VERSION"
+    log "Downloading Vault $VAULT_VERSION"
     curl -s -o "$TEMP_DIR/$VAULT_ZIP" "$VAULT_URL" || error_exit "Failed to download Vault"
 
     log "Unzipping Vault"
     unzip -o "$TEMP_DIR/$VAULT_ZIP" -d "$TEMP_DIR" || error_exit "Failed to unzip Vault"
 
     log "Installing Vault to $INSTALL_DIR"
-    mv "$TEMP_DIR/vault" "$INSTALL_DIR/" || error_exit "Failed to move Vault binary"
-    chmod +x "$INSTALL_DIR/vault" || error_exit "Failed to set Vault permissions"
+    mv "$TEMP_DIR/vault" "$INSTALL_DIR/" && chmod +x "$INSTALL_DIR/vault" || error_exit "Failed to install Vault"
 
-    log "Cleaning up temporary files"
-    rm -rf "$TEMP_DIR" || log "Warning: Failed to clean up temporary directory"
+    log "Cleaning up"
+    rm -rf "$TEMP_DIR" || log "Warning: Failed to clean up temp directory"
 }
 
 # Configure Vault user and directories
 configure_vault_user() {
     log "Configuring Vault user and directories"
-    if ! id "$VAULT_USER" >/dev/null 2>&1; then
-        useradd -r -s /bin/false "$VAULT_USER" || error_exit "Failed to create Vault user"
-    fi
-    mkdir -p "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" || error_exit "Failed to create Vault directories"
-    chown -R "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" || error_exit "Failed to set Vault directory permissions"
-    chmod -R 750 "$VAULT_DATA_DIR" || error_exit "Failed to set Vault data directory permissions"
+    id "$VAULT_USER" >/dev/null 2>&1 || useradd -r -s /bin/false "$VAULT_USER" || error_exit "Failed to create Vault user"
+    mkdir -p "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" || error_exit "Failed to create directories"
+    chown -R "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_DIR" "$VAULT_DATA_DIR" || error_exit "Failed to set permissions"
+    chmod -R 750 "$VAULT_DATA_DIR" || error_exit "Failed to set data dir permissions"
 }
 
-# Prompt for FQDN with default value
+# Prompt for FQDN
 prompt_for_fqdn() {
     log "Prompting for FQDN"
     HOSTNAME=$(hostname)
     DOMAIN=$(grep -E '^(domain|search)' /etc/resolv.conf | awk '{print $2}' | head -1)
-    if [ -n "$DOMAIN" ]; then
-        DEFAULT_FQDN="$HOSTNAME.$DOMAIN"
-    else
-        DEFAULT_FQDN="$HOSTNAME"
-    fi
-    read -e -p "Enter the Fully Qualified Domain Name (FQDN) for Vault access [default: $DEFAULT_FQDN]: " FQDN
+    DEFAULT_FQDN="${DOMAIN:+${HOSTNAME}.${DOMAIN}}"
+    DEFAULT_FQDN=${DEFAULT_FQDN:-$HOSTNAME}
+    read -e -p "Enter FQDN for Vault [default: $DEFAULT_FQDN]: " FQDN
     FQDN=${FQDN:-$DEFAULT_FQDN}
-    if [ -z "$FQDN" ]; then
-        error_exit "FQDN cannot be empty"
-    fi
+    [ -z "$FQDN" ] && error_exit "FQDN cannot be empty"
     log "FQDN set to $FQDN"
 }
 
-# Create Vault configuration for HTTP on port 8200
+# Create Vault config with Raft storage, no request limiter
 create_vault_config() {
-    log "Creating Vault configuration file"
+    log "Creating Vault config file"
     cat > "$VAULT_CONFIG_FILE" << EOF
 storage "raft" {
   path = "$VAULT_DATA_DIR"
@@ -168,20 +144,28 @@ listener "tcp" {
 api_addr = "$PROTOCOL://$FQDN:$VAULT_PORT"
 ui = true
 EOF
-    chown "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_FILE" || error_exit "Failed to set Vault config permissions"
-    chmod 640 "$VAULT_CONFIG_FILE" || error_exit "Failed to set Vault config file permissions"
+    chown "$VAULT_USER:$VAULT_USER" "$VAULT_CONFIG_FILE" && chmod 640 "$VAULT_CONFIG_FILE" || error_exit "Failed to set config permissions"
 }
 
-# Configure iptables firewall rules for port 8200
+# Check for request limiter in config
+check_request_limiter() {
+    log "Checking for request limiter in $VAULT_CONFIG_FILE"
+    if grep -i "limit_request_rate" "$VAULT_CONFIG_FILE" >/dev/null 2>&1; then
+        log "Removing request limiter settings"
+        sed -i '/limit_request_rate/d' "$VAULT_CONFIG_FILE" || error_exit "Failed to remove request limiter"
+    fi
+    log "No request limiter settings found or already removed"
+}
+
+# Configure firewall
 configure_firewall() {
-    log "Configuring iptables rules for Vault on port $VAULT_PORT"
+    log "Configuring iptables for port $VAULT_PORT"
     apt-get install -y iptables-persistent || error_exit "Failed to install iptables-persistent"
-    iptables -A INPUT -p tcp --dport "$VAULT_PORT" -j ACCEPT || error_exit "Failed to add iptables rule for port $VAULT_PORT"
+    iptables -A INPUT -p tcp --dport "$VAULT_PORT" -j ACCEPT || error_exit "Failed to add iptables rule"
     iptables-save > /etc/iptables/rules.v4 || error_exit "Failed to save iptables rules"
-    log "iptables rules configured to allow port $VAULT_PORT"
 }
 
-# Create systemd service for Vault
+# Create systemd service with mlock fixes
 create_systemd_service() {
     log "Creating Vault systemd service"
     cat > /etc/systemd/system/vault.service << EOF
@@ -199,11 +183,14 @@ KillMode=process
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
+LimitMEMLOCK=infinity
+CapabilityBoundingSet=CAP_IPC_LOCK
+AmbientCapabilities=CAP_IPC_LOCK
 
 [Install]
 WantedBy=multi-user.target
 EOF
-    systemctl daemon-reload || error_exit "Failed to reload systemd daemon"
+    systemctl daemon-reload || error_exit "Failed to reload systemd"
     systemctl enable vault.service || error_exit "Failed to enable Vault service"
 }
 
@@ -211,80 +198,70 @@ EOF
 initialize_vault() {
     log "Initializing Vault"
     export VAULT_ADDR="$PROTOCOL://127.0.0.1:$VAULT_PORT"
-    systemctl start vault.service || error_exit "Failed to start Vault service"
+    systemctl start vault.service || error_exit "Failed to start Vault"
     sleep 5
     vault operator init -key-shares=1 -key-threshold=1 > /tmp/vault_init.txt || error_exit "Failed to initialize Vault"
-    log "Vault initialized successfully"
-    echo "Vault initialization details saved to /tmp/vault_init.txt"
-    echo "Please store the unseal key and root token securely!"
+    log "Vault initialized"
+    echo "Vault initialization details in /tmp/vault_init.txt"
 }
 
 # Prompt for initialization
 prompt_for_initialization() {
     log "Prompting for Vault initialization"
-    echo "Would you like to initialize Vault in production mode?"
+    echo "Initialize Vault in production mode?"
     echo "1) Yes"
     echo "2) No"
     read -p "Select an option [1-2]: " init_choice
     case $init_choice in
-        1)
-            log "User chose to initialize Vault"
-            initialize_vault
-            return 0
-            ;;
-        2)
-            log "User chose not to initialize Vault"
-            return 0
-            ;;
-        *)
-            error_exit "Invalid option selected"
-            ;;
+        1) log "User chose to initialize Vault"; initialize_vault; return 0;;
+        2) log "User chose not to initialize"; return 0;;
+        *) error_exit "Invalid option";;
     esac
 }
 
-# Verify installation
+# Verify installation and Raft storage
 verify_installation() {
+    log "Verifying installation"
     if command -v vault >/dev/null 2>&1; then
         INSTALLED_VERSION=$(vault --version | awk '{print $2}' | sed 's/v//')
         if [[ "$INSTALLED_VERSION" == "$VAULT_VERSION" ]]; then
-            log "Vault version $VAULT_VERSION successfully installed"
-            echo "Vault version $VAULT_VERSION installed successfully"
+            log "Vault $VAULT_VERSION installed"
+            systemctl restart vault.service
+            sleep 5
+            if journalctl -u vault.service | grep -q "storage configured to use \"raft\""; then
+                log "Raft storage confirmed"
+            else
+                error_exit "Raft storage not in use, check logs"
+            fi
+            echo "Vault $VAULT_VERSION installed successfully"
         else
-            error_exit "Installed version ($INSTALLED_VERSION) does not match requested version ($VAULT_VERSION)"
+            error_exit "Installed version ($INSTALLED_VERSION) mismatches $VAULT_VERSION"
         fi
     else
         error_exit "Vault installation failed - binary not found"
     fi
 }
 
-# Notify user on how to access Vault
+# Notify user
 notify_user() {
-    log "Providing user notification for Vault access"
+    log "Providing Vault access instructions"
     ACCESS_URL="$PROTOCOL://$FQDN:$VAULT_PORT"
     cat << EOF | tee -a "$LOG_FILE"
 
 ============================================================
 Vault Access Instructions
 ============================================================
-Vault has been successfully installed at: $INSTALL_DIR/vault
-
-To access Vault:
+Vault installed at: $INSTALL_DIR/vault
 - Web Interface: $ACCESS_URL
 - CLI: export VAULT_ADDR='$ACCESS_URL'
 
-To manage Vault:
-1. Start the service:
-   $ systemctl start vault
+Manage Vault:
+1. Start: systemctl start vault
+2. Status: systemctl status vault
+3. If initialized, see /tmp/vault_init.txt
 
-2. Check status:
-   $ systemctl status vault
-
-3. If initialized, use the unseal key and root token from /tmp/vault_init.txt
-
-For full documentation and configuration:
-   Visit https://developer.hashicorp.com/vault/docs
-
-Logs for this installation are available at: $LOG_FILE
+Docs: https://developer.hashicorp.com/vault/docs
+Logs: $LOG_FILE
 ============================================================
 EOF
 }
@@ -299,11 +276,12 @@ install_vault
 configure_vault_user
 prompt_for_fqdn
 create_vault_config
+check_request_limiter
 configure_firewall
 create_systemd_service
 verify_installation
 prompt_for_initialization
 notify_user
 
-log "Script execution completed successfully"
-echo "Installation complete. Logs available at $LOG_FILE"
+log "Script completed successfully"
+echo "Installation complete. Logs at $LOG_FILE"
