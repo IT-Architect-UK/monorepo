@@ -2,38 +2,34 @@
 
 : '
 .SYNOPSIS
-This script executes a series of scripts for server baseline configuration for a Hashicorp Vault Server.
+This script executes a series of scripts for server baseline configuration for a HashiCorp Vault Server.
 
 .DESCRIPTION
 The script performs the following actions:
 - Ensures the log directory exists and creates a log file.
 - Disables Cloud-Init.
-- Verifies if the user has sudo privileges without requiring a password.
+- Verifies if the user has sudo privileges, prompting for a password if necessary.
 - Executes a predefined list of scripts for server configuration, logging the output.
-- Performs a full system upgrade, removes unnecessary packages, and reboots.
+- Performs a full system upgrade, removes unnecessary packages, and optionally reboots.
 
 .NOTES
-Version:            1.0
+Version:            1.3
 Author:             Darren Pilkington
 Modification Date:  20-04-2025
 '
 
-# Define the scripts directory
-SCRIPTS_DIR="/source-files/github/monorepo/scripts/bash/ubuntu"
+# Default configuration scripts directory
+DEFAULT_CONFIG_SCRIPTS_DIR="/source-files/github/monorepo/scripts/bash/ubuntu"
 
-# Define log file name and directory
-LOG_DIR="/logs"
+# Default log directory
+DEFAULT_LOG_DIR="/logs"
+
+# Allow overriding defaults via environment variables
+CONFIG_SCRIPTS_DIR="${CONFIG_SCRIPTS_DIR:-$DEFAULT_CONFIG_SCRIPTS_DIR}"
+LOG_DIR="${LOG_DIR:-$DEFAULT_LOG_DIR}"
+
+# Define log file
 LOG_FILE="$LOG_DIR/server-baseline-$(date '+%Y%m%d').log"
-
-# Create Logs Directory and Log File
-mkdir -p "$LOG_DIR"
-sudo touch "$LOG_FILE"
-
-# Ensure log directory exists
-if [ ! -d "$LOG_DIR" ]; then
-    sudo mkdir -p "$LOG_DIR"
-    echo "Created log directory: ${LOG_DIR}"
-fi
 
 # Function to write log with timestamp
 write_log() {
@@ -41,76 +37,109 @@ write_log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | sudo tee -a "$LOG_FILE"
 }
 
-# Log file location
-LOG_FILE="$LOG_DIR/server-baseline-$(date '+%Y%m%d').log"
+# Create log directory if it doesn’t exist
+if [ ! -d "$LOG_DIR" ]; then
+    sudo mkdir -p "$LOG_DIR" || { echo "Failed to create $LOG_DIR"; exit 1; }
+    write_log "Created log directory: $LOG_DIR"
+fi
+
+# Create or ensure log file exists
+sudo touch "$LOG_FILE" || { echo "Failed to create $LOG_FILE"; exit 1; }
+
+# Log script start
+write_log "Script started on $(date)"
+
+# Inform user about sudo requirement
+echo "This script requires sudo privileges. You may be prompted for your password."
+
+# Confirmation prompt to proceed
+read -p "Do you want to proceed with the server baseline configuration? (y/N): " confirm
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    write_log "User chose not to proceed. Exiting."
+    exit 0
+fi
+write_log "User confirmed to proceed with configuration."
+
+# Check for sudo privileges
+if ! sudo -n true 2>/dev/null; then
+    write_log "Sudo requires a password. Prompting for sudo credentials."
+    sudo -v || { write_log "Failed to obtain sudo credentials."; exit 1; }
+else
+    write_log "Sudo is available without a password."
+fi
 
 # Disable Cloud-Init
 write_log "Disabling Cloud-Init"
-sudo touch /etc/cloud/cloud-init.disabled
+sudo touch /etc/cloud/cloud-init.disabled || { write_log "Failed to disable Cloud-Init"; exit 1; }
 write_log "Cloud-Init disabled successfully"
 
-{
-    echo "Script started on $(date)"
+# List of scripts to run (relative to CONFIG_SCRIPTS_DIR)
+SCRIPTS_TO_RUN=(
+    "configuration/apply-branding.sh"
+    "packages/install-webmin.sh"
+    "configuration/extend-disks.sh"
+    "configuration/disable-ipv6.sh"
+    "configuration/dns-default-gateway.sh"
+    "configuration/setup-iptables.sh"
+    "configuration/disable-cloud-init.sh"
+    "configuration/create-openssl-root-cert.sh"
+    "packages/install-hashicorp-vault.sh"
+)
 
-    # Verify sudo privileges without password
-    if ! sudo -n true 2>/dev/null; then
-        echo "Error: User does not have sudo privileges or requires a password for sudo."
+# Execute each script
+for script in "${SCRIPTS_TO_RUN[@]}"; do
+    script_path="${CONFIG_SCRIPTS_DIR}/${script}"
+
+    # Verify script exists
+    if [ -f "$script_path" ]; then
+        write_log "Processing $script_path"
+
+        # Make script executable
+        write_log "Changing permissions for $script_path"
+        sudo chmod +x "$script_path" || { write_log "Failed to set permissions for $script_path"; exit 1; }
+
+        # Run the script with sudo
+        write_log "Executing $script_path"
+        if sudo "$script_path"; then
+            write_log "$script executed successfully"
+        else
+            write_log "Error: Failed to execute $script_path"
+            exit 1
+        fi
+    else
+        write_log "Error: Script $script_path does not exist"
         exit 1
     fi
+done
 
-    # List of scripts to run
-    SCRIPTS_TO_RUN=(
-        "configuration/apply-branding.sh"
-        "packages/install-webmin.sh"
-        "configuration/extend-disks.sh"
-        "configuration/disable-ipv6.sh"
-        "configuration/dns-default-gateway.sh"
-        "configuration/setup-iptables.sh"
-        "configuration/disable-cloud-init.sh"
-        "configuration/create-openssl-root-cert.sh"
-        "packages/install-hashicorp-vault.sh"
-    )
+write_log "All specified scripts executed successfully"
 
-    for script in "${SCRIPTS_TO_RUN[@]}"; do
-        script_path="${SCRIPTS_DIR}/${script}"
-
-        # Check if the script exists
-        if [ -f "$script_path" ]; then
-            echo "Processing $script_path"
-
-            # Change permission
-            echo "Changing permission for $script_path"
-            sudo chmod +x "$script_path"
-
-            # Execute the script
-            echo "Executing $script_path"
-            if sudo "$script_path"; then
-                echo "$script executed successfully."
-            else
-                echo "Error occurred while executing $script."
-                exit 1
-            fi
-        else
-            echo "Script $script_path does not exist."
-        fi
-    done
-
-    echo "All specified scripts have been executed."
-
-    # Add jammy-updates repository
-    write_log "Ensuring jammy-updates repository is included"
-    sudo add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse"
+# Check Ubuntu version before adding repository
+UBUNTU_VERSION=$(lsb_release -cs)
+if [ "$UBUNTU_VERSION" = "jammy" ]; then
+    write_log "Adding jammy-updates repository"
+    sudo add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse" || { write_log "Failed to add repository"; exit 1; }
     write_log "jammy-updates repository added successfully"
+else
+    write_log "Skipping repository addition (not Ubuntu Jammy)"
+fi
 
-    # Install Latest Updates
-    write_log "Updating package lists"
-    sudo DEBIAN_FRONTEND=noninteractive apt update -y
-    sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y
-    sudo DEBIAN_FRONTEND=noninteractive apt autoremove -y
-    sudo DEBIAN_FRONTEND=noninteractive apt autoclean -y
-    write_log "Package lists updated successfully"
+# Update and upgrade system
+write_log "Updating package lists"
+sudo DEBIAN_FRONTEND=noninteractive apt update -y || { write_log "Failed to update package lists"; exit 1; }
+sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y || { write_log "Failed to upgrade packages"; exit 1; }
+sudo DEBIAN_FRONTEND=noninteractive apt autoremove -y || { write_log "Failed to remove unused packages"; exit 1; }
+sudo DEBIAN_FRONTEND=noninteractive apt autoclean -y || { write_log "Failed to clean package cache"; exit 1; }
+write_log "System updated successfully"
 
-    echo "Script completed successfully on $(date). The system will reboot in 5 seconds."
-    sleep 5
+# Final success confirmation
+write_log "All configuration steps completed successfully on $(date)"
+
+# Reboot prompt
+read -p "Do you want to reboot now? (y/N): " reboot_now
+if [[ "$reboot_now" =~ ^[Yy]$ ]]; then
+    write_log "User chose to reboot now."
     sudo reboot
-} 2>&1 | tee -a "$LOG_FILE"
+else
+    write_log "User chose not to reboot now. Please reboot manually when ready."
+fi
