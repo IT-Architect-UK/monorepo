@@ -1,14 +1,9 @@
 #!/bin/bash
 
-# generate_root_ca.sh
-#
 # This script generates a root CA certificate using OpenSSL on Ubuntu 24.
-# It checks for OpenSSL, prompts the user for certificate details, and generates
-# the root CA key and certificate. All actions are logged to a file and displayed
-# on the screen.
-#
-# Usage:
-#   ./generate_root_ca.sh
+# It checks for OpenSSL, prompts the user for certificate details and output directory,
+# and generates the root CA key and certificate in the specified location.
+# All actions are logged to a file and displayed on the screen.
 #
 # Prerequisites:
 #   - Ubuntu 24
@@ -20,6 +15,7 @@
 #   - Organization Name: My Company
 #   - Organizational Unit: Information Technology
 #   - Common Name: RootCA
+#   - Output Directory: ./generated_certs
 #
 # Excluded Fields:
 #   - Email
@@ -34,8 +30,26 @@
 #   This script is intended for use in a GitHub repository. Ensure proper
 #   permissions are set (chmod +x generate_root_ca.sh) before execution.
 
+# Prompt user for output directory with default
+echo "Prompting user for output directory..."
+read -p "Enter output directory [./generated_certs]: " output_dir
+output_dir=${output_dir:-./generated_certs}
+echo "Output directory set to: $output_dir"
+
+# Create the output directory if it doesn't exist
+if [ ! -d "$output_dir" ]; then
+    echo "Creating output directory: $output_dir"
+    mkdir -p "$output_dir"
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to create output directory. Please check permissions."
+        exit 1
+    fi
+else
+    echo "Output directory already exists."
+fi
+
 # Set up logging to file and screen
-log_file="generate_root_ca.log"
+log_file="$output_dir/generate_root_ca.log"
 exec > >(tee -a "$log_file") 2>&1
 
 echo "Starting root CA certificate generation script at $(date)"
@@ -87,20 +101,20 @@ read -p "Common Name [RootCA]: " cn
 cn=${cn:-RootCA}
 echo "Common Name set to: $cn"
 
-# Generate root CA key and certificate
+# Generate root CA key and certificate in the specified directory
 echo "Generating 4096-bit RSA private key for root CA..."
-openssl genrsa -out root-ca.key 4096
+openssl genrsa -out "$output_dir/root-ca.key" 4096
 if [ $? -eq 0 ]; then
-    echo "Root CA private key generated successfully: root-ca.key"
+    echo "Root CA private key generated successfully: $output_dir/root-ca.key"
 else
     echo "Error: Failed to generate root CA private key."
     exit 1
 fi
 
 echo "Generating self-signed root CA certificate (valid for 10 years)..."
-openssl req -new -x509 -days 3650 -key root-ca.key -out root-ca.crt -subj "/C=$country/ST=$state/O=$org/OU=$ou/CN=$cn"
+openssl req -new -x509 -days 3650 -key "$output_dir/root-ca.key" -out "$output_dir/root-ca.crt" -subj "/C=$country/ST=$state/O=$org/OU=$ou/CN=$cn"
 if [ $? -eq 0 ]; then
-    echo "Root CA certificate generated successfully: root-ca.crt"
+    echo "Root CA certificate generated successfully: $output_dir/root-ca.crt"
 else
     echo "Error: Failed to generate root CA certificate."
     exit 1
@@ -109,7 +123,7 @@ fi
 # Final summary
 echo "Root CA generation completed successfully at $(date)"
 echo "Generated files:"
-echo "  - Private Key: root-ca.key"
-echo "  - Certificate: root-ca.crt"
+echo "  - Private Key: $output_dir/root-ca.key"
+echo "  - Certificate: $output_dir/root-ca.crt"
 echo "  - Log File: $log_file"
 echo "Script execution finished."
