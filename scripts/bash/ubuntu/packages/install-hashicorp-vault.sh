@@ -207,6 +207,13 @@ UNSEAL_KEY=$(echo "$INIT_OUTPUT" | grep "Unseal Key 1:" | awk '{print $4}')
 ROOT_TOKEN=$(echo "$INIT_OUTPUT" | grep "Initial Root Token:" | awk '{print $4}')
 log "Vault initialized. Unseal Key: $UNSEAL_KEY, Root Token: $ROOT_TOKEN"
 
+KEY_TOKEN_FILE="$INSTALL_DIR/install-key-token.txt"
+echo "Unseal Key: $UNSEAL_KEY" > "$KEY_TOKEN_FILE"
+echo "Root Token: $ROOT_TOKEN" >> "$KEY_TOKEN_FILE"
+chown root:root "$KEY_TOKEN_FILE"
+chmod 600 "$KEY_TOKEN_FILE"
+log "Unseal Key and Root Token saved to $KEY_TOKEN_FILE"
+
 # Unseal Vault
 log "Unsealing Vault..."
 vault operator unseal "$UNSEAL_KEY" | tee -a "$LOG_FILE" || {
@@ -220,5 +227,7 @@ log "Vault setup complete!"
 echo "Vault is running at $VAULT_ADDR"
 echo "Unseal Key: $UNSEAL_KEY"
 echo "Root Token: $ROOT_TOKEN"
+echo "Unseal Key and Root Token saved to $KEY_TOKEN_FILE"
+echo "Delete $KEY_TOKEN_FILE as soon you have stored the keys securely."
 echo "Please store the unseal key and root token securely!"
 echo "To log in, run: export VAULT_ADDR='https://$FQDN:8200' && vault login $ROOT_TOKEN"
