@@ -1,0 +1,9 @@
+Vault Commands:
+
+Prereqs for untrusted cert:
+export VAULT_CACERT=/opt/vault/vault-cert.pem    # Substitute with your CA cert path
+export VAULT_ADDR="https://$(hostname -f):8200"  # Substitute with your Vault server address if it's not the hostname
+
+vault version
+vault status
+vault login
