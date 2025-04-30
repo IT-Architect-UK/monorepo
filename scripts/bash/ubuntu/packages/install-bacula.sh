@@ -27,7 +27,7 @@ NC='\033[0m'  # No Color
 log_message() {
     local message="$1"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] $message" | tee -a "$LOG_FILE"
+    echo "[$timestamp] $message" >> "$LOG_FILE"
     if [ "$VERBOSE" = true ]; then
         echo -e "${YELLOW}[$timestamp] $message${NC}"
     fi
@@ -115,7 +115,7 @@ install_dependencies() {
     }
     log_message "Package list update completed."
     log_message "Starting PostgreSQL installation..."
-    timeout -k 10 "$APT_TIMEOUT" DEBIAN_FRONTEND=noninteractive apt-get install -y "$POSTGRESQL_PACKAGE" | tee -a "$LOG_FILE" || {
+    timeout -k 10 "$APT_TIMEOUT" env DEBIAN_FRONTEND=noninteractive apt-get install -y "$POSTGRESQL_PACKAGE" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to install PostgreSQL."
         exit 1
     }
@@ -125,7 +125,7 @@ install_dependencies() {
 # Function to install Bacula
 install_bacula() {
     log_message "Starting Bacula package installation..."
-    timeout -k 10 "$APT_TIMEOUT" DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$BACULA_PACKAGE" | tee -a "$LOG_FILE" || {
+    timeout -k 10 "$APT_TIMEOUT" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$BACULA_PACKAGE" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to install Bacula. Check $LOG_FILE for details."
         exit 1
     }
@@ -143,8 +143,14 @@ configure_bacula() {
         exit 1
     }
     # Set ownership and permissions
-    chown -R "$BACULA_USER:$BACULA_GROUP" "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE"
-    chmod -R 700 "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE"
+    chown -R "$BACULA_USER:$BACULA_GROUP" "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to set ownership for $BACKUP_DIR or $RESTORE_DIR."
+        exit 1
+    }
+    chmod -R 700 "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to set permissions for $BACKUP_DIR or $RESTORE_DIR."
+        exit 1
+    }
     log_message "Backup and restore directories configured."
 }
 
@@ -161,7 +167,7 @@ configure_postgresql() {
         exit 1
     }
     su - postgres -c "/usr/share/bacula-director/grant_postgresql_privileges" | tee -a "$LOG_FILE" || {
-        log_message "#error: Failed to grant PostgreSQL privileges."
+        log_message "ERROR: Failed to grant PostgreSQL privileges."
         exit 1
     }
     log_message "PostgreSQL configured for Bacula."
@@ -175,7 +181,10 @@ restart_services() {
             log_message "ERROR: Failed to restart $service."
             exit 1
         }
-        systemctl enable "$service" | tee -a "$LOG_FILE"
+        systemctl enable "$service" | tee -a "$LOG_FILE" || {
+            log_message "ERROR: Failed to enable $service."
+            exit 1
+        }
         log_message "$service restarted and enabled."
     done
 }
