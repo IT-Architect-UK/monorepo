@@ -15,7 +15,7 @@ POSTGRESQL_PACKAGE="postgresql"
 BACULA_SERVICES=("bacula-dir" "bacula-sd" "bacula-fd")
 MIN_RAM="2G"  # Minimum RAM recommended for Bacula server
 VERBOSE=true  # Enable verbose logging
-APT_TIMEOUT=600  # Timeout for apt-get install in seconds (10 minutes)
+APT_TIMEOUT=900  # Timeout for apt-get install in seconds (15 minutes)
 
 # Colors for output
 RED='\033[0;31m'
@@ -108,13 +108,14 @@ check_apt_locks() {
 
 # Function to update system and install dependencies
 install_dependencies() {
-    log_message "Updating package lists..."
-    timeout "$APT_TIMEOUT" apt-get update -y | tee -a "$LOG_FILE" || {
+    log_message "Starting package list update..."
+    timeout -k 10 "$APT_TIMEOUT" apt-get update -y | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to update package lists. Check network or repositories."
         exit 1
     }
-    log_message "Installing PostgreSQL..."
-    timeout "$APT_TIMEOUT" apt-get install -y "$POSTGRESQL_PACKAGE" | tee -a "$LOG_FILE" || {
+    log_message "Package list update completed."
+    log_message "Starting PostgreSQL installation..."
+    timeout -k 10 "$APT_TIMEOUT" DEBIAN_FRONTEND=noninteractive apt-get install -y "$POSTGRESQL_PACKAGE" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to install PostgreSQL."
         exit 1
     }
@@ -123,8 +124,8 @@ install_dependencies() {
 
 # Function to install Bacula
 install_bacula() {
-    log_message "Installing the latest Bacula package..."
-    timeout "$APT_TIMEOUT" apt-get install -y --no-install-recommends "$BACULA_PACKAGE" | tee -a "$LOG_FILE" || {
+    log_message "Starting Bacula package installation..."
+    timeout -k 10 "$APT_TIMEOUT" DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$BACULA_PACKAGE" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to install Bacula. Check $LOG_FILE for details."
         exit 1
     }
@@ -160,7 +161,7 @@ configure_postgresql() {
         exit 1
     }
     su - postgres -c "/usr/share/bacula-director/grant_postgresql_privileges" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to grant PostgreSQL privileges."
+        log_message "#error: Failed to grant PostgreSQL privileges."
         exit 1
     }
     log_message "PostgreSQL configured for Bacula."
