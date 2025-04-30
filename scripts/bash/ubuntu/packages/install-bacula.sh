@@ -159,12 +159,42 @@ configure_postgresql() {
         log_message "ERROR: Failed to create Bacula tables."
         exit 1
     }
-    su - postgres -c "/usr 0.
+    su - postgres -c "/usr/share/bacula-director/grant_postgresql_privileges" >> "$LOG_FILE" 2>&1 || {
+        log_message "ERROR: Failed to grant PostgreSQL privileges."
+        exit 1
+    }
+    log_message "PostgreSQL configured for Bacula."
+}
+
+# Function to restart Bacula services
+restart_services() {
+    log_message "Restarting Bacula services..."
+    for service in "${BACULA_SERVICES[@]}"; do
+        systemctl restart "$service" >> "$LOG_FILE" 2>&1 || {
+            log_message "ERROR: Failed to restart $service."
+            exit 1
+        }
+        systemctl enable "$service" >> "$LOG_FILE" 2>&1
+        log_message "$service restarted and enabled."
+    done
+}
+
+# Function to verify installation
+verify_installation() {
+    log_message "Verifying Bacula installation..."
+    for service in "${BACULA_SERVICES[@]}"; do
+        if systemctl is-active --quiet "$service"; then
+            log_message "$service is running."
+        else
+            log_message "ERROR: $service is not running."
+            exit 1
+        fi
+    done
     log_message "Bacula installation verified successfully."
 }
 
 # Main execution
-Starting Bacula installation script on Ubuntu 24.04...
+log_message "Starting Bacula installation script on Ubuntu 24.04..."
 
 check_root
 setup_logging
@@ -175,9 +205,10 @@ install_dependencies
 install_bacula
 configure_bacula
 configure_postgresql
-restar_services
+restart_services
 verify_installation
 
+# Lines below are around line 186 - ensure all quotes are closed
 log_message "${GREEN}Bacula installation completed successfully!${NC}"
 log_message "Log file: $LOG_FILE"
 log_message "Next steps:"
