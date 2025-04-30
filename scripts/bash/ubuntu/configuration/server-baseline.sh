@@ -60,12 +60,13 @@ write_log "Cloud-Init disabled successfully"
 
     # List of scripts to run
     SCRIPTS_TO_RUN=(
-        "packages/install-webmin.sh"
-        "configuration/extend-disks.sh"
-        "configuration/disable-ipv6.sh"
-        "configuration/dns-default-gateway.sh"
-        "configuration/setup-iptables.sh"
-        "configuration/disable-cloud-init.sh"
+    "configuration/apply-branding.sh"
+    "packages/install-webmin.sh"
+    "configuration/extend-disks.sh"
+    "configuration/disable-ipv6.sh"
+    "configuration/dns-default-gateway.sh"
+    "configuration/setup-iptables.sh"
+    "configuration/disable-cloud-init.sh"
     )
 
     for script in "${SCRIPTS_TO_RUN[@]}"; do
