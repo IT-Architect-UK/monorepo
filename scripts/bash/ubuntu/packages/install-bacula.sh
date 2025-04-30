@@ -1,3 +1,4 @@
+```bash
 #!/bin/bash
 
 # Script to install the latest Bacula on Ubuntu 24.04 with verbose logging and existing installation detection
@@ -15,6 +16,7 @@ POSTGRESQL_PACKAGE="postgresql"
 BACULA_SERVICES=("bacula-dir" "bacula-sd" "bacula-fd")
 MIN_RAM="2G"  # Minimum RAM recommended for Bacula server
 VERBOSE=true  # Enable verbose logging
+APT_TIMEOUT=120  # Timeout for apt-get install in seconds (10 minutes)
 
 # Colors for output
 RED='\033[0;31m'
@@ -50,6 +52,13 @@ check_requirements() {
     else
         log_message "RAM check passed: $total_ram MB detected."
     fi
+    # Check disk space
+    local disk_space=$(df -m / | tail -1 | awk '{print $4}')
+    if [ "$disk_space" -lt 2048 ]; then
+        log_message "WARNING: Less than 2GB free disk space on / ($disk_space MB detected). Bacula installation may fail."
+    else
+        log_message "Disk space check passed: $disk_space MB free on /."
+    fi
 }
 
 # Function to detect existing Bacula installation
@@ -82,15 +91,31 @@ setup_logging() {
     log_message "Logging initialized to $LOG_FILE"
 }
 
+# Function to check for apt locks
+check_apt_locks() {
+    log_message "Checking for apt locks..."
+    if pgrep -x "apt|apt-get" > /dev/null; then
+        log_message "ERROR: Another apt process is running. Please wait or terminate it."
+        exit 1
+    fi
+    if [ -f /var/lib/dpkg/lock-frontend ]; then
+        log_message "WARNING: Dpkg lock detected. Attempting to clear..."
+        rm -f /var/lib/dpkg/lock-frontend
+        rm -f /var/cache/apt/archives/lock
+        dpkg --configure -a >> "$LOG_FILE" 2>&1
+    fi
+    log_message "No apt locks detected."
+}
+
 # Function to update system and install dependencies
 install_dependencies() {
     log_message "Updating package lists..."
-    apt-get update -y >> "$LOG_FILE" 2>&1 || {
-        log_message "ERROR: Failed to update package lists."
+    timeout "$APT_TIMEOUT" apt-get update -y >> "$LOG_FILE" 2>&1 || {
+        log_message "ERROR: Failed to update package lists. Check network or repositories."
         exit 1
     }
     log_message "Installing PostgreSQL..."
-    apt-get install -y "$POSTGRESQL_PACKAGE" >> "$LOG_FILE" 2>&1 || {
+    timeout "$APT_TIMEOUT" apt-get install -y "$POSTGRESQL_PACKAGE" >> "$LOG_FILE" 2>&1 || {
         log_message "ERROR: Failed to install PostgreSQL."
         exit 1
     }
@@ -100,8 +125,8 @@ install_dependencies() {
 # Function to install Bacula
 install_bacula() {
     log_message "Installing the latest Bacula package..."
-    apt-get install -y "$BACULA_PACKAGE" >> "$LOG_FILE" 2>&1 || {
-        log_message "ERROR: Failed to install Bacula."
+    timeout "$APT_TIMEOUT" apt-get install -y --no-install-recommends "$BACULA_PACKAGE" >> "$LOG_FILE" 2>&1 || {
+        log_message "ERROR: Failed to install Bacula. Check $LOG_FILE for details."
         exit 1
     }
     # Log the installed Bacula version
@@ -176,6 +201,7 @@ check_root
 setup_logging
 check_requirements
 check_existing_install
+check_apt_locks
 install_dependencies
 install_bacula
 configure_bacula
@@ -191,3 +217,4 @@ log_message "2. Use 'bconsole' to manage Bacula and test backups."
 log_message "3. Check the official Bacula documentation for advanced configuration: https://www.bacula.org"
 
 exit 0
+```
