@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# Script to install Bacula on Ubuntu 24.04 with verbose logging and existing installation detection
+# Script to install the latest Bacula on Ubuntu 24.04 with verbose logging and existing installation detection
 
 # Variables
-BACULA_VERSION="13.0.4"  # Latest version compatible with Ubuntu 24.04 as of April 2025
 LOG_FILE="/var/log/bacula_install_$(date +%Y%m%d_%H%M%S).log"
 BACULA_USER="bacula"
 BACULA_GROUP="bacula"
@@ -100,12 +99,14 @@ install_dependencies() {
 
 # Function to install Bacula
 install_bacula() {
-    log_message "Installing Bacula package..."
+    log_message "Installing the latest Bacula package..."
     apt-get install -y "$BACULA_PACKAGE" >> "$LOG_FILE" 2>&1 || {
         log_message "ERROR: Failed to install Bacula."
         exit 1
     }
-    log_message "Bacula installed successfully."
+    # Log the installed Bacula version
+    local installed_version=$(dpkg -l | grep bacula | awk '{print $3}' | head -1)
+    log_message "Bacula installed successfully. Installed version: $installed_version"
 }
 
 # Function to configure Bacula user and directories
