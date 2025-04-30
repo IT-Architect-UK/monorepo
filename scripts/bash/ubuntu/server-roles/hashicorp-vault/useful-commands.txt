@@ -7,3 +7,18 @@ export VAULT_ADDR="https://$(hostname -f):8200"  # Substitute with your Vault se
 vault version
 vault status
 vault login
+vault operator unseal
+
+PKI:
+
+vault write pki/roles/pki-role-1 \
+    allowed_domains="domain1.com,domain2.com" \
+    allow_subdomains=true \
+    allow_bare_domains=true \
+    max_ttl="72h"
+
+vault policy write pki - <<EOF
+path "pki/issue/pki-role-1" {
+  capabilities = ["create", "update"]
+}
+EOF
