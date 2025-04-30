@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to install the latest Bacula on Ubuntu 24.04 with verbose logging and existing installation detection
+# Script to install the latest Bacula on Ubuntu 24.04 with verbose logging and full terminal output
 
 # Variables
 LOG_FILE="/var/log/bacula_install_$(date +%Y%m%d_%H%M%S).log"
@@ -83,7 +83,7 @@ check_existing_install() {
 setup_logging() {
     log_message "Setting up logging..."
     touch "$LOG_FILE" || {
-        echo "ERROR: Cannot create log file at $LOG_FILE"
+        echo "ERROR: Cannot create log file at $LOG_FILE" | tee -a "$LOG_FILE"
         exit 1
     }
     chmod 644 "$LOG_FILE"
@@ -101,7 +101,7 @@ check_apt_locks() {
         log_message "WARNING: Dpkg lock detected. Attempting to clear..."
         rm -f /var/lib/dpkg/lock-frontend
         rm -f /var/cache/apt/archives/lock
-        dpkg --configure -a >> "$LOG_FILE" 2>&1
+        dpkg --configure -a | tee -a "$LOG_FILE"
     fi
     log_message "No apt locks detected."
 }
@@ -109,12 +109,12 @@ check_apt_locks() {
 # Function to update system and install dependencies
 install_dependencies() {
     log_message "Updating package lists..."
-    timeout "$APT_TIMEOUT" apt-get update -y >> "$LOG_FILE" 2>&1 || {
+    timeout "$APT_TIMEOUT" apt-get update -y | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to update package lists. Check network or repositories."
         exit 1
     }
     log_message "Installing PostgreSQL..."
-    timeout "$APT_TIMEOUT" apt-get install -y "$POSTGRESQL_PACKAGE" >> "$LOG_FILE" 2>&1 || {
+    timeout "$APT_TIMEOUT" apt-get install -y "$POSTGRESQL_PACKAGE" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to install PostgreSQL."
         exit 1
     }
@@ -124,7 +124,7 @@ install_dependencies() {
 # Function to install Bacula
 install_bacula() {
     log_message "Installing the latest Bacula package..."
-    timeout "$APT_TIMEOUT" apt-get install -y --no-install-recommends "$BACULA_PACKAGE" >> "$LOG_FILE" 2>&1 || {
+    timeout "$APT_TIMEOUT" apt-get install -y --no-install-recommends "$BACULA_PACKAGE" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to install Bacula. Check $LOG_FILE for details."
         exit 1
     }
@@ -137,13 +137,13 @@ install_bacula() {
 configure_bacula() {
     log_message "Configuring Bacula user and directories..."
     # Create backup and restore directories
-    mkdir -p "$BACKUP_DIR" "$RESTORE_DIR" >> "$LOG_FILE" 2>&1 || {
+    mkdir -p "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to create directories $BACKUP_DIR or $RESTORE_DIR."
         exit 1
     }
     # Set ownership and permissions
-    chown -R "$BACULA_USER:$BACULA_GROUP" "$BACKUP_DIR" "$RESTORE_DIR" >> "$LOG_FILE" 2>&1
-    chmod -R 700 "$BACKUP_DIR" "$RESTORE_DIR" >> "$LOG_FILE" 2>&1
+    chown -R "$BACULA_USER:$BACULA_GROUP" "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE"
+    chmod -R 700 "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE"
     log_message "Backup and restore directories configured."
 }
 
@@ -151,15 +151,15 @@ configure_bacula() {
 configure_postgresql() {
     log_message "Configuring PostgreSQL for Bacula..."
     # Run Bacula database creation scripts
-    su - postgres -c "/usr/share/bacula-director/create_postgresql_database" >> "$LOG_FILE" 2>&1 || {
+    su - postgres -c "/usr/share/bacula-director/create_postgresql_database" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to create Bacula database."
         exit 1
     }
-    su - postgres -c "/usr/share/bacula-director/make_postgresql_tables" >> "$LOG_FILE" 2>&1 || {
+    su - postgres -c "/usr/share/bacula-director/make_postgresql_tables" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to create Bacula tables."
         exit 1
     }
-    su - postgres -c "/usr/share/bacula-director/grant_postgresql_privileges" >> "$LOG_FILE" 2>&1 || {
+    su - postgres -c "/usr/share/bacula-director/grant_postgresql_privileges" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to grant PostgreSQL privileges."
         exit 1
     }
@@ -170,11 +170,11 @@ configure_postgresql() {
 restart_services() {
     log_message "Restarting Bacula services..."
     for service in "${BACULA_SERVICES[@]}"; do
-        systemctl restart "$service" >> "$LOG_FILE" 2>&1 || {
+        systemctl restart "$service" | tee -a "$LOG_FILE" || {
             log_message "ERROR: Failed to restart $service."
             exit 1
         }
-        systemctl enable "$service" >> "$LOG_FILE" 2>&1
+        systemctl enable "$service" | tee -a "$LOG_FILE"
         log_message "$service restarted and enabled."
     done
 }
@@ -194,6 +194,7 @@ verify_installation() {
 }
 
 # Main execution
+echo "Starting Bacula installation script on $(date)" | tee -a "$LOG_FILE"
 log_message "Starting Bacula installation script on Ubuntu 24.04..."
 
 check_root
@@ -208,7 +209,7 @@ configure_postgresql
 restart_services
 verify_installation
 
-# Lines below are around line 186 - ensure all quotes are closed
+# Ensure all quotes are closed
 log_message "${GREEN}Bacula installation completed successfully!${NC}"
 log_message "Log file: $LOG_FILE"
 log_message "Next steps:"
