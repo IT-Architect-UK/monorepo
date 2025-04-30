@@ -1,4 +1,3 @@
-```bash
 #!/bin/bash
 
 # Script to install the latest Bacula on Ubuntu 24.04 with verbose logging and existing installation detection
@@ -16,7 +15,7 @@ POSTGRESQL_PACKAGE="postgresql"
 BACULA_SERVICES=("bacula-dir" "bacula-sd" "bacula-fd")
 MIN_RAM="2G"  # Minimum RAM recommended for Bacula server
 VERBOSE=true  # Enable verbose logging
-APT_TIMEOUT=120  # Timeout for apt-get install in seconds (10 minutes)
+APT_TIMEOUT=600  # Timeout for apt-get install in seconds (10 minutes)
 
 # Colors for output
 RED='\033[0;31m'
@@ -160,42 +159,12 @@ configure_postgresql() {
         log_message "ERROR: Failed to create Bacula tables."
         exit 1
     }
-    su - postgres -c "/usr/share/bacula-director/grant_postgresql_privileges" >> "$LOG_FILE" 2>&1 || {
-        log_message "ERROR: Failed to grant PostgreSQL privileges."
-        exit 1
-    }
-    log_message "PostgreSQL configured for Bacula."
-}
-
-# Function to restart Bacula services
-restart_services() {
-    log_message "Restarting Bacula services..."
-    for service in "${BACULA_SERVICES[@]}"; do
-        systemctl restart "$service" >> "$LOG_FILE" 2>&1 || {
-            log_message "ERROR: Failed to restart $service."
-            exit 1
-        }
-        systemctl enable "$service" >> "$LOG_FILE" 2>&1
-        log_message "$service restarted and enabled."
-    done
-}
-
-# Function to verify installation
-verify_installation() {
-    log_message "Verifying Bacula installation..."
-    for service in "${BACULA_SERVICES[@]}"; do
-        if systemctl is-active --quiet "$service"; then
-            log_message "$service is running."
-        else
-            log_message "ERROR: $service is not running."
-            exit 1
-        fi
-    done
+    su - postgres -c "/usr 0.
     log_message "Bacula installation verified successfully."
 }
 
 # Main execution
-log_message "Starting Bacula installation script on Ubuntu 24.04..."
+Starting Bacula installation script on Ubuntu 24.04...
 
 check_root
 setup_logging
@@ -206,7 +175,7 @@ install_dependencies
 install_bacula
 configure_bacula
 configure_postgresql
-restart_services
+restar_services
 verify_installation
 
 log_message "${GREEN}Bacula installation completed successfully!${NC}"
@@ -217,4 +186,3 @@ log_message "2. Use 'bconsole' to manage Bacula and test backups."
 log_message "3. Check the official Bacula documentation for advanced configuration: https://www.bacula.org"
 
 exit 0
-```
