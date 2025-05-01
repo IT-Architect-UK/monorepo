@@ -106,15 +106,32 @@ check_apt_locks() {
     log_message "No apt locks detected."
 }
 
+# Function to debug debconf and TTY
+debug_debconf() {
+    log_message "Debugging debconf and TTY settings..."
+    log_message "Current TTY:"
+    tty | tee -a "$LOG_FILE"
+    log_message "Debconf frontend:"
+    debconf-show debconf | grep frontend | tee -a "$LOG_FILE"
+    log_message "TERM environment variable: $TERM"
+    log_message "DEBIAN_FRONTEND: $DEBIAN_FRONTEND"
+}
+
 # Function to install Bacula interactively
 install_bacula() {
     log_message "Starting Bacula installation interactively..."
     log_message "Please respond to the prompts for database configuration and other settings."
-    # Run apt-get install without tee or timeout to ensure TTY for debconf prompts
-    stdbuf -oL apt-get install "$BACULA_PACKAGE" >> "$LOG_FILE" 2>&1 || {
-        log_message "ERROR: Failed to install Bacula. Check $LOG_FILE for details."
+    # Ensure a TTY for debconf prompts by running in a script session
+    # Redirect output to a temporary file and append to log after completion
+    TEMP_OUTPUT=$(mktemp)
+    script -q -c "apt-get install $BACULA_PACKAGE" "$TEMP_OUTPUT" || {
+        log_message "ERROR: Failed to install Bacula. Check $TEMP_OUTPUT and $LOG_FILE for details."
+        cat "$TEMP_OUTPUT" >> "$LOG_FILE"
+        rm "$TEMP_OUTPUT"
         exit 1
     }
+    cat "$TEMP_OUTPUT" >> "$LOG_FILE"
+    rm "$TEMP_OUTPUT"
     # Log the installed Bacula version
     local installed_version=$(dpkg -l | grep bacula | awk '{print $3}' | head -1)
     log_message "Bacula installed successfully. Installed version: $installed_version"
@@ -229,6 +246,7 @@ log_message "Starting Bacula installation script on Ubuntu 24.04..."
 
 check_root
 setup_logging
+debug_debconf
 check_requirements
 check_existing_install
 check_apt_locks
