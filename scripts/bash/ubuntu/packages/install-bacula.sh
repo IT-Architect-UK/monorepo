@@ -1,21 +1,22 @@
 #!/bin/bash
 
-# Script to install the latest Bacula on Ubuntu 24.04 with verbose logging and full terminal output
+# Script to install the latest Bacula on Ubuntu 24.04 with latest PostgreSQL and full terminal output
 
 # Variables
 LOG_FILE="/var/log/bacula_install_$(date +%Y%m%d_%H%M%S).log"
-BACULA_USER="bacula"
-BACULA_GROUP="bacula"
 BACKUP_DIR="/bacula/backup"
 RESTORE_DIR="/bacula/restore"
 CONFIG_DIR="/etc/bacula"
-POSTGRESQL_VERSION="16"  # Ubuntu 24.04 default PostgreSQL version
 BACULA_PACKAGE="bacula"
 POSTGRESQL_PACKAGE="postgresql"
 BACULA_SERVICES=("bacula-dir" "bacula-sd" "bacula-fd")
 MIN_RAM="2G"  # Minimum RAM recommended for Bacula server
 VERBOSE=true  # Enable verbose logging
 APT_TIMEOUT=900  # Timeout for apt-get install in seconds (15 minutes)
+SERVICE_TIMEOUT=60  # Timeout for service commands in seconds
+PG_PORT=5432  # Default PostgreSQL port
+DIR_OWNER="root"  # Owner for backup/restore directories
+DIR_GROUP="root"  # Group for backup/restore directories
 
 # Colors for output
 RED='\033[0;31m'
@@ -106,6 +107,34 @@ check_apt_locks() {
     log_message "No apt locks detected."
 }
 
+# Function to check PostgreSQL port
+check_postgresql_port() {
+    log_message "Checking if PostgreSQL port $PG_PORT is in use..."
+    if netstat -tuln | grep -q ":$PG_PORT "; then
+        log_message "ERROR: Port $PG_PORT is already in use. Stop the conflicting service or change the PostgreSQL port."
+        exit 1
+    fi
+    log_message "Port $PG_PORT is free."
+}
+
+# Function to add PostgreSQL repository
+add_postgresql_repo() {
+    log_message "Adding official PostgreSQL repository..."
+    # Install prerequisites
+    apt-get install -y wget ca-certificates | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to install wget and ca-certificates."
+        exit 1
+    }
+    # Add PostgreSQL APT repository
+    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - | tee -a "$LOG_FILE"
+    echo "deb http://apt.postgresql.org/pub/repos/apt/ noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+    apt-get update -y | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to update package lists after adding PostgreSQL repository."
+        exit 1
+    }
+    log_message "PostgreSQL repository added successfully."
+}
+
 # Function to update system and install dependencies
 install_dependencies() {
     log_message "Starting package list update..."
@@ -115,11 +144,22 @@ install_dependencies() {
     }
     log_message "Package list update completed."
     log_message "Starting PostgreSQL installation..."
-    timeout -k 10 "$APT_TIMEOUT" env DEBIAN_FRONTEND=noninteractive apt-get install -y "$POSTGRESQL_PACKAGE" | tee -a "$LOG_FILE" || {
+    # Install PostgreSQL without starting the service
+    timeout -k 10 "$APT_TIMEOUT" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$POSTGRESQL_PACKAGE" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to install PostgreSQL."
         exit 1
     }
-    log_message "PostgreSQL installed successfully."
+    log_message "Starting PostgreSQL service..."
+    timeout -k 10 "$SERVICE_TIMEOUT" systemctl start postgresql | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to start PostgreSQL service."
+        exit 1
+    }
+    log_message "Checking PostgreSQL service status..."
+    systemctl status postgresql | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to check PostgreSQL service status."
+        exit 1
+    }
+    log_message "PostgreSQL installed and running."
 }
 
 # Function to install Bacula
@@ -136,14 +176,14 @@ install_bacula() {
 
 # Function to configure Bacula user and directories
 configure_bacula() {
-    log_message "Configuring Bacula user and directories..."
+    log_message "Configuring Bacula directories..."
     # Create backup and restore directories
     mkdir -p "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to create directories $BACKUP_DIR or $RESTORE_DIR."
         exit 1
     }
     # Set ownership and permissions
-    chown -R "$BACULA_USER:$BACULA_GROUP" "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
+    chown -R "$DIR_OWNER:$DIR_GROUP" "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to set ownership for $BACKUP_DIR or $RESTORE_DIR."
         exit 1
     }
@@ -177,11 +217,11 @@ configure_postgresql() {
 restart_services() {
     log_message "Restarting Bacula services..."
     for service in "${BACULA_SERVICES[@]}"; do
-        systemctl restart "$service" | tee -a "$LOG_FILE" || {
+        timeout -k 10 "$SERVICE_TIMEOUT" systemctl restart "$service" | tee -a "$LOG_FILE" || {
             log_message "ERROR: Failed to restart $service."
             exit 1
         }
-        systemctl enable "$service" | tee -a "$LOG_FILE" || {
+        timeout -k 10 "$SERVICE_TIMEOUT" systemctl enable "$service" | tee -a "$LOG_FILE" || {
             log_message "ERROR: Failed to enable $service."
             exit 1
         }
@@ -212,6 +252,8 @@ setup_logging
 check_requirements
 check_existing_install
 check_apt_locks
+check_postgresql_port
+add_postgresql_repo
 install_dependencies
 install_bacula
 configure_bacula
