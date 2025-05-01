@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Simplified script to install Bacula interactively and optionally install Bacularis web interface on Ubuntu 24.04
+# Simplified script to install Bacula and optionally Bacularis web interface on Ubuntu 24.04
 
 # Variables
 LOG_FILE="/var/log/bacula_install_$(date +%Y%m%d_%H%M%S).log"
@@ -12,10 +12,10 @@ Bacularis_PACKAGES=("baculum-common" "baculum-api" "baculum-web")
 BACULA_SERVICES=("bacula-dir" "bacula-sd" "bacula-fd")
 MIN_RAM="2G"  # Minimum RAM recommended for Bacula server
 VERBOSE=true  # Enable verbose logging
-APT_TIMEOUT=900  # Timeout for apt-get install in seconds (15 minutes)
 SERVICE_TIMEOUT=30  # Timeout for service commands in seconds
 DIR_OWNER="root"  # Owner for backup/restore directories
 DIR_GROUP="root"  # Group for backup/restore directories
+APACHE_PORT=80  # Default Apache port
 
 # Colors for output
 RED='\033[0;31m'
@@ -117,12 +117,21 @@ debug_debconf() {
     log_message "DEBIAN_FRONTEND: $DEBIAN_FRONTEND"
 }
 
+# Function to check Apache port
+check_apache_port() {
+    log_message "Checking if Apache port $APACHE_PORT is in use..."
+    if netstat -tuln | grep -q ":$APACHE_PORT "; then
+        log_message "ERROR: Port $APACHE_PORT is already in use. Stop the conflicting service or change the Apache port."
+        exit 1
+    fi
+    log_message "Port $APACHE_PORT is free."
+}
+
 # Function to install Bacula interactively
 install_bacula() {
     log_message "Starting Bacula installation interactively..."
     log_message "Please respond to the prompts for database configuration and other settings."
-    # Ensure a TTY for debconf prompts by running in a script session
-    # Redirect output to a temporary file and append to log after completion
+    # Run apt-get install in a script session to ensure TTY for debconf prompts
     TEMP_OUTPUT=$(mktemp)
     script -q -c "apt-get install $BACULA_PACKAGE" "$TEMP_OUTPUT" || {
         log_message "ERROR: Failed to install Bacula. Check $TEMP_OUTPUT and $LOG_FILE for details."
@@ -160,11 +169,17 @@ configure_bacula() {
 # Function to install Bacularis
 install_bacularis() {
     log_message "Installing Bacularis web interface..."
-    # Install Apache and PHP prerequisites
-    timeout -k 10 "$APT_TIMEOUT" env DEBIAN_FRONTEND=noninteractive apt-get install -y apache2 php php-pgsql php-json php-curl | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to install Apache and PHP."
+    # Install Apache and PHP prerequisites interactively
+    log_message "Please respond to any prompts for Apache and PHP installation."
+    TEMP_OUTPUT=$(mktemp)
+    script -q -c "apt-get install apache2 php php-pgsql php-json php-curl" "$TEMP_OUTPUT" || {
+        log_message "ERROR: Failed to install Apache and PHP. Check $TEMP_OUTPUT and $LOG_FILE for details."
+        cat "$TEMP_OUTPUT" >> "$LOG_FILE"
+        rm "$TEMP_OUTPUT"
         exit 1
     }
+    cat "$TEMP_OUTPUT" >> "$LOG_FILE"
+    rm "$TEMP_OUTPUT"
     # Add Bacularis repository
     wget -qO - http://bacula.org/downloads/baculum/baculum.pub | apt-key add - | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to add Bacularis repository key."
@@ -175,11 +190,17 @@ install_bacularis() {
         log_message "ERROR: Failed to update package lists after adding Bacularis repository."
         exit 1
     }
-    # Install Bacularis packages
-    timeout -k 10 "$APT_TIMEOUT" env DEBIAN_FRONTEND=noninteractive apt-get install -y "${Bacularis_PACKAGES[@]}" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to install Bacularis."
+    # Install Bacularis packages interactively
+    log_message "Please respond to any prompts for Bacularis installation."
+    TEMP_OUTPUT=$(mktemp)
+    script -q -c "apt-get install ${Bacularis_PACKAGES[*]}" "$TEMP_OUTPUT" || {
+        log_message "ERROR: Failed to install Bacularis. Check $TEMP_OUTPUT and $LOG_FILE for details."
+        cat "$TEMP_OUTPUT" >> "$LOG_FILE"
+        rm "$TEMP_OUTPUT"
         exit 1
     }
+    cat "$TEMP_OUTPUT" >> "$LOG_FILE"
+    rm "$TEMP_OUTPUT"
     # Configure Bacularis
     log_message "Configuring Bacularis..."
     read -p "Enter the PostgreSQL user for Bacularis (default: bacula): " pg_user
@@ -259,6 +280,7 @@ verify_installation
 log_message "Bacula base installation completed."
 read -p "Do you want to install the Bacularis web management interface? (y/N): " install_bacularis
 if [[ "$install_bacularis" =~ ^[Yy]$ ]]; then
+    check_apache_port
     install_bacularis
 else
     log_message "Skipping Bacularis installation as per user choice."
