@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Simplified script to install Bacula and Bacularis web interface on Ubuntu 24.04
+# Simplified script to install Bacula interactively and optionally install Bacularis web interface on Ubuntu 24.04
 
 # Variables
 LOG_FILE="/var/log/bacula_install_$(date +%Y%m%d_%H%M%S).log"
@@ -106,16 +106,37 @@ check_apt_locks() {
     log_message "No apt locks detected."
 }
 
-# Function to install Bacula
+# Function to install Bacula interactively
 install_bacula() {
-    log_message "Starting Bacula installation..."
-    timeout -k 10 "$APT_TIMEOUT" env DEBIAN_FRONTEND=noninteractive apt-get install -y "$BACULA_PACKAGE" | tee -a "$LOG_FILE" || {
+    log_message "Starting Bacula installation interactively..."
+    log_message "Please respond to the prompts for database configuration and other settings."
+    timeout -k 10 "$APT_TIMEOUT" apt-get install -y "$BACULA_PACKAGE" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to install Bacula."
         exit 1
     }
     # Log the installed Bacula version
     local installed_version=$(dpkg -l | grep bacula | awk '{print $3}' | head -1)
     log_message "Bacula installed successfully. Installed version: $installed_version"
+}
+
+# Function to configure Bacula directories
+configure_bacula() {
+    log_message "Configuring Bacula directories..."
+    # Create backup and restore directories
+    mkdir -p "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to create directories $BACKUP_DIR or $RESTORE_DIR."
+        exit 1
+    }
+    # Set ownership and permissions
+    chown -R "$DIR_OWNER:$DIR_GROUP" "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to set ownership for $BACKUP_DIR or $RESTORE_DIR."
+        exit 1
+    }
+    chmod -R 700 "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to set permissions for $BACKUP_DIR or $RESTORE_DIR."
+        exit 1
+    }
+    log_message "Backup and restore directories configured."
 }
 
 # Function to install Bacularis
@@ -143,21 +164,24 @@ install_bacularis() {
     }
     # Configure Bacularis
     log_message "Configuring Bacularis..."
+    read -p "Enter the PostgreSQL user for Bacularis (default: bacula): " pg_user
+    pg_user=${pg_user:-bacula}
+    read -p "Enter the PostgreSQL password for Bacularis: " pg_password
     cat << EOF > /etc/baculum/Config-api-apache/baculum.api.conf
 [db]
 type = pgsql
 host = localhost
 name = bacula
-user = bacula
-password = bacula_password
+user = $pg_user
+password = $pg_password
 EOF
     cat << EOF > /etc/baculum/Config-web-apache/baculum.web.conf
 [db]
 type = pgsql
 host = localhost
 name = bacula
-user = bacula
-password = bacula_password
+user = $pg_user
+password = $pg_password
 EOF
     chown www-data:www-data /etc/baculum/Config-*-apache/*.conf
     chmod 640 /etc/baculum/Config-*-apache/*.conf
@@ -166,54 +190,6 @@ EOF
         exit 1
     }
     log_message "Bacularis installed and configured. Access at http://<server-ip>/baculum"
-}
-
-# Function to configure Bacula directories
-configure_bacula() {
-    log_message "Configuring Bacula directories..."
-    # Create backup and restore directories
-    mkdir -p "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to create directories $BACKUP_DIR or $RESTORE_DIR."
-        exit 1
-    }
-    # Set ownership and permissions
-    chown -R "$DIR_OWNER:$DIR_GROUP" "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to set ownership for $BACKUP_DIR or $RESTORE_DIR."
-        exit 1
-    }
-    chmod -R 700 "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to set permissions for $BACKUP_DIR or $RESTORE_DIR."
-        exit 1
-    }
-    log_message "Backup and restore directories configured."
-}
-
-# Function to configure PostgreSQL for Bacula and Bacularis
-configure_postgresql() {
-    log_message "Configuring PostgreSQL for Bacula and Bacularis..."
-    # Create Bacula database user and database
-    su - postgres -c "psql -c \"CREATE USER bacula WITH PASSWORD 'bacula_password';\"" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to create Bacula database user."
-        exit 1
-    }
-    su - postgres -c "psql -c \"CREATE DATABASE bacula OWNER bacula;\"" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to create Bacula database."
-        exit 1
-    }
-    # Run Bacula database creation scripts
-    su - postgres -c "/usr/share/bacula-director/create_postgresql_database" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to create Bacula database structure."
-        exit 1
-    }
-    su - postgres -c "/usr/share/bacula-director/make_postgresql_tables" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to create Bacula tables."
-        exit 1
-    }
-    su - postgres -c "/usr/share/bacula-director/grant_postgresql_privileges" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to grant PostgreSQL privileges."
-        exit 1
-    }
-    log_message "PostgreSQL configured for Bacula and Bacularis."
 }
 
 # Function to restart Bacula services
@@ -257,17 +233,28 @@ check_existing_install
 check_apt_locks
 install_bacula
 configure_bacula
-configure_postgresql
-install_bacularis
 restart_services
 verify_installation
 
-# Ensure all quotes are closed
+# Prompt for Bacularis installation
+log_message "Bacula base installation completed."
+read -p "Do you want to install the Bacularis web management interface? (y/N): " install_bacularis
+if [[ "$install_bacularis" =~ ^[Yy]$ ]]; then
+    install_bacularis
+else
+    log_message "Skipping Bacularis installation as per user choice."
+fi
+
+# Final output
 log_message "${GREEN}Bacula installation completed successfully!${NC}"
 log_message "Log file: $LOG_FILE"
-log_message "Bacularis web interface available at http://<server-ip>/baculum"
+if [[ "$install_bacularis" =~ ^[Yy]$ ]]; then
+    log_message "Bacularis web interface available at http://<server-ip>/baculum"
+fi
 log_message "Next steps:"
-log_message "1. Access Bacularis to manage Bacula: http://<server-ip>/baculum"
+if [[ "$install_bacularis" =~ ^[Yy]$ ]]; then
+    log_message "1. Access Bacularis to manage Bacula: http://<server-ip>/baculum"
+fi
 log_message "2. Edit configuration files in $CONFIG_DIR for advanced setup."
 log_message "3. Use 'bconsole' for command-line management."
 log_message "4. Check the official Bacula documentation: https://www.bacula.org"
