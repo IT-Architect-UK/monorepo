@@ -13,7 +13,7 @@ BACULA_SERVICES=("bacula-dir" "bacula-sd" "bacula-fd")
 MIN_RAM="2G"  # Minimum RAM recommended for Bacula server
 VERBOSE=true  # Enable verbose logging
 APT_TIMEOUT=900  # Timeout for apt-get install in seconds (15 minutes)
-SERVICE_TIMEOUT=60  # Timeout for service commands in seconds
+SERVICE_TIMEOUT=30  # Timeout for service commands in seconds
 PG_PORT=5432  # Default PostgreSQL port
 DIR_OWNER="root"  # Owner for backup/restore directories
 DIR_GROUP="root"  # Group for backup/restore directories
@@ -126,13 +126,28 @@ add_postgresql_repo() {
         exit 1
     }
     # Add PostgreSQL APT repository
-    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - | tee -a "$LOG_FILE"
+    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to add PostgreSQL repository key."
+        exit 1
+    }
     echo "deb http://apt.postgresql.org/pub/repos/apt/ noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list
     apt-get update -y | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to update package lists after adding PostgreSQL repository."
         exit 1
     }
     log_message "PostgreSQL repository added successfully."
+}
+
+# Function to log system state
+log_system_state() {
+    log_message "Logging system state..."
+    log_message "Disk usage:"
+    df -h / | tee -a "$LOG_FILE"
+    log_message "Memory usage:"
+    free -h | tee -a "$LOG_FILE"
+    log_message "Top processes:"
+    top -bn1 | head -n 10 | tee -a "$LOG_FILE"
+    log_message "System state logged."
 }
 
 # Function to update system and install dependencies
@@ -143,10 +158,20 @@ install_dependencies() {
         exit 1
     }
     log_message "Package list update completed."
+    log_message "Masking PostgreSQL service to prevent startup during install..."
+    systemctl mask postgresql | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to mask PostgreSQL service."
+        exit 1
+    }
     log_message "Starting PostgreSQL installation..."
-    # Install PostgreSQL without starting the service
+    log_system_state
     timeout -k 10 "$APT_TIMEOUT" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$POSTGRESQL_PACKAGE" | tee -a "$LOG_FILE" || {
         log_message "ERROR: Failed to install PostgreSQL."
+        exit 1
+    }
+    log_message "Unmasking PostgreSQL service..."
+    systemctl unmask postgresql | tee -a "$LOG_FILE" || {
+        log_message "ERROR: Failed to unmask PostgreSQL service."
         exit 1
     }
     log_message "Starting PostgreSQL service..."
@@ -160,6 +185,7 @@ install_dependencies() {
         exit 1
     }
     log_message "PostgreSQL installed and running."
+    log_system_state
 }
 
 # Function to install Bacula
