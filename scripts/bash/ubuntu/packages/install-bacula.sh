@@ -110,8 +110,9 @@ check_apt_locks() {
 install_bacula() {
     log_message "Starting Bacula installation interactively..."
     log_message "Please respond to the prompts for database configuration and other settings."
-    timeout -k 10 "$APT_TIMEOUT" apt-get install -y "$BACULA_PACKAGE" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to install Bacula."
+    # Run apt-get install without tee or timeout to ensure TTY for debconf prompts
+    stdbuf -oL apt-get install "$BACULA_PACKAGE" >> "$LOG_FILE" 2>&1 || {
+        log_message "ERROR: Failed to install Bacula. Check $LOG_FILE for details."
         exit 1
     }
     # Log the installed Bacula version
