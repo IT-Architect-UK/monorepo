@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# Script to install the latest Ansible AWX on Ubuntu 24.04
+# Script to install the latest Ansible AWX on a single-node Kubernetes cluster on Ubuntu 24.04
+# Uses Kubeadm for Kubernetes setup, Docker as container runtime, and AWX Operator
+# Prepares cluster for management in Portainer (assumes Portainer and Docker are already installed)
+# Uses the latest Kubernetes version dynamically
 # Requires sudo privileges
 # Logs to file and screen with verbose output
 # Adds IPTABLES rules without deleting existing ones
@@ -11,10 +14,8 @@ set -e
 # Define log file and variables
 LOG_FILE="/var/log/awx_install_$(date +%Y%m%d_%H%M%S).log"
 AWX_NAMESPACE="ansible-awx"
-MINIKUBE_MEMORY="8192"  # 8GB RAM
-MINIKUBE_CPUS="4"      # 4 CPUs
-MINIKUBE_DISK="50g"    # 50GB disk to avoid space issues
-AWX_PORT="10445"       # External port for AWX access
+KUBECONFIG_PATH="/etc/kubernetes/admin.conf"
+AWX_PORT="30445"  # NodePort for AWX access (30000-32767 range)
 
 # Function to log messages to file and screen
 log() {
@@ -40,33 +41,69 @@ check_status "Creating log file"
 log "Updating system and installing prerequisites"
 sudo apt update -y | tee -a "$LOG_FILE"
 sudo apt upgrade -y | tee -a "$LOG_FILE"
-sudo apt install -y curl git make docker.io iptables net-tools python3-pip | tee -a "$LOG_FILE"
+sudo apt install -y curl git make iptables net-tools python3-pip | tee -a "$LOG_FILE"
 check_status "Installing prerequisites"
 
-# Enable and start Docker
-log "Enabling and starting Docker"
+# Verify Docker is installed and running
+log "Verifying Docker installation"
+if ! command -v docker &> /dev/null; then
+    log "ERROR: Docker is not installed. Please install Docker before running this script."
+    exit 1
+fi
 sudo systemctl enable docker | tee -a "$LOG_FILE"
 sudo systemctl start docker | tee -a "$LOG_FILE"
-check_status "Starting Docker"
+check_status "Verifying Docker"
 
-# Add user to docker group
+# Add user to docker group (if not already added)
 log "Adding user $USER to docker group"
 sudo usermod -aG docker "$USER" | tee -a "$LOG_FILE"
 check_status "Adding user to docker group"
 
-# Install Minikube
-log "Installing Minikube"
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 | tee -a "$LOG_FILE"
-sudo install minikube-linux-amd64 /usr/local/bin/minikube | tee -a "$LOG_FILE"
-check_status "Installing Minikube"
-rm minikube-linux-amd64
+# Get the latest Kubernetes version
+log "Fetching the latest Kubernetes version"
+KUBERNETES_VERSION=$(curl -s https://api.github.com/repos/kubernetes/kubernetes/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/^v//')
+if [ -z "$KUBERNETES_VERSION" ]; then
+    log "ERROR: Failed to fetch latest Kubernetes version"
+    exit 1
+fi
+log "Latest Kubernetes version is $KUBERNETES_VERSION"
 
-# Install kubectl
-log "Installing kubectl"
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" | tee -a "$LOG_FILE"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl | tee -a "$LOG_FILE"
-check_status "Installing kubectl"
-rm kubectl
+# Install Kubernetes components (kubeadm, kubelet, kubectl)
+log "Installing Kubernetes components (version $KUBERNETES_VERSION)"
+sudo apt-get install -y apt-transport-https ca-certificates curl gpg | tee -a "$LOG_FILE"
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt update -y | tee -a "$LOG_FILE"
+sudo apt install -y kubeadm kubelet kubectl | tee -a "$LOG_FILE"
+sudo apt-mark hold kubeadm kubelet kubectl | tee -a "$LOG_FILE"
+check_status "Installing Kubernetes components"
+
+# Initialize Kubernetes cluster with Kubeadm
+log "Initializing single-node Kubernetes cluster with Docker runtime"
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16 | tee -a "$LOG_FILE"
+check_status "Initializing Kubernetes cluster"
+
+# Set up kubeconfig for user
+log "Setting up kubeconfig"
+mkdir -p "$HOME/.kube"
+sudo cp -i "$KUBECONFIG_PATH" "$HOME/.kube/config"
+sudo chown $(id -u):$(id -g) "$HOME/.kube/config"
+check_status "Setting up kubeconfig"
+
+# Allow scheduling on control plane node
+log "Removing taint to allow scheduling on control plane node"
+kubectl taint nodes --all node-role.kubernetes.io/control-plane- | tee -a "$LOG_FILE"
+check_status "Removing control plane taint"
+
+# Install Flannel CNI for networking
+log "Installing Flannel CNI"
+kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml | tee -a "$LOG_FILE"
+check_status "Installing Flannel CNI"
+
+# Wait for Kubernetes nodes to be ready
+log "Waiting for Kubernetes nodes to be ready"
+timeout 5m bash -c "until kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type==\"Ready\")].status}' | grep -q True; do sleep 5; log 'Waiting for nodes...'; done" | tee -a "$LOG_FILE"
+check_status "Waiting for Kubernetes nodes"
 
 # Install kustomize
 log "Installing kustomize"
@@ -75,9 +112,9 @@ sudo mv kustomize /usr/local/bin/ | tee -a "$LOG_FILE"
 check_status "Installing kustomize"
 
 # Configure IPTABLES rules (append to existing rules)
-log "Configuring IPTABLES rules for AWX and Minikube"
+log "Configuring IPTABLES rules for AWX and Kubernetes"
 sudo iptables -A INPUT -p tcp --dport "$AWX_PORT" -j ACCEPT -m comment --comment "AWX access port" | tee -a "$LOG_FILE"
-sudo iptables -A INPUT -p tcp --dport 8443 -j ACCEPT -m comment --comment "Minikube Kubernetes API" | tee -a "$LOG_FILE"
+sudo iptables -A INPUT -p tcp --dport 6443 -j ACCEPT -m comment --comment "Kubernetes API" | tee -a "$LOG_FILE"
 sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT -m comment --comment "HTTP for AWX" | tee -a "$LOG_FILE"
 sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT -m comment --comment "HTTPS for AWX" | tee -a "$LOG_FILE"
 sudo iptables -A INPUT -i docker0 -j ACCEPT -m comment --comment "Docker interface" | tee -a "$LOG_FILE"
@@ -87,16 +124,6 @@ check_status "Configuring IPTABLES rules"
 log "Saving IPTABLES rules"
 sudo iptables-save > /etc/iptables/rules.v4 | tee -a "$LOG_FILE"
 check_status "Saving IPTABLES rules"
-
-# Start Minikube
-log "Starting Minikube with $MINIKUBE_MEMORY MB RAM, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
-minikube start --vm-driver=docker --addons=ingress --cpus="$MINIKUBE_CPUS" --memory="$MINIKUBE_MEMORY" --disk-size="$MINIKUBE_DISK" --wait=false | tee -a "$LOG_FILE"
-check_status "Starting Minikube"
-
-# Verify Minikube status
-log "Verifying Minikube status"
-minikube status | tee -a "$LOG_FILE"
-check_status "Verifying Minikube status"
 
 # Clone AWX Operator repository (latest version)
 log "Cloning AWX Operator repository (main branch for latest version)"
@@ -115,7 +142,7 @@ export NAMESPACE="$AWX_NAMESPACE"
 make deploy | tee -a "$LOG_FILE"
 check_status "Deploying AWX Operator"
 
-# Create AWX demo configuration
+# Create AWX demo configuration with NodePort
 log "Creating AWX demo configuration"
 cat <<EOF > awx-demo.yml
 ---
@@ -125,7 +152,8 @@ metadata:
   name: awx-demo
   namespace: $AWX_NAMESPACE
 spec:
-  service_type: ClusterIP
+  service_type: NodePort
+  nodeport_port: $AWX_PORT
   ingress_type: none
   hostname: awx-demo.local
   persistent_volume_claim:
@@ -150,12 +178,6 @@ log "Verifying AWX pod status"
 kubectl get pods -n "$AWX_NAMESPACE" | tee -a "$LOG_FILE"
 check_status "Verifying pod status"
 
-# Set up port forwarding
-log "Setting up port forwarding on port $AWX_PORT"
-kubectl port-forward service/awx-demo-service -n "$AWX_NAMESPACE" --address 0.0.0.0 "$AWX_PORT":80 &> /dev/null &
-check_status "Setting up port forwarding"
-sleep 5  # Allow port-forward to initialize
-
 # Get AWX admin password
 log "Retrieving AWX admin password"
 AWX_PASSWORD=$(kubectl get secret awx-demo-admin-password -o jsonpath="{.data.password}" -n "$AWX_NAMESPACE" | base64 --decode)
@@ -165,13 +187,21 @@ check_status "Retrieving AWX admin password"
 SERVER_IP=$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d'/' -f1 | head -n 1)
 check_status "Retrieving server IP"
 
+# Instructions for Portainer integration
+log "Preparing kubeconfig for Portainer integration"
+log "To manage the Kubernetes cluster in Portainer:"
+log "1. Access Portainer UI (e.g., http://$SERVER_IP:9000)"
+log "2. Go to 'Environments' > 'Add Environment' > 'Kubernetes'"
+log "3. Select 'Local Kubernetes' or 'Import kubeconfig'"
+log "4. Upload or copy the kubeconfig from $HOME/.kube/config"
+log "5. Save and connect to manage the cluster and AWX resources"
+
 # Display access instructions
 log "AWX installation completed successfully!"
 log "Access AWX at: http://$SERVER_IP:$AWX_PORT"
 log "Username: admin"
 log "Password: $AWX_PASSWORD"
 log "Log file: $LOG_FILE"
-log "To stop port forwarding, run: kill $(ps aux | grep 'kubectl port-forward' | grep -v grep | awk '{print $2}')"
 
 # Ensure log file is readable
 sudo chmod 664 "$LOG_FILE"
