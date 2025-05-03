@@ -4,7 +4,7 @@
 # Uses Docker as the container runtime (assumes Docker and Portainer agent are pre-installed)
 # Prepares cluster for management in Portainer
 # Includes verbose logging, error handling, and IPTABLES rules (appended without deleting existing ones)
-# Requires sudo privileges and must be run as a non-root user
+# Must be run as a non-root user with sudo privileges for specific commands
 
 # Exit on any error
 set -e
@@ -20,7 +20,7 @@ NON_ROOT_USER="$USER"  # Store the invoking user
 # Function to log messages to file and screen
 log() {
     local message="$1"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message" | sudo tee -a "$LOG_FILE"
 }
 
 # Function to check if a command succeeded
@@ -33,8 +33,16 @@ check_status() {
 
 # Check if running as root
 if [ "$(id -u)" -eq 0 ]; then
-    log "ERROR: This script must not be run as root. Run as a non-root user with sudo privileges."
+    log "ERROR: This script must not be run as root. Run as a non-root user (e.g., pos-admin) with sudo privileges."
+    log "Example: ./install_minikube_ubuntu24.sh"
     log "Alternatively, modify the script to use 'minikube start --force' if root execution is required."
+    exit 1
+fi
+
+# Check if sudo privileges are available
+log "Checking sudo privileges"
+if ! sudo -n true 2>/dev/null; then
+    log "ERROR: User $NON_ROOT_USER does not have sudo privileges. Please grant sudo access and try again."
     exit 1
 fi
 
@@ -49,7 +57,7 @@ log "4. Configures IPTABLES rules for Kubernetes and Docker."
 log "5. Prepares kubeconfig for Portainer management."
 log "Prerequisites:"
 log "- Docker and Portainer agent must be pre-installed."
-log "- Must be run as a non-root user with sudo privileges."
+log "- Run as a non-root user with sudo privileges (sudo will be prompted for specific commands)."
 log "- Minimum 4GB RAM, 2 CPUs, 20GB disk."
 log "Logs are saved to $LOG_FILE."
 log "================================"
@@ -66,8 +74,8 @@ if ! command -v docker &> /dev/null; then
     log "ERROR: Docker is not installed. Please install Docker before running this script."
     exit 1
 fi
-sudo systemctl enable docker | tee -a "$LOG_FILE"
-sudo systemctl start docker | tee -a "$LOG_FILE"
+sudo systemctl enable docker | sudo tee -a "$LOG_FILE"
+sudo systemctl start docker | sudo tee -a "$LOG_FILE"
 check_status "Verifying Docker"
 
 # Verify Docker CRI compatibility
@@ -82,31 +90,31 @@ fi
 
 # Add user to docker group
 log "Adding user $NON_ROOT_USER to docker group"
-sudo usermod -aG docker "$NON_ROOT_USER" | tee -a "$LOG_FILE"
+sudo usermod -aG docker "$NON_ROOT_USER" | sudo tee -a "$LOG_FILE"
 check_status "Adding user to docker group"
 
 # Install Minikube
 log "Installing Minikube"
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 | tee -a "$LOG_FILE"
-sudo install minikube-linux-amd64 /usr/local/bin/minikube | tee -a "$LOG_FILE"
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 | sudo tee -a "$LOG_FILE"
+sudo install minikube-linux-amd64 /usr/local/bin/minikube | sudo tee -a "$LOG_FILE"
 check_status "Installing Minikube"
 rm minikube-linux-amd64
 
 # Install kubectl
 log "Installing kubectl"
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" | tee -a "$LOG_FILE"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl | tee -a "$LOG_FILE"
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" | sudo tee -a "$LOG_FILE"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl | sudo tee -a "$LOG_FILE"
 check_status "Installing kubectl"
 rm kubectl
 
 # Start Minikube with Docker driver in the docker group context
-log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB RAM, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
-sg docker -c "minikube start --driver=docker --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | tee -a "$LOG_FILE"
+log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
+sg docker -c "minikube start --driver=docker --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | sudo tee -a "$LOG_FILE"
 check_status "Starting Minikube"
 
 # Verify Minikube status
 log "Verifying Minikube status"
-minikube status | tee -a "$LOG_FILE"
+minikube status | sudo tee -a "$LOG_FILE"
 check_status "Verifying Minikube status"
 
 # Wait for Kubernetes nodes to be ready
@@ -114,7 +122,7 @@ log "Waiting for Kubernetes nodes to be ready"
 timeout 5m bash -c "
     until kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type==\"Ready\")].status}' 2>/dev/null | grep -q True; do
         sleep 5
-        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for nodes...\" | tee -a \"$LOG_FILE\"
+        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for nodes...\" | sudo tee -a \"$LOG_FILE\"
     done
 " || {
     log "ERROR: Kubernetes nodes failed to become ready within 5 minutes"
@@ -124,13 +132,13 @@ check_status "Waiting for Kubernetes nodes"
 
 # Configure IPTABLES rules (append to existing rules)
 log "Configuring IPTABLES rules for Kubernetes"
-sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT -m comment --comment "Minikube Kubernetes API" | tee -a "$LOG_FILE"
-sudo iptables -A INPUT -i docker0 -j ACCEPT -m comment --comment "Docker interface" | tee -a "$LOG_FILE"
+sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT -m comment --comment "Minikube Kubernetes API" | sudo tee -a "$LOG_FILE"
+sudo iptables -A INPUT -i docker0 -j ACCEPT -m comment --comment "Docker interface" | sudo tee -a "$LOG_FILE"
 check_status "Configuring IPTABLES rules"
 
 # Save IPTABLES rules
 log "Saving IPTABLES rules"
-sudo iptables-save > /etc/iptables/rules.v4 | tee -a "$LOG_FILE"
+sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
 check_status "Saving IPTABLES rules"
 
 # Instructions for Portainer integration
