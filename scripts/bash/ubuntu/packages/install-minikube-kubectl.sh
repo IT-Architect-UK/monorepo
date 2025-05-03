@@ -16,6 +16,7 @@ MINIKUBE_CPUS="2"      # 2 CPUs
 MINIKUBE_DISK="20g"    # 20GB disk
 KUBERNETES_PORT="8443" # Minikube Kubernetes API port
 NON_ROOT_USER="$USER"  # Store the invoking user
+TEMP_DIR="/tmp"        # Temporary directory for downloads
 
 # Function to log messages to file and screen
 log() {
@@ -43,6 +44,17 @@ fi
 log "Checking sudo privileges"
 if ! sudo -n true 2>/dev/null; then
     log "ERROR: User $NON_ROOT_USER does not have sudo privileges. Please grant sudo access and try again."
+    exit 1
+fi
+
+# Check if user is in docker group
+log "Checking Docker group membership"
+if ! groups | grep -q docker; then
+    log "Adding user $NON_ROOT_USER to docker group"
+    sudo usermod -aG docker "$NON_ROOT_USER" | sudo tee -a "$LOG_FILE"
+    check_status "Adding user to docker group"
+    log "WARNING: Docker group membership updated. Please log out and back in, or run the script again in a new session."
+    log "Alternatively, run: sg docker -c './install_minikube_ubuntu24.sh'"
     exit 1
 fi
 
@@ -78,9 +90,17 @@ sudo systemctl enable docker | sudo tee -a "$LOG_FILE"
 sudo systemctl start docker | sudo tee -a "$LOG_FILE"
 check_status "Verifying Docker"
 
+# Verify Docker access
+log "Verifying Docker access"
+if ! docker info &> /dev/null; then
+    log "ERROR: User $NON_ROOT_USER cannot access Docker daemon. Ensure you are in the docker group and have logged out/in."
+    log "Run: sg docker -c './install_minikube_ubuntu24.sh' or log out and back in."
+    exit 1
+fi
+
 # Verify Docker CRI compatibility
 log "Verifying Docker CRI compatibility"
-if ! docker info --format '{{.CgroupDriver}}' | grep -q "systemd"; then
+if ! sudo docker info --format '{{.CgroupDriver}}' | grep -q "systemd"; then
     log "Configuring Docker to use systemd cgroup driver"
     sudo mkdir -p /etc/docker
     echo '{"exec-opts": ["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json > /dev/null
@@ -88,24 +108,21 @@ if ! docker info --format '{{.CgroupDriver}}' | grep -q "systemd"; then
     check_status "Configuring Docker cgroup driver"
 fi
 
-# Add user to docker group
-log "Adding user $NON_ROOT_USER to docker group"
-sudo usermod -aG docker "$NON_ROOT_USER" | sudo tee -a "$LOG_FILE"
-check_status "Adding user to docker group"
-
 # Install Minikube
 log "Installing Minikube"
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 | sudo tee -a "$LOG_FILE"
-sudo install minikube-linux-amd64 /usr/local/bin/minikube | sudo tee -a "$LOG_FILE"
+curl -Lo "$TEMP_DIR/minikube-linux-amd64" https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 | sudo tee -a "$LOG_FILE"
+check_status "Downloading Minikube"
+sudo install "$TEMP_DIR/minikube-linux-amd64" /usr/local/bin/minikube | sudo tee -a "$LOG_FILE"
 check_status "Installing Minikube"
-rm minikube-linux-amd64
+rm "$TEMP_DIR/minikube-linux-amd64"
 
 # Install kubectl
 log "Installing kubectl"
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" | sudo tee -a "$LOG_FILE"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl | sudo tee -a "$LOG_FILE"
+curl -Lo "$TEMP_DIR/kubectl" "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" | sudo tee -a "$LOG_FILE"
+check_status "Downloading kubectl"
+sudo install -o root -g root -m 0755 "$TEMP_DIR/kubectl" /usr/local/bin/kubectl | sudo tee -a "$LOG_FILE"
 check_status "Installing kubectl"
-rm kubectl
+rm "$TEMP_DIR/kubectl"
 
 # Start Minikube with Docker driver in the docker group context
 log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
