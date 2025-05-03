@@ -41,7 +41,7 @@ check_status "Creating log file"
 log "Updating system and installing prerequisites"
 sudo apt update -y | tee -a "$LOG_FILE"
 sudo apt upgrade -y | tee -a "$LOG_FILE"
-sudo apt install -y curl git make iptables net-tools python3-pip | tee -a "$LOG_FILE"
+sudo apt install -y curl git make iptables net-tools python3-pip apt-transport-https ca-certificates gpg | tee -a "$LOG_FILE"
 check_status "Installing prerequisites"
 
 # Verify Docker is installed and running
@@ -66,13 +66,18 @@ if [ -z "$KUBERNETES_VERSION" ]; then
     log "ERROR: Failed to fetch latest Kubernetes version"
     exit 1
 fi
-log "Latest Kubernetes version is $KUBERNETES_VERSION"
+KUBERNETES_MAJOR_MINOR=$(echo "$KUBERNETES_VERSION" | cut -d. -f1,2)
+log "Latest Kubernetes version is $KUBERNETES_VERSION (using v$KUBERNETES_MAJOR_MINOR for repository)"
 
 # Install Kubernetes components (kubeadm, kubelet, kubectl)
 log "Installing Kubernetes components (version $KUBERNETES_VERSION)"
-sudo apt-get install -y apt-transport-https ca-certificates curl gpg | tee -a "$LOG_FILE"
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBERNETES_VERSION}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo mkdir -p /etc/apt/keyrings
+if ! curl -fsSL "https://pkgs.k8s.io/core:/stable:/v$KUBERNETES_MAJOR_MINOR/deb/Release.key" | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg; then
+    log "ERROR: Failed to fetch Kubernetes repository key. Retrying with alternative method..."
+    curl -fsSL "https://packages.cloud.google.com/apt/doc/apt-key.gpg" | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    check_status "Fetching Kubernetes repository key (alternative)"
+fi
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v$KUBERNETES_MAJOR_MINOR/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 sudo apt update -y | tee -a "$LOG_FILE"
 sudo apt install -y kubeadm kubelet kubectl | tee -a "$LOG_FILE"
 sudo apt-mark hold kubeadm kubelet kubectl | tee -a "$LOG_FILE"
