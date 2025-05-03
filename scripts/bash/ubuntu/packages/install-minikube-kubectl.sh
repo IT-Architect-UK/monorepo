@@ -4,7 +4,7 @@
 # Uses Docker as the container runtime (assumes Docker and Portainer agent are pre-installed)
 # Prepares cluster for management in Portainer
 # Includes verbose logging, error handling, and IPTABLES rules (appended without deleting existing ones)
-# Requires sudo privileges
+# Requires sudo privileges and must be run as a non-root user
 
 # Exit on any error
 set -e
@@ -15,6 +15,7 @@ MINIKUBE_MEMORY="4096"  # 4GB RAM
 MINIKUBE_CPUS="2"      # 2 CPUs
 MINIKUBE_DISK="20g"    # 20GB disk
 KUBERNETES_PORT="8443" # Minikube Kubernetes API port
+NON_ROOT_USER="$USER"  # Store the invoking user
 
 # Function to log messages to file and screen
 log() {
@@ -30,6 +31,13 @@ check_status() {
     fi
 }
 
+# Check if running as root
+if [ "$(id -u)" -eq 0 ]; then
+    log "ERROR: This script must not be run as root. Run as a non-root user with sudo privileges."
+    log "Alternatively, modify the script to use 'minikube start --force' if root execution is required."
+    exit 1
+fi
+
 # Introduction summary
 log "===== Introduction Summary ====="
 log "This script deploys a single-node Kubernetes cluster on Ubuntu 24.04 using Minikube."
@@ -41,7 +49,7 @@ log "4. Configures IPTABLES rules for Kubernetes and Docker."
 log "5. Prepares kubeconfig for Portainer management."
 log "Prerequisites:"
 log "- Docker and Portainer agent must be pre-installed."
-log "- Sudo privileges are required."
+log "- Must be run as a non-root user with sudo privileges."
 log "- Minimum 4GB RAM, 2 CPUs, 20GB disk."
 log "Logs are saved to $LOG_FILE."
 log "================================"
@@ -72,15 +80,10 @@ if ! docker info --format '{{.CgroupDriver}}' | grep -q "systemd"; then
     check_status "Configuring Docker cgroup driver"
 fi
 
-# Add user to docker group and refresh group membership
-log "Adding user $USER to docker group"
-sudo usermod -aG docker "$USER" | tee -a "$LOG_FILE"
+# Add user to docker group
+log "Adding user $NON_ROOT_USER to docker group"
+sudo usermod -aG docker "$NON_ROOT_USER" | tee -a "$LOG_FILE"
 check_status "Adding user to docker group"
-log "Refreshing group membership"
-newgrp docker << EOF
-exit
-EOF
-check_status "Refreshing group membership"
 
 # Install Minikube
 log "Installing Minikube"
@@ -96,9 +99,9 @@ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl | tee -a "$L
 check_status "Installing kubectl"
 rm kubectl
 
-# Start Minikube
+# Start Minikube with Docker driver in the docker group context
 log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB RAM, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
-minikube start --driver=docker --addons=ingress --cpus="$MINIKUBE_CPUS" --memory="$MINIKUBE_MEMORY" --disk-size="$MINIKUBE_DISK" --wait=false | tee -a "$LOG_FILE"
+sg docker -c "minikube start --driver=docker --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | tee -a "$LOG_FILE"
 check_status "Starting Minikube"
 
 # Verify Minikube status
@@ -108,7 +111,15 @@ check_status "Verifying Minikube status"
 
 # Wait for Kubernetes nodes to be ready
 log "Waiting for Kubernetes nodes to be ready"
-timeout 5m bash -c "until kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type==\"Ready\")].status}' | grep -q True; do sleep 5; log 'Waiting for nodes...'; done" | tee -a "$LOG_FILE"
+timeout 5m bash -c "
+    until kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type==\"Ready\")].status}' 2>/dev/null | grep -q True; do
+        sleep 5
+        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for nodes...\" | tee -a \"$LOG_FILE\"
+    done
+" || {
+    log "ERROR: Kubernetes nodes failed to become ready within 5 minutes"
+    exit 1
+}
 check_status "Waiting for Kubernetes nodes"
 
 # Configure IPTABLES rules (append to existing rules)
