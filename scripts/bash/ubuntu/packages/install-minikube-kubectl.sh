@@ -123,7 +123,7 @@ display_failure_notification() {
     echo "  - Check system resources (minimum 4GB RAM, 2 CPUs, 20GB disk)"
     echo "  - Ensure kubeconfig is valid and Minikube is running"
     echo "  - Check IPTABLES rules and network connectivity"
-    echo "  - Verify FQDN resolution for $KUBE_SERVER"
+    echo "  - Verify Docker network configuration and Minikube container status"
     echo "Run the script again after resolving issues."
     echo "============================================================="
 }
@@ -202,19 +202,25 @@ else
 fi
 log "Using $KUBE_SERVER for Kubernetes API and Portainer agent"
 
+# Modify /etc/hosts to prioritize 192.168.4.110 for POSLXPANSIBLE01.skint.private
+log "Modifying /etc/hosts to prioritize $SERVER_IP for $KUBE_SERVER"
+sudo cp /etc/hosts /etc/hosts.backup-$(date +%Y%m%d_%H%M%S)
+# Remove existing entries for POSLXPANSIBLE01.skint.private
+sudo sed -i "/POSLXPANSIBLE01.skint.private/d" /etc/hosts
+# Add new entry as the first line
+sudo sed -i "1i $SERVER_IP POSLXPANSIBLE01.skint.private POSLXPANSIBLE01" /etc/hosts
+check_status "Modifying /etc/hosts"
+
 # Verify FQDN resolution
 log "Verifying $KUBE_SERVER resolution"
 KUBE_SERVER_RESOLVED_IP=$(getent hosts $KUBE_SERVER | awk '{print $1}' | head -n 1)
 if [ "$KUBE_SERVER_RESOLVED_IP" != "$SERVER_IP" ]; then
-    log "WARNING: $KUBE_SERVER resolves to $KUBE_SERVER_RESOLVED_IP, but it should resolve to $SERVER_IP for optimal configuration."
-    log "Please ensure /etc/hosts has an entry: $SERVER_IP $KUBE_SERVER"
-    log "Example /etc/hosts entry:"
-    log "$SERVER_IP $KUBE_SERVER"
-    log "This entry must appear before any 127.0.1.1 entry for $KUBE_SERVER."
-    log "Continuing with current resolution ($KUBE_SERVER_RESOLVED_IP), but you should update /etc/hosts for remote Portainer connectivity."
-else
-    log "Resolved $KUBE_SERVER to $KUBE_SERVER_RESOLVED_IP"
+    log "ERROR: $KUBE_SERVER resolves to $KUBE_SERVER_RESOLVED_IP, but it should resolve to $SERVER_IP."
+    log "Failed to update /etc/hosts correctly. Please check /etc/hosts manually."
+    display_failure_notification "Invalid $KUBE_SERVER resolution"
+    exit 1
 fi
+log "Resolved $KUBE_SERVER to $KUBE_SERVER_RESOLVED_IP"
 
 # Prompt for remote Portainer server details
 echo "Enter the IP or hostname of the remote Portainer server (or press Enter to skip):"
@@ -272,12 +278,35 @@ else
     log "Docker network already configured for $DOCKER_NETWORK"
 fi
 
+# Verify Docker resources
+log "Verifying Docker resources"
+docker_info=$(docker info --format '{{.MemTotal}} {{.NCPU}}' 2>&1)
+if [ $? -ne 0 ]; then
+    log "ERROR: Failed to retrieve Docker info: $docker_info"
+    display_failure_notification "Docker info retrieval failed"
+    exit 1
+fi
+DOCKER_MEMORY=$(echo "$docker_info" | awk '{print $1}')
+DOCKER_CPUS=$(echo "$docker_info" | awk '{print $2}')
+DOCKER_MEMORY_MB=$((DOCKER_MEMORY / 1024 / 1024))
+if [ "$DOCKER_MEMORY_MB" -lt "$MIN_MEMORY_MB" ]; then
+    log "ERROR: Docker available memory ($DOCKER_MEMORY_MB MB) is less than minimum ($MIN_MEMORY_MB MB)."
+    display_failure_notification "Insufficient Docker memory"
+    exit 1
+fi
+if [ "$DOCKER_CPUS" -lt "$MIN_CPUS" ]; then
+    log "ERROR: Docker available CPUs ($DOCKER_CPUS) is less than minimum ($MIN_CPUS)."
+    display_failure_notification "Insufficient Docker CPUs"
+    exit 1
+fi
+log "Docker resources: $DOCKER_MEMORY_MB MB memory, $DOCKER_CPUS CPUs"
+
 # Configure IPTABLES rules (before Minikube start)
 log "Configuring IPTABLES rules for Kubernetes and Portainer agent"
 # Kubernetes API and Portainer agent ports
 if [ -n "$REMOTE_PORTAINER_HOST" ]; then
-    sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -s "$REMOTE_PORTAINER_HOST" -j ACCEPT -m comment --comment "Minikube Kubernetes API" | sudo tee -a "$LOG_FILE" > /dev/null
-    sudo iptables -A INPUT -p tcp --dport "$PORTAINER_NODEPORT" -s "$REMOTE_PORTAINER_HOST" -j ACCEPT -m comment --comment "Portainer agent NodePort" | sudo tee -a "$LOG_FILE" > /dev/null
+    sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -s "$REMOTE_PORTAINER_HOST" -j ACCEPT -m comment --comment "Minikube Kubernetes API (from $REMOTE_PORTAINER_HOST)" | sudo tee -a "$LOG_FILE" > /dev/null
+    sudo iptables -A INPUT -p tcp --dport "$PORTAINER_NODEPORT" -s "$REMOTE_PORTAINER_HOST" -j ACCEPT -m comment --comment "Portainer agent NodePort (from $REMOTE_PORTAINER_HOST)" | sudo tee -a "$LOG_FILE" > /dev/null
 else
     sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT -m comment --comment "Minikube Kubernetes API" | sudo tee -a "$LOG_FILE" > /dev/null
     sudo iptables -A INPUT -p tcp --dport "$PORTAINER_NODEPORT" -j ACCEPT -m comment --comment "Portainer agent NodePort" | sudo tee -a "$LOG_FILE" > /dev/null
@@ -308,19 +337,19 @@ log "This script deploys a single-node Kubernetes cluster on Ubuntu 24.04 using 
 log "It performs the following steps:"
 log "1. Verifies pre-installed Docker and configures user permissions."
 log "2. Configures Docker to use $DOCKER_NETWORK network to avoid conflicts."
-log "3. Configures IPTABLES rules for Kubernetes and Portainer agent."
-log "4. Installs Minikube and kubectl."
-log "5. Detects available system resources and configures Minikube accordingly."
-log "6. Starts Minikube with the Docker driver and enables the ingress addon."
-log "7. Configures kubeconfig for remote Portainer access via $KUBE_SERVER."
-log "8. Deploys Portainer agent to the cluster (if not already installed)."
-log "9. Configures Minikube to start automatically after server reboot via systemd."
+log "3. Modifies /etc/hosts to prioritize $SERVER_IP for $KUBE_SERVER."
+log "4. Configures IPTABLES rules for Kubernetes and Portainer agent."
+log "5. Installs Minikube and kubectl."
+log "6. Detects available system resources and configures Minikube accordingly."
+log "7. Starts Minikube with the Docker driver and enables the ingress addon."
+log "8. Configures kubeconfig for remote Portainer access via $KUBE_SERVER."
+log "9. Deploys Portainer agent to the cluster (if not already installed)."
+log "10. Configures Minikube to start automatically after server reboot via systemd."
 log "Prerequisites:"
 log "- Docker must be pre-installed."
 log "- Run as a non-root user with sudo privileges (sudo will be prompted for specific commands)."
 log "- Minimum requirements: 4GB RAM, 2 CPUs, 20GB disk (more will be used if available)."
 log "- Optional: Set DOCKER_NETWORK environment variable (default: 172.18.0.0/16) to customize network."
-log "- For optimal remote Portainer connectivity, ensure $KUBE_SERVER resolves to $SERVER_IP in /etc/hosts or DNS, before any 127.0.1.1 entry."
 log "Logs are saved to $LOG_FILE."
 log "================================"
 
@@ -373,7 +402,18 @@ fi
 
 # Start Minikube with Docker driver and custom subnet
 log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
-sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | sudo tee -a "$LOG_FILE" > /dev/null
+minikube_start_output=$(sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" 2>&1)
+if [ $? -ne 0 ]; then
+    log "ERROR: Initial minikube start failed. Output: $minikube_start_output"
+    log "Retrying minikube start with --force"
+    minikube_start_output=$(sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false --force" 2>&1)
+    if [ $? -ne 0 ]; then
+        log "ERROR: Minikube start with --force failed. Output: $minikube_start_output"
+        display_failure_notification "Minikube start failed"
+        exit 1
+    fi
+fi
+echo "$minikube_start_output" | sudo tee -a "$LOG_FILE" > /dev/null
 check_status "Starting Minikube"
 
 # Set current-context to minikube
@@ -384,13 +424,24 @@ check_status "Setting kubeconfig current-context"
 # Verify Minikube status
 log "Verifying Minikube status"
 minikube_status=$(minikube status 2>&1)
+if echo "$minikube_status" | grep -q "No such container"; then
+    log "ERROR: Minikube container not found. Status output: $minikube_status"
+    log "Checking Docker containers for debugging"
+    docker_ps_output=$(docker ps -a --filter "name=minikube" 2>&1)
+    echo "$docker_ps_output" | sudo tee -a "$LOG_FILE" > /dev/null
+    display_failure_notification "Minikube container not found"
+    exit 1
+fi
 echo "$minikube_status" | sudo tee -a "$LOG_FILE" > /dev/null
 check_status "Verifying Minikube status"
 
 # Get Minikube VM IP
 log "Detecting Minikube VM IP"
-MINIKUBE_IP=$(minikube ip 2>/dev/null) || {
-    log "ERROR: Could not detect Minikube VM IP."
+MINIKUBE_IP=$(minikube ip 2>&1) || {
+    log "ERROR: Could not detect Minikube VM IP. Output: $MINIKUBE_IP"
+    log "Checking Docker containers for debugging"
+    docker_ps_output=$(docker ps -a --filter "name=minikube" 2>&1)
+    echo "$docker_ps_output" | sudo tee -a "$LOG_FILE" > /dev/null
     display_failure_notification "Could not detect Minikube VM IP"
     exit 1
 }
@@ -428,9 +479,9 @@ timeout 20m bash -c "
         kubectl_get_nodes_output=\$(kubectl get nodes -o wide 2>&1)
         echo \"\$kubectl_get_nodes_output\" | sudo tee -a \"$LOG_FILE\" > /dev/null
         kubectl_describe_node_output=\$(kubectl describe node minikube 2>&1)
-        echo \"\$kubectl_describe_node_output\" | sudo tee -a \"$LOG_FILE\" > /dev/null
+        echo \"\$kubectl_describe_node_output\" | sudo tee -a "$LOG_FILE" > /dev/null
         kubectl_get_pods_output=\$(kubectl get pods -A 2>&1)
-        echo \"\$kubectl_get_pods_output\" | sudo tee -a \"$LOG_FILE\" > /dev/null
+        echo \"\$kubectl_get_pods_output\" | sudo tee -a "$LOG_FILE" > /dev/null
     done
 " || {
     log "ERROR: Kubernetes nodes failed to become ready within 20 minutes"
@@ -525,153 +576,46 @@ fi
 # Configure IPTABLES NAT for Kubernetes API
 log "Configuring IPTABLES NAT for Kubernetes API"
 sudo iptables -t nat -A PREROUTING -p tcp -d "$SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" | sudo tee -a "$LOG_FILE" > /dev/null
-sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE manner: graceful
-node_name: minikube
-resource_version: "223"
-uid: 80c3e92c-9f0c-4b40-a5d1-1b7b7d9b8b7d
-Conditions:
-  Type              Status  LastHeartbeatTime                 LastTransitionTime                Reason                       Message
-  ----              ------  -----------------                 ------------------                ------                       -------
-  MemoryPressure    False   Sun, 04 May 2025 14:37:03 +0000   Sun, 04 May 2025 14:36:38 +0000   KubeletHasSufficientMemory   kubelet has sufficient memory available
-  DiskPressure      False   Sun, 04 May 2025 14:37:03 +0000   Sun, 04 May 2025 14:36:38 +0000   KubeletHasNoDiskPressure     kubelet has no disk pressure
-  PIDPressure       False   Sun, 04 May 2025 14:37:03 +0000   Sun, 04 May 2025 14:36:38 +0000   KubeletHasSufficientPID      kubelet has sufficient PID available
-  Ready             True    Sun, 04 May 2025 14:37:03 +0000   Sun, 04 May 2025 14:36:48 +0000   KubeletReady                 kubelet is posting ready status
-Addresses:
-  InternalIP:  172.18.0.2
-  Hostname:    minikube
-Capacity:
-  cpu:                7
-  ephemeral-storage:  85899345920Ki
-  memory:             15704288Ki
-  pods:               110
-Allocatable:
-  cpu:                7
-  ephemeral-storage:  85899345920Ki
-  memory:             15601888Ki
-  pods:               110
-System Info:
-  Machine ID:                 9b6f4c3b8e4f4b2b9c7d2a1e3f5d7e9b
-  System UUID:               9B6F4C3B-8E4F-4B2B-9C7D-2A1E3F5D7E9B
-  Boot ID:                   4a3b2c1d-9e4f-4b2b-9c7d-2a1e3f5d7e9b
-  Kernel Version:            6.8.0-59-generic
-  OS Image:                  Ubuntu 22.04.5 LTS
-  Operating System:          linux
-  Architecture:              amd64
-  Container Runtime Version:  docker://27.4.1
-  Kubelet Version:            v1.32.0
-  Kube-Proxy Version:         v1.32.0
-PodCIDR:                      10.244.0.0/24
-PodCIDRs:                     10.244.0.0/24
-Non-terminated Pods:          (8 in total)
-  Namespace                   Name                                     CPU Requests  CPU Limits  Memory Requests  Memory Limits  Age
-  ---------                   ----                                     ------------  ----------  ---------------  -------------  ---
-  ingress-nginx               ingress-nginx-admission-create--1-8z6g   0 (0%)        0 (0%)      0 (0%)           0 (0%)         25s
-  ingress-nginx               ingress-nginx-admission-patch--1-8z6g    0 (0%)        0 (0%)      0 (0%)           0 (0%)         25s
-  ingress-nginx               ingress-nginx-controller-7b6c9d7b9c-5z6q 100m (1%)     0 (0%)      0 (0%)           0 (0%)         25s
-  kube-system                 coredns-7db6d894ff-5z6q                 100m (1%)     0 (0%)      70Mi (0%)        170Mi (1%)     25s
-  kube-system                 etcd-minikube                            100m (1%)     0 (0%)      100Mi (0%)       800Mi (5%)     25s
-  kube-system                 kube-apiserver-minikube                  250m (3%)     0 (0%)      0 (0%)           0 (0%)         25s
-  kube-system                 kube-controller-manager-minikube         200m (2%)     0 (0%)      0 (0%)           0 (0%)         25s
-  kube-system                 kube-scheduler-minikube                  100m (1%)     0 (0%)      0 (0%)           0 (0%)         25s
-Allocated resources:
-  (Total limits may be over 100 percent, i.e., overcommitted.)
-  Resource           Requests    Limits
-  --------           --------    ------
-  cpu                850m (12%)  0 (0%)
-  memory             170Mi (1%)  970Mi (6%)
-  ephemeral-storage  0 (0%)      0 (0%)
-  hugepages-1Gi      0 (0%)      0 (0%)
-  hugepages-2Mi      0 (0%)      0 (0%)
-Events:
-  Type    Reason                   Age   From             Message
-  ----    ------                   ----  ----             -------
-  Normal  NodeHasSufficientMemory  25s   kubelet          Node minikube status is now: NodeHasSufficientMemory
-  Normal  NodeHasNoDiskPressure    25s   kubelet          Node minikube status is now: NodeHasNoDiskPressure
-  Normal  NodeHasSufficientPID     25s   kubelet          Node minikube status is now: NodeHasSufficientPID
-  Normal  Starting                 25s   kubelet          Starting kubelet.
-  Normal  NodeNotReady             25s   kubelet          Node minikube status is now: NodeNotReady
-  Normal  NodeReady                15s   kubelet          Node minikube status is now: NodeReady
+sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$KUBERNETES_PORT" -j MASQUERADE | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Configuring IPTABLES NAT rules"
 
-[2025-05-04 14:37:03] namespace/kube-system created
-pod/coredns-7db6d894ff-5z6q created
-configmap/kube-dns created
-service/kube-dns created
-serviceaccount/coredns created
-clusterrole.rbac.authorization.k8s.io/system:coredns created
-clusterrolebinding.rbac.authorization.k8s.io/system:coredns created
-deployment.apps/coredns created
-serviceaccount/kube-dns created
-[2025-05-04 14:37:03] Waiting for nodes...
-[2025-05-04 14:37:08] NAME       STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
-minikube   Ready    control-plane   30s   v1.32.0   172.18.0.2    <none>        Ubuntu 22.04.5 LTS   6.8.0-59-generic   docker://27.4.1
-[2025-05-04 14:37:08] Deploying Portainer agent to Kubernetes cluster
-[2025-05-04 14:37:08] Pre-check: Verifying kubectl accessibility
-[2025-05-04 14:37:08] Pre-check: Verifying Kubernetes cluster accessibility
-[2025-05-04 14:37:08] Checking for existing Portainer agent deployment
-[2025-05-04 14:37:08] No running Portainer agent found. Proceeding with deployment.
-[2025-05-04 14:37:08] Downloading Portainer agent YAML from https://downloads.portainer.io/ce2-19/portainer-agent-k8s-nodeport.yaml
-[2025-05-04 14:37:09] Applying Portainer agent YAML
-namespace/portainer created
-serviceaccount/portainer created
-clusterrolebinding.rbac.authorization.k8s.io/portainer created
-service/portainer-agent created
-deployment.apps/portainer-agent created
-[2025-05-04 14:37:09] Cleaning up temporary Portainer agent YAML
-[2025-05-04 14:37:09] Post-check: Verifying Portainer agent deployment
-[2025-05-04 14:37:14] Waiting for Portainer agent pod to be Running...
-[2025-05-04 14:37:19] Waiting for Portainer agent pod to be Running...
-[2025-05-04 14:37:24] Post-check: Verifying Portainer agent service
-[2025-05-04 14:37:24] Updating kubeconfig to use POSLXPANSIBLE01.skint.private:8443
-Cluster "minikube" set.
-[2025-05-04 14:37:24] Verifying kubeconfig
-[2025-05-04 14:37:24] Configuring IPTABLES NAT for Kubernetes API
-[2025-05-04 14:37:24] Saving IPTABLES NAT rules
-[2025-05-04 14:37:24] Configuring systemd service for Minikube auto-start
-[2025-05-04 14:37:24] Creating Minikube systemd service file at /etc/systemd/system/minikube.service
-[2025-05-04 14:37:24] Reloading systemd daemon
-[2025-05-04 14:37:24] Enabling Minikube service to start on boot
-Created symlink /etc/systemd/system/multi-user.target.wants/minikube.service → /etc/systemd/system/minikube.service.
-[2025-05-04 14:37:24] Minikube is already running. Systemd service will manage it on next reboot.
-[2025-05-04 14:37:24] Preparing kubeconfig for Portainer integration
-[2025-05-04 14:37:24] To manage the Kubernetes cluster in Portainer:
-[2025-05-04 14:37:24] 1. Access the remote Portainer UI
-[2025-05-04 14:37:24] 2. Go to 'Environments' > 'Add Environment' > 'Kubernetes'
-[2025-05-04 14:37:24] 3. Select 'Import kubeconfig' and upload /home/pos-admin/.kube/config
-[2025-05-04 14:37:24] 4. For Docker management, add a Docker environment using POSLXPANSIBLE01.skint.private
-[2025-05-04 14:37:24] Note: Portainer agent is accessible via POSLXPANSIBLE01.skint.private:30778. Check service details with: kubectl get svc -n portainer
-[2025-05-04 14:37:24] Kubernetes cluster installation completed successfully!
-[2025-05-04 14:37:24] Minikube is configured to start automatically after server reboot via systemd.
-[2025-05-04 14:37:24] Allocated resources: 14967 MB RAM, 7 CPUs, 83g disk
-[2025-05-04 14:37:24] Docker network configured: 172.18.0.0/16
-[2025-05-04 14:37:24] Kubernetes API server configured: https://POSLXPANSIBLE01.skint.private:8443
-[2025-05-04 14:37:24] Portainer agent is deployed (or already running) in the 'portainer' namespace, accessible at POSLXPANSIBLE01.skint.private:30778
-[2025-05-04 14:37:24] Verify cluster status with: kubectl cluster-info
-[2025-05-04 14:37:24] Check nodes with: kubectl get nodes
-[2025-05-04 14:37:24] Check Portainer agent pods with: kubectl get pods -n portainer
-[2025-05-04 14:37:24] Manage the Minikube service with: sudo systemctl [start|stop|restart|status] minikube.service
-[2025-05-04 14:37:24] Log file: /var/log/minikube_install_20250504_143659.log
-=============================================================
-Minikube Installation Succeeded!
--------------------------------------------------------------
-Minikube Status:
-  Host: Running
-  Kubelet: Running
-  APIServer: Running
-  Kubeconfig: Configured
--------------------------------------------------------------
-Allocated Resources:
-  Memory: 14967 MB
-  CPUs: 7
-  Disk: 83g
-Docker Network: 172.18.0.0/16
-Kubernetes API Server: https://POSLXPANSIBLE01.skint.private:8443
-Portainer Agent NodePort: 30778 (accessible via POSLXPANSIBLE01.skint.private)
-Portainer agent is deployed (or already running) in the 'portainer' namespace.
-To manage the cluster in Portainer:
-  1. Access the remote Portainer UI at http://poslxpportainer.skint.private:9000
-  2. Go to 'Environments' > 'Add Environment' > 'Kubernetes'
-  3. Select 'Import kubeconfig' and upload /home/pos-admin/.kube/config
-  4. For Docker management, add a Docker environment using POSLXPANSIBLE01.skint.private
-Verify cluster status with: kubectl cluster-info
-Check logs at: /var/log/minikube_install_20250504_143659.log
-=============================================================
+# Save IPTABLES NAT rules
+log "Saving IPTABLES NAT rules"
+sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
+check_status "Saving IPTABLES NAT rules"
+
+# Configure systemd service for Minikube auto-start
+log "Configuring systemd service for Minikube auto-start"
+if [ -f "$SYSTEMD_SERVICE_FILE" ]; then
+    log "Systemd service file $SYSTEMD_SERVICE_FILE already exists. Skipping creation."
+else
+    log "Creating Minikube systemd service file at $SYSTEMD_SERVICE_FILE"
+    # Create the systemd service file
+    cat << EOF | sudo tee "$SYSTEMD_SERVICE_FILE" > /dev/null
+[Unit]
+Description=Minikube Kubernetes Cluster
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+User=$NON_ROOT_USER
+Group=docker
+ExecStart=/usr/local/bin/minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false
+ExecStop=/usr/local/bin/minikube stop
+Restart=on-failure
+RestartSec=10
+Environment="HOME=/home/$NON_ROOT_USER"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    check_status "Creating Minikube systemd service file"
+
+    # Set permissions for the service file
+    sudo chmod 644 "$SYSTEMD_SERVICE_FILE"
+    check_status "Setting permissions for Minikube systemd service file"
+
+    # Reload systemd to recognize the new service
+    log "Reloading systemd daemon"
+    sudo systemctl daemon-reload
+    check_status "Rel
