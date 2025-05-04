@@ -2,6 +2,7 @@
 
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
 # Uses Docker as the container runtime (assumes Docker is pre-installed)
+# Configures Docker to use a user-specified network (default 172.18.0.0/16) to avoid conflicts with 192.168.x.x
 # Deploys Portainer agent (if not already installed) and prepares cluster for management in Portainer
 # Includes verbose logging, error handling, IPTABLES rules, auto-start via systemd, and on-screen completion status
 # Must be run as a non-root user with sudo privileges for specific commands
@@ -15,6 +16,7 @@ LOG_FILE="/var/log/minikube_install_$(date +%Y%m%d_%H%M%S).log"
 MIN_MEMORY_MB=4096     # Minimum 4GB RAM
 MIN_CPUS=2             # Minimum 2 CPUs
 MIN_DISK_GB=20         # Minimum 20GB disk
+DOCKER_NETWORK="${DOCKER_NETWORK:-172.18.0.0/16}"  # Default Docker network, override with env variable
 NON_ROOT_USER="$USER"  # Store the invoking user
 TEMP_DIR="/tmp"        # Temporary directory for downloads
 SYSTEMD_SERVICE_FILE="/etc/systemd/system/minikube.service"  # Path for systemd service
@@ -39,6 +41,39 @@ check_status() {
     fi
 }
 
+# Function to validate Docker network
+validate_docker_network() {
+    local network="$1"
+    # Check if network matches CIDR format (e.g., 172.18.0.0/16)
+    if ! echo "$network" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'; then
+        log "ERROR: Invalid DOCKER_NETWORK format: $network. Must be in CIDR notation (e.g., 172.18.0.0/16)."
+        display_failure_notification "Invalid DOCKER_NETWORK format"
+        exit 1
+    fi
+
+    # Extract IP and prefix
+    local ip_part=$(echo "$network" | cut -d'/' -f1)
+    local prefix=$(echo "$network" | cut -d'/' -f2)
+
+    # Validate prefix (8-30 for practical use)
+    if [ "$prefix" -lt 8 ] || [ "$prefix" -gt 30 ]; then
+        log "ERROR: Invalid subnet prefix in DOCKER_NETWORK: $prefix. Must be between 8 and 30."
+        display_failure_notification "Invalid subnet prefix"
+        exit 1
+    fi
+
+    # Check if IP is in private range (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+    if ! echo "$ip_part" | grep -Eq '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)'; then
+        log "ERROR: DOCKER_NETWORK $network is not in a private IP range (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)."
+        display_failure_notification "Non-private DOCKER_NETWORK"
+        exit 1
+    fi
+
+    # Calculate bridge IP (e.g., 172.18.0.0/16 -> 172.18.0.1/16)
+    DOCKER_BIP=$(echo "$ip_part" | awk -F. '{print $1"."$2"."$3".1"}')"/$prefix"
+    log "Calculated bridge IP: $DOCKER_BIP"
+}
+
 # Function to display success notification
 display_success_notification() {
     local minikube_status
@@ -56,6 +91,7 @@ display_success_notification() {
     echo "  Memory: $MINIKUBE_MEMORY MB"
     echo "  CPUs: $MINIKUBE_CPUS"
     echo "  Disk: $MINIKUBE_DISK"
+    echo "Docker Network: $DOCKER_NETWORK"
     echo "Portainer agent is deployed (or already running) in the 'portainer' namespace."
     echo "To manage the cluster in Portainer:"
     echo "  1. Access Portainer UI (e.g., http://$SERVER_IP:9000)"
@@ -155,22 +191,43 @@ if ! groups | grep -q docker; then
     exit 1
 fi
 
+# Validate Docker network
+validate_docker_network "$DOCKER_NETWORK"
+
+# Configure Docker network
+log "Configuring Docker network to use $DOCKER_NETWORK"
+if ! grep -q "\"bip\": \"$DOCKER_BIP\"" /etc/docker/daemon.json 2>/dev/null; then
+    log "Setting Docker bridge IP to $DOCKER_BIP and CIDR to $DOCKER_NETWORK"
+    sudo mkdir -p /etc/docker
+    echo "{
+        \"bip\": \"$DOCKER_BIP\",
+        \"fixed-cidr\": \"$DOCKER_NETWORK\",
+        \"exec-opts\": [\"native.cgroupdriver=systemd\"]
+    }" | sudo tee /etc/docker/daemon.json > /dev/null
+    sudo systemctl restart docker
+    check_status "Configuring Docker network"
+else
+    log "Docker network already configured for $DOCKER_NETWORK"
+fi
+
 # Introduction summary
 log "===== Introduction Summary ====="
 log "This script deploys a single-node Kubernetes cluster on Ubuntu 24.04 using Minikube."
 log "It performs the following steps:"
 log "1. Verifies pre-installed Docker and configures user permissions."
-log "2. Installs Minikube and kubectl."
-log "3. Detects available system resources and configures Minikube accordingly."
-log "4. Starts Minikube with the Docker driver and enables the ingress addon."
-log "5. Configures IPTABLES rules for Kubernetes and Docker."
-log "6. Deploys Portainer agent to the cluster (if not already installed)."
-log "7. Prepares kubeconfig for Portainer management."
-log "8. Configures Minikube to start automatically after server reboot via systemd."
+log "2. Configures Docker to use $DOCKER_NETWORK network to avoid conflicts."
+log "3. Installs Minikube and kubectl."
+log "4. Detects available system resources and configures Minikube accordingly."
+log "5. Starts Minikube with the Docker driver and enables the ingress addon."
+log "6. Configures IPTABLES rules for Kubernetes and Docker."
+log "7. Deploys Portainer agent to the cluster (if not already installed)."
+log "8. Prepares kubeconfig for Portainer management."
+log "9. Configures Minikube to start automatically after server reboot via systemd."
 log "Prerequisites:"
 log "- Docker must be pre-installed."
 log "- Run as a non-root user with sudo privileges (sudo will be prompted for specific commands)."
 log "- Minimum requirements: 4GB RAM, 2 CPUs, 20GB disk (more will be used if available)."
+log "- Optional: Set DOCKER_NETWORK environment variable (default: 172.18.0.0/16) to customize network."
 log "Logs are saved to $LOG_FILE."
 log "================================"
 
@@ -192,16 +249,6 @@ if ! docker info &> /dev/null; then
     log "Run: sg docker -c './$SCRIPT_NAME' or log out and back in."
     display_failure_notification "Docker daemon access denied"
     exit 1
-fi
-
-# Verify Docker CRI compatibility
-log "Verifying Docker CRI compatibility"
-if ! sudo docker info --format '{{.CgroupDriver}}' | grep -q "systemd"; then
-    log "Configuring Docker to use systemd cgroup driver"
-    sudo mkdir -p /etc/docker
-    echo '{"exec-opts": ["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json > /dev/null
-    sudo systemctl restart docker
-    check_status "Configuring Docker cgroup driver"
 fi
 
 # Install Minikube
@@ -390,6 +437,7 @@ SERVER_IP=$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}'
 log "Kubernetes cluster installation completed successfully!"
 log "Minikube is configured to start automatically after server reboot via systemd."
 log "Allocated resources: $MINIKUBE_MEMORY MB RAM, $MINIKUBE_CPUS CPUs, $MINIKUBE_DISK disk"
+log "Docker network configured: $DOCKER_NETWORK"
 log "Portainer agent is deployed (or already running) in the 'portainer' namespace."
 log "Verify cluster status with: kubectl cluster-info"
 log "Check nodes with: kubectl get nodes"
