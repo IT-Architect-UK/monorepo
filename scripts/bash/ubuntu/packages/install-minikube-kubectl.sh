@@ -205,9 +205,12 @@ log "Using $KUBE_SERVER for Kubernetes API and Portainer agent"
 # Verify FQDN resolution
 log "Verifying $KUBE_SERVER resolution"
 KUBE_SERVER_RESOLVED_IP=$(getent hosts $KUBE_SERVER | awk '{print $1}' | head -n 1)
-if [ "$KUBE_SERVER_RESOLVED_IP" = "127.0.1.1" ] || [ -z "$KUBE_SERVER_RESOLVED_IP" ]; then
-    log "WARNING: $KUBE_SERVER resolves to $KUBE_SERVER_RESOLVED_IP or is unresolvable. It should resolve to $SERVER_IP."
-    log "Please update /etc/hosts to include: $SERVER_IP $KUBE_SERVER"
+if [ "$KUBE_SERVER_RESOLVED_IP" != "$SERVER_IP" ]; then
+    log "WARNING: $KUBE_SERVER resolves to $KUBE_SERVER_RESOLVED_IP, but it should resolve to $SERVER_IP."
+    log "Please edit /etc/hosts to prioritize: $SERVER_IP $KUBE_SERVER"
+    log "Example /etc/hosts entry:"
+    log "$SERVER_IP $KUBE_SERVER $NON_ROOT_USER"
+    log "Ensure this line appears before any 127.0.1.1 entry for $KUBE_SERVER."
     display_failure_notification "Invalid $KUBE_SERVER resolution"
     exit 1
 fi
@@ -292,7 +295,204 @@ sudo iptables -A INPUT -p udp --dport 8472 -j ACCEPT -m comment --comment "Flann
 sudo iptables -A INPUT -s 127.0.0.1 -j ACCEPT -m comment --comment "Localhost traffic" | sudo tee -a "$LOG_FILE" > /dev/null
 sudo iptables -A INPUT -s "$SERVER_IP" -j ACCEPT -m comment --comment "Local server traffic" | sudo tee -a "$LOG_FILE" > /dev/null
 sudo iptables -A INPUT -s 172.18.0.0/16 -j ACCEPT -m comment --comment "Minikube network traffic" | sudo tee -a "$LOG_FILE" > /dev/null
-check_status "Configuring mert pod failed to reach Running state within 2 minutes"
+check_status "Configuring IPTABLES rules"
+
+# Save IPTABLES rules
+log "Saving IPTABLES rules"
+sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
+check_status "Saving IPTABLES rules"
+
+# Introduction summary
+log "===== Introduction Summary ====="
+log "This script deploys a single-node Kubernetes cluster on Ubuntu 24.04 using Minikube."
+log "It performs the following steps:"
+log "1. Verifies pre-installed Docker and configures user permissions."
+log "2. Configures Docker to use $DOCKER_NETWORK network to avoid conflicts."
+log "3. Configures IPTABLES rules for Kubernetes and Portainer agent."
+log "4. Installs Minikube and kubectl."
+log "5. Detects available system resources and configures Minikube accordingly."
+log "6. Starts Minikube with the Docker driver and enables the ingress addon."
+log "7. Configures kubeconfig for remote Portainer access via $KUBE_SERVER."
+log "8. Deploys Portainer agent to the cluster (if not already installed)."
+log "9. Configures Minikube to start automatically after server reboot via systemd."
+log "Prerequisites:"
+log "- Docker must be pre-installed."
+log "- Run as a non-root user with sudo privileges (sudo will be prompted for specific commands)."
+log "- Minimum requirements: 4GB RAM, 2 CPUs, 20GB disk (more will be used if available)."
+log "- Optional: Set DOCKER_NETWORK environment variable (default: 172.18.0.0/16) to customize network."
+log "- Ensure $KUBE_SERVER resolves to $SERVER_IP in /etc/hosts or DNS, before any 127.0.1.1 entry."
+log "Logs are saved to $LOG_FILE."
+log "================================"
+
+# Verify Docker is installed and running
+log "Verifying Docker installation"
+if ! command -v docker &> /dev/null; then
+    log "ERROR: Docker is not installed. Please install Docker before running this script."
+    display_failure_notification "Docker not installed"
+    exit 1
+fi
+sudo systemctl enable docker | sudo tee -a "$LOG_FILE" > /dev/null
+sudo systemctl start docker | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Verifying Docker"
+
+# Verify Docker access
+log "Verifying Docker access"
+if ! docker info &> /dev/null; then
+    log "ERROR: User $NON_ROOT_USER cannot access Docker daemon. Ensure you are in the docker group and have logged out/in."
+    log "Run: sg docker -c './$SCRIPT_NAME' or log out and back in."
+    display_failure_notification "Docker daemon access denied"
+    exit 1
+fi
+
+# Install Minikube
+log "Installing Minikube"
+curl -Lo "$TEMP_DIR/minikube-linux-amd64" https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Downloading Minikube"
+sudo install "$TEMP_DIR/minikube-linux-amd64" /usr/local/bin/minikube | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Installing Minikube"
+rm "$TEMP_DIR/minikube-linux-amd64"
+
+# Install kubectl
+log "Installing kubectl"
+curl -Lo "$TEMP_DIR/kubectl" "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Downloading kubectl"
+sudo install -o root -g root -m 0755 "$TEMP_DIR/kubectl" /usr/local/bin/kubectl | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Installing kubectl"
+rm "$TEMP_DIR/kubectl"
+
+# Detect system resources for Minikube
+detect_resources
+
+# Check if kubeconfig exists
+if [ -f "$HOME/.kube/config" ]; then
+    log "Existing kubeconfig found at $HOME/.kube/config. Backing up."
+    cp "$HOME/.kube/config" "$HOME/.kube/config.backup-$(date +%Y%m%d_%H%M%S)"
+else
+    log "No kubeconfig found at $HOME/.kube/config. Minikube will create a new one."
+fi
+
+# Start Minikube with Docker driver and custom subnet
+log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
+sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Starting Minikube"
+
+# Set current-context to minikube
+log "Setting kubeconfig current-context to minikube"
+kubectl config use-context minikube | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Setting kubeconfig current-context"
+
+# Verify Minikube status
+log "Verifying Minikube status"
+minikube_status=$(minikube status 2>&1)
+echo "$minikube_status" | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Verifying Minikube status"
+
+# Get Minikube VM IP
+log "Detecting Minikube VM IP"
+MINIKUBE_IP=$(minikube ip 2>/dev/null) || {
+    log "ERROR: Could not detect Minikube VM IP."
+    display_failure_notification "Could not detect Minikube VM IP"
+    exit 1
+}
+log "Detected Minikube VM IP: $MINIKUBE_IP"
+
+# Verify Minikube IP is in desired network
+if echo "$MINIKUBE_IP" | grep -q '^192\.168\.'; then
+    log "ERROR: Minikube VM IP $MINIKUBE_IP is in 192.168.x.x range, which is not allowed."
+    log "Expected IP in $DOCKER_NETWORK range."
+    display_failure_notification "Invalid Minikube VM IP"
+    exit 1
+fi
+log "Confirmed Minikube VM IP $MINIKUBE_IP is in $DOCKER_NETWORK range"
+
+# Verify kubeconfig with Minikube IP
+log "Verifying kubeconfig with Minikube IP: $MINIKUBE_IP:$KUBERNETES_PORT"
+if ! kubectl --server=https://$MINIKUBE_IP:$KUBERNETES_PORT cluster-info >/dev/null 2>&1; then
+    log "ERROR: Cannot connect to Kubernetes API at $MINIKUBE_IP:$KUBERNETES_PORT."
+    display_failure_notification "Cannot connect to Kubernetes API"
+    exit 1
+fi
+
+# Test kubectl get nodes command
+log "Testing kubectl get nodes command"
+kubectl_get_nodes_output=$(kubectl get nodes -o wide 2>&1)
+echo "$kubectl_get_nodes_output" | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Testing kubectl get nodes command"
+
+# Wait for Kubernetes nodes to be ready
+log "Waiting for Kubernetes nodes to be ready"
+timeout 20m bash -c "
+    until kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type==\"Ready\")].status}' 2>/dev/null | grep -q True; do
+        sleep 5
+        log \"Waiting for nodes...\"
+        kubectl_get_nodes_output=\$(kubectl get nodes -o wide 2>&1)
+        echo \"\$kubectl_get_nodes_output\" | sudo tee -a \"$LOG_FILE\" > /dev/null
+        kubectl_describe_node_output=\$(kubectl describe node minikube 2>&1)
+        echo \"\$kubectl_describe_node_output\" | sudo tee -a \"$LOG_FILE\" > /dev/null
+        kubectl_get_pods_output=\$(kubectl get pods -A 2>&1)
+        echo \"\$kubectl_get_pods_output\" | sudo tee -a \"$LOG_FILE\" > /dev/null
+    done
+" || {
+    log "ERROR: Kubernetes nodes failed to become ready within 20 minutes"
+    log "Logging Minikube status for debugging"
+    minikube status | sudo tee -a "$LOG_FILE" > /dev/null
+    log "Logging Minikube logs for debugging"
+    minikube logs | sudo tee -a "$LOG_FILE" > /dev/null
+    display_failure_notification "Kubernetes nodes not ready"
+    exit 1
+}
+check_status "Waiting for Kubernetes nodes"
+
+# Deploy Portainer agent
+log "Deploying Portainer agent to Kubernetes cluster"
+
+# Pre-check: Verify kubectl is accessible
+log "Pre-check: Verifying kubectl accessibility"
+if ! command -v kubectl &> /dev/null; then
+    log "ERROR: kubectl is not installed or not in PATH"
+    display_failure_notification "kubectl not installed"
+    exit 1
+fi
+check_status "Verifying kubectl accessibility"
+
+# Pre-check: Verify cluster is accessible
+log "Pre-check: Verifying Kubernetes cluster accessibility"
+if ! kubectl cluster-info &> /dev/null; then
+    log "ERROR: Kubernetes cluster is not accessible. Check Minikube status with 'minikube status'"
+    display_failure_notification "Kubernetes cluster inaccessible"
+    exit 1
+fi
+check_status "Verifying Kubernetes cluster accessibility"
+
+# Check if Portainer agent is already deployed
+log "Checking for existing Portainer agent deployment"
+if kubectl get pods -n portainer -l app=portainer-agent -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -q Running; then
+    log "Existing Portainer agent found in Running state. Skipping deployment."
+else
+    log "No running Portainer agent found. Proceeding with deployment."
+    # Download and apply Portainer agent YAML
+    log "Downloading Portainer agent YAML from $PORTAINER_AGENT_URL"
+    curl -Lo "$TEMP_DIR/$PORTAINER_AGENT_YAML" "$PORTAINER_AGENT_URL" | sudo tee -a "$LOG_FILE" > /dev/null
+    check_status "Downloading Portainer agent YAML"
+
+    log "Applying Portainer agent YAML"
+    kubectl apply -f "$TEMP_DIR/$PORTAINER_AGENT_YAML" | sudo tee -a "$LOG_FILE" > /dev/null
+    check_status "Applying Portainer agent YAML"
+
+    # Clean up downloaded YAML
+    log "Cleaning up temporary Portainer agent YAML"
+    rm "$TEMP_DIR/$PORTAINER_AGENT_YAML"
+    check_status "Cleaning up temporary Portainer agent YAML"
+
+    # Post-check: Verify Portainer agent deployment
+    log "Post-check: Verifying Portainer agent deployment"
+    timeout 2m bash -c "
+        until kubectl get pods -n portainer -l app=portainer-agent -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -q Running; do
+            sleep 5
+            log \"Waiting for Portainer agent pod to be Running...\"
+        done
+    " || {
+        log "ERROR: Portainer agent pod failed to reach Running state within 2 minutes"
         kubectl describe pod -n portainer -l app=portainer-agent | sudo tee -a "$LOG_FILE" > /dev/null
         display_failure_notification "Portainer agent pod not running"
         exit 1
@@ -308,6 +508,30 @@ if ! kubectl get svc -n portainer portainer-agent -o jsonpath='{.spec.ports[0].n
     exit 1
 fi
 check_status "Verifying Portainer agent service"
+
+# Update kubeconfig to use local server IP or FQDN
+log "Updating kubeconfig to use $KUBE_SERVER:$KUBERNETES_PORT"
+kubectl config set-cluster minikube --server=https://$KUBE_SERVER:$KUBERNETES_PORT | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Updating kubeconfig"
+
+# Verify kubeconfig
+log "Verifying kubeconfig"
+if ! kubectl config view --minify >/dev/null 2>&1; then
+    log "ERROR: Invalid kubeconfig file. Please check $HOME/.kube/config."
+    display_failure_notification "Invalid kubeconfig file"
+    exit 1
+fi
+
+# Configure IPTABLES NAT for Kubernetes API
+log "Configuring IPTABLES NAT for Kubernetes API"
+sudo iptables -t nat -A PREROUTING -p tcp -d "$SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" | sudo tee -a "$LOG_FILE" > /dev/null
+sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$KUBERNETES_PORT" -j MASQUERADE | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Configuring IPTABLES NAT rules"
+
+# Save IPTABLES NAT rules
+log "Saving IPTABLES NAT rules"
+sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
+check_status "Saving IPTABLES NAT rules"
 
 # Configure systemd service for Minikube auto-start
 log "Configuring systemd service for Minikube auto-start"
