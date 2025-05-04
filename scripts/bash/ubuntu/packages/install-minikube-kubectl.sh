@@ -25,6 +25,7 @@ PORTAINER_AGENT_YAML="portainer-agent-k8s-nodeport.yaml"
 PORTAINER_AGENT_URL="https://downloads.portainer.io/ce2-19/portainer-agent-k8s-nodeport.yaml"
 SCRIPT_NAME="install-minikube-kubectl.sh"
 PORTAINER_NODEPORT=30778  # Default NodePort for Portainer agent
+export LOG_FILE  # Export LOG_FILE for subshells
 
 # Function to log messages to file and screen
 log() {
@@ -71,7 +72,7 @@ validate_docker_network() {
         exit 1
     fi
 
-    # Calculate bridge IP (e.g., 172.18.0.0/16 -> 172.18.0.1/16)
+    # Calculate bridge IP (e.g., 172.18.0.0/16 -> 172 своїм.18.0.1/16)
     DOCKER_BIP=$(echo "$ip_part" | awk -F. '{print $1"."$2"."$3".1"}')"/$prefix"
     log "Calculated bridge IP: $DOCKER_BIP"
 }
@@ -119,6 +120,7 @@ display_failure_notification() {
     echo "  - Ensure Docker is installed and running"
     echo "  - Verify sudo privileges for user $NON_ROOT_USER"
     echo "  - Check system resources (minimum 4GB RAM, 2 CPUs, 20GB disk)"
+    echo "  - Ensure kubeconfig is valid and Minikube is running"
     echo "Run the script again after resolving issues."
     echo "============================================================="
 }
@@ -323,27 +325,37 @@ log "Updating kubeconfig to use $KUBE_SERVER:$KUBERNETES_PORT"
 kubectl config set-cluster minikube --server=https://$KUBE_SERVER:$KUBERNETES_PORT | sudo tee -a "$LOG_FILE" > /dev/null
 check_status "Updating kubeconfig"
 
-# Verify Minikube status
-log "Verifying Minikube status"
-minikube status | sudo tee -a "$LOG_FILE" > /dev/null
-check_status "Verifying Minikube status"
+# Verify kubeconfig
+log "Verifying kubeconfig"
+if ! kubectl config view --minify >/dev/null 2>&1; then
+    log "ERROR: Invalid kubeconfig file. Please check $HOME/.kube/config."
+    display_failure_notification "Invalid kubeconfig file"
+    exit 1
+fi
 
 # Get the Kubernetes API port dynamically
+log "Detecting Kubernetes API port"
 KUBERNETES_PORT=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | grep -o '[0-9]\+$') || {
     log "WARNING: Could not detect Kubernetes API port, defaulting to 8443"
     KUBERNETES_PORT="8443"
 }
 log "Detected Kubernetes API port: $KUBERNETES_PORT"
 
+# Verify Minikube status
+log "Verifying Minikube status"
+minikube status | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Verifying Minikube status"
+
 # Wait for Kubernetes nodes to be ready
 log "Waiting for Kubernetes nodes to be ready"
-timeout 5m bash -c "
+timeout 10m bash -c "
     until kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type==\"Ready\")].status}' 2>/dev/null | grep -q True; do
         sleep 5
         log \"Waiting for nodes...\"
+        kubectl get nodes -o wide 2>/dev/null | sudo tee -a \"$LOG_FILE\" > /dev/null
     done
 " || {
-    log "ERROR: Kubernetes nodes failed to become ready within 5 minutes"
+    log "ERROR: Kubernetes nodes failed to become ready within 10 minutes"
     display_failure_notification "Kubernetes nodes not ready"
     exit 1
 }
