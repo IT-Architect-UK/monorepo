@@ -1,23 +1,25 @@
 #!/bin/bash
 
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
-# Uses Docker as the container runtime (assumes Docker and Portainer agent are pre-installed)
-# Prepares cluster for management in Portainer
+# Uses Docker as the container runtime (assumes Docker is pre-installed)
+# Deploys Portainer agent and prepares cluster for management in Portainer
 # Includes verbose logging, error handling, IPTABLES rules, and auto-start via systemd
 # Must be run as a non-root user with sudo privileges for specific commands
+# Dynamically allocates memory, CPUs, and disk based on available system resources
 
 # Exit on any error
 set -e
 
 # Define log file and variables
 LOG_FILE="/var/log/minikube_install_$(date +%Y%m%d_%H%M%S).log"
-MINIKUBE_MEMORY="4096"  # 4GB RAM
-MINIKUBE_CPUS="2"      # 2 CPUs
-MINIKUBE_DISK="20g"    # 20GB disk
-KUBERNETES_PORT="8443" # Minikube Kubernetes API port
+MIN_MEMORY_MB=4096     # Minimum 4GB RAM
+MIN_CPUS=2             # Minimum 2 CPUs
+MIN_DISK_GB=20         # Minimum 20GB disk
 NON_ROOT_USER="$USER"  # Store the invoking user
 TEMP_DIR="/tmp"        # Temporary directory for downloads
 SYSTEMD_SERVICE_FILE="/etc/systemd/system/minikube.service"  # Path for systemd service
+PORTAINER_AGENT_YAML="portainer-agent-k8s-nodeport.yaml"
+PORTAINER_AGENT_URL="https://downloads.portainer.io/ce2-19/portainer-agent-k8s-nodeport.yaml"
 
 # Function to log messages to file and screen
 log() {
@@ -31,6 +33,43 @@ check_status() {
         log "ERROR: $1 failed"
         exit 1
     fi
+}
+
+# Function to detect system resources and set Minikube parameters
+detect_resources() {
+    log "Detecting available system resources"
+
+    # Detect available memory (in MB)
+    TOTAL_MEMORY=$(free -m | awk '/^Mem:/{print $2}')
+    AVAILABLE_MEMORY=$((TOTAL_MEMORY - 1024)) # Reserve 1GB for system
+    if [ "$AVAILABLE_MEMORY" -lt "$MIN_MEMORY_MB" ]; then
+        log "WARNING: Available memory ($AVAILABLE_MEMORY MB) is less than minimum ($MIN_MEMORY_MB MB). Using minimum."
+        MINIKUBE_MEMORY="$MIN_MEMORY_MB"
+    else
+        MINIKUBE_MEMORY="$AVAILABLE_MEMORY"
+    fi
+    log "Setting Minikube memory to $MINIKUBE_MEMORY MB"
+
+    # Detect available CPUs
+    TOTAL_CPUS=$(nproc)
+    AVAILABLE_CPUS=$((TOTAL_CPUS - 1)) # Reserve 1 CPU for system
+    if [ "$AVAILABLE_CPUS" -lt "$MIN_CPUS" ]; then
+        log "WARNING: Available CPUs ($AVAILABLE_CPUS) is less than minimum ($MIN_CPUS). Using minimum."
+        MINIKUBE_CPUS="$MIN_CPUS"
+    else
+        MINIKUBE_CPUS="$AVAILABLE_CPUS"
+    fi
+    log "Setting Minikube CPUs to $MINIKUBE_CPUS"
+
+    # Detect available disk space (in GB, assuming /var/lib/minikube)
+    AVAILABLE_DISK=$(df -BG /var/lib | awk 'NR==2 {print $4}' | sed 's/G//')
+    if [ "$AVAILABLE_DISK" -lt "$MIN_DISK_GB" ]; then
+        log "WARNING: Available disk ($AVAILABLE_DISK GB) is less than minimum ($MIN_DISK_GB GB). Using minimum."
+        MINIKUBE_DISK="${MIN_DISK_GB}g"
+    else
+        MINIKUBE_DISK="${AVAILABLE_DISK}g"
+    fi
+    log "Setting Minikube disk to $MINIKUBE_DISK"
 }
 
 # Check if running as root
@@ -65,14 +104,16 @@ log "This script deploys a single-node Kubernetes cluster on Ubuntu 24.04 using 
 log "It performs the following steps:"
 log "1. Verifies pre-installed Docker and configures user permissions."
 log "2. Installs Minikube and kubectl."
-log "3. Starts Minikube with the Docker driver and enables the ingress addon."
-log "4. Configures IPTABLES rules for Kubernetes and Docker."
-log "5. Prepares kubeconfig for Portainer management."
-log "6. Configures Minikube to start automatically after server reboot via systemd."
+log "3. Detects available system resources and configures Minikube accordingly."
+log "4. Starts Minikube with the Docker driver and enables the ingress addon."
+log "5. Configures IPTABLES rules for Kubernetes and Docker."
+log "6. Deploys Portainer agent to the cluster."
+log "7. Prepares kubeconfig for Portainer management."
+log "8. Configures Minikube to start automatically after server reboot via systemd."
 log "Prerequisites:"
-log "- Docker and Portainer agent must be pre-installed."
+log "- Docker must be pre-installed."
 log "- Run as a non-root user with sudo privileges (sudo will be prompted for specific commands)."
-log "- Minimum 4GB RAM, 2 CPUs, 20GB disk."
+log "- Minimum requirements: 4GB RAM, 2 CPUs, 20GB disk (more will be used if available)."
 log "Logs are saved to $LOG_FILE."
 log "================================"
 
@@ -126,6 +167,9 @@ sudo install -o root -g root -m 0755 "$TEMP_DIR/kubectl" /usr/local/bin/kubectl 
 check_status "Installing kubectl"
 rm "$TEMP_DIR/kubectl"
 
+# Detect system resources for Minikube
+detect_resources
+
 # Start Minikube with Docker driver in the docker group context
 log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
 sg docker -c "minikube start --driver=docker --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | sudo tee -a "$LOG_FILE"
@@ -133,8 +177,18 @@ check_status "Starting Minikube"
 
 # Verify Minikube status
 log "Verifying Minikube status"
-minikube status | sudo tee -a "$LOG_FILE"
+minikube status | sudo tee -a "$  | grep -q "host: Running" || {
+    log "ERROR: Minikube is not running. Check status with 'minikube status'"
+    exit 1
+}
 check_status "Verifying Minikube status"
+
+# Get the Kubernetes API port dynamically
+KUBERNETES_PORT=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | grep -o '[0-9]\+$') || {
+    log "WARNING: Could not detect Kubernetes API port, defaulting to 8443"
+    KUBERNETES_PORT="8443"
+}
+log "Detected Kubernetes API port: $KUBERNETES_PORT"
 
 # Wait for Kubernetes nodes to be ready
 log "Waiting for Kubernetes nodes to be ready"
@@ -160,7 +214,61 @@ log "Saving IPTABLES rules"
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
 check_status "Saving IPTABLES rules"
 
-# NEW: Configure systemd service for Minikube auto-start
+# Deploy Portainer agent
+log "Deploying Portainer agent to Kubernetes cluster"
+
+# Pre-check: Verify kubectl is accessible
+log "Pre-check: Verifying kubectl accessibility"
+if ! command -v kubectl &> /dev/null; then
+    log "ERROR: kubectl is not installed or not in PATH"
+    exit 1
+fi
+check_status "Verifying kubectl accessibility"
+
+# Pre-check: Verify cluster is accessible
+log "Pre-check: Verifying Kubernetes cluster accessibility"
+if ! kubectl cluster-info &> /dev/null; then
+    log "ERROR: Kubernetes cluster is not accessible. Check Minikube status with 'minikube status'"
+    exit 1
+fi
+check_status "Verifying Kubernetes cluster accessibility"
+
+# Download and apply Portainer agent YAML
+log "Downloading Portainer agent YAML from $PORTAINER_AGENT_URL"
+curl -Lo "$TEMP_DIR/$PORTAINER_AGENT_YAML" "$PORTAINER_AGENT_URL" | sudo tee -a "$LOG_FILE"
+check_status "Downloading Portainer agent YAML"
+
+log "Applying Portainer agent YAML"
+kubectl apply -f "$TEMP_DIR/$PORTAINER_AGENT_YAML" | sudo tee -a "$LOG_FILE"
+check_status "Applying Portainer agent YAML"
+
+# Clean up downloaded YAML
+log "Cleaning up temporary Portainer agent YAML"
+rm "$TEMP_DIR/$PORTAINER_AGENT_YAML"
+check_status "Cleaning up Portainer agent YAML"
+
+# Post-check: Verify Portainer agent deployment
+log "Post-check: Verifying Portainer agent deployment"
+timeout 2m bash -c "
+    until kubectl get pods -n portainer -l app=portainer-agent -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -q Running; do
+        sleep 5
+        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for Portainer agent pod to be Running...\" | sudo tee -a \"$LOG_FILE\"
+    done
+" || {
+    log "ERROR: Portainer agent pod failed to reach Running state within 2 minutes"
+    exit 1
+}
+check_status "Verifying Portainer agent deployment"
+
+# Post-check: Verify Portainer agent service
+log "Post-check: Verifying Portainer agent service"
+if ! kubectl get svc -n portainer portainer-agent -o jsonpath='{.spec.ports[0].nodePort}' &> /dev/null; then
+    log "ERROR: Portainer agent service not found or misconfigured"
+    exit 1
+fi
+check_status "Verifying Portainer agent service"
+
+# Configure systemd service for Minikube auto-start
 log "Configuring systemd service for Minikube auto-start"
 if [ -f "$SYSTEMD_SERVICE_FILE" ]; then
     log "Systemd service file $SYSTEMD_SERVICE_FILE already exists. Skipping creation."
@@ -208,18 +316,22 @@ fi
 # Instructions for Portainer integration
 log "Preparing kubeconfig for Portainer integration"
 log "To manage the Kubernetes cluster in Portainer:"
-log "1. Access Portainer UI (e.g., http://$SERVER_IP:9000)"
+log "1. Access Portainer UI (e.g., http://$SERVER anaemiaIP:9000)"
 log "2. Go to 'Environments' > 'Add Environment' > 'Kubernetes'"
 log "3. Select 'Local Kubernetes' or 'Import kubeconfig'"
 log "4. Upload or copy the kubeconfig from $HOME/.kube/config (created by Minikube)"
 log "5. Save and connect to manage the cluster"
+log "Note: Portainer agent is deployed and accessible via NodePort. Check service details with: kubectl get svc -n portainer"
 
 # Display completion instructions
 SERVER_IP=$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d'/' -f1 | head -n 1)
 log "Kubernetes cluster installation completed successfully!"
 log "Minikube is configured to start automatically after server reboot via systemd."
+log "Allocated resources: $MINIKUBE_MEMORY MB RAM, $MINIKUBE_CPUS CPUs, $MINIKUBE_DISK disk"
+log "Portainer agent is deployed and running in the 'portainer' namespace."
 log "Verify cluster status with: kubectl cluster-info"
 log "Check nodes with: kubectl get nodes"
+log "Check Portainer agent pods with: kubectl get pods -n portainer"
 log "Manage the Minikube service with: sudo systemctl [start|stop|restart|status] minikube.service"
 log "Log file: $LOG_FILE"
 
