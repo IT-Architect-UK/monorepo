@@ -5,7 +5,7 @@
 # Configures Docker and Minikube to use a user-specified network (default 172.18.0.0/16) to avoid conflicts with 192.168.x.x
 # Deploys Portainer agent (if not already installed) for remote management of Kubernetes and Docker
 # Configures kubeconfig and port forwarding for remote Portainer connectivity via local server IP/FQDN
-# Includes verbose logging, comprehensive IPTABLES rules (no UFW), auto-start via systemd, and on-screen completion status
+# Includes verbose logging, comprehensive IPTABLES rules (no UFW), auto-start via systemd, and a final status check
 # Must be run as a non-root user with sudo privileges for specific commands
 # Dynamically allocates memory, CPUs, and disk based on available system resources
 
@@ -125,6 +125,64 @@ display_failure_notification() {
     echo "  - Check IPTABLES rules and network connectivity"
     echo "  - Verify Docker network configuration and Minikube container status"
     echo "Run the script again after resolving issues."
+    echo "============================================================="
+}
+
+# Function to perform final status check
+display_final_status() {
+    log "Performing final status check"
+    echo "============================================================="
+    echo "Final Installation Status"
+    echo "-------------------------------------------------------------"
+
+    # Check Minikube status
+    minikube_status=$(minikube status --format '{{.Host}}|{{.Kubelet}}|{{.APIServer}}|{{.Kubeconfig}}' 2>/dev/null || echo "Unknown|Unknown|Unknown|Unknown")
+    minikube_host=$(echo "$minikube_status" | cut -d'|' -f1)
+    minikube_kubelet=$(echo "$minikube_status" | cut -d'|' -f2)
+    minikube_apiserver=$(echo "$minikube_status" | cut -d'|' -f3)
+    minikube_kubeconfig=$(echo "$minikube_status" | cut -d'|' -f4)
+
+    # Check cluster status
+    cluster_status=$(kubectl cluster-info 2>&1 | grep -q "Kubernetes control plane is running" && echo "Running" || echo "Not Running")
+
+    # Check Minikube VM IP
+    minikube_ip_status=$(minikube ip 2>/dev/null || echo "Unknown")
+
+    # Check Kubernetes API connectivity
+    api_status=$(curl -k "https://$KUBE_SERVER:$KUBERNETES_PORT" 2>/dev/null | grep -q "Unauthorized" && echo "Accessible" || echo "Not Accessible")
+
+    # Display summary table
+    echo "Configuration Item          | Status/Value"
+    echo "----------------------------|---------------------"
+    printf "Minikube Host              | %s\n" "$minikube_host"
+    printf "Minikube Kubelet           | %s\n" "$minikube_kubelet"
+    printf "Minikube APIServer         | %s\n" "$minikube_apiserver"
+    printf "Minikube Kubeconfig        | %s\n" "$minikube_kubeconfig"
+    printf "Kubernetes Cluster         | %s\n" "$cluster_status"
+    printf "Minikube VM IP             | %s\n" "$minikube_ip_status"
+    printf "Kubernetes API (Port %s)   | %s\n" "$KUBERNETES_PORT" "$api_status"
+    printf "Portainer Agent NodePort   | %s\n" "$PORTAINER_NODEPORT"
+    echo "-------------------------------------------------------------"
+
+    # Log detailed status
+    log "Final Status Check:"
+    log "Minikube Host: $minikube_host"
+    log "Minikube Kubelet: $minikube_kubelet"
+    log "Minikube APIServer: $minikube_apiserver"
+    log "Minikube Kubeconfig: $minikube_kubeconfig"
+    log "Kubernetes Cluster: $cluster_status"
+    log "Minikube VM IP: $minikube_ip_status"
+    log "Kubernetes API (Port $KUBERNETES_PORT): $api_status"
+    log "Portainer Agent NodePort: $PORTAINER_NODEPORT"
+
+    # Check for failures
+    if [ "$minikube_host" != "Running" ] || [ "$minikube_kubelet" != "Running" ] || [ "$minikube_apiserver" != "Running" ] || [ "$cluster_status" != "Running" ] || [ "$api_status" != "Accessible" ]; then
+        echo "WARNING: Some components are not running or accessible. Check $LOG_FILE for details."
+        log "WARNING: Installation completed but some components are not fully functional."
+    else
+        echo "All components are running and accessible."
+        log "Installation completed successfully."
+    fi
     echo "============================================================="
 }
 
@@ -345,6 +403,7 @@ log "7. Starts Minikube with the Docker driver and enables the ingress addon."
 log "8. Configures kubeconfig for remote Portainer access via $KUBE_SERVER."
 log "9. Deploys Portainer agent to the cluster (if not already installed)."
 log "10. Configures Minikube to start automatically after server reboot via systemd."
+log "11. Performs a final status check to verify installation."
 log "Prerequisites:"
 log "- Docker must be pre-installed."
 log "- Run as a non-root user with sudo privileges (sudo will be prompted for specific commands)."
@@ -409,6 +468,9 @@ if [ $? -ne 0 ]; then
     minikube_start_output=$(sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false --force" 2>&1)
     if [ $? -ne 0 ]; then
         log "ERROR: Minikube start with --force failed. Output: $minikube_start_output"
+        log "Checking Docker containers for debugging"
+        docker_ps_output=$(docker ps -a --filter "name=minikube" 2>&1)
+        echo "$docker_ps_output" | sudo tee -a "$LOG_FILE" > /dev/null
         display_failure_notification "Minikube start failed"
         exit 1
     fi
@@ -479,9 +541,9 @@ timeout 20m bash -c "
         kubectl_get_nodes_output=\$(kubectl get nodes -o wide 2>&1)
         echo \"\$kubectl_get_nodes_output\" | sudo tee -a \"$LOG_FILE\" > /dev/null
         kubectl_describe_node_output=\$(kubectl describe node minikube 2>&1)
-        echo \"\$kubectl_describe_node_output\" | sudo tee -a "$LOG_FILE" > /dev/null
+        echo \"\$kubectl_describe_node_output\" | sudo tee -a \"$LOG_FILE\" > /dev/null
         kubectl_get_pods_output=\$(kubectl get pods -A 2>&1)
-        echo \"\$kubectl_get_pods_output\" | sudo tee -a "$LOG_FILE" > /dev/null
+        echo \"\$kubectl_get_pods_output\" | sudo tee -a \"$LOG_FILE\" > /dev/null
     done
 " || {
     log "ERROR: Kubernetes nodes failed to become ready within 20 minutes"
@@ -618,4 +680,29 @@ EOF
     # Reload systemd to recognize the new service
     log "Reloading systemd daemon"
     sudo systemctl daemon-reload
-    check_status "Rel
+    check_status "Reloading systemd daemon"
+
+    # Enable the service to start on boot
+    log "Enabling Minikube service to start on boot"
+    sudo systemctl enable minikube.service | sudo tee -a "$LOG_FILE" > /dev/null
+    check_status "Enabling Minikube service"
+
+    # Start the service immediately (optional, since Minikube is already started)
+    log "Minikube is already running. Systemd service will manage it on next reboot."
+fi
+
+# Instructions for Portainer integration
+log "Preparing kubeconfig for Portainer integration"
+log "To manage the Kubernetes cluster in Portainer:"
+log "1. Access the remote Portainer UI at http://$REMOTE_PORTAINER_HOST:9000"
+log "2. Go to 'Environments' > 'Add Environment' > 'Kubernetes'"
+log "3. Select 'Import kubeconfig' and upload $HOME/.kube/config"
+log "4. For Docker management, add a Docker environment using $KUBE_SERVER"
+log "Note: Portainer agent is accessible via $KUBE_SERVER:$PORTAINER_NODEPORT. Check service details with: kubectl get svc -n portainer"
+
+# Perform final status check
+display_final_status
+
+# Ensure log file is readable
+sudo chmod 664 "$LOG_FILE"
+sudo chown "$NON_ROOT_USER":"$NON_ROOT_USER" "$LOG_FILE"
