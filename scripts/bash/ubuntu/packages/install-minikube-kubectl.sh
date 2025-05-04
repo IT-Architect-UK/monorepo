@@ -2,7 +2,7 @@
 
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
 # Uses Docker as the container runtime (assumes Docker is pre-installed)
-# Configures Docker and Minikube to use a user-specified network (default 172.18.0.0/16) to avoid conflicts with 192.168.x.x
+# Configures Docker to use a user-specified network (default 172.18.0.0/16) to avoid conflicts with 192.168.x.x
 # Deploys Portainer agent (if not already installed) for remote management of Kubernetes and Docker
 # Configures kubeconfig to use the local server's LAN IP or FQDN for remote Portainer connectivity
 # Includes verbose logging, error handling, IPTABLES rules, auto-start via systemd, and on-screen completion status
@@ -72,7 +72,7 @@ validate_docker_network() {
         exit 1
     fi
 
-    # Calculate bridge IP (e.g., 172.18.0.0/16 -> 172 своїм.18.0.1/16)
+    # Calculate bridge IP (e.g., 172.18.0.0/16 -> 172.18.0.1/16)
     DOCKER_BIP=$(echo "$ip_part" | awk -F. '{print $1"."$2"."$3".1"}')"/$prefix"
     log "Calculated bridge IP: $DOCKER_BIP"
 }
@@ -315,10 +315,23 @@ rm "$TEMP_DIR/kubectl"
 # Detect system resources for Minikube
 detect_resources
 
-# Start Minikube with Docker driver and custom bridge IP
+# Check if kubeconfig exists
+if [ -f "$HOME/.kube/config" ]; then
+    log "Existing kubeconfig found at $HOME/.kube/config. Backing up."
+    cp "$HOME/.kube/config" "$HOME/.kube/config.backup-$(date +%Y%m%d_%H%M%S)"
+else
+    log "No kubeconfig found at $HOME/.kube/config. Minikube will create a new one."
+fi
+
+# Start Minikube with Docker driver
 log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
-sg docker -c "minikube start --driver=docker --docker-bridge-ip=$DOCKER_BIP --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | sudo tee -a "$LOG_FILE" > /dev/null
+sg docker -c "minikube start --driver=docker --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | sudo tee -a "$LOG_FILE" > /dev/null
 check_status "Starting Minikube"
+
+# Verify Minikube status
+log "Verifying Minikube status"
+minikube status | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Verifying Minikube status"
 
 # Update kubeconfig to use local server IP or FQDN
 log "Updating kubeconfig to use $KUBE_SERVER:$KUBERNETES_PORT"
@@ -340,11 +353,6 @@ KUBERNETES_PORT=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluste
     KUBERNETES_PORT="8443"
 }
 log "Detected Kubernetes API port: $KUBERNETES_PORT"
-
-# Verify Minikube status
-log "Verifying Minikube status"
-minikube status | sudo tee -a "$LOG_FILE" > /dev/null
-check_status "Verifying Minikube status"
 
 # Wait for Kubernetes nodes to be ready
 log "Waiting for Kubernetes nodes to be ready"
@@ -459,7 +467,7 @@ Requires=docker.service
 [Service]
 User=$NON_ROOT_USER
 Group=docker
-ExecStart=/usr/local/bin/minikube start --driver=docker --docker-bridge-ip=$DOCKER_BIP --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false
+ExecStart=/usr/local/bin/minikube start --driver=docker --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false
 ExecStop=/usr/local/bin/minikube stop
 Restart=on-failure
 RestartSec=10
