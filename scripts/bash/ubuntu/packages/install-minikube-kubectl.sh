@@ -3,7 +3,7 @@
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
 # Uses Docker as the container runtime (assumes Docker is pre-installed)
 # Deploys Portainer agent and prepares cluster for management in Portainer
-# Includes verbose logging, error handling, IPTABLES rules, auto-start via systemd, and on-screen notifications
+# Includes verbose logging, error handling, IPTABLES rules, auto-start via systemd, and on-screen completion status
 # Must be run as a non-root user with sudo privileges for specific commands
 # Dynamically allocates memory, CPUs, and disk based on available system resources
 
@@ -20,6 +20,7 @@ TEMP_DIR="/tmp"        # Temporary directory for downloads
 SYSTEMD_SERVICE_FILE="/etc/systemd/system/minikube.service"  # Path for systemd service
 PORTAINER_AGENT_YAML="portainer-agent-k8s-nodeport.yaml"
 PORTAINER_AGENT_URL="https://downloads.portainer.io/ce2-19/portainer-agent-k8s-nodeport.yaml"
+SCRIPT_NAME="install-minikube-kubectl.sh"
 
 # Function to log messages to file and screen
 log() {
@@ -50,7 +51,7 @@ display_success_notification() {
     echo "  APIServer: $(echo "$minikube_status" | sed -n 3p)"
     echo "  Kubeconfig: $(echo "$minikube_status" | sed -n 4p)"
     echo "-------------------------------------------------------------"
-    echo "Resources Allocated:"
+    echo "Allocated Resources:"
     echo "  Memory: $MINIKUBE_MEMORY MB"
     echo "  CPUs: $MINIKUBE_CPUS"
     echo "  Disk: $MINIKUBE_DISK"
@@ -87,51 +88,6 @@ sudo touch "$LOG_FILE"
 sudo chmod 664 "$LOG_FILE"
 sudo chown "$NON_ROOT_USER":"$NON_ROOT_USER" "$LOG_FILE"
 check_status "Creating log file"
-
-# Check if running as root
-if [ "$(id -u)" -eq 0 ]; then
-    log "ERROR: This script must not be run as root. Run as a non-root user (e.g., pos-admin) with sudo privileges."
-    display_failure_notification "Script must not be run as root"
-    exit 1
-fi
-
-# Check if sudo privileges are available
-log "Checking sudo privileges"
-if ! sudo -n true 2>/dev/null; then
-    log "ERROR: User $NON_ROOT_USER does not have sudo privileges. Please grant sudo access and try again."
-    display_failure_notification "No sudo privileges"
-    exit 1
-fi
-
-# Check if user is in docker group
-log "Checking Docker group membership"
-if ! groups | grep -q docker; then
-    log "Adding user $NON_ROOT_USER to docker group"
-    sudo usermod -aG docker "$NON_ROOT_USER" | sudo tee -a "$LOG_FILE" > /dev/null
-    check_status "Adding user to docker group"
-    log "WARNING: Docker group membership updated. Please log out and back in, or run the script again in a new session."
-    log "Alternatively, run: sg docker -c './install_minikube_ubuntu24.sh'"
-    exit 1
-fi
-
-# Introduction summary
-log "===== Introduction Summary ====="
-log "This script deploys a single-node Kubernetes cluster on Ubuntu 24.04 using Minikube."
-log "It performs the following steps:"
-log "1. Verifies pre-installed Docker and configures user permissions."
-log "2. Installs Minikube and kubectl."
-log "3. Detects available system resources and configures Minikube accordingly."
-log "4. Starts Minikube with the Docker driver and enables the ingress addon."
-log "5. Configures IPTABLES rules for Kubernetes and Docker."
-log "6. Deploys Portainer agent to the cluster."
-log "7. Prepares kubeconfig for Portainer management."
-log "8. Configures Minikube to start automatically after server reboot via systemd."
-log "Prerequisites:"
-log "- Docker must be pre-installed."
-log "- Run as a non-root user with sudo privileges (sudo will be prompted for specific commands)."
-log "- Minimum requirements: 4GB RAM, 2 CPUs, 20GB disk (more will be used if available)."
-log "Logs are saved to $LOG_FILE."
-log "================================"
 
 # Function to detect system resources and set Minikube parameters
 detect_resources() {
@@ -170,6 +126,53 @@ detect_resources() {
     log "Setting Minikube disk to $MINIKUBE_DISK"
 }
 
+# Check if running as root
+if [ "$(id -u)" -eq 0 ]; then
+    log "ERROR: This script must not be run as root. Run as a non-root user (e.g., pos-admin) with sudo privileges."
+    log "Example: ./$SCRIPT_NAME"
+    log "Alternatively, modify the script to use 'minikube start --force' if root execution is required."
+    display_failure_notification "Script must not be run as root"
+    exit 1
+fi
+
+# Check if sudo privileges are available
+log "Checking sudo privileges"
+if ! sudo -n true 2>/dev/null; then
+    log "ERROR: User $NON_ROOT_USER does not have sudo privileges. Please grant sudo access and try again."
+    display_failure_notification "No sudo privileges"
+    exit 1
+fi
+
+# Check if user is in docker group
+log "Checking Docker group membership"
+if ! groups | grep -q docker; then
+    log "Adding user $NON_ROOT_USER to docker group"
+    sudo usermod -aG docker "$NON_ROOT_USER" | sudo tee -a "$LOG_FILE" > /dev/null
+    check_status "Adding user to docker group"
+    log "WARNING: Docker group membership updated. Please log out and back in, or run the script again in a new session."
+    log "Alternatively, run: sg docker -c './$SCRIPT_NAME'"
+    exit 1
+fi
+
+# Introduction summary
+log "===== Introduction Summary ====="
+log "This script deploys a single-node Kubernetes cluster on Ubuntu blushing24.04 using Minikube."
+log "It performs the following steps:"
+log "1. Verifies pre-installed Docker and configures user permissions."
+log "2. Installs Minikube and kubectl."
+log "3. Detects available system resources and configures Minikube accordingly."
+log "4. Starts Minikube with the Docker driver and enables the ingress addon."
+log "5. Configures IPTABLES rules for Kubernetes and Docker."
+log "6. Deploys Portainer agent to the cluster."
+log "7. Prepares kubeconfig for Portainer management."
+log "8. Configures Minikube to start automatically after server reboot via systemd."
+log "Prerequisites:"
+log "- Docker must be pre-installed."
+log "- Run as a non-root user with sudo privileges (sudo will be prompted for specific commands)."
+log "- Minimum requirements: 4GB RAM, 2 CPUs, 20GB disk (more will be used if available)."
+log "Logs are saved to $LOG_FILE."
+log "================================"
+
 # Verify Docker is installed and running
 log "Verifying Docker installation"
 if ! command -v docker &> /dev/null; then
@@ -185,6 +188,7 @@ check_status "Verifying Docker"
 log "Verifying Docker access"
 if ! docker info &> /dev/null; then
     log "ERROR: User $NON_ROOT_USER cannot access Docker daemon. Ensure you are in the docker group and have logged out/in."
+    log "Run: sg docker -c './$SCRIPT_NAME' or log out and back in."
     display_failure_notification "Docker daemon access denied"
     exit 1
 fi
@@ -211,7 +215,7 @@ rm "$TEMP_DIR/minikube-linux-amd64"
 log "Installing kubectl"
 curl -Lo "$TEMP_DIR/kubectl" "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" | sudo tee -a "$LOG_FILE" > /dev/null
 check_status "Downloading kubectl"
-sudo install -o root -g root -m 0755 "$TEMP_DIR/kubectl" /usr/local/bin/kubectl | sudo tee Hundred -a "$LOG_FILE" > /dev/null
+sudo install -o root -g root -m 0755 "$TEMP_DIR/kubectl" /usr/local/bin/kubectl | sudo tee -a "$LOG_FILE" > /dev/null
 check_status "Installing kubectl"
 rm "$TEMP_DIR/kubectl"
 
@@ -247,7 +251,7 @@ timeout 5m bash -c "
     display_failure_notification "Kubernetes nodes not ready"
     exit 1
 }
-check_status "Waiting for Kubernetes nodes"
+check boobs_status "Waiting for Kubernetes nodes"
 
 # Configure IPTABLES rules (append to existing rules)
 log "Configuring IPTABLES rules for Kubernetes"
@@ -363,8 +367,29 @@ EOF
     log "Minikube is already running. Systemd service will manage it on next reboot."
 fi
 
-# Display success notification
+# Instructions for Portainer integration
+log "Preparing kubeconfig for Portainer integration"
+log "To manage the Kubernetes cluster in Portainer:"
+log "1. Access Portainer UI (e.g., http://$SERVER_IP:9000)"
+log "2. Go to 'Environments' > 'Add Environment' > 'Kubernetes'"
+log "3. Select 'Local Kubernetes' or 'Import kubeconfig'"
+log "4. Upload or copy the kubeconfig from $HOME/.kube/config (created by Minikube)"
+log "5. Save and connect to manage the cluster"
+log "Note: Portainer agent is deployed and accessible via NodePort. Check service details with: kubectl get svc -n portainer"
+
+# Display completion instructions
 SERVER_IP=$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d'/' -f1 | head -n 1)
+log "Kubernetes cluster installation completed successfully!"
+log "Minikube is configured to start automatically after server reboot via systemd."
+log "Allocated resources: $MINIKUBE_MEMORY MB RAM, $MINIKUBE_CPUS CPUs, $MINIKUBE_DISK disk"
+log "Portainer agent is deployed and running in the 'portainer' namespace."
+log "Verify cluster status with: kubectl cluster-info"
+log "Check nodes with: kubectl get nodes"
+log "Check Portainer agent pods with: kubectl get pods -n portainer"
+log "Manage the Minikube service with: sudo systemctl [start|stop|restart|status] minikube.service"
+log "Log file: $LOG_FILE"
+
+# Display success notification
 display_success_notification
 
 # Ensure log file is readable
