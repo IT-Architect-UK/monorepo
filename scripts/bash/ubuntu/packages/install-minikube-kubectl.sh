@@ -2,7 +2,7 @@
 
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
 # Uses Docker as the container runtime (assumes Docker is pre-installed)
-# Deploys Portainer agent and prepares cluster for management in Portainer
+# Deploys Portainer agent (if not already installed) and prepares cluster for management in Portainer
 # Includes verbose logging, error handling, IPTABLES rules, auto-start via systemd, and on-screen completion status
 # Must be run as a non-root user with sudo privileges for specific commands
 # Dynamically allocates memory, CPUs, and disk based on available system resources
@@ -28,6 +28,7 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message" | sudo tee -a "$LOG_FILE" > /dev/null
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message"
 }
+export -f log
 
 # Function to check if a command succeeded
 check_status() {
@@ -55,7 +56,7 @@ display_success_notification() {
     echo "  Memory: $MINIKUBE_MEMORY MB"
     echo "  CPUs: $MINIKUBE_CPUS"
     echo "  Disk: $MINIKUBE_DISK"
-    echo "Portainer agent is deployed in the 'portainer' namespace."
+    echo "Portainer agent is deployed (or already running) in the 'portainer' namespace."
     echo "To manage the cluster in Portainer:"
     echo "  1. Access Portainer UI (e.g., http://$SERVER_IP:9000)"
     echo "  2. Go to 'Environments' > 'Add Environment' > 'Kubernetes'"
@@ -163,7 +164,7 @@ log "2. Installs Minikube and kubectl."
 log "3. Detects available system resources and configures Minikube accordingly."
 log "4. Starts Minikube with the Docker driver and enables the ingress addon."
 log "5. Configures IPTABLES rules for Kubernetes and Docker."
-log "6. Deploys Portainer agent to the cluster."
+log "6. Deploys Portainer agent to the cluster (if not already installed)."
 log "7. Prepares kubeconfig for Portainer management."
 log "8. Configures Minikube to start automatically after server reboot via systemd."
 log "Prerequisites:"
@@ -285,33 +286,40 @@ if ! kubectl cluster-info &> /dev/null; then
 fi
 check_status "Verifying Kubernetes cluster accessibility"
 
-# Download and apply Portainer agent YAML
-log "Downloading Portainer agent YAML from $PORTAINER_AGENT_URL"
-curl -Lo "$TEMP_DIR/$PORTAINER_AGENT_YAML" "$PORTAINER_AGENT_URL" | sudo tee -a "$LOG_FILE" > /dev/null
-check_status "Downloading Portainer agent YAML"
+# Check if Portainer agent is already deployed
+log "Checking for existing Portainer agent deployment"
+if kubectl get pods -n portainer -l app=portainer-agent -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -q Running; then
+    log "Existing Portainer agent found in Running state. Skipping deployment."
+else
+    log "No running Portainer agent found. Proceeding with deployment."
+    # Download and apply Portainer agent YAML
+    log "Downloading Portainer agent YAML from $PORTAINER_AGENT_URL"
+    curl -Lo "$TEMP_DIR/$PORTAINER_AGENT_YAML" "$PORTAINER_AGENT_URL" | sudo tee -a "$LOG_FILE" > /dev/null
+    check_status "Downloading Portainer agent YAML"
 
-log "Applying Portainer agent YAML"
-kubectl apply -f "$TEMP_DIR/$PORTAINER_AGENT_YAML" | sudo tee -a "$LOG_FILE" > /dev/null
-check_status "Applying Portainer agent YAML"
+    log "Applying Portainer agent YAML"
+    kubectl apply -f "$TEMP_DIR/$PORTAINER_AGENT_YAML" | sudo tee -a "$LOG_FILE" > /dev/null
+    check_status "Applying Portainer agent YAML"
 
-# Clean up downloaded YAML
-log "Cleaning up temporary Portainer agent YAML"
-rm "$TEMP_DIR/$PORTAINER_AGENT_YAML"
-check_status "Cleaning up Portainer agent YAML"
+    # Clean up downloaded YAML
+    log "Cleaning up temporary Portainer agent YAML"
+    rm "$TEMP_DIR/$PORTAINER_AGENT_YAML"
+    check_status "Cleaning up Portainer agent YAML"
 
-# Post-check: Verify Portainer agent deployment
-log "Post-check: Verifying Portainer agent deployment"
-timeout 2m bash -c "
-    until kubectl get pods -n portainer -l app=portainer-agent -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -q Running; do
-        sleep 5
-        log \"Waiting for Portainer agent pod to be Running...\"
-    done
-" || {
-    log "ERROR: Portainer agent pod failed to reach Running state within 2 minutes"
-    display_failure_notification "Portainer agent pod not running"
-    exit 1
-}
-check_status "Verifying Portainer agent deployment"
+    # Post-check: Verify Portainer agent deployment
+    log "Post-check: Verifying Portainer agent deployment"
+    timeout 2m bash -c "
+        until kubectl get pods -n portainer -l app=portainer-agent -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -q Running; do
+            sleep 5
+            log \"Waiting for Portainer agent pod to be Running...\"
+        done
+    " || {
+        log "ERROR: Portainer agent pod failed to reach Running state within 2 minutes"
+        display_failure_notification "Portainer agent pod not running"
+        exit 1
+    }
+    check_status "Verifying Portainer agent deployment"
+fi
 
 # Post-check: Verify Portainer agent service
 log "Post-check: Verifying Portainer agent service"
@@ -382,7 +390,7 @@ SERVER_IP=$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}'
 log "Kubernetes cluster installation completed successfully!"
 log "Minikube is configured to start automatically after server reboot via systemd."
 log "Allocated resources: $MINIKUBE_MEMORY MB RAM, $MINIKUBE_CPUS CPUs, $MINIKUBE_DISK disk"
-log "Portainer agent is deployed and running in the 'portainer' namespace."
+log "Portainer agent is deployed (or already running) in the 'portainer' namespace."
 log "Verify cluster status with: kubectl cluster-info"
 log "Check nodes with: kubectl get nodes"
 log "Check Portainer agent pods with: kubectl get pods -n portainer"
