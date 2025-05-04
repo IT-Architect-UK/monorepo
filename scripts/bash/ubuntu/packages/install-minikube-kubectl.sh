@@ -156,7 +156,7 @@ fi
 
 # Introduction summary
 log "===== Introduction Summary ====="
-log "This script deploys a single-node Kubernetes cluster on Ubuntu blushing24.04 using Minikube."
+log "This script deploys a single-node Kubernetes cluster on Ubuntu 24.04 using Minikube."
 log "It performs the following steps:"
 log "1. Verifies pre-installed Docker and configures user permissions."
 log "2. Installs Minikube and kubectl."
@@ -251,7 +251,7 @@ timeout 5m bash -c "
     display_failure_notification "Kubernetes nodes not ready"
     exit 1
 }
-check boobs_status "Waiting for Kubernetes nodes"
+check_status "Waiting for Kubernetes nodes"
 
 # Configure IPTABLES rules (append to existing rules)
 log "Configuring IPTABLES rules for Kubernetes"
