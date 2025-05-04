@@ -5,7 +5,7 @@
 # Configures Docker to use a user-specified network (default 172.18.0.0/16) to avoid conflicts with 192.168.x.x
 # Deploys Portainer agent (if not already installed) for remote management of Kubernetes and Docker
 # Configures kubeconfig to use the local server's LAN IP or FQDN for remote Portainer connectivity
-# Includes verbose logging, error handling, IPTABLES rules, auto-start via systemd, and on-screen completion status
+# Includes verbose logging, error handling, comprehensive IPTABLES rules, auto-start via systemd, and on-screen completion status
 # Must be run as a non-root user with sudo privileges for specific commands
 # Dynamically allocates memory, CPUs, and disk based on available system resources
 
@@ -25,6 +25,7 @@ PORTAINER_AGENT_YAML="portainer-agent-k8s-nodeport.yaml"
 PORTAINER_AGENT_URL="https://downloads.portainer.io/ce2-19/portainer-agent-k8s-nodeport.yaml"
 SCRIPT_NAME="install-minikube-kubectl.sh"
 PORTAINER_NODEPORT=30778  # Default NodePort for Portainer agent
+KUBERNETES_PORT=8443      # Default Kubernetes API port
 export LOG_FILE  # Export LOG_FILE for subshells
 
 # Function to log messages to file and screen
@@ -121,6 +122,7 @@ display_failure_notification() {
     echo "  - Verify sudo privileges for user $NON_ROOT_USER"
     echo "  - Check system resources (minimum 4GB RAM, 2 CPUs, 20GB disk)"
     echo "  - Ensure kubeconfig is valid and Minikube is running"
+    echo "  - Check IPTABLES rules and network connectivity"
     echo "Run the script again after resolving issues."
     echo "============================================================="
 }
@@ -328,6 +330,11 @@ log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS C
 sg docker -c "minikube start --driver=docker --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | sudo tee -a "$LOG_FILE" > /dev/null
 check_status "Starting Minikube"
 
+# Set current-context to minikube
+log "Setting kubeconfig current-context to minikube"
+kubectl config use-context minikube | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Setting kubeconfig current-context"
+
 # Verify Minikube status
 log "Verifying Minikube status"
 minikube status | sudo tee -a "$LOG_FILE" > /dev/null
@@ -348,22 +355,33 @@ fi
 
 # Get the Kubernetes API port dynamically
 log "Detecting Kubernetes API port"
-KUBERNETES_PORT=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | grep -o '[0-9]\+$') || {
+KUBERNETES_PORT=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | grep -o ':[0-9]\+' | cut -d':' -f2) || {
     log "WARNING: Could not detect Kubernetes API port, defaulting to 8443"
     KUBERNETES_PORT="8443"
 }
 log "Detected Kubernetes API port: $KUBERNETES_PORT"
 
+# Test kubectl get nodes command
+log "Testing kubectl get nodes command"
+kubectl get nodes -o wide 2>&1 | sudo tee -a "$LOG_FILE" > /dev/null
+check_status "Testing kubectl get nodes command"
+
 # Wait for Kubernetes nodes to be ready
 log "Waiting for Kubernetes nodes to be ready"
-timeout 10m bash -c "
+timeout 20m bash -c "
     until kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type==\"Ready\")].status}' 2>/dev/null | grep -q True; do
         sleep 5
         log \"Waiting for nodes...\"
-        kubectl get nodes -o wide 2>/dev/null | sudo tee -a \"$LOG_FILE\" > /dev/null
+        kubectl get nodes -o wide 2>&1 | sudo tee -a \"$LOG_FILE\" > /dev/null
+        kubectl describe node minikube 2>&1 | sudo tee -a \"$LOG_FILE\" > /dev/null
+        kubectl get pods -A 2>&1 | sudo tee -a \"$LOG_FILE\" > /dev/null
     done
 " || {
-    log "ERROR: Kubernetes nodes failed to become ready within 10 minutes"
+    log "ERROR: Kubernetes nodes failed to become ready within 20 minutes"
+    log "Logging Minikube status for debugging"
+    minikube status | sudo tee -a "$LOG_FILE" > /dev/null
+    log "Logging Minikube logs for debugging"
+    minikube logs | sudo tee -a "$LOG_FILE" > /dev/null
     display_failure_notification "Kubernetes nodes not ready"
     exit 1
 }
@@ -371,6 +389,7 @@ check_status "Waiting for Kubernetes nodes"
 
 # Configure IPTABLES rules (append to existing rules)
 log "Configuring IPTABLES rules for Kubernetes and Portainer agent"
+# Kubernetes API and Portainer agent ports
 if [ -n "$REMOTE_PORTAINER_HOST" ]; then
     sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -s "$REMOTE_PORTAINER_HOST" -j ACCEPT -m comment --comment "Minikube Kubernetes API" | sudo tee -a "$LOG_FILE" > /dev/null
     sudo iptables -A INPUT -p tcp --dport "$PORTAINER_NODEPORT" -s "$REMOTE_PORTAINER_HOST" -j ACCEPT -m comment --comment "Portainer agent NodePort" | sudo tee -a "$LOG_FILE" > /dev/null
@@ -378,7 +397,15 @@ else
     sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT -m comment --comment "Minikube Kubernetes API" | sudo tee -a "$LOG_FILE" > /dev/null
     sudo iptables -A INPUT -p tcp --dport "$PORTAINER_NODEPORT" -j ACCEPT -m comment --comment "Portainer agent NodePort" | sudo tee -a "$LOG_FILE" > /dev/null
 fi
+# Additional Kubernetes ports (kubelet, metrics, etc.)
+sudo iptables -A INPUT -p tcp --dport 6443 -j ACCEPT -m comment --comment "Kubernetes API (alternate)" | sudo tee -a "$LOG_FILE" > /dev/null
+sudo iptables -A INPUT -p tcp --dport 10250 -j ACCEPT -m comment --comment "Kubelet" | sudo tee -a "$LOG_FILE" > /dev/null
+sudo iptables -A INPUT -p tcp --dport 10255 -j ACCEPT -m comment --comment "Kubelet metrics" | sudo tee -a "$LOG_FILE" > /dev/null
+sudo iptables -A INPUT -p tcp --dport 10256 -j ACCEPT -m comment --comment "Kube-proxy" | sudo tee -a "$LOG_FILE" > /dev/null
+# Allow Docker network traffic
 sudo iptables -A INPUT -i docker0 -j ACCEPT -m comment --comment "Docker interface" | sudo tee -a "$LOG_FILE" > /dev/null
+# Allow CNI-related traffic (e.g., flannel VXLAN)
+sudo iptables -A INPUT -p udp --dport 8472 -j ACCEPT -m comment --comment "Flannel VXLAN" | sudo tee -a "$LOG_FILE" > /dev/null
 check_status "Configuring IPTABLES rules"
 
 # Save IPTABLES rules
@@ -425,7 +452,7 @@ else
     # Clean up downloaded YAML
     log "Cleaning up temporary Portainer agent YAML"
     rm "$TEMP_DIR/$PORTAINER_AGENT_YAML"
-    check_status "Cleaning up Portainer agent YAML"
+    check_status "Cleaning up temporary Portainer agent YAML"
 
     # Post-check: Verify Portainer agent deployment
     log "Post-check: Verifying Portainer agent deployment"
@@ -436,6 +463,7 @@ else
         done
     " || {
         log "ERROR: Portainer agent pod failed to reach Running state within 2 minutes"
+        kubectl describe pod -n portainer -l app=portainer-agent | sudo tee -a "$LOG_FILE" > /dev/null
         display_failure_notification "Portainer agent pod not running"
         exit 1
     }
