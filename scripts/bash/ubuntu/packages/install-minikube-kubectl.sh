@@ -2,7 +2,7 @@
 
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
 # Uses Docker as the container runtime (assumes Docker is pre-installed)
-# Uses Minikube's default network setup (bridge network)
+# Uses Minikube's default network setup
 # Prepares environment for Portainer Agent (installed separately)
 # Configures kubeconfig and systemd auto-start
 # Preserves existing IPTABLES rules and adds necessary new rules
@@ -96,7 +96,7 @@ if [ -z "$KUBE_SERVER_IP" ]; then
     log "ERROR: Could not determine server IP"
     exit 1
 fi
-log "Using $KUBE_SERVER (IP: $KUBE_SERVER_IP) for Kubernetes API"
+log "Using $KUBE_SERVER for Kubernetes API"
 
 # Check /etc/hosts
 log "Checking /etc/hosts for $KUBE_SERVER"
@@ -123,7 +123,7 @@ fi
 
 # Verify Docker access
 log "Verifying Docker access"
-sudo -u "$ORIGINAL_USER" docker ps >/dev/null 2>&1
+su - "$ORIGINAL_USER" -c "docker ps >/dev/null 2>&1"
 check_status "Docker access verification"
 
 # Install kubectl
@@ -147,29 +147,32 @@ log "Minikube installed successfully"
 
 # Clean up existing Minikube instance
 log "Cleaning up existing Minikube instance"
-sudo -u "$ORIGINAL_USER" minikube delete || true
+su - "$ORIGINAL_USER" -c "minikube delete || true"
 
 # Start Minikube as the original user with default network
 log "Starting Minikube with default network"
-sudo -u "$ORIGINAL_USER" minikube start --driver=docker --apiserver-ips="$KUBE_SERVER_IP" --apiserver-port="$KUBERNETES_PORT" --memory="$MIN_MEMORY_MB" --cpus="$MIN_CPUS" --disk-size="$MIN_DISK_GB"g
+su - "$ORIGINAL_USER" -c "minikube start --driver=docker --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\""
 check_status "Starting Minikube"
 
 # Configure kubeconfig as the original user
 log "Configuring kubeconfig"
-sudo -u "$ORIGINAL_USER" minikube update-context
-sudo -u "$ORIGINAL_USER" kubectl config use-context minikube
+su - "$ORIGINAL_USER" -c "minikube update-context"
+su - "$ORIGINAL_USER" -c "kubectl config use-context minikube"
 
 # Verify API server connectivity
 log "Verifying Kubernetes API server"
-sudo -u "$ORIGINAL_USER" kubectl cluster-info
+su - "$ORIGINAL_USER" -c "kubectl cluster-info"
 check_status "Verifying Kubernetes API server"
 
 # Configure IPTables for Kubernetes API and Portainer Agent NodePort
 log "Configuring IPTables rules"
 sudo iptables -A INPUT -p tcp --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT
-sudo iptables -t nat -A PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$(sudo -u "$ORIGINAL_USER" minikube ip):$KUBERNETES_PORT"
-sudo iptables -t nat -A POSTROUTING -p tcp -d "$(sudo -u "$ORIGINAL_USER" minikube ip)" --dport "$KUBERNETES_PORT" -j MASQUERADE
+# NAT rule for external access
+sudo iptables -t nat -A PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$(su - \"$ORIGINAL_USER\" -c 'minikube ip'):$KUBERNETES_PORT"
+# NAT rule for local access (127.0.1.1)
+sudo iptables -t nat -A PREROUTING -p tcp -d 127.0.1.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$(su - \"$ORIGINAL_USER\" -c 'minikube ip'):$KUBERNETES_PORT"
+sudo iptables -t nat -A POSTROUTING -p tcp -d "$(su - \"$ORIGINAL_USER\" -c 'minikube ip')" --dport "$KUBERNETES_PORT" -j MASQUERADE
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 >/dev/null
 check_status "Configuring IPTables rules"
 
@@ -209,7 +212,8 @@ sudo -u "$ORIGINAL_USER" bash -c "echo '========================================
 run_test "Check Minikube status" "minikube status"
 run_test "Check kubectl client version" "kubectl version --client"
 run_test "Check Kubernetes nodes" "kubectl get nodes"
-run_test "Check Kubernetes API connectivity" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
+run_test "Check Kubernetes API connectivity (local)" "curl -k https://$(minikube ip):$KUBERNETES_PORT"
+run_test "Check Kubernetes API connectivity (external)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
 
 # Display diagnostic summary
 log "Displaying diagnostic summary"
