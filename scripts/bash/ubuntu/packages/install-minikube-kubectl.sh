@@ -2,7 +2,7 @@
 
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
 # Uses Docker as the container runtime (assumes Docker is pre-installed)
-# Automatically creates a Docker network to avoid subnet inconsistencies
+# Uses Minikube's default network setup (bridge network)
 # Prepares environment for Portainer Agent (installed separately)
 # Configures kubeconfig and systemd auto-start
 # Preserves existing IPTABLES rules and adds necessary new rules
@@ -13,10 +13,8 @@
 sudo -v
 
 # Determine the original non-root user
-if [ -n "$SUDO_USER" ]; then
+if [ -n "$SUDO_USER" ] && id "$SUDO_USER" >/dev/null 2>&1; then
     ORIGINAL_USER="$SUDO_USER"
-elif [ -n "$USER" ] && id "$USER" >/dev/null 2>&1; then
-    ORIGINAL_USER="$USER"
 else
     ORIGINAL_USER="$(whoami)"
 fi
@@ -32,8 +30,6 @@ DIAG_FILE="/tmp/minikube_diag_$(date +%Y%m%d_%H%M%S).txt"
 MIN_MEMORY_MB=4096
 MIN_CPUS=2
 MIN_DISK_GB=20
-DOCKER_NETWORK="172.18.0.0/16"
-DOCKER_NETWORK_NAME="minikube-net"
 TEMP_DIR="/tmp"
 SYSTEMD_SERVICE_FILE="/etc/systemd/system/minikube.service"
 PORTAINER_K8S_NODEPORT=30778
@@ -79,29 +75,7 @@ run_test() {
         log "Output: $output"
     fi
     echo "----------------------------------------"
-    echo "$description: $result" | sudo tee -a "$DIAG_FILE"
-}
-
-# Validate Docker network format and calculate bridge IP
-validate_docker_network() {
-    local network="$1"
-    if ! echo "$network" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'; then
-        log "ERROR: Invalid DOCKER_NETWORK format: $network"
-        exit 1
-    fi
-    DOCKER_BIP=$(echo "$network" | awk -F'/' '{split($1,a,"."); print a[1]"."a[2]"."a[3]".1/"$2}')
-    log "Calculated bridge IP: $DOCKER_BIP"
-}
-
-# Check for network conflicts with Docker bridge IP
-check_network_conflicts() {
-    local ip="$DOCKER_BIP"
-    if ip addr show | grep -q "$ip"; then
-        log "WARNING: IP $ip is already in use on this host"
-        return 1
-    fi
-    log "No conflicts found for IP $ip"
-    return 0
+    sudo -u "$ORIGINAL_USER" bash -c "echo \"$description: $result\" >> $DIAG_FILE"
 }
 
 # Create log file with sudo
@@ -152,19 +126,6 @@ log "Verifying Docker access"
 sudo -u "$ORIGINAL_USER" docker ps >/dev/null 2>&1
 check_status "Docker access verification"
 
-# Create Docker network
-log "Creating Docker network $DOCKER_NETWORK_NAME with subnet $DOCKER_NETWORK"
-if ! sudo -u "$ORIGINAL_USER" docker network inspect "$DOCKER_NETWORK_NAME" >/dev/null 2>&1; then
-    sudo -u "$ORIGINAL_USER" docker network create --driver bridge --subnet="$DOCKER_NETWORK" "$DOCKER_NETWORK_NAME"
-    check_status "Creating Docker network"
-else
-    log "Docker network $DOCKER_NETWORK_NAME already exists"
-fi
-
-# Validate and check Docker network
-validate_docker_network "$DOCKER_NETWORK"
-check_network_conflicts || log "Proceeding despite potential network conflict, may affect Minikube start"
-
 # Install kubectl
 TEMP_DIR=$(mktemp -d)
 log "Installing kubectl"
@@ -184,9 +145,13 @@ sudo install -o root -g root -m 0755 "$TEMP_DIR/minikube" /usr/local/bin/minikub
 check_status "Installing Minikube"
 log "Minikube installed successfully"
 
-# Start Minikube as the original user
-log "Starting Minikube"
-sudo -u "$ORIGINAL_USER" minikube start --driver=docker --network="$DOCKER_NETWORK_NAME" --apiserver-ips="$KUBE_SERVER_IP" --apiserver-port="$KUBERNETES_PORT" --memory="$MIN_MEMORY_MB" --cpus="$MIN_CPUS" --disk-size="$MIN_DISK_GB"g
+# Clean up existing Minikube instance
+log "Cleaning up existing Minikube instance"
+sudo -u "$ORIGINAL_USER" minikube delete || true
+
+# Start Minikube as the original user with default network
+log "Starting Minikube with default network"
+sudo -u "$ORIGINAL_USER" minikube start --driver=docker --apiserver-ips="$KUBE_SERVER_IP" --apiserver-port="$KUBERNETES_PORT" --memory="$MIN_MEMORY_MB" --cpus="$MIN_CPUS" --disk-size="$MIN_DISK_GB"g
 check_status "Starting Minikube"
 
 # Configure kubeconfig as the original user
@@ -220,7 +185,7 @@ Requires=docker.service
 [Service]
 User=$ORIGINAL_USER
 Group=docker
-ExecStart=/usr/local/bin/minikube start --driver=docker --network=$DOCKER_NETWORK_NAME --apiserver-ips=$KUBE_SERVER_IP --apiserver-port=$KUBERNETES_PORT --memory=$MIN_MEMORY_MB --cpus=$MIN_CPUS --disk-size=${MIN_DISK_GB}g
+ExecStart=/usr/local/bin/minikube start --driver=docker --apiserver-ips=$KUBE_SERVER_IP --apiserver-port=$KUBERNETES_PORT --memory=$MIN_MEMORY_MB --cpus=$MIN_CPUS --disk-size=${MIN_DISK_GB}g
 ExecStop=/usr/local/bin/minikube stop
 Restart=on-failure
 RestartSec=10
@@ -241,9 +206,9 @@ log "Running diagnostic tests"
 sudo -u "$ORIGINAL_USER" bash -c "echo '=============================================================' >> $DIAG_FILE"
 sudo -u "$ORIGINAL_USER" bash -c "echo 'Diagnostic Test Results' >> $DIAG_FILE"
 sudo -u "$ORIGINAL_USER" bash -c "echo '=============================================================' >> $DIAG_FILE"
-run_test "Check Minikube status" "sudo -u \"$ORIGINAL_USER\" minikube status"
-run_test "Check kubectl client version" "sudo -u \"$ORIGINAL_USER\" kubectl version --client"
-run_test "Check Kubernetes nodes" "sudo -u \"$ORIGINAL_USER\" kubectl get nodes"
+run_test "Check Minikube status" "minikube status"
+run_test "Check kubectl client version" "kubectl version --client"
+run_test "Check Kubernetes nodes" "kubectl get nodes"
 run_test "Check Kubernetes API connectivity" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
 
 # Display diagnostic summary
