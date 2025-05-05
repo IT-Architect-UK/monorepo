@@ -5,7 +5,7 @@
 # Uses Minikube's default network setup
 # Prepares environment for Portainer Agent (installed separately)
 # Configures kubeconfig and systemd auto-start
-# Adds IPTABLES rules without clearing existing ones to ensure connectivity for local and external IPs
+# Adds IPTABLES NAT rules without clearing existing ones to ensure connectivity for local and external IPs
 # Includes diagnostic tests for Kubernetes setup with explicit command logging
 # Uses variables for server names and IPs to enhance security
 
@@ -176,21 +176,8 @@ log "Verifying Kubernetes API server"
 sudo -H -u "$ORIGINAL_USER" bash -c "kubectl cluster-info"
 check_status "Verifying Kubernetes API server"
 
-# Configure IPTables for Kubernetes API and Portainer Agent NodePort without clearing existing rules
+# Configure IPTables for Kubernetes API without clearing existing rules
 log "Configuring IPTables rules"
-# Insert INPUT rules for local source IPs (127.0.0.1, $KUBE_SERVER_IP) at the beginning to ensure precedence
-if ! sudo iptables -C INPUT -p tcp -s 127.0.0.1 --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT 2>/dev/null; then
-    sudo iptables -I INPUT -p tcp -s 127.0.0.1 --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT
-fi
-if ! sudo iptables -C INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT 2>/dev/null; then
-    sudo iptables -I INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT
-fi
-if ! sudo iptables -C INPUT -p tcp -s 127.0.0.1 --dport "$KUBERNETES_PORT" -j ACCEPT 2>/dev/null; then
-    sudo iptables -I INPUT -p tcp -s 127.0.0.1 --dport "$KUBERNETES_PORT" -j ACCEPT
-fi
-if ! sudo iptables -C INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j ACCEPT 2>/dev/null; then
-    sudo iptables -I INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j ACCEPT
-fi
 # Add NAT rules for local source IPs if they don't exist
 if ! sudo iptables -t nat -C PREROUTING -p tcp -s 127.0.0.1 -d 127.0.0.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
     sudo iptables -t nat -A PREROUTING -p tcp -s 127.0.0.1 -d 127.0.0.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
