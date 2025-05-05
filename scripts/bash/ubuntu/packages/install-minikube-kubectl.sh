@@ -154,7 +154,7 @@ sudo -H -u "$ORIGINAL_USER" bash -c "minikube delete || true"
 
 # Start Minikube as the original user with default network
 log "Starting Minikube with default network"
-sudo -H -u "$ORIGINAL_USER" HOME="/home/$ORIGINAL_USER" bash -c "minikube start --driver=docker --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\""
+sudo -H -u "$ORIGINAL_USER" HOME="/home/$ORIGINAL_USER" SHELL="/bin/bash" bash -c "minikube start --driver=docker --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\""
 check_status "Starting Minikube"
 
 # Capture Minikube IP
@@ -178,18 +178,18 @@ check_status "Verifying Kubernetes API server"
 
 # Configure IPTables for Kubernetes API and Portainer Agent NodePort without clearing existing rules
 log "Configuring IPTables rules"
-# Add INPUT rules for local source IPs (127.0.0.1, $KUBE_SERVER_IP) if they don't exist
+# Insert INPUT rules for local source IPs (127.0.0.1, $KUBE_SERVER_IP) at the beginning to ensure precedence
 if ! sudo iptables -C INPUT -p tcp -s 127.0.0.1 --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT 2>/dev/null; then
-    sudo iptables -A INPUT -p tcp -s 127.0.0.1 --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT
+    sudo iptables -I INPUT -p tcp -s 127.0.0.1 --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT
 fi
 if ! sudo iptables -C INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT 2>/dev/null; then
-    sudo iptables -A INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT
+    sudo iptables -I INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT
 fi
 if ! sudo iptables -C INPUT -p tcp -s 127.0.0.1 --dport "$KUBERNETES_PORT" -j ACCEPT 2>/dev/null; then
-    sudo iptables -A INPUT -p tcp -s 127.0.0.1 --dport "$KUBERNETES_PORT" -j ACCEPT
+    sudo iptables -I INPUT -p tcp -s 127.0.0.1 --dport "$KUBERNETES_PORT" -j ACCEPT
 fi
 if ! sudo iptables -C INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j ACCEPT 2>/dev/null; then
-    sudo iptables -A INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j ACCEPT
+    sudo iptables -I INPUT -p tcp -s "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j ACCEPT
 fi
 # Add NAT rules for local source IPs if they don't exist
 if ! sudo iptables -t nat -C PREROUTING -p tcp -s 127.0.0.1 -d 127.0.0.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
@@ -254,7 +254,8 @@ run_test "Check kubectl client version" "kubectl version --client"
 run_test "Check Kubernetes nodes" "kubectl get nodes"
 run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k https://$MINIKUBE_IP:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
-run_test "Check Kubernetes API connectivity (external)" "curl -k https://$KUBE_SERVER_IP:$KUBERNETES_PORT"
+run_test "Check Kubernetes API connectivity (local server IP)" "curl -k https://$KUBE_SERVER_IP:$KUBERNETES_PORT"
+run_test "Check Kubernetes API connectivity (local loopback)" "curl -k https://127.0.0.1:$KUBERNETES_PORT"
 
 # Display diagnostic summary
 log "Displaying diagnostic summary"
