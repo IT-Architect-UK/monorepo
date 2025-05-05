@@ -2,11 +2,12 @@
 
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
 # Uses Docker as the container runtime (assumes Docker is pre-installed)
-# Configures Docker and Minikube to use a user-specified network (default 172.18.0.0/16)
+# Automatically creates a Docker network to avoid subnet inconsistencies
 # Prepares environment for Portainer Agent (installed separately)
 # Configures kubeconfig and systemd auto-start
 # Preserves existing IPTABLES rules and adds necessary new rules
 # Includes diagnostic tests for Kubernetes setup
+# Uses variables for server names and IPs to enhance security
 
 # Prompt for sudo password at the start
 sudo -v
@@ -14,21 +15,32 @@ sudo -v
 # Determine the original non-root user
 if [ -n "$SUDO_USER" ]; then
     ORIGINAL_USER="$SUDO_USER"
-else
+elif [ -n "$USER" ] && id "$USER" >/dev/null 2>&1; then
     ORIGINAL_USER="$USER"
+else
+    ORIGINAL_USER="$(whoami)"
+fi
+# Verify the user exists
+if ! id "$ORIGINAL_USER" >/dev/null 2>&1; then
+    echo "ERROR: Cannot determine valid non-root user"
+    exit 1
 fi
 
 # Define variables
 LOG_FILE="/var/log/minikube_install_$(date +%Y%m%d_%H%M%S).log"
+DIAG_FILE="/tmp/minikube_diag_$(date +%Y%m%d_%H%M%S).txt"
 MIN_MEMORY_MB=4096
 MIN_CPUS=2
 MIN_DISK_GB=20
 DOCKER_NETWORK="172.18.0.0/16"
+DOCKER_NETWORK_NAME="minikube-net"
 TEMP_DIR="/tmp"
 SYSTEMD_SERVICE_FILE="/etc/systemd/system/minikube.service"
 PORTAINER_K8S_NODEPORT=30778
 KUBERNETES_PORT=8443
 KUBECONFIG="/home/$ORIGINAL_USER/.kube/config"
+KUBE_SERVER="$(hostname -f)"
+KUBE_SERVER_IP="$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d'/' -f1 | head -n 1)"
 export LOG_FILE
 export KUBECONFIG
 
@@ -67,7 +79,7 @@ run_test() {
         log "Output: $output"
     fi
     echo "----------------------------------------"
-    echo "$description: $result" >> /tmp/diagnostic_results.txt
+    echo "$description: $result" | sudo tee -a "$DIAG_FILE"
 }
 
 # Validate Docker network format and calculate bridge IP
@@ -98,17 +110,25 @@ sudo touch "$LOG_FILE"
 check_status "Creating log file"
 sudo chown "$ORIGINAL_USER":"$ORIGINAL_USER" "$LOG_FILE"
 
+# Create diagnostic file with sudo
+log "Creating diagnostic file at $DIAG_FILE"
+sudo touch "$DIAG_FILE"
+check_status "Creating diagnostic file"
+sudo chown "$ORIGINAL_USER":"$ORIGINAL_USER" "$DIAG_FILE"
+
 # Detect server details
 log "Detecting local server details"
-HOSTNAME=$(hostname -f)
-KUBE_SERVER="${HOSTNAME:-192.168.4.110}" # Fallback to IP if hostname resolution fails
-log "Using $KUBE_SERVER for Kubernetes API"
+if [ -z "$KUBE_SERVER_IP" ]; then
+    log "ERROR: Could not determine server IP"
+    exit 1
+fi
+log "Using $KUBE_SERVER (IP: $KUBE_SERVER_IP) for Kubernetes API"
 
 # Check /etc/hosts
 log "Checking /etc/hosts for $KUBE_SERVER"
 if ! sudo grep -q "$KUBE_SERVER" /etc/hosts; then
     log "Adding $KUBE_SERVER to /etc/hosts"
-    echo "192.168.4.110 $KUBE_SERVER" | sudo tee -a /etc/hosts
+    echo "$KUBE_SERVER_IP $KUBE_SERVER" | sudo tee -a /etc/hosts
     check_status "Updating /etc/hosts"
 else
     log "$KUBE_SERVER already configured in /etc/hosts"
@@ -131,6 +151,15 @@ fi
 log "Verifying Docker access"
 sudo -u "$ORIGINAL_USER" docker ps >/dev/null 2>&1
 check_status "Docker access verification"
+
+# Create Docker network
+log "Creating Docker network $DOCKER_NETWORK_NAME with subnet $DOCKER_NETWORK"
+if ! sudo -u "$ORIGINAL_USER" docker network inspect "$DOCKER_NETWORK_NAME" >/dev/null 2>&1; then
+    sudo -u "$ORIGINAL_USER" docker network create --driver bridge --subnet="$DOCKER_NETWORK" "$DOCKER_NETWORK_NAME"
+    check_status "Creating Docker network"
+else
+    log "Docker network $DOCKER_NETWORK_NAME already exists"
+fi
 
 # Validate and check Docker network
 validate_docker_network "$DOCKER_NETWORK"
@@ -157,7 +186,7 @@ log "Minikube installed successfully"
 
 # Start Minikube as the original user
 log "Starting Minikube"
-sudo -u "$ORIGINAL_USER" minikube start --driver=docker --network="$DOCKER_NETWORK" --apiserver-ips=192.168.4.110 --apiserver-port="$KUBERNETES_PORT" --memory="$MIN_MEMORY_MB" --cpus="$MIN_CPUS" --disk-size="$MIN_DISK_GB"g
+sudo -u "$ORIGINAL_USER" minikube start --driver=docker --network="$DOCKER_NETWORK_NAME" --apiserver-ips="$KUBE_SERVER_IP" --apiserver-port="$KUBERNETES_PORT" --memory="$MIN_MEMORY_MB" --cpus="$MIN_CPUS" --disk-size="$MIN_DISK_GB"g
 check_status "Starting Minikube"
 
 # Configure kubeconfig as the original user
@@ -174,7 +203,7 @@ check_status "Verifying Kubernetes API server"
 log "Configuring IPTables rules"
 sudo iptables -A INPUT -p tcp --dport "$PORTAINER_K8S_NODEPORT" -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT
-sudo iptables -t nat -A PREROUTING -p tcp -d 192.168.4.110 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$(sudo -u "$ORIGINAL_USER" minikube ip):$KUBERNETES_PORT"
+sudo iptables -t nat -A PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$(sudo -u "$ORIGINAL_USER" minikube ip):$KUBERNETES_PORT"
 sudo iptables -t nat -A POSTROUTING -p tcp -d "$(sudo -u "$ORIGINAL_USER" minikube ip)" --dport "$KUBERNETES_PORT" -j MASQUERADE
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 >/dev/null
 check_status "Configuring IPTables rules"
@@ -191,7 +220,7 @@ Requires=docker.service
 [Service]
 User=$ORIGINAL_USER
 Group=docker
-ExecStart=/usr/local/bin/minikube start --driver=docker --network=$DOCKER_NETWORK --apiserver-ips=192.168.4.110 --apiserver-port=$KUBERNETES_PORT --memory=$MIN_MEMORY_MB --cpus=$MIN_CPUS --disk-size=${MIN_DISK_GB}g
+ExecStart=/usr/local/bin/minikube start --driver=docker --network=$DOCKER_NETWORK_NAME --apiserver-ips=$KUBE_SERVER_IP --apiserver-port=$KUBERNETES_PORT --memory=$MIN_MEMORY_MB --cpus=$MIN_CPUS --disk-size=${MIN_DISK_GB}g
 ExecStop=/usr/local/bin/minikube stop
 Restart=on-failure
 RestartSec=10
@@ -209,9 +238,9 @@ fi
 
 # Run diagnostic tests
 log "Running diagnostic tests"
-echo "=============================================================" | sudo tee -a /tmp/diagnostic_results.txt
-echo "Diagnostic Test Results" | sudo tee -a /tmp/diagnostic_results.txt
-echo "=============================================================" | sudo tee -a /tmp/diagnostic_results.txt
+sudo -u "$ORIGINAL_USER" bash -c "echo '=============================================================' >> $DIAG_FILE"
+sudo -u "$ORIGINAL_USER" bash -c "echo 'Diagnostic Test Results' >> $DIAG_FILE"
+sudo -u "$ORIGINAL_USER" bash -c "echo '=============================================================' >> $DIAG_FILE"
 run_test "Check Minikube status" "sudo -u \"$ORIGINAL_USER\" minikube status"
 run_test "Check kubectl client version" "sudo -u \"$ORIGINAL_USER\" kubectl version --client"
 run_test "Check Kubernetes nodes" "sudo -u \"$ORIGINAL_USER\" kubectl get nodes"
@@ -222,8 +251,8 @@ log "Displaying diagnostic summary"
 echo "============================================================="
 echo "Diagnostic Test Summary"
 echo "============================================================="
-sudo cat /tmp/diagnostic_results.txt
+sudo cat "$DIAG_FILE"
 echo "============================================================="
-sudo rm -f /tmp/diagnostic_results.txt
+sudo rm -f "$DIAG_FILE"
 
 log "Minikube and kubectl installation completed successfully"
