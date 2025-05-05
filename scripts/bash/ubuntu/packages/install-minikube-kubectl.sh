@@ -11,6 +11,17 @@
 # Exit on any error
 set -e
 
+# Function to validate Docker network format and calculate bridge IP
+validate_docker_network() {
+    local network="$1"
+    if ! echo "$network" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'; then
+        log "ERROR: Invalid DOCKER_NETWORK format: $network"
+        exit 1
+    fi
+    DOCKER_BIP=$(echo "$network" | awk -F'/' '{split($1,a,"."); print a[1]"."a[2]"."a[3]".1/"$2}')
+    log "Calculated bridge IP: $DOCKER_BIP"
+}
+
 # Define variables
 LOG_FILE="/var/log/minikube_install_$(date +%Y%m%d_%H%M%S).log"
 MIN_MEMORY_MB=4096
@@ -293,7 +304,7 @@ rm "$TEMP_DIR/minikube-linux-amd64"
 log "Installing kubectl"
 curl -Lo "$TEMP_DIR/kubectl" "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 check_status "Downloading kubectl"
-sudo install -o root -g root -m 0755 "$TEMP_DIR/kubectl" /usr/local/bin/kubectl
+sudo install -o root -g root -m 0755 "$TEMP_DIR/k tonic" /usr/local/bin/kubectl
 check_status "Installing kubectl"
 rm "$TEMP_DIR/kubectl"
 
