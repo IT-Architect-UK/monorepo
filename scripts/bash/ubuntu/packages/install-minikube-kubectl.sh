@@ -89,6 +89,19 @@ validate_docker_network() {
     log "Calculated bridge IP: $DOCKER_BIP"
 }
 
+# Check for Docker network conflicts
+check_network_conflicts() {
+    log "Checking for Docker network conflicts"
+    local conflicts=$(ip addr show | grep -w "$DOCKER_BIP" || true)
+    if [ -n "$conflicts" ]; then
+        log "WARNING: Potential network conflict detected for $DOCKER_BIP"
+        log "Conflict details: $conflicts"
+        return 1
+    fi
+    log "No network conflicts detected for $DOCKER_BIP"
+    return 0
+}
+
 # Create log file
 log "Creating log file at $LOG_FILE"
 sudo mkdir -p "$(dirname "$LOG_FILE")"
@@ -158,6 +171,9 @@ for net in $(docker network ls --filter "driver=bridge" -q); do
         docker network rm "$net" 2>/dev/null || true
     fi
 done
+
+# Check for network conflicts
+check_network_conflicts || log "Proceeding despite potential network conflict, may affect Minikube start"
 
 # Backup current IPTABLES rules
 IPTABLES_BACKUP="/tmp/iptables_backup_$(date +%Y%m%d_%H%M%S).rules"
@@ -235,14 +251,18 @@ rm "$TEMP_DIR/kubectl"
 log "Cleaning up existing Minikube instance"
 sg docker -c "minikube delete" || true
 
-# Start Minikube with timeout
-log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, $MINIKUBE_DISK disk"
-timeout 600 sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
-    log "ERROR: Minikube start with Docker driver timed out or failed after 600 seconds"
-    log "Attempting fallback with 'none' driver"
-    timeout 600 sg docker -c "minikube start --driver=none --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
-        log "ERROR: Minikube start with 'none' driver also timed out or failed"
-        exit 1
+# Start Minikube with default subnet first
+log "Starting Minikube with Docker driver (default subnet), $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, $MINIKUBE_DISK disk"
+timeout 600 sg docker -c "minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
+    log "ERROR: Minikube start with default subnet failed"
+    log "Attempting with custom subnet $DOCKER_NETWORK"
+    timeout 600 sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
+        log "ERROR: Minikube start with custom subnet also failed"
+        log "Attempting fallback with 'none' driver"
+        timeout 600 sg docker -c "minikube start --driver=none --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
+            log "ERROR: Minikube start with 'none' driver also failed"
+            exit 1
+        }
     }
 }
 check_status "Starting Minikube"
@@ -294,7 +314,7 @@ Requires=docker.service
 [Service]
 User=$NON_ROOT_USER
 Group=docker
-ExecStart=/usr/local/bin/minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false
+ExecStart=/usr/local/bin/minikube start --driver=docker --subnet=$DOCKER_NETWORK --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false
 ExecStop=/usr/local/bin/minikube stop
 Restart=on-failure
 RestartSec=10
@@ -322,6 +342,8 @@ run_test "Check cluster info" "kubectl cluster-info"
 run_test "Check nodes" "kubectl get nodes"
 run_test "Check Portainer agent pods" "kubectl get pods -n portainer"
 run_test "Check systemd service enabled" "systemctl is-enabled minikube.service"
+run_test "Check Docker container status" "docker ps -a --filter name=minikube"
+run_test "Check Docker network configuration" "docker network ls --filter driver=bridge"
 display_diagnostic_summary
 
 # Final status
