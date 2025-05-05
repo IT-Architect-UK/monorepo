@@ -22,6 +22,17 @@ validate_docker_network() {
     log "Calculated bridge IP: $DOCKER_BIP"
 }
 
+# Function to check for network conflicts with Docker bridge IP
+check_network_conflicts() {
+    local ip="$DOCKER_BIP"
+    if ip addr show | grep -q "$ip"; then
+        log "WARNING: IP $ip is already in use on this host"
+        return 1
+    fi
+    log "No conflicts found for IP $ip"
+    return 0
+}
+
 # Define variables
 LOG_FILE="/var/log/minikube_install_$(date +%Y%m%d_%H%M%S).log"
 MIN_MEMORY_MB=4096
@@ -304,7 +315,7 @@ rm "$TEMP_DIR/minikube-linux-amd64"
 log "Installing kubectl"
 curl -Lo "$TEMP_DIR/kubectl" "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 check_status "Downloading kubectl"
-sudo install -o root -g root -m 0755 "$TEMP_DIR/k tonic" /usr/local/bin/kubectl
+sudo install -o root -g root -m 0755 "$TEMP_DIR/kubectl" /usr/local/bin/kubectl
 check_status "Installing kubectl"
 rm "$TEMP_DIR/kubectl"
 
