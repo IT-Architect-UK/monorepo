@@ -5,6 +5,7 @@
 # Configures Docker and Minikube to use a user-specified network (default 172.18.0.0/16)
 # Deploys Portainer agent for remote management
 # Configures kubeconfig and systemd auto-start
+# Preserves existing IPTABLES rules to prevent SSH session drops
 
 # Exit on any error
 set -e
@@ -121,14 +122,54 @@ for net in $(docker network ls --filter "driver=bridge" -q); do
     fi
 done
 
-# Configure IPTABLES
-log "Configuring IPTABLES rules"
-sudo iptables -F
-sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport "$PORTAINER_NODEPORT" -j ACCEPT
-sudo iptables -A INPUT -s 172.18.0.0/16 -j ACCEPT
+# Backup current IPTABLES rules
+IPTABLES_BACKUP="/tmp/iptables_backup_$(date +%Y%m%d_%H%M%S).rules"
+log "Backing up current IPTABLES rules to $IPTABLES_BACKUP"
+sudo iptables-save > "$IPTABLES_BACKUP"
+check_status "Backing up IPTABLES rules"
+
+# Determine SSH port (default to 22 if not found)
+SSH_PORT=$(grep -i '^Port' /etc/ssh/sshd_config | awk '{print $2}' || echo 22)
+log "Detected SSH port: $SSH_PORT"
+
+# Ensure SSH rule is present
+if ! sudo iptables -C INPUT -p tcp --dport "$SSH_PORT" -j ACCEPT 2>/dev/null; then
+    log "Inserting SSH rule for port $SSH_PORT at the top"
+    sudo iptables -I INPUT 1 -p tcp --dport "$SSH_PORT" -j ACCEPT
+    check_status "Inserting SSH rule"
+else
+    log "SSH rule for port $SSH_PORT already exists"
+fi
+
+# Insert Minikube and Portainer rules if not present
+if ! sudo iptables -C INPUT -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT 2>/dev/null; then
+    log "Inserting rule for Kubernetes port $KUBERNETES_PORT at the top"
+    sudo iptables -I INPUT 1 -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT
+    check_status "Inserting Kubernetes rule"
+else
+    log "Rule for Kubernetes port $KUBERNETES_PORT already exists"
+fi
+
+if ! sudo iptables -C INPUT -p tcp --dport "$PORTAINER_NODEPORT" -j ACCEPT 2>/dev/null; then
+    log "Inserting rule for Portainer NodePort $PORTAINER_NODEPORT at the top"
+    sudo iptables -I INPUT 1 -p tcp --dport "$PORTAINER_NODEPORT" -j ACCEPT
+    check_status "Inserting Portainer rule"
+else
+    log "Rule for Portainer NodePort $PORTAINER_NODEPORT already exists"
+fi
+
+if ! sudo iptables -C INPUT -s 172.18.0.0/16 -j ACCEPT 2>/dev/null; then
+    log "Inserting rule for Minikube network 172.18.0.0/16 at the top"
+    sudo iptables -I INPUT 1 -s 172.18.0.0/16 -j ACCEPT
+    check_status "Inserting Minikube network rule"
+else
+    log "Rule for Minikube network 172.18.0.0/16 already exists"
+fi
+
+# Save the updated IPTABLES rules
+log "Saving updated IPTABLES rules"
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
-check_status "Configuring IPTABLES"
+check_status "Saving IPTABLES rules"
 
 # Detect system resources
 log "Detecting system resources"
@@ -248,5 +289,6 @@ log "Minikube installation completed successfully. Check status with 'minikube s
 echo "============================================================="
 echo "Minikube Installation Succeeded!"
 echo "Check logs at: $LOG_FILE"
+echo "IPTABLES backup saved at: $IPTABLES_BACKUP"
 echo "To manage Minikube, use: minikube [start|stop|status]"
 echo "============================================================="
