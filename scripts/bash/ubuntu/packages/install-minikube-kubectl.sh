@@ -5,7 +5,7 @@
 # Uses Minikube's default network setup
 # Prepares environment for Portainer Agent (installed separately)
 # Configures kubeconfig and systemd auto-start
-# Preserves existing IPTABLES rules and adds necessary new rules
+# Clears and sets IPTABLES rules to ensure connectivity
 # Includes diagnostic tests for Kubernetes setup with explicit command logging
 # Uses variables for server names and IPs to enhance security
 
@@ -78,7 +78,7 @@ run_test() {
         log "Output: $output"
     fi
     echo "----------------------------------------"
-    sudo -u "$ORIGINAL_USER" bash -c "echo \"$description: $result\" >> $DIAG_FILE"
+    echo "$description: $result" >> "$DIAG_FILE"
 }
 
 # Create log file with sudo
@@ -87,11 +87,11 @@ sudo touch "$LOG_FILE"
 check_status "Creating log file"
 sudo chown "$ORIGINAL_USER":"$ORIGINAL_USER" "$LOG_FILE"
 
-# Create diagnostic file with sudo
+# Create diagnostic file
 log "Creating diagnostic file at $DIAG_FILE"
-sudo touch "$DIAG_FILE"
+touch "$DIAG_FILE"
 check_status "Creating diagnostic file"
-sudo chown "$ORIGINAL_USER":"$ORIGINAL_USER" "$DIAG_FILE"
+chmod 644 "$DIAG_FILE"
 
 # Detect server details
 log "Detecting local server details"
@@ -141,7 +141,7 @@ log "kubectl installed successfully"
 
 # Install Minikube
 log "Installing Minikube"
-curl -Lo "$TEMP_DIR/minikube" https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+curl -Lo "$TEMP_DIR/minikube" "https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64"
 check_status "Downloading Minikube"
 chmod +x "$TEMP_DIR/minikube"
 sudo install -o root -g root -m 0755 "$TEMP_DIR/minikube" /usr/local/bin/minikube
@@ -154,7 +154,7 @@ sudo -H -u "$ORIGINAL_USER" bash -c "minikube delete || true"
 
 # Start Minikube as the original user with default network
 log "Starting Minikube with default network"
-sudo -H -u "$ORIGINAL_USER" bash -c "minikube start --driver=docker --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\""
+sudo -H -u "$ORIGINAL_USER" HOME="/home/$ORIGINAL_USER" bash -c "minikube start --driver=docker --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\""
 check_status "Starting Minikube"
 
 # Capture Minikube IP
@@ -175,6 +175,16 @@ sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config use-context minikube"
 log "Verifying Kubernetes API server"
 sudo -H -u "$ORIGINAL_USER" bash -c "kubectl cluster-info"
 check_status "Verifying Kubernetes API server"
+
+# Clear existing IPTables rules to avoid conflicts
+log "Clearing existing IPTables rules"
+sudo iptables -F
+sudo iptables -t nat -F
+sudo iptables -t mangle -F
+sudo iptables -X
+sudo iptables -P INPUT ACCEPT
+sudo iptables -P FORWARD ACCEPT
+sudo iptables -P OUTPUT ACCEPT
 
 # Configure IPTables for Kubernetes API and Portainer Agent NodePort
 log "Configuring IPTables rules"
@@ -221,9 +231,9 @@ fi
 
 # Run diagnostic tests
 log "Running diagnostic tests"
-sudo -u "$ORIGINAL_USER" bash -c "echo '=============================================================' >> $DIAG_FILE"
-sudo -u "$ORIGINAL_USER" bash -c "echo 'Diagnostic Test Results' >> $DIAG_FILE"
-sudo -u "$ORIGINAL_USER" bash -c "echo '=============================================================' >> $DIAG_FILE"
+echo "=============================================================" >> "$DIAG_FILE"
+echo "Diagnostic Test Results" >> "$DIAG_FILE"
+echo "=============================================================" >> "$DIAG_FILE"
 run_test "Check Minikube status" "minikube status"
 run_test "Check kubectl client version" "kubectl version --client"
 run_test "Check Kubernetes nodes" "kubectl get nodes"
@@ -236,8 +246,8 @@ log "Displaying diagnostic summary"
 echo "============================================================="
 echo "Diagnostic Test Summary"
 echo "============================================================="
-sudo cat "$DIAG_FILE"
+cat "$DIAG_FILE"
 echo "============================================================="
-sudo rm -f "$DIAG_FILE"
+rm -f "$DIAG_FILE"
 
 log "Minikube and kubectl installation completed successfully"
