@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Prompt for sudo password at the start
+sudo -v
+
 # Determine the original non-root user
 if [ -n "$SUDO_USER" ]; then
     ORIGINAL_USER="$SUDO_USER"
@@ -12,7 +15,7 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_FILE="/var/log/minikube_install_${TIMESTAMP}.log"
 
 log() {
-    echo "[$(date +%Y-%m-%d\ %H:%M:%S)] $1" | tee -a "$LOG_FILE"
+    echo "[$(date +%Y-%m-%d\ %H:%M:%S)] $1" | sudo tee -a "$LOG_FILE"
 }
 
 check_status() {
@@ -22,10 +25,11 @@ check_status() {
     fi
 }
 
-# Create log file
+# Create log file with sudo
 log "Creating log file at $LOG_FILE"
-touch "$LOG_FILE"
+sudo touch "$LOG_FILE"
 check_status "Creating log file"
+sudo chown "$ORIGINAL_USER":"$ORIGINAL_USER" "$LOG_FILE"
 
 # Detect server details
 log "Detecting local server details"
@@ -34,18 +38,13 @@ log "Using $HOSTNAME for Kubernetes API"
 
 # Check /etc/hosts
 log "Checking /etc/hosts for $HOSTNAME"
-if ! grep -q "$HOSTNAME" /etc/hosts; then
+if ! sudo grep -q "$HOSTNAME" /etc/hosts; then
     log "Adding $HOSTNAME to /etc/hosts"
     echo "127.0.0.1 $HOSTNAME" | sudo tee -a /etc/hosts
     check_status "Updating /etc/hosts"
 else
     log "$HOSTNAME already configured in /etc/hosts"
 fi
-
-# Check sudo privileges
-log "Checking sudo privileges"
-sudo -n true 2>/dev/null
-check_status "Verifying sudo privileges"
 
 # Check Docker group membership
 log "Checking Docker group membership"
