@@ -71,5 +71,18 @@ touch $LOG_FILE
         exit 1
     fi
 
+    # Check Docker group membership
+    echo "Checking Docker group membership"
+    if ! groups "$ORIGINAL_USER" | grep -q docker; then
+        echo "Adding user $ORIGINAL_USER to docker group"
+        sudo usermod -aG docker "$ORIGINAL_USER"
+        check_status "Adding user to docker group"
+        echo "WARNING: You have been added to the docker group. Please log out and back in, then re-run this script."
+        echo "Alternatively, run: sg docker -c './$0'"
+        exit 1
+    else
+        echo "User is in docker group"
+    fi
+
     echo "Script completed on $(date)" | tee -a $LOG_FILE
 } 2>&1 | tee -a $LOG_FILE
