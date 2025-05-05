@@ -253,19 +253,27 @@ sg docker -c "minikube delete" || true
 
 # Start Minikube with default subnet first
 log "Starting Minikube with Docker driver (default subnet), $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, $MINIKUBE_DISK disk"
-timeout 600 sg docker -c "minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
+timeout 900 sg docker -c "minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
     log "ERROR: Minikube start with default subnet failed"
     log "Attempting with custom subnet $DOCKER_NETWORK"
-    timeout 600 sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
+    timeout 900 sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
         log "ERROR: Minikube start with custom subnet also failed"
         log "Attempting fallback with 'none' driver"
-        timeout 600 sg docker -c "minikube start --driver=none --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
+        timeout 900 sg docker -c "minikube start --driver=none --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
             log "ERROR: Minikube start with 'none' driver also failed"
             exit 1
         }
     }
 }
 check_status "Starting Minikube"
+
+# Get Minikube VM IP
+log "Detecting Minikube VM IP"
+MINIKUBE_IP=$(minikube ip 2>&1) || {
+    log "ERROR: Could not detect Minikube VM IP. Output: $MINIKUBE_IP"
+    exit 1
+}
+log "Detected Minikube VM IP: $MINIKUBE_IP"
 
 # Verify Minikube status
 log "Verifying Minikube status"
@@ -276,18 +284,22 @@ if ! echo "$minikube_status" | grep -q "host: Running"; then
 fi
 log "Minikube is running"
 
-# Configure kubeconfig
-log "Setting kubeconfig"
+# Configure kubeconfig for local operations
+log "Setting kubeconfig for local operations"
 kubectl config use-context minikube
-kubectl config set-cluster minikube --server=https://$KUBE_SERVER:$KUBERNETES_PORT
-check_status "Configuring kubeconfig"
+kubectl config set-cluster minikube --server=https://$MINIKUBE_IP:$KUBERNETES_PORT
+check_status "Configuring local kubeconfig"
 
 # Deploy Portainer agent
 log "Deploying Portainer agent"
+set +e
 curl -Lo "$TEMP_DIR/$PORTAINER_AGENT_YAML" "$PORTAINER_AGENT_URL"
-kubectl apply -f "$TEMP_DIR/$PORTAINER_AGENT_YAML"
+kubectl apply -f "$TEMP_DIR/$PORTAINER_AGENT_YAML" 2>&1 | sudo tee -a "$LOG_FILE"
+if [ $? -ne 0 ]; then
+    log "WARNING: Failed to deploy Portainer agent, continuing with diagnostics"
+fi
 rm "$TEMP_DIR/$PORTAINER_AGENT_YAML"
-check_status "Deploying Portainer agent"
+set -e
 
 # Verify Portainer agent
 log "Verifying Portainer agent deployment"
@@ -297,10 +309,25 @@ timeout 2m bash -c "
         log \"Waiting for Portainer agent pod to be Running...\"
     done
 " || {
-    log "ERROR: Portainer agent pod failed to reach Running state within 2 minutes"
-    exit 1
+    log "WARNING: Portainer agent pod failed to reach Running state within 2 minutes, continuing with diagnostics"
 }
-log "Portainer agent is running"
+log "Portainer agent verification attempted"
+
+# Configure IPTABLES NAT for Kubernetes API
+log "Configuring IPTABLES NAT for Kubernetes API"
+sudo iptables -t nat -A PREROUTING -p tcp -d "$SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>&1 | sudo tee -a "$LOG_FILE"
+sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$KUBERNETES_PORT" -j MASQUERADE 2>&1 | sudo tee -a "$LOG_FILE"
+check_status "Configuring IPTABLES NAT rules"
+
+# Save the updated IPTABLES NAT rules
+log "Saving updated IPTABLES NAT rules"
+sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
+check_status "Saving IPTABLES NAT rules"
+
+# Update kubeconfig for external access
+log "Updating kubeconfig for external access"
+kubectl config set-cluster minikube --server=https://$KUBE_SERVER:$KUBERNETES_PORT
+check_status "Configuring external kubeconfig"
 
 # Configure systemd service if not already present
 if [ ! -f "$SYSTEMD_SERVICE_FILE" ]; then
@@ -314,7 +341,7 @@ Requires=docker.service
 [Service]
 User=$NON_ROOT_USER
 Group=docker
-ExecStart=/usr/local/bin/minikube start --driver=docker --subnet=$DOCKER_NETWORK --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false
+ExecStart=/usr/local/bin/minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false
 ExecStop=/usr/local/bin/minikube stop
 Restart=on-failure
 RestartSec=10
@@ -334,6 +361,7 @@ fi
 log "Running diagnostic tests"
 echo "=============================================================" | tee -a /tmp/diagnostic_results.txt
 echo "Diagnostic Test Results" | tee -a /tmp/diagnostic_results.txt
+echo "Minikube VM IP: $MINIKUBE_IP" | tee -a /tmp/diagnostic_results.txt
 echo "=============================================================" | tee -a /tmp/diagnostic_results.txt
 run_test "Check Minikube version" "minikube version"
 run_test "Check Minikube status" "minikube status"
@@ -344,6 +372,7 @@ run_test "Check Portainer agent pods" "kubectl get pods -n portainer"
 run_test "Check systemd service enabled" "systemctl is-enabled minikube.service"
 run_test "Check Docker container status" "docker ps -a --filter name=minikube"
 run_test "Check Docker network configuration" "docker network ls --filter driver=bridge"
+run_test "Check Kubernetes API connectivity" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
 display_diagnostic_summary
 
 # Final status
