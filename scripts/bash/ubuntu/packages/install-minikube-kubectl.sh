@@ -6,7 +6,7 @@
 # Prepares environment for Portainer Agent (installed separately)
 # Configures kubeconfig and systemd auto-start
 # Preserves existing IPTABLES rules and adds necessary new rules
-# Includes diagnostic tests for Kubernetes setup
+# Includes diagnostic tests for Kubernetes setup with explicit command logging
 # Uses variables for server names and IPs to enhance security
 
 # Prompt for sudo password at the start
@@ -15,10 +15,8 @@ sudo -v
 # Determine the original non-root user
 if [ -n "$SUDO_USER" ] && id "$SUDO_USER" >/dev/null 2>&1; then
     ORIGINAL_USER="$SUDO_USER"
-elif [ -n "$USER" ] && id "$USER" >/dev/null 2>&1; then
-    ORIGINAL_USER="$USER"
 else
-    ORIGINAL_USER="$(whoami)"
+    ORIGINAL_USER="$(id -un)"
 fi
 # Verify the user exists
 if ! id "$ORIGINAL_USER" >/dev/null 2>&1; then
@@ -57,15 +55,17 @@ check_status() {
     fi
 }
 
-# Run diagnostic test function
+# Run diagnostic test function with explicit command logging
 run_test() {
     local description="$1"
     local command="$2"
     local result="PASSED"
     local output
     echo "TEST: $description"
+    echo "Executing command: $command"
     log "Running test: $description"
-    output=$($command 2>&1)
+    log "Executing command: $command"
+    output=$(eval "$command" 2>&1)
     if [ $? -ne 0 ]; then
         result="FAILED"
         echo "Result: FAILED"
@@ -126,7 +126,7 @@ fi
 
 # Verify Docker access
 log "Verifying Docker access"
-sudo -u "$ORIGINAL_USER" docker ps >/dev/null 2>&1
+sudo -H -u "$ORIGINAL_USER" bash -c "docker ps >/dev/null 2>&1"
 check_status "Docker access verification"
 
 # Install kubectl
@@ -150,16 +150,16 @@ log "Minikube installed successfully"
 
 # Clean up existing Minikube instance
 log "Cleaning up existing Minikube instance"
-sudo -u "$ORIGINAL_USER" minikube delete || true
+sudo -H -u "$ORIGINAL_USER" bash -c "minikube delete || true"
 
 # Start Minikube as the original user with default network
 log "Starting Minikube with default network"
-sudo -u "$ORIGINAL_USER" minikube start --driver=docker --apiserver-ips="$KUBE_SERVER_IP" --apiserver-port="$KUBERNETES_PORT" --memory="$MIN_MEMORY_MB" --cpus="$MIN_CPUS" --disk-size="${MIN_DISK_GB}g"
+sudo -H -u "$ORIGINAL_USER" bash -c "minikube start --driver=docker --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\""
 check_status "Starting Minikube"
 
 # Capture Minikube IP
 log "Capturing Minikube IP"
-MINIKUBE_IP=$(sudo -u "$ORIGINAL_USER" minikube ip)
+MINIKUBE_IP=$(sudo -H -u "$ORIGINAL_USER" bash -c "minikube ip")
 if [ -z "$MINIKUBE_IP" ]; then
     log "ERROR: Could not determine Minikube IP"
     exit 1
@@ -168,12 +168,12 @@ log "Minikube IP: $MINIKUBE_IP"
 
 # Configure kubeconfig as the original user
 log "Configuring kubeconfig"
-sudo -u "$ORIGINAL_USER" minikube update-context
-sudo -u "$ORIGINAL_USER" kubectl config use-context minikube
+sudo -H -u "$ORIGINAL_USER" bash -c "minikube update-context"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config use-context minikube"
 
 # Verify API server connectivity
 log "Verifying Kubernetes API server"
-sudo -u "$ORIGINAL_USER" kubectl cluster-info
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl cluster-info"
 check_status "Verifying Kubernetes API server"
 
 # Configure IPTables for Kubernetes API and Portainer Agent NodePort
@@ -185,6 +185,9 @@ sudo iptables -t nat -A PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$KUBERNE
 # NAT rule for local access (127.0.1.1)
 sudo iptables -t nat -A PREROUTING -p tcp -d 127.0.1.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
 sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$KUBERNETES_PORT" -j MASQUERADE
+# Log IPTables rules for debugging
+sudo iptables -L -v -n | sudo tee -a "$LOG_FILE"
+sudo iptables -t nat -L -v -n | sudo tee -a "$LOG_FILE"
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 >/dev/null
 check_status "Configuring IPTables rules"
 
@@ -221,11 +224,12 @@ log "Running diagnostic tests"
 sudo -u "$ORIGINAL_USER" bash -c "echo '=============================================================' >> $DIAG_FILE"
 sudo -u "$ORIGINAL_USER" bash -c "echo 'Diagnostic Test Results' >> $DIAG_FILE"
 sudo -u "$ORIGINAL_USER" bash -c "echo '=============================================================' >> $DIAG_FILE"
-run_test "Check Minikube status" "sudo -u \"$ORIGINAL_USER\" minikube status"
-run_test "Check kubectl client version" "sudo -u \"$ORIGINAL_USER\" kubectl version --client"
-run_test "Check Kubernetes nodes" "sudo -u \"$ORIGINAL_USER\" kubectl get nodes"
-run_test "Check Kubernetes API connectivity (local)" "curl -k https://$MINIKUBE_IP:$KUBERNETES_PORT"
-run_test "Check Kubernetes API connectivity (external)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
+run_test "Check Minikube status" "minikube status"
+run_test "Check kubectl client version" "kubectl version --client"
+run_test "Check Kubernetes nodes" "kubectl get nodes"
+run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k https://$MINIKUBE_IP:$KUBERNETES_PORT"
+run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
+run_test "Check Kubernetes API connectivity (external)" "curl -k https://$KUBE_SERVER_IP:$KUBERNETES_PORT"
 
 # Display diagnostic summary
 log "Displaying diagnostic summary"
