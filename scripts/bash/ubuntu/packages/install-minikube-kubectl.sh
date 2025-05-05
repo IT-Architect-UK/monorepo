@@ -6,7 +6,7 @@
 # Deploys Portainer agent for remote management
 # Configures kubeconfig and systemd auto-start
 # Preserves existing IPTABLES rules and adds only necessary new rules
-# Includes diagnostic tests with clear feedback for success/failure
+# Includes diagnostic tests with clear feedback and Portainer connection instructions
 
 # Exit on any error
 set -e
@@ -78,6 +78,54 @@ display_diagnostic_summary() {
     rm -f /tmp/diagnostic_results.txt
 }
 
+# Display Portainer connection instructions
+display_portainer_instructions() {
+    local instructions="
+=============================================================
+Portainer Connection Instructions
+=============================================================
+To connect Portainer to this Minikube cluster:
+
+1. Copy the kubeconfig file from this server:
+   - File location: $HOME/.kube/config
+   - Command to copy (run on this server):
+     scp $HOME/.kube/config user@portainer-server:/path/to/destination
+   - Example (replace 'user' and 'portainer-server'):
+     scp $HOME/.kube/config user@192.168.4.109:/home/user/kubeconfig
+
+2. On the Portainer server:
+   - Access the Portainer UI (e.g., http://192.168.4.109:9000)
+   - Go to 'Environments' > 'Add Environment' > 'Kubernetes'
+   - Select 'Import kubeconfig'
+   - Upload the copied kubeconfig file
+   - Save and connect to the cluster
+
+3. Verify connectivity:
+   - From the Portainer server, test the Kubernetes API:
+     curl -k https://$KUBE_SERVER:$KUBERNETES_PORT
+   - Expected response: A JSON object with a 403 Forbidden error (indicating the API is reachable but requires authentication)
+   - Test the Portainer agent:
+     curl http://$KUBE_SERVER:$PORTAINER_NODEPORT
+   - Expected response: A basic HTTP response or JSON indicating the agent is running
+
+4. If connectivity fails:
+   - Ensure the kubeconfig file is correctly copied and used in Portainer
+   - Verify the Minikube VM IP ($MINIKUBE_IP) is reachable from the Portainer server
+   - Check IPTABLES NAT rules on this server:
+     sudo iptables -t nat -L -v -n
+   - Look for entries forwarding 192.168.4.110:8443 to $MINIKUBE_IP:8443
+   - Check the log file for errors: $LOG_FILE
+
+5. For Docker management in Portainer:
+   - Add a Docker environment using $KUBE_SERVER (e.g., tcp://$KUBE_SERVER:2375)
+   - Note: This requires exposing the Docker daemon, which is not configured by this script. Contact your administrator for assistance.
+
+=============================================================
+"
+    echo "$instructions"
+    log "$instructions"
+}
+
 # Validate Docker network
 validate_docker_network() {
     local network="$1"
@@ -101,6 +149,9 @@ check_network_conflicts() {
     log "No network conflicts detected for $DOCKER_BIP"
     return 0
 }
+
+# Ensure diagnostics run on exit
+trap 'display_diagnostic_summary; display_portainer_instructions' EXIT
 
 # Create log file
 log "Creating log file at $LOG_FILE"
@@ -294,7 +345,7 @@ check_status "Configuring local kubeconfig"
 log "Deploying Portainer agent"
 set +e
 curl -Lo "$TEMP_DIR/$PORTAINER_AGENT_YAML" "$PORTAINER_AGENT_URL"
-kubectl apply -f "$TEMP_DIR/$PORTAINER_AGENT_YAML" 2>&1 | sudo tee -a "$LOG_FILE"
+kubectl apply -f "$TEMP_DIR/$PORTAINER_AGENT_YAML" --validate=false 2>&1 | sudo tee -a "$LOG_FILE"
 if [ $? -ne 0 ]; then
     log "WARNING: Failed to deploy Portainer agent, continuing with diagnostics"
 fi
@@ -369,11 +420,15 @@ run_test "Check kubectl client version" "kubectl version --client"
 run_test "Check cluster info" "kubectl cluster-info"
 run_test "Check nodes" "kubectl get nodes"
 run_test "Check Portainer agent pods" "kubectl get pods -n portainer"
+run_test "Check Portainer agent service" "kubectl get svc -n portainer"
 run_test "Check systemd service enabled" "systemctl is-enabled minikube.service"
 run_test "Check Docker container status" "docker ps -a --filter name=minikube"
 run_test "Check Docker network configuration" "docker network ls --filter driver=bridge"
 run_test "Check Kubernetes API connectivity" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
 display_diagnostic_summary
+
+# Display Portainer instructions
+display_portainer_instructions
 
 # Final status
 log "Minikube installation completed successfully. Check status with 'minikube status'"
