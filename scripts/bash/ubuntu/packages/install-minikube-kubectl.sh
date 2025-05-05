@@ -6,7 +6,7 @@
 # Deploys Portainer agent for remote management
 # Configures kubeconfig and systemd auto-start
 # Preserves existing IPTABLES rules and adds only necessary new rules
-# Includes diagnostic tests at the end for verification
+# Includes diagnostic tests with clear feedback for success/failure
 
 # Exit on any error
 set -e
@@ -42,19 +42,40 @@ check_status() {
     fi
 }
 
-# Run test function for diagnostics
+# Run diagnostic test function
 run_test() {
     local description="$1"
     local command="$2"
+    local result="PASSED"
+    local output
+    echo "TEST: $description"
     log "Running test: $description"
     output=$($command 2>&1)
-    if [ $? -eq 0 ]; then
-        log "$description: PASSED"
-        log "Output: $output"
-    else
+    if [ $? -ne 0 ]; then
+        result="FAILED"
+        echo "Result: FAILED"
+        echo "Error: $output"
         log "$description: FAILED"
         log "Error: $output"
+    else
+        echo "Result: PASSED"
+        log "$description: PASSED"
+        log "Output: $output"
     fi
+    echo "----------------------------------------"
+    echo "$description: $result" >> /tmp/diagnostic_results.txt
+}
+
+# Display diagnostic summary
+display_diagnostic_summary() {
+    log "Displaying diagnostic summary"
+    echo "============================================================="
+    echo "Diagnostic Test Summary"
+    echo "============================================================="
+    cat /tmp/diagnostic_results.txt
+    echo "============================================================="
+    log "Diagnostic summary displayed"
+    rm -f /tmp/diagnostic_results.txt
 }
 
 # Validate Docker network
@@ -144,7 +165,7 @@ log "Backing up current IPTABLES rules to $IPTABLES_BACKUP"
 sudo iptables-save > "$IPTABLES_BACKUP"
 check_status "Backing up IPTABLES rules"
 
-# Add required rules if they don’t exist
+# Add required rules if they don't exist
 log "Adding required IPTABLES rules if necessary"
 
 # Rule for Kubernetes API port (8443)
@@ -214,19 +235,16 @@ rm "$TEMP_DIR/kubectl"
 log "Cleaning up existing Minikube instance"
 sg docker -c "minikube delete" || true
 
-# Start Minikube
+# Start Minikube with timeout
 log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, $MINIKUBE_DISK disk"
-minikube_start_output=$(sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1)
-if [ $? -ne 0 ]; then
-    log "ERROR: Minikube start with Docker driver failed. Output: $minikube_start_output"
+timeout 600 sg docker -c "minikube start --driver=docker --subnet=$DOCKER_NETWORK --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
+    log "ERROR: Minikube start with Docker driver timed out or failed after 600 seconds"
     log "Attempting fallback with 'none' driver"
-    minikube_start_output=$(sg docker -c "minikube start --driver=none --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1)
-    if [ $? -ne 0 ]; then
-        log "ERROR: Minikube start with 'none' driver also failed. Output: $minikube_start_output"
+    timeout 600 sg docker -c "minikube start --driver=none --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false -v=9" 2>&1 | sudo tee -a "$LOG_FILE" || {
+        log "ERROR: Minikube start with 'none' driver also timed out or failed"
         exit 1
-    fi
-fi
-echo "$minikube_start_output" | sudo tee -a "$LOG_FILE" > /dev/null
+    }
+}
 check_status "Starting Minikube"
 
 # Verify Minikube status
@@ -294,7 +312,9 @@ fi
 
 # Diagnostic tests
 log "Running diagnostic tests"
-
+echo "=============================================================" | tee -a /tmp/diagnostic_results.txt
+echo "Diagnostic Test Results" | tee -a /tmp/diagnostic_results.txt
+echo "=============================================================" | tee -a /tmp/diagnostic_results.txt
 run_test "Check Minikube version" "minikube version"
 run_test "Check Minikube status" "minikube status"
 run_test "Check kubectl client version" "kubectl version --client"
@@ -302,13 +322,13 @@ run_test "Check cluster info" "kubectl cluster-info"
 run_test "Check nodes" "kubectl get nodes"
 run_test "Check Portainer agent pods" "kubectl get pods -n portainer"
 run_test "Check systemd service enabled" "systemctl is-enabled minikube.service"
-
-log "Diagnostic tests completed"
+display_diagnostic_summary
 
 # Final status
 log "Minikube installation completed successfully. Check status with 'minikube status'"
 echo "============================================================="
 echo "Minikube Installation Succeeded!"
 echo "Check logs at: $LOG_FILE"
+echo "IPTABLES backup saved at: $IPTABLES_BACKUP"
 echo "To manage Minikube, use: minikube [start|stop|status]"
 echo "============================================================="
