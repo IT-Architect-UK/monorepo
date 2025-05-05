@@ -113,8 +113,9 @@ sudo -u "$ORIGINAL_USER" kubectl cluster-info || {
 }
 
 # Deploy Portainer agent
+PORTAINER_AGENT_YAML="https://downloads.portainer.io/ce2-19/portainer-agent-k8s.yaml"
 log "Deploying Portainer agent"
-sudo -u "$ORIGINAL_USER" kubectl apply -f https://raw.githubusercontent.com/portainer/k8s/master/deploy/manifests/portainer/portainer-agent-k8s.yaml -n portainer || {
+sudo -u "$ORIGINAL_USER" kubectl apply -f "$PORTAINER_AGENT_YAML" -n portainer || {
     log "ERROR: Failed to deploy Portainer agent"
     exit 1
 }
