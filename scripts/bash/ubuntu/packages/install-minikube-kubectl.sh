@@ -6,6 +6,7 @@
 # Deploys Portainer agent for remote management
 # Configures kubeconfig and systemd auto-start
 # Preserves existing IPTABLES rules and adds only necessary new rules
+# Includes diagnostic tests at the end for verification
 
 # Exit on any error
 set -e
@@ -38,6 +39,21 @@ check_status() {
     if [ $? -ne 0 ]; then
         log "ERROR: $1 failed"
         exit 1
+    fi
+}
+
+# Run test function for diagnostics
+run_test() {
+    local description="$1"
+    local command="$2"
+    log "Running test: $description"
+    output=$($command 2>&1)
+    if [ $? -eq 0 ]; then
+        log "$description: PASSED"
+        log "Output: $output"
+    else
+        log "$description: FAILED"
+        log "Error: $output"
     fi
 }
 
@@ -128,7 +144,7 @@ log "Backing up current IPTABLES rules to $IPTABLES_BACKUP"
 sudo iptables-save > "$IPTABLES_BACKUP"
 check_status "Backing up IPTABLES rules"
 
-# Add required rules if they don't exist
+# Add required rules if they don’t exist
 log "Adding required IPTABLES rules if necessary"
 
 # Rule for Kubernetes API port (8443)
@@ -276,10 +292,23 @@ else
     log "Systemd service already configured"
 fi
 
+# Diagnostic tests
+log "Running diagnostic tests"
+
+run_test "Check Minikube version" "minikube version"
+run_test "Check Minikube status" "minikube status"
+run_test "Check kubectl client version" "kubectl version --client"
+run_test "Check cluster info" "kubectl cluster-info"
+run_test "Check nodes" "kubectl get nodes"
+run_test "Check Portainer agent pods" "kubectl get pods -n portainer"
+run_test "Check systemd service enabled" "systemctl is-enabled minikube.service"
+
+log "Diagnostic tests completed"
+
 # Final status
 log "Minikube installation completed successfully. Check status with 'minikube status'"
 echo "============================================================="
 echo "Minikube Installation Succeeded!"
-echo "Check logs at: $LOGpele_FILE"
+echo "Check logs at: $LOG_FILE"
 echo "To manage Minikube, use: minikube [start|stop|status]"
 echo "============================================================="
