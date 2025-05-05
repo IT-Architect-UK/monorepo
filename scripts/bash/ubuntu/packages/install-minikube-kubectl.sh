@@ -6,7 +6,7 @@
 # Deploys Portainer agent for remote management
 # Configures kubeconfig and systemd auto-start
 # Preserves existing IPTABLES rules and adds only necessary new rules
-# Includes diagnostic tests with clear feedback and Portainer connection instructions
+# Includes diagnostic tests and Portainer Agent connection instructions for CE
 
 # Exit on any error
 set -e
@@ -24,7 +24,9 @@ PORTAINER_AGENT_YAML="portainer-agent-k8s-nodeport.yaml"
 PORTAINER_AGENT_URL="https://downloads.portainer.io/ce2-19/portainer-agent-k8s-nodeport.yaml"
 PORTAINER_NODEPORT=30778
 KUBERNETES_PORT=8443
+KUBECONFIG="$HOME/.kube/config"
 export LOG_FILE
+export KUBECONFIG
 
 # Log function
 log() {
@@ -82,72 +84,69 @@ display_diagnostic_summary() {
 display_portainer_instructions() {
     local instructions="
 =============================================================
-Portainer Connection Instructions
+Portainer Agent Connection Instructions (Portainer CE)
 =============================================================
+You are using the Portainer Community Edition with the Agent option.
 To connect Portainer to this Minikube cluster:
 
-1. Copy the kubeconfig file from this server:
-   - File location: $HOME/.kube/config
-   - Command to copy (run on this server):
-     scp $HOME/.kube/config user@portainer-server:/path/to/destination
-   - Example (replace 'user' and 'portainer-server'):
-     scp $HOME/.kube/config user@192.168.4.109:/home/user/kubeconfig
+1. Ensure the Portainer agent is deployed:
+   - The script has already applied the agent YAML: $PORTAINER_AGENT_URL
+   - Verify the agent pod is running on this server:
+     kubectl get pods -n portainer
+   - Expected output: A pod named 'portainer-agent-...' in 'Running' state
+   - Verify the agent service:
+     kubectl get svc -n portainer
+   - Expected output: A service named 'portainer-agent' with NodePort 30778
 
-2. On the Portainer server:
+2. Configure Portainer on the Portainer server (e.g., 192.168.4.109):
    - Access the Portainer UI (e.g., http://192.168.4.109:9000)
-   - Go to 'Environments' > 'Add Environment' > 'Kubernetes'
-   - Select 'Import kubeconfig'
-   - Upload the copied kubeconfig file
-   - Save and connect to the cluster
+   - Go to 'Environments' > 'Add Environment' > 'Kubernetes via Agent'
+   - Enter the following details:
+     - **Name**: A name for the environment (e.g., 'Minikube')
+     - **Environment address**: $KUBE_SERVER:$PORTAINER_NODEPORT (e.g., poslxpansible01.skint.private:30778)
+   - Click 'Connect'
+   - Note: The Portainer agent uses port 30778, not 9001 or 9000 (which is for the Portainer UI)
 
-3. Verify connectivity:
-   - From the Portainer server, test the Kubernetes API:
-     curl -k https://$KUBE_SERVER:$KUBERNETES_PORT
-   - Expected response: A JSON object with a 403 Forbidden error (indicating the API is reachable but requires authentication)
-   - Test the Portainer agent:
+3. Verify connectivity from the Portainer server:
+   - Test the Portainer agent endpoint:
      curl http://$KUBE_SERVER:$PORTAINER_NODEPORT
    - Expected response: A basic HTTP response or JSON indicating the agent is running
+   - Test the Kubernetes API (optional, for debugging):
+     curl -k https://$KUBE_SERVER:$KUBERNETES_PORT
+   - Expected response: A JSON object with a 403 Forbidden error (indicating the API is reachable but requires authentication)
 
-4. If connectivity fails:
-   - Ensure the kubeconfig file is correctly copied and used in Portainer
-   - Verify the Minikube VM IP ($MINIKUBE_IP) is reachable from the Portainer server
+4. If connection fails:
+   - Ensure the agent pod and service are running (see step 1)
+   - Verify network connectivity from the Portainer server (192.168.4.109) to $KUBE_SERVER:$PORTAINER_NODEPORT
    - Check IPTABLES NAT rules on this server:
      sudo iptables -t nat -L -v -n
    - Look for entries forwarding 192.168.4.110:8443 to $MINIKUBE_IP:8443
+   - Check the Minikube VM IP ($MINIKUBE_IP) is reachable:
+     ping $MINIKUBE_IP
    - Check the log file for errors: $LOG_FILE
+   - Redeploy the agent if needed:
+     kubectl delete -f $PORTAINER_AGENT_URL
+     kubectl apply -f $PORTAINER_AGENT_URL --validate=false
 
-5. For Docker management in Portainer:
-   - Add a Docker environment using $KUBE_SERVER (e.g., tcp://$KUBE_SERVER:2375)
-   - Note: This requires exposing the Docker daemon, which is not configured by this script. Contact your administrator for assistance.
+5. For Kubernetes API authentication (optional):
+   - If Portainer requires direct API access, copy the kubeconfig:
+     scp $KUBECONFIG user@192.168.4.109:/path/to/kubeconfig
+   - Use the kubeconfig in Portainer’s Kubernetes environment settings (if supported) or for manual kubectl commands
+   - Example: Replace 'user' and '/path/to/kubeconfig' with appropriate values
+
+6. For Docker management in Portainer (optional):
+   - To manage Docker on this server, expose the Docker daemon (e.g., on port 2375):
+     sudo systemctl edit docker.service
+     Add under [Service]:
+       ExecStart=/usr/bin/dockerd -H fd:// -H tcp://0.0.0.0:2375
+     Restart Docker:
+       sudo systemctl restart docker
+   - In Portainer, add a Docker environment using tcp://$KUBE_SERVER:2375
 
 =============================================================
 "
     echo "$instructions"
     log "$instructions"
-}
-
-# Validate Docker network
-validate_docker_network() {
-    local network="$1"
-    if ! echo "$network" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'; then
-        log "ERROR: Invalid DOCKER_NETWORK format: $network"
-        exit 1
-    fi
-    DOCKER_BIP=$(echo "$network" | awk -F'/' '{split($1,a,"."); print a[1]"."a[2]"."a[3]".1/"$2}')
-    log "Calculated bridge IP: $DOCKER_BIP"
-}
-
-# Check for Docker network conflicts
-check_network_conflicts() {
-    log "Checking for Docker network conflicts"
-    local conflicts=$(ip addr show | grep -w "$DOCKER_BIP" || true)
-    if [ -n "$conflicts" ]; then
-        log "WARNING: Potential network conflict detected for $DOCKER_BIP"
-        log "Conflict details: $conflicts"
-        return 1
-    fi
-    log "No network conflicts detected for $DOCKER_BIP"
-    return 0
 }
 
 # Ensure diagnostics run on exit
