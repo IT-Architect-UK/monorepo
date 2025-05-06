@@ -178,9 +178,9 @@ check_status "Verifying Kubernetes API server"
 
 # Configure IPTables for Kubernetes API without clearing existing rules
 log "Configuring IPTables rules"
-# Add DNAT rules in OUTPUT for local traffic using variables
-if ! sudo iptables -t nat -C OUTPUT -p tcp -s 127.0.0.1 -d 127.0.0.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
-    sudo iptables -t nat -A OUTPUT -p tcp -s 127.0.0.1 -d 127.0.0.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
+# Add DNAT rules in OUTPUT for local traffic
+if ! sudo iptables -t nat -C OUTPUT -p tcp -d 127.0.0.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
+    sudo iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
 fi
 if ! sudo iptables -t nat -C OUTPUT -p tcp -s "$KUBE_SERVER_IP" -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
     sudo iptables -t nat -A OUTPUT -p tcp -s "$KUBE_SERVER_IP" -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
