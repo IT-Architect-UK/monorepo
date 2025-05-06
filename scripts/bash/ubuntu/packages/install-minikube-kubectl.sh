@@ -178,21 +178,18 @@ check_status "Verifying Kubernetes API server"
 
 # Configure IPTables for Kubernetes API without clearing existing rules
 log "Configuring IPTables rules"
-# Add DNAT rules in OUTPUT for local traffic
-if ! sudo iptables -t nat -C OUTPUT -p tcp -d 127.0.0.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
-    sudo iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
-fi
+# Add DNAT rule in OUTPUT for local server IP traffic
 if ! sudo iptables -t nat -C OUTPUT -p tcp -s "$KUBE_SERVER_IP" -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
     sudo iptables -t nat -A OUTPUT -p tcp -s "$KUBE_SERVER_IP" -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
 fi
-# Add NAT rules for local FQDN (127.0.1.1) and external access if they don't exist
+# Add NAT rules for local FQDN (127.0.1.1) and external access
 if ! sudo iptables -t nat -C PREROUTING -p tcp -d 127.0.1.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
     sudo iptables -t nat -A PREROUTING -p tcp -d 127.0.1.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
 fi
 if ! sudo iptables -t nat -C PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
     sudo iptables -t nat -A PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
 fi
-# Add POSTROUTING rule for masquerading if it doesn't exist
+# Add POSTROUTING rule for masquerading
 if ! sudo iptables -t nat -C POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$KUBERNETES_PORT" -j MASQUERADE 2>/dev/null; then
     sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$KUBERNETES_PORT" -j MASQUERADE
 fi
@@ -204,7 +201,9 @@ check_status "Configuring IPTables rules"
 
 # Configure systemd service for Minikube
 log "Configuring systemd service for Minikube"
-if [ ! -f "$SYSTEMD_SERVICE_FILE" ]; then
+if [ -f "$SYSTEMD_SERVICE_FILE" ]; then
+    log "Systemd service already configured"
+else
     sudo bash -c "cat << EOF > $SYSTEMD_SERVICE_FILE
 [Unit]
 Description=Minikube Kubernetes Cluster
@@ -226,8 +225,6 @@ EOF"
     sudo systemctl daemon-reload
     sudo systemctl enable minikube.service
     check_status "Configuring systemd service"
-else
-    log "Systemd service already configured"
 fi
 
 # Run diagnostic tests
@@ -241,7 +238,6 @@ run_test "Check Kubernetes nodes" "kubectl get nodes"
 run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k https://$MINIKUBE_IP:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local server IP)" "curl -k https://$KUBE_SERVER_IP:$KUBERNETES_PORT"
-run_test "Check Kubernetes API connectivity (local loopback)" "curl -k https://127.0.0.1:$KUBERNETES_PORT"
 
 # Display diagnostic summary
 log "Displaying diagnostic summary"
