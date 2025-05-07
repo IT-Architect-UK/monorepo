@@ -1,34 +1,55 @@
 #!/bin/bash
 
-# Script to install the latest Ansible AWX on Ubuntu 24.04 using Minikube
-# Assumes Docker (with Compose), Minikube, kubectl, and Portainer agent are pre-installed
-# Runs from SSH session or local console, prompts for sudo password when required
-# Includes prerequisite checks, error handling, and verbose logging to file and screen
-# Appends IPTABLES rules without deleting existing ones
-# Prepares AWX for management in Portainer
-# Must be run as a non-root user with sudo privileges
+# Script to install Ansible AWX on a Minikube Kubernetes cluster on Ubuntu 24.04
+# Deploys the AWX Operator and an AWX instance, configures port forwarding, and verifies the setup
+# Assumes Docker, Minikube, and kubectl are pre-installed and configured (e.g., via install-minikube-kubectl.sh)
+# Uses Minikube's default network setup
+# Preserves existing iptables rules
+# Includes verbose logging and diagnostic tests
 
-# Exit on any error
-set -e
+# Prerequisites:
+# - Docker installed and running, with the user in the docker group
+# - Minikube installed and a cluster running with sufficient resources (4 CPUs, 8 GB RAM, 20 GB disk)
+# - kubectl installed and configured to interact with the Minikube cluster
+# - Ubuntu 24.04 as the operating system
+# - Internet access to download AWX Operator manifests and container images
+# - Non-root user with sudo privileges
 
-# Define log file and variables
+# Prompt for sudo password at the start
+sudo -v
+
+# Determine the original non-root user
+if [ -n "$SUDO_USER" ] && id "$SUDO_USER" >/dev/null 2>&1; then
+    ORIGINAL_USER="$SUDO_USER"
+else
+    ORIGINAL_USER="$(id -un)"
+fi
+# Verify the user exists
+if ! id "$ORIGINAL_USER" >/dev/null 2>&1; then
+    echo "ERROR: Cannot determine valid non-root user"
+    exit 1
+fi
+echo "Detected non-root user: $ORIGINAL_USER"
+
+# Define variables
 LOG_FILE="/var/log/awx_install_$(date +%Y%m%d_%H%M%S).log"
-AWX_NAMESPACE="ansible-awx"
-AWX_PORT="30445"       # NodePort for AWX access (30000-32767 range)
-KUBERNETES_PORT="8443" # Minikube Kubernetes API port
-MINIKUBE_MEMORY="8192" # 8GB RAM
-MINIKUBE_CPUS="4"      # 4 CPUs
-MINIKUBE_DISK="50g"    # 50GB disk
-NON_ROOT_USER="$USER"  # Store the invoking user
-TEMP_DIR="/tmp"        # Temporary directory for downloads
+DIAG_FILE="/tmp/awx_diag_$(date +%Y%m%d_%H%M%S).txt"
+TEMP_DIR="/tmp"
+AWX_NAMESPACE="awx"
+KUBERNETES_PORT=8443
+KUBECONFIG="/home/$ORIGINAL_USER/.kube/config"
+KUBE_SERVER="$(hostname -f)"
+KUBE_SERVER_IP="$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d'/' -f1 | head -n 1)"
+export LOG_FILE
+export KUBECONFIG
 
-# Function to log messages to file and screen
+# Log function
 log() {
     local message="$1"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message" | sudo tee -a "$LOG_FILE"
 }
 
-# Function to check if a command succeeded
+# Check status function
 check_status() {
     if [ $? -ne 0 ]; then
         log "ERROR: $1 failed"
@@ -36,241 +57,170 @@ check_status() {
     fi
 }
 
-# Check if running as root
-if [ "$(id -u)" -eq 0 ]; then
-    log "ERROR: This script must not be run as root. Run as a non-root user (e.g., pos-admin) with sudo privileges."
-    log "Example: ./install_awx_ubuntu24.sh"
-    log "Alternatively, modify the script to use 'minikube start --force' if root execution is required."
-    exit 1
-fi
+# Run diagnostic test function with explicit command logging
+run_test() {
+    local description="$1"
+    local command="$2"
+    local result="PASSED"
+    local output
+    echo "TEST: $description"
+    echo "Executing command: $command"
+    log "Running test: $description"
+    log "Executing command: $command"
+    output=$(eval "$command" 2>&1)
+    if [ $? -ne 0 ]; then
+        result="FAILED"
+        echo "Result: FAILED"
+        echo "Error: $output"
+        log "$description: FAILED"
+        log "Error: $output"
+    else
+        echo "Result: PASSED"
+        log "$description: PASSED"
+        log "Output: $output"
+    fi
+    echo "----------------------------------------"
+    echo "$description: $result" >> "$DIAG_FILE"
+}
 
-# Check if sudo privileges are available
-log "Checking sudo privileges"
-if ! sudo -n true 2>/dev/null; then
-    log "ERROR: User $NON_ROOT_USER does not have sudo privileges. Please grant sudo access and try again."
-    exit 1
-fi
-
-# Introduction summary
-log "===== Introduction Summary ====="
-log "This script installs the latest Ansible AWX on Ubuntu 24.04 using Minikube."
-log "It performs the following steps:"
-log "1. Verifies pre-installed Docker, Minikube, kubectl, and Portainer agent."
-log "2. Ensures Minikube is running with the Docker driver and ingress addon."
-log "3. Installs kustomize and the latest AWX Operator."
-log "4. Deploys AWX with a NodePort service."
-log "5. Configures IPTABLES rules for AWX and Kubernetes."
-log "6. Prepares kubeconfig for Portainer management."
-log "Prerequisites:"
-log "- Docker (with Compose), Minikube, kubectl, and Portainer agent must be pre-installed."
-log "- Run as a non-root user with sudo privileges (sudo will be prompted for specific commands)."
-log "- Minimum 8GB RAM, 4 CPUs, 50GB disk."
-log "Logs are saved to $LOG_FILE."
-log "================================"
-
-# Create log file and ensure it's writable
+# Create log file with sudo
 log "Creating log file at $LOG_FILE"
 sudo touch "$LOG_FILE"
-sudo chmod 664 "$LOG_FILE"
 check_status "Creating log file"
+sudo chown "$ORIGINAL_USER":"$ORIGINAL_USER" "$LOG_FILE"
 
-# Prerequisite checks
-log "Checking prerequisites"
+# Create diagnostic file
+log "Creating diagnostic file at $DIAG_FILE"
+touch "$DIAG_FILE"
+check_status "Creating diagnostic file"
+chmod 644 "$DIAG_FILE"
+
+# Validate prerequisites
+log "Validating prerequisites"
 
 # Check Docker
-if ! command -v docker &> /dev/null; then
-    log "ERROR: Docker is not installed. Please install Docker before running this script."
+log "Checking Docker installation and access"
+if ! command -v docker >/dev/null 2>&1; then
+    log "ERROR: Docker is not installed"
     exit 1
 fi
-sudo systemctl is-active --quiet docker || {
-    log "ERROR: Docker service is not running. Starting Docker..."
-    sudo systemctl start docker
-    check_status "Starting Docker"
-}
-log "Docker is installed and running"
-
-# Check Docker group membership
-if ! groups | grep -q docker; then
-    log "ERROR: User $NON_ROOT_USER is not in the docker group."
-    log "Run: sudo usermod -aG docker $NON_ROOT_USER, then log out and back in."
-    log "Alternatively, run: sg docker -c './install_awx_ubuntu24.sh'"
-    exit 1
-fi
-if ! docker info &> /dev/null; then
-    log "ERROR: User $NON_ROOT_USER cannot access Docker daemon. Ensure you have logged out/in after adding to docker group."
-    log "Run: sg docker -c './install_awx_ubuntu24.sh' or log out and back in."
-    exit 1
-fi
-log "Docker group membership verified"
-
-# Check Docker Compose
-if ! command -v docker-compose &> /dev/null; then
-    log "ERROR: Docker Compose is not installed. Please install Docker Compose before running this script."
-    exit 1
-fi
-log "Docker Compose is installed"
+sudo -H -u "$ORIGINAL_USER" bash -c "docker ps >/dev/null 2>&1"
+check_status "Docker access verification"
 
 # Check Minikube
-if ! command -v minikube &> /dev/null; then
-    log "ERROR: Minikube is not installed. Please install Minikube before running this script."
+log "Checking Minikube installation"
+if ! command -v minikube >/dev/null 2>&1; then
+    log "ERROR: Minikube is not installed"
     exit 1
 fi
-log "Minikube is installed"
+sudo -H -u "$ORIGINAL_USER" bash -c "minikube status >/dev/null 2>&1"
+check_status "Minikube status verification"
 
 # Check kubectl
-if ! command -v kubectl &> /dev/null; then
-    log "ERROR: kubectl is not installed. Please install kubectl before running this script."
+log "Checking kubectl installation"
+if ! command -v kubectl >/dev/null 2>&1; then
+    log "ERROR: kubectl is not installed"
     exit 1
 fi
-log "kubectl is installed"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl cluster-info >/dev/null 2>&1"
+check_status "kubectl cluster access verification"
 
-# Check Portainer agent (basic check for running container)
-if ! docker ps | grep -q portainer/portainer-ce; then
-    log "WARNING: Portainer agent container not detected. Ensure the Portainer agent is running and configured for Kubernetes."
-fi
-log "Portainer agent check completed"
-
-# Ensure Minikube is running
-log "Checking Minikube status"
-if ! minikube status | grep -q "host: Running"; then
-    log "Starting Minikube with Docker driver, $MINIKUBE_MEMORY MB, $MINIKUBE_CPUS CPUs, and $MINIKUBE_DISK disk"
-    sg docker -c "minikube start --driver=docker --addons=ingress --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY --disk-size=$MINIKUBE_DISK --wait=false" | sudo tee -a "$LOG_FILE"
-    check_status "Starting Minikube"
-else
-    log "Minikube is already running"
-fi
-
-# Verify Minikube status
-log "Verifying Minikube status"
-minikube status | sudo tee -a "$LOG_FILE"
-check_status "Verifying Minikube status"
-
-# Wait for Kubernetes nodes to be ready
-log "Waiting for Kubernetes nodes to be ready"
-timeout 5m bash -c "
-    until kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type==\"Ready\")].status}' 2>/dev/null | grep -q True; do
-        sleep 5
-        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for nodes...\" | sudo tee -a \"$LOG_FILE\"
-    done
-" || {
-    log "ERROR: Kubernetes nodes failed to become ready within 5 minutes"
+# Detect server details
+log "Detecting local server details"
+if [ -z "$KUBE_SERVER_IP" ]; then
+    log "ERROR: Could not determine server IP"
     exit 1
-}
-check_status "Waiting for Kubernetes nodes"
-
-# Install kustomize
-log "Installing kustomize"
-if ! command -v kustomize &> /dev/null; then
-    curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" -o "$TEMP_DIR/install_kustomize.sh" | sudo tee -a "$LOG_FILE"
-    check_status "Downloading kustomize installer"
-    bash "$TEMP_DIR/install_kustomize.sh" | sudo tee -a "$LOG_FILE"
-    check_status "Running kustomize installer"
-    sudo mv kustomize /usr/local/bin/ | sudo tee -a "$LOG_FILE"
-    check_status "Installing kustomize"
-    rm "$TEMP_DIR/install_kustomize.sh"
-else
-    log "kustomize is already installed"
 fi
+log "Using $KUBE_SERVER for Kubernetes API"
 
-# Clone AWX Operator repository (latest version)
-log "Cloning AWX Operator repository (main branch for latest version)"
-if [ -d "awx-operator" ]; then
-    rm -rf awx-operator
+# Get latest AWX Operator release tag
+log "Fetching latest AWX Operator release tag"
+RELEASE_TAG=$(curl -s https://api.github.com/repos/ansible/awx-operator/releases/latest | grep tag_name | cut -d '"' -f 4)
+if [ -z "$RELEASE_TAG" ]; then
+    log "ERROR: Could not fetch AWX Operator release tag"
+    exit 1
 fi
-git clone https://github.com/ansible/awx-operator.git | sudo tee -a "$LOG_FILE"
-check_status "Cloning AWX Operator repository"
-cd awx-operator
+log "Latest AWX Operator release tag: $RELEASE_TAG"
 
-# Create namespace
-log "Creating Kubernetes namespace $AWX_NAMESPACE"
-kubectl create namespace "$AWX_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - | sudo tee -a "$LOG_FILE"
-check_status "Creating namespace"
+# Create AWX namespace
+log "Creating AWX namespace"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl create namespace $AWX_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -"
+check_status "Creating AWX namespace"
 
 # Deploy AWX Operator
-log "Deploying AWX Operator"
-export NAMESPACE="$AWX_NAMESPACE"
-make deploy | sudo tee -a "$LOG_FILE"
+log "Deploying AWX Operator version $RELEASE_TAG"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE"
 check_status "Deploying AWX Operator"
 
-# Create AWX demo configuration with NodePort
-log "Creating AWX demo configuration"
-cat <<EOF > awx-demo.yml
----
+# Wait for AWX Operator to be ready
+log "Waiting for AWX Operator to be ready"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl wait --for=condition=available --timeout=300s deployment/awx-operator-controller-manager -n $AWX_NAMESPACE"
+check_status "Waiting for AWX Operator"
+
+# Create AWX instance manifest
+log "Creating AWX instance manifest"
+sudo -H -u "$ORIGINAL_USER" bash -c "cat << EOF > $TEMP_DIR/awx-demo.yml
 apiVersion: awx.ansible.com/v1beta1
 kind: AWX
 metadata:
   name: awx-demo
   namespace: $AWX_NAMESPACE
 spec:
-  service_type: NodePort
-  nodeport_port: $AWX_PORT
-  ingress_type: none
-  hostname: awx-demo.local
-  persistent_volume_claim:
-    enabled: true
-    storage_class: local-path
-    size: 5Gi
-EOF
-check_status "Creating AWX demo configuration"
+  service_type: nodeport
+EOF"
+check_status "Creating AWX instance manifest"
 
-# Apply AWX demo configuration
-log "Applying AWX demo configuration"
-kubectl apply -f awx-demo.yml -n "$AWX_NAMESPACE" | sudo tee -a "$LOG_FILE"
-check_status "Applying AWX demo configuration"
+# Deploy AWX instance
+log "Deploying AWX instance"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl apply -f $TEMP_DIR/awx-demo.yml -n $AWX_NAMESPACE"
+check_status "Deploying AWX instance"
 
-# Wait for AWX pods to be ready
-log "Waiting for AWX pods to be ready (this may take a few minutes)"
-timeout 10m bash -c "
-    until kubectl get pods -n $AWX_NAMESPACE -l 'app.kubernetes.io/managed-by=awx-operator' -o jsonpath='{.items[*].status.phase}' 2>/dev/null | grep -q Running; do
-        sleep 10
-        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for AWX pods...\" | sudo tee -a \"$LOG_FILE\"
-    done
-" || {
-    log "ERROR: AWX pods failed to become ready within 10 minutes"
+# Wait for AWX instance to be ready
+log "Waiting for AWX instance to be ready"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl wait --for=condition=available --timeout=600s deployment/awx-demo -n $AWX_NAMESPACE"
+check_status "Waiting for AWX instance"
+
+# Get NodePort for AWX service
+log "Retrieving AWX service NodePort"
+NODE_PORT=$(sudo -H -u "$ORIGINAL_USER" bash -c "kubectl get svc awx-demo-service -n $AWX_NAMESPACE -o jsonpath='{.spec.ports[0].nodePort}'")
+if [ -z "$NODE_PORT" ]; then
+    log "ERROR: Could not retrieve AWX service NodePort"
     exit 1
-}
-check_status "Waiting for AWX pods"
-
-# Verify pod status
-log "Verifying AWX pod status"
-kubectl get pods -n "$AWX_NAMESPACE" | sudo tee -a "$LOG_FILE"
-check_status "Verifying pod status"
+fi
+log "AWX service NodePort: $NODE_PORT"
 
 # Get AWX admin password
 log "Retrieving AWX admin password"
-AWX_PASSWORD=$(kubectl get secret awx-demo-admin-password -o jsonpath="{.data.password}" -n "$AWX_NAMESPACE" | base64 --decode)
-check_status "Retrieving AWX admin password"
+ADMIN_PASSWORD=$(sudo -H -u "$ORIGINAL_USER" bash -c "kubectl get secret awx-demo-admin-password -n $AWX_NAMESPACE -o jsonpath='{.data.password}' | base64 --decode")
+if [ -z "$ADMIN_PASSWORD" ]; then
+    log "ERROR: Could not retrieve AWX admin password"
+    exit 1
+fi
+log "AWX admin password retrieved successfully"
 
-# Configure IPTABLES rules (append to existing rules)
-log "Configuring IPTABLES rules for AWX and Kubernetes"
-sudo iptables -A INPUT -p tcp --dport "$AWX_PORT" -j ACCEPT -m comment --comment "AWX access port" | sudo tee -a "$LOG_FILE"
-sudo iptables -A INPUT -p tcp --dport "$KUBERNETES_PORT" -j ACCEPT -m comment --comment "Minikube Kubernetes API" | sudo tee -a "$LOG_FILE"
-sudo iptables -A INPUT -i docker0 -j ACCEPT -m comment --comment "Docker interface" | sudo tee -a "$LOG_FILE"
-check_status "Configuring IPTABLES rules"
+# Display AWX access details
+echo "AWX Installation Complete!"
+echo "Access the AWX web interface at: http://$MINIKUBE_IP:$NODE_PORT"
+echo "Username: admin"
+echo "Password: $ADMIN_PASSWORD"
+log "AWX access details: http://$MINIKUBE_IP:$NODE_PORT, Username: admin, Password: [redacted]"
 
-# Save IPTABLES rules
-log "Saving IPTABLES rules"
-sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
-check_status "Saving IPTABLES rules"
+# Run diagnostic tests
+log "Running diagnostic tests"
+echo "=============================================================" >> "$DIAG_FILE"
+echo "Diagnostic Test Results" >> "$DIAG_FILE"
+echo "=============================================================" >> "$DIAG_FILE"
+run_test "Check AWX Operator pods" "kubectl get pods -n $AWX_NAMESPACE -l 'app.kubernetes.io/managed-by=awx-operator'"
+run_test "Check AWX service" "kubectl get svc awx-demo-service -n $AWX_NAMESPACE"
+run_test "Check AWX web interface" "curl -k -s -o /dev/null -w '%{http_code}' http://$MINIKUBE_IP:$NODE_PORT"
 
-# Instructions for Portainer integration
-log "Preparing kubeconfig for Portainer integration"
-log "To manage AWX in Portainer:"
-log "1. Access Portainer UI (e.g., http://$SERVER_IP:9000)"
-log "2. Go to 'Environments' > 'Add Environment' > 'Kubernetes' (if not already added)"
-log "3. Upload or copy the kubeconfig from $HOME/.kube/config (created by Minikube)"
-log "4. Navigate to the 'ansible-awx' namespace to manage AWX resources"
-log "5. Save and connect to manage the cluster"
+# Display diagnostic summary
+log "Displaying diagnostic summary"
+echo "============================================================="
+echo "Diagnostic Test Summary"
+echo "============================================================="
+cat "$DIAG_FILE"
+echo "============================================================="
+rm -f "$DIAG_FILE"
 
-# Display access instructions
-SERVER_IP=$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d'/' -f1 | head -n 1)
-log "AWX installation completed successfully!"
-log "Access AWX at: http://$SERVER_IP:$AWX_PORT"
-log "Username: admin"
-log "Password: $AWX_PASSWORD"
-log "Verify cluster status with: kubectl cluster-info"
-log "Check AWX pods with: kubectl get pods -n $AWX_NAMESPACE"
-log "Log file: $LOG_FILE"
-
-# Ensure log file is readable
-sudo chmod 664 "$LOG_FILE"
+log "AWX installation completed successfully"
