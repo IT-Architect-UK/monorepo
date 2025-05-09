@@ -7,7 +7,7 @@
 # Configures dashboard admin access via cluster role binding
 # Ensures configurations persist after reboot
 # Adds IPTABLES rules for dashboard and Kubernetes API with input acceptance
-# Includes diagnostic tests for Kubernetes, dashboard, container status, and iptables
+# Includes diagnostic tests for Kubernetes, dashboard, container status, iptables, and pod logs
 # Uses variables for server names and IPs to enhance security
 
 # Prompt for sudo password at the start
@@ -232,6 +232,9 @@ for i in {1..3}; do
     sleep 2
 done
 check_status "Exposing dashboard as NodePort"
+# Log dashboard service details
+log "Dashboard service details"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o yaml" >> "$LOG_FILE"
 
 # Enable Metrics Server
 log "Enabling Metrics Server"
@@ -245,9 +248,12 @@ check_status "Configuring dashboard admin access"
 
 # Configure IPTables for Kubernetes API and dashboard
 log "Configuring IPTables rules"
-# Filter table: Allow input for dashboard port
+# Filter table: Allow input for dashboard port on host and Minikube IP
 if ! sudo iptables -C INPUT -p tcp -d "$KUBE_SERVER_IP" --dport "$DASHBOARD_PORT" -j ACCEPT 2>/dev/null; then
     sudo iptables -A INPUT -p tcp -d "$KUBE_SERVER_IP" --dport "$DASHBOARD_PORT" -j ACCEPT
+fi
+if ! sudo iptables -C INPUT -p tcp -d "$MINIKUBE_IP" --dport "$DASHBOARD_PORT" -j ACCEPT 2>/dev/null; then
+    sudo iptables -A INPUT -p tcp -d "$MINIKUBE_IP" --dport "$DASHBOARD_PORT" -j ACCEPT
 fi
 # NAT table: Kubernetes API rules
 if ! sudo iptables -t nat -C OUTPUT -p tcp -s "$KUBE_SERVER_IP" -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
@@ -353,7 +359,10 @@ run_test "Check kubectl client version" "kubectl version --client"
 run_test "Check Kubernetes nodes" "kubectl get nodes"
 run_test "Check Minikube container status" "docker ps --filter 'name=minikube' --format '{{.Names}} {{.Status}}'"
 run_test "Check Dashboard pods" "kubectl get pods -n kubernetes-dashboard"
+run_test "Check Dashboard pod logs" "kubectl -n kubernetes-dashboard logs -l k8s-app=kubernetes-dashboard --tail=10"
 run_test "Check Dashboard service" "kubectl get svc -n kubernetes-dashboard"
+run_test "Check Minikube network configuration" "minikube ip && ip addr show br-72e9b38b8ba1"
+run_test "Check Dashboard connectivity (Minikube IP)" "curl -k http://$MINIKUBE_IP:$DASHBOARD_PORT"
 run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k https://$MINIKUBE_IP:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local server IP)" "curl -k https://$KUBE_SERVER_IP:$KUBERNETES_PORT"
