@@ -2,11 +2,10 @@
 
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
 # Uses Docker as the container runtime (assumes Docker is pre-installed)
-# Uses Minikube's default network setup
-# Prepares environment for Portainer Agent (installed separately)
-# Configures kubeconfig and systemd auto-start
-# Adds IPTABLES rules without clearing existing ones to ensure connectivity for local and external IPs
-# Includes diagnostic tests for Kubernetes setup with explicit command logging
+# Configures Minikube dashboard for remote access on a headless server
+# Ensures configurations persist after reboot
+# Adds IPTABLES rules for dashboard without clearing existing ones
+# Includes diagnostic tests for Kubernetes and dashboard setup
 # Uses variables for server names and IPs to enhance security
 
 # Prompt for sudo password at the start
@@ -32,9 +31,11 @@ MIN_MEMORY_MB=4096
 MIN_CPUS=2
 MIN_DISK_GB=20
 TEMP_DIR="/tmp"
-SYSTEMD_SERVICE_FILE="/etc/systemd/system/minikube.service"
+SYSTEMD_MINIKUBE_SERVICE="/etc/systemd/system/minikube.service"
+SYSTEMD_DASHBOARD_SERVICE="/etc/systemd/system/minikube-dashboard.service"
 PORTAINER_K8S_NODEPORT=30778
 KUBERNETES_PORT=8443
+DASHBOARD_PORT=30000  # NodePort range (30000-32767)
 KUBECONFIG="/home/$ORIGINAL_USER/.kube/config"
 KUBE_SERVER="$(hostname -f)"
 KUBE_SERVER_IP="$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d'/' -f1 | head -n 1)"
@@ -152,9 +153,9 @@ log "Minikube installed successfully"
 log "Cleaning up existing Minikube instance"
 sudo -H -u "$ORIGINAL_USER" bash -c "minikube delete || true"
 
-# Start Minikube as the original user with default network
+# Start Minikube as the original user with default network and --force
 log "Starting Minikube with default network"
-sudo -H -u "$ORIGINAL_USER" HOME="/home/$ORIGINAL_USER" SHELL="/bin/bash" bash -c "minikube start --driver=docker --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\""
+sudo -H -u "$ORIGINAL_USER" HOME="/home/$ORIGINAL_USER" SHELL="/bin/bash" bash -c "minikube start --driver=docker --force --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\""
 check_status "Starting Minikube"
 
 # Capture Minikube IP
@@ -176,35 +177,67 @@ log "Verifying Kubernetes API server"
 sudo -H -u "$ORIGINAL_USER" bash -c "kubectl cluster-info"
 check_status "Verifying Kubernetes API server"
 
-# Configure IPTables for Kubernetes API without clearing existing rules
+# Enable Minikube dashboard
+log "Enabling Minikube dashboard"
+sudo -H -u "$ORIGINAL_USER" bash -c "minikube dashboard --url >/tmp/minikube_dashboard_url.txt &"
+sleep 5  # Wait for dashboard to start
+DASHBOARD_URL=$(cat /tmp/minikube_dashboard_url.txt)
+if [ -z "$DASHBOARD_URL" ]; then
+    log "ERROR: Could not retrieve dashboard URL"
+    exit 1
+fi
+log "Dashboard URL: $DASHBOARD_URL"
+DASHBOARD_LOCAL_PORT=$(echo "$DASHBOARD_URL" | grep -oP '127.0.0.1:\K\d+')
+if [ -z "$DASHBOARD_LOCAL_PORT" ]; then
+    log "ERROR: Could not parse dashboard port"
+    exit 1
+fi
+log "Dashboard local port: $DASHBOARD_LOCAL_PORT"
+
+# Expose dashboard as NodePort
+log "Exposing dashboard as NodePort"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl -n kubernetes-dashboard patch svc kubernetes-dashboard -p '{\"spec\":{\"type\":\"NodePort\",\"ports\":[{\"port\":80,\"nodePort\":$DASHBOARD_PORT}]}}'"
+check_status "Exposing dashboard as NodePort"
+
+# Configure IPTables for Kubernetes API and dashboard
 log "Configuring IPTables rules"
-# Add DNAT rule in OUTPUT for local server IP traffic
+# Kubernetes API rules
 if ! sudo iptables -t nat -C OUTPUT -p tcp -s "$KUBE_SERVER_IP" -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
     sudo iptables -t nat -A OUTPUT -p tcp -s "$KUBE_SERVER_IP" -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
 fi
-# Add NAT rules for local FQDN (127.0.1.1) and external access
 if ! sudo iptables -t nat -C PREROUTING -p tcp -d 127.0.1.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
     sudo iptables -t nat -A PREROUTING -p tcp -d 127.0.1.1 --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
 fi
 if ! sudo iptables -t nat -C PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT" 2>/dev/null; then
-    sudo iptables -t nat -A PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
+    sudo iptables -t nat -A PREROUTING -p tcp -d "$[${KUBE_SERVER_IP}" --dport "$KUBERNETES_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$KUBERNETES_PORT"
 fi
-# Add POSTROUTING rule for masquerading
 if ! sudo iptables -t nat -C POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$KUBERNETES_PORT" -j MASQUERADE 2>/dev/null; then
     sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$KUBERNETES_PORT" -j MASQUERADE
 fi
-# Log IPTables rules for debugging
-sudo iptables -L -v -n | sudo tee -a "$LOG_FILE"
-sudo iptables -t nat -L -v -n | sudo tee -a "$LOG_FILE"
+# Dashboard rules
+if ! sudo iptables -t nat -C PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$DASHBOARD_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$DASHBOARD_PORT" 2>/dev/null; then
+    sudo iptables -t nat -A PREROUTING -p tcp -d "$KUBE_SERVER_IP" --dport "$DASHBOARD_PORT" -j DNAT --to-destination "$MINIKUBE_IP:$DASHBOARD_PORT"
+fi
+if ! sudo iptables -t nat -C POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$DASHBOARD_PORT" -j MASQUERADE 2>/dev/null; then
+    sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$DASHBOARD_PORT" -j MASQUERADE
+fi
+# Save iptables rules
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 >/dev/null
 check_status "Configuring IPTables rules"
+# Ensure iptables-persistent is installed for persistence
+if ! dpkg -l | grep -q iptables-persistent; then
+    log "Installing iptables-persistent"
+    sudo apt update
+    sudo apt install -y iptables-persistent
+    check_status "Installing iptables-persistent"
+fi
 
 # Configure systemd service for Minikube
 log "Configuring systemd service for Minikube"
-if [ -f "$SYSTEMD_SERVICE_FILE" ]; then
-    log "Systemd service already configured"
+if [ -f "$SYSTEMD_MINIKUBE_SERVICE" ]; then
+    log "Minikube systemd service already configured"
 else
-    sudo bash -c "cat << EOF > $SYSTEMD_SERVICE_FILE
+    sudo bash -c "cat << EOF > $SYSTEMD_MINIKUBE_SERVICE
 [Unit]
 Description=Minikube Kubernetes Cluster
 After=network.target docker.service
@@ -213,7 +246,7 @@ Requires=docker.service
 [Service]
 User=$ORIGINAL_USER
 Group=docker
-ExecStart=/usr/local/bin/minikube start --driver=docker --apiserver-ips=$KUBE_SERVER_IP --apiserver-port=$KUBERNETES_PORT --memory=$MIN_MEMORY_MB --cpus=$MIN_CPUS --disk-size=${MIN_DISK_GB}g
+ExecStart=/usr/local/bin/minikube start --driver=docker --force --apiserver-ips=$KUBE_SERVER_IP --apiserver-port=$KUBERNETES_PORT --memory=$MIN_MEMORY_MB --cpus=$MIN_CPUS --disk-size=${MIN_DISK_GB}g
 ExecStop=/usr/local/bin/minikube stop
 Restart=on-failure
 RestartSec=10
@@ -224,7 +257,36 @@ WantedBy=multi-user.target
 EOF"
     sudo systemctl daemon-reload
     sudo systemctl enable minikube.service
-    check_status "Configuring systemd service"
+    check_status "Configuring Minikube systemd service"
+fi
+
+# Configure systemd service for Minikube dashboard
+log "Configuring systemd service for Minikube dashboard"
+if [ -f "$SYSTEMD_DASHBOARD_SERVICE" ]; then
+    log "Dashboard systemd service already configured"
+else
+    sudo bash -c "cat << EOF > $SYSTEMD_DASHBOARD_SERVICE
+[Unit]
+Description=Minikube Dashboard Proxy
+After=network.target minikube.service
+Requires=minikube.service
+
+[Service]
+User=$ORIGINAL_USER
+Group=docker
+ExecStart=/usr/local/bin/minikube dashboard
+ExecStop=/bin/kill -TERM \$MAINPID
+Restart=on-failure
+RestartSec=10
+Environment=\"HOME=/home/$ORIGINAL_USER\"
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+    sudo systemctl daemon-reload
+    sudo systemctl enable minikube-dashboard.service
+    sudo systemctl start minikube-dashboard.service
+    check_status "Configuring Dashboard systemd service"
 fi
 
 # Run diagnostic tests
@@ -238,6 +300,7 @@ run_test "Check Kubernetes nodes" "kubectl get nodes"
 run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k https://$MINIKUBE_IP:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local server IP)" "curl -k https://$KUBE_SERVER_IP:$KUBERNETES_PORT"
+run_test "Check Dashboard connectivity (NodePort)" "curl -k http://$KUBE_SERVER_IP:$DASHBOARD_PORT"
 
 # Display diagnostic summary
 log "Displaying diagnostic summary"
@@ -248,4 +311,5 @@ cat "$DIAG_FILE"
 echo "============================================================="
 rm -f "$DIAG_FILE"
 
-log "Minikube and kubectl installation completed successfully"
+log "Minikube, kubectl, and dashboard installation completed successfully"
+echo "Access the dashboard at: http://$KUBE_SERVER_IP:$DASHBOARD_PORT"
