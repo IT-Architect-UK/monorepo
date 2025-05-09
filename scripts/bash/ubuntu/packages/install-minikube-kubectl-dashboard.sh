@@ -7,7 +7,7 @@
 # Configures dashboard admin access via cluster role binding
 # Ensures configurations persist after reboot
 # Adds IPTABLES rules for dashboard and Kubernetes API with input acceptance
-# Includes diagnostic tests for Kubernetes, dashboard, container status, iptables, and pod logs
+# Includes diagnostic tests for Kubernetes, dashboard, container status, iptables, pod logs, and kubeconfig
 # Uses variables for server names and IPs to enhance security
 
 # Prompt for sudo password at the start
@@ -30,7 +30,7 @@ echo "Detected non-root user: $ORIGINAL_USER"
 LOG_FILE="/var/log/minikube_install_$(date +%Y%m%d_%H%M%S).log"
 DIAG_FILE="/tmp/minikube_diag_$(date +%Y%m%d_%H%M%S).txt"
 MIN_MEMORY_MB=6144  # 6GB for stability
-MIN_CPUS=2
+MIN_CPUS=4         # Increased to 4 CPUs
 MIN_DISK_GB=20
 TEMP_DIR="/tmp"
 SYSTEMD_MINIKUBE_SERVICE="/etc/systemd/system/minikube.service"
@@ -137,6 +137,19 @@ log "Verifying Docker service"
 sudo systemctl status docker >/dev/null 2>&1
 check_status "Docker service verification"
 
+# Check Docker bridge network
+log "Checking Docker bridge network"
+BRIDGE="br-72e9b38b8ba1"
+if ! ip link show "$BRIDGE" >/dev/null 2>&1; then
+    log "WARNING: Docker bridge $BRIDGE not found, using default docker0"
+    BRIDGE="docker0"
+    if ! ip link show "$BRIDGE" >/dev/null 2>&1; then
+        log "ERROR: Default docker0 bridge not found"
+        exit 1
+    fi
+fi
+log "Using Docker bridge: $BRIDGE"
+
 # Install kubectl
 TEMP_DIR=$(mktemp -d)
 log "Installing kubectl"
@@ -165,6 +178,22 @@ log "Starting Minikube with default network"
 sudo -H -u "$ORIGINAL_USER" HOME="/home/$ORIGINAL_USER" SHELL="/bin/bash" bash -c "minikube start --driver=docker --force --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\" 2>>$LOG_FILE"
 check_status "Starting Minikube"
 
+# Verify Minikube container is running
+log "Verifying Minikube container"
+for i in {1..10}; do
+    if sudo -H -u "$ORIGINAL_USER" bash -c "docker ps --filter 'name=minikube' --format '{{.Names}}' | grep -q minikube"; then
+        log "Minikube container is running"
+        break
+    fi
+    log "Minikube container not running, retrying (attempt $i)"
+    sudo systemctl restart minikube.service
+    sleep 5
+done
+if ! sudo -H -u "$ORIGINAL_USER" bash -c "docker ps --filter 'name=minikube' --format '{{.Names}}' | grep -q minikube"; then
+    log "ERROR: Minikube container failed to start"
+    exit 1
+fi
+
 # Capture Minikube IP
 log "Capturing Minikube IP"
 MINIKUBE_IP=$(sudo -H -u "$ORIGINAL_USER" bash -c "minikube ip")
@@ -176,12 +205,13 @@ log "Minikube IP: $MINIKUBE_IP"
 
 # Configure kubeconfig as the original user
 log "Configuring kubeconfig"
-sudo -H -u "$ORIGINAL_USER" bash -c "minikube update-context"
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config use-context minikube"
+sudo -H -u "$ORIGINAL_USER" bash -c "minikube update-context 2>>$LOG_FILE"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config use-context minikube 2>>$LOG_FILE"
+check_status "Configuring kubeconfig"
 
 # Verify API server connectivity
 log "Verifying Kubernetes API server"
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl cluster-info"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl cluster-info 2>>$LOG_FILE"
 check_status "Verifying Kubernetes API server"
 
 # Enable Minikube dashboard
@@ -235,6 +265,17 @@ check_status "Exposing dashboard as NodePort"
 # Log dashboard service details
 log "Dashboard service details"
 sudo -H -u "$ORIGINAL_USER" bash -c "kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o yaml" >> "$LOG_FILE"
+
+# Fallback: Expose dashboard via minikube service
+log "Exposing dashboard via minikube service as fallback"
+sudo -H -u "$ORIGINAL_USER" bash -c "minikube service kubernetes-dashboard -n kubernetes-dashboard --url > /tmp/minikube_service_url.txt 2>>$LOG_FILE &"
+sleep 5
+SERVICE_URL=$(cat /tmp/minikube_service_url.txt)
+if [ -n "$SERVICE_URL" ]; then
+    log "Dashboard service URL: $SERVICE_URL"
+else
+    log "WARNING: Could not retrieve dashboard service URL"
+fi
 
 # Enable Metrics Server
 log "Enabling Metrics Server"
@@ -358,10 +399,13 @@ run_test "Check Minikube status" "minikube status"
 run_test "Check kubectl client version" "kubectl version --client"
 run_test "Check Kubernetes nodes" "kubectl get nodes"
 run_test "Check Minikube container status" "docker ps --filter 'name=minikube' --format '{{.Names}} {{.Status}}'"
+run_test "Check Docker events" "docker events --filter 'container=minikube' --since '5m' --until '0s'"
 run_test "Check Dashboard pods" "kubectl get pods -n kubernetes-dashboard"
 run_test "Check Dashboard pod logs" "kubectl -n kubernetes-dashboard logs -l k8s-app=kubernetes-dashboard --tail=10"
 run_test "Check Dashboard service" "kubectl get svc -n kubernetes-dashboard"
-run_test "Check Minikube network configuration" "minikube ip && ip addr show br-72e9b38b8ba1"
+run_test "Check Dashboard cluster IP" "kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}:{.spec.ports[0].port}' && curl -k http://\$(kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}'):80"
+run_test "Check Minikube network configuration" "minikube ip && ip addr show $BRIDGE"
+run_test "Check kubeconfig" "kubectl config view --minify"
 run_test "Check Dashboard connectivity (Minikube IP)" "curl -k http://$MINIKUBE_IP:$DASHBOARD_PORT"
 run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k https://$MINIKUBE_IP:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
@@ -379,3 +423,6 @@ rm -f "$DIAG_FILE"
 
 log "Minikube, kubectl, and dashboard installation completed successfully"
 echo "Access the dashboard at: http://$KUBE_SERVER_IP:$DASHBOARD_PORT"
+if [ -n "$SERVICE_URL" ]; then
+    echo "Fallback dashboard URL: $SERVICE_URL"
+fi
