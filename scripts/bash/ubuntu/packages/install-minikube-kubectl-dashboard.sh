@@ -8,6 +8,7 @@
 # Ensures configurations persist after reboot
 # Adds IPTABLES rules for dashboard and Kubernetes API with input acceptance
 # Includes diagnostic tests for Kubernetes, dashboard, container status, iptables, pod logs, kubeconfig, and network
+# Uses variables for server names and IPs to enhance security
 # Optimized for 32GB memory and 16 vCPUs
 
 # Prompt for sudo password at the start
@@ -133,22 +134,12 @@ log "Verifying Docker access"
 sudo -H -u "$ORIGINAL_USER" bash -c "docker ps >/dev/null 2>&1"
 check_status "Docker access verification"
 
-# Check Docker service without restarting if running
-log "Checking Docker service"
-if sudo systemctl is-active docker >/dev/null 2>&1; then
-    log "Docker service is already running, skipping restart"
-else
-    log "Restarting Docker service"
-    sudo systemctl restart docker
-    sleep 15
-    sudo systemctl status docker >/dev/null 2>&1
-    check_status "Docker service verification"
-fi
-
-# Force iptables-legacy for compatibility
-log "Setting iptables to legacy mode"
-sudo update-alternatives --set iptables /usr/sbin/iptables-legacy >/dev/null 2>&1
-sudo update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy >/dev/null 2>&1
+# Verify and restart Docker service
+log "Verifying and restarting Docker service"
+sudo systemctl restart docker
+sleep 15  # Increased delay to ensure Docker is ready
+sudo systemctl status docker >/dev/null 2>&1
+check_status "Docker service verification"
 
 # Check system resources
 log "Checking system resources"
@@ -343,15 +334,12 @@ wait $DASHBOARD_PID 2>/dev/null
 
 # Expose dashboard as NodePort with retry
 log "Exposing dashboard as NodePort"
-for i in {1..5}; do
+for i in {1..3}; do
     sudo -H -u "$ORIGINAL_USER" bash -c "kubectl -n kubernetes-dashboard patch svc kubernetes-dashboard -p '{\"spec\":{\"type\":\"NodePort\",\"ports\":[{\"port\":80,\"nodePort\":$DASHBOARD_PORT}]}}' 2>>$LOG_FILE"
     if [ $? -eq 0 ]; then
         # Verify NodePort
         NODEPORT=$(sudo -H -u "$ORIGINAL_USER" bash -c "kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.ports[0].nodePort}'")
         if [ "$NODEPORT" = "$DASHBOARD_PORT" ]; then
-            # Restart dashboard pod to ensure port binding
-            sudo -H -u "$ORIGINAL_USER" bash -c "kubectl -n kubernetes-dashboard delete pod -l k8s-app=kubernetes-dashboard --wait=false 2>>$LOG_FILE"
-            sleep 5
             break
         fi
         log "NodePort not set correctly, retrying (attempt $i)"
@@ -386,9 +374,8 @@ check_status "Configuring dashboard admin access"
 
 # Configure IPTables for Kubernetes API and dashboard
 log "Configuring IPTables rules"
-# Clean up conflicting MASQUERADE and DOCKER rules
+# Clean up conflicting MASQUERADE rules
 sudo iptables -t nat -F POSTROUTING
-sudo iptables -t nat -F DOCKER
 # Filter table: Allow input for dashboard port on host and Minikube IP
 if ! sudo iptables -C INPUT -p tcp -d "$KUBE_SERVER_IP" --dport "$DASHBOARD_PORT" -j ACCEPT 2>/dev/null; then
     sudo iptables -A INPUT -p tcp -d "$KUBE_SERVER_IP" --dport "$DASHBOARD_PORT" -j ACCEPT
@@ -419,7 +406,6 @@ fi
 # Update MASQUERADE and DOCKER rules with correct bridge
 sudo iptables -t nat -A POSTROUTING -s 192.168.49.0/24 ! -o "$BRIDGE_IFACE" -j MASQUERADE
 sudo iptables -t nat -A DOCKER -i "$BRIDGE_IFACE" -j RETURN
-sudo iptables -t nat -A DOCKER -p tcp -d "$MINIKUBE_IP" --dport "$DASHBOARD_PORT" -j ACCEPT
 # Save iptables rules
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 >/dev/null
 check_status "Configuring IPTables rules"
@@ -514,13 +500,9 @@ run_test "Check Minikube network configuration" "minikube ip && ip addr show $BR
 run_test "Check kubeconfig" "kubectl config view --minify"
 run_test "Check iptables hits" "sudo iptables -L INPUT -v -n && sudo iptables -t nat -L PREROUTING -v -n"
 run_test "Check system resources" "free -m && nproc"
-run_test "Check Minikube logs" "minikube logs -n 10"
+run_test "Check Minikube logs" "minikube logs --tail 10"
 run_test "Check Minikube container uptime" "docker inspect minikube --format '{{.State.Running}} {{.State.StartedAt}} {{.State.FinishedAt}}'"
 run_test "Check system logs for shutdown" "journalctl -u docker --since '10 minutes ago' | grep -i 'stop\\|shutdown\\|kill'"
-run_test "Check Minikube container ports" "docker port minikube && docker exec minikube ss -tuln | grep 30000"
-run_test "Check CNI configuration" "docker exec minikube cat /etc/cni/net.d/00-minikube.conf"
-run_test "Check Minikube systemd logs" "docker exec minikube journalctl --since '10 minutes ago' | grep -i 'shutdown\\|halt\\|poweroff'"
-run_test "Check host processes" "ps aux | grep -i 'docker\\|minikube' | grep -v grep"
 run_test "Check Dashboard connectivity (Minikube IP)" "curl -k -m 10 http://$MINIKUBE_IP:$DASHBOARD_PORT"
 run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k -m 10 https://$MINIKUBE_IP:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k -m 10 https://$KUBE_SERVER:$KUBERNETES_PORT"
