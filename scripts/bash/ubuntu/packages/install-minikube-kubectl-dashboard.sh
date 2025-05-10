@@ -7,7 +7,7 @@
 # Configures dashboard admin access via cluster role binding
 # Ensures configurations persist after reboot
 # Adds IPTABLES rules for dashboard and Kubernetes API with input acceptance
-# Includes diagnostic tests for Kubernetes, dashboard, container status, iptables, pod logs, and kubeconfig
+# Includes diagnostic tests for Kubernetes, dashboard, container status, iptables, pod logs, kubeconfig, and network
 # Uses variables for server names and IPs to enhance security
 
 # Prompt for sudo password at the start
@@ -29,8 +29,8 @@ echo "Detected non-root user: $ORIGINAL_USER"
 # Define variables
 LOG_FILE="/var/log/minikube_install_$(date +%Y%m%d_%H%M%S).log"
 DIAG_FILE="/tmp/minikube_diag_$(date +%Y%m%d_%H%M%S).txt"
-MIN_MEMORY_MB=6144  # 6GB for stability
-MIN_CPUS=4         # Increased to 4 CPUs
+MIN_MEMORY_MB=10240  # Increased to 10GB for stability
+MIN_CPUS=4          # 4 CPUs for stability
 MIN_DISK_GB=20
 TEMP_DIR="/tmp"
 SYSTEMD_MINIKUBE_SERVICE="/etc/systemd/system/minikube.service"
@@ -39,6 +39,7 @@ PORTAINER_K8S_NODEPORT=30778
 KUBERNETES_PORT=8443
 DASHBOARD_PORT=30000  # NodePort range (30000-32767)
 KUBECONFIG="/home/$ORIGINAL_USER/.kube/config"
+KUBECONFIG_BACKUP="/home/$ORIGINAL_USER/.kube/config.bak"
 KUBE_SERVER="$(hostname -f)"
 KUBE_SERVER_IP="$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d'/' -f1 | head -n 1)"
 export LOG_FILE
@@ -132,21 +133,32 @@ log "Verifying Docker access"
 sudo -H -u "$ORIGINAL_USER" bash -c "docker ps >/dev/null 2>&1"
 check_status "Docker access verification"
 
-# Verify Docker service
-log "Verifying Docker service"
+# Verify and restart Docker service
+log "Verifying and restarting Docker service"
+sudo systemctl restart docker
+sleep 10  # Increased delay to ensure Docker is ready
 sudo systemctl status docker >/dev/null 2>&1
 check_status "Docker service verification"
 
+# Check system resources
+log "Checking system resources"
+free -m >> "$LOG_FILE"
+nproc >> "$LOG_FILE"
+
 # Check Docker bridge network
 log "Checking Docker bridge network"
-BRIDGE="br-72e9b38b8ba1"
+BRIDGE=$(sudo -H -u "$ORIGINAL_USER" bash -c "docker network ls --filter 'name=minikube' --format '{{.Name}}'")
+if [ -z "$BRIDGE" ]; then
+    log "Creating Minikube bridge network"
+    sudo -H -u "$ORIGINAL_USER" bash -c "docker network create minikube"
+    check_status "Creating Minikube bridge network"
+    BRIDGE="minikube"
+else
+    log "Using existing Docker bridge: $BRIDGE"
+fi
 if ! ip link show "$BRIDGE" >/dev/null 2>&1; then
-    log "WARNING: Docker bridge $BRIDGE not found, using default docker0"
-    BRIDGE="docker0"
-    if ! ip link show "$BRIDGE" >/dev/null 2>&1; then
-        log "ERROR: Default docker0 bridge not found"
-        exit 1
-    fi
+    log "ERROR: Docker bridge $BRIDGE not found at IP level"
+    exit 1
 fi
 log "Using Docker bridge: $BRIDGE"
 
@@ -175,24 +187,30 @@ sudo -H -u "$ORIGINAL_USER" bash -c "minikube delete || true"
 
 # Start Minikube as the original user with default network and --force
 log "Starting Minikube with default network"
-sudo -H -u "$ORIGINAL_USER" HOME="/home/$ORIGINAL_USER" SHELL="/bin/bash" bash -c "minikube start --driver=docker --force --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\" 2>>$LOG_FILE"
+sudo -H -u "$ORIGINAL_USER" HOME="/home/$ORIGINAL_USER" SHELL="/bin/bash" bash -c "minikube start --driver=docker --force --apiserver-ips=\"$KUBE_SERVER_IP\" --apiserver-port=\"$KUBERNETES_PORT\" --memory=\"$MIN_MEMORY_MB\" --cpus=\"$MIN_CPUS\" --disk-size=\"${MIN_DISK_GB}g\" --network=$BRIDGE >$TEMP_DIR/minikube_start.log 2>&1"
 check_status "Starting Minikube"
+cat "$TEMP_DIR/minikube_start.log" >> "$LOG_FILE"
 
 # Verify Minikube container is running
 log "Verifying Minikube container"
-for i in {1..10}; do
+for i in {1..15}; do
     if sudo -H -u "$ORIGINAL_USER" bash -c "docker ps --filter 'name=minikube' --format '{{.Names}}' | grep -q minikube"; then
         log "Minikube container is running"
         break
     fi
     log "Minikube container not running, retrying (attempt $i)"
     sudo systemctl restart minikube.service
-    sleep 5
+    sleep 10
 done
 if ! sudo -H -u "$ORIGINAL_USER" bash -c "docker ps --filter 'name=minikube' --format '{{.Names}}' | grep -q minikube"; then
     log "ERROR: Minikube container failed to start"
+    log "Docker container logs:"
+    sudo -H -u "$ORIGINAL_USER" bash -c "docker logs minikube" >> "$LOG_FILE" 2>&1
     exit 1
 fi
+# Log Docker system info
+log "Docker system info"
+sudo -H -u "$ORIGINAL_USER" bash -c "docker info" >> "$LOG_FILE"
 
 # Capture Minikube IP
 log "Capturing Minikube IP"
@@ -205,9 +223,23 @@ log "Minikube IP: $MINIKUBE_IP"
 
 # Configure kubeconfig as the original user
 log "Configuring kubeconfig"
+# Backup existing kubeconfig
+if [ -f "$KUBECONFIG" ]; then
+    sudo cp "$KUBECONFIG" "$KUBECONFIG_BACKUP"
+    log "Backed up kubeconfig to $KUBECONFIG_BACKUP"
+fi
 sudo -H -u "$ORIGINAL_USER" bash -c "minikube update-context 2>>$LOG_FILE"
 sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config use-context minikube 2>>$LOG_FILE"
-check_status "Configuring kubeconfig"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config set-cluster minikube --server=https://$MINIKUBE_IP:$KUBERNETES_PORT 2>>$LOG_FILE"
+# Verify kubeconfig
+if ! sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config view --minify | grep -q 'server: https://$MINIKUBE_IP:$KUBERNETES_PORT'"; then
+    log "ERROR: kubeconfig not correctly configured, retrying"
+    sudo -H -u "$ORIGINAL_USER" bash -c "minikube update-context 2>>$LOG_FILE"
+    sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config use-context minikube 2>>$LOG_FILE"
+    sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config set-cluster minikube --server=https://$MINIKUBE_IP:$KUBERNETES_PORT 2>>$LOG_FILE"
+    check_status "Configuring kubeconfig"
+fi
+log "kubeconfig configured successfully"
 
 # Verify API server connectivity
 log "Verifying Kubernetes API server"
@@ -346,7 +378,7 @@ Requires=docker.service
 [Service]
 User=$ORIGINAL_USER
 Group=docker
-ExecStart=/usr/local/bin/minikube start --driver=docker --force --apiserver-ips=$KUBE_SERVER_IP --apiserver-port=$KUBERNETES_PORT --memory=$MIN_MEMORY_MB --cpus=$MIN_CPUS --disk-size=${MIN_DISK_GB}g
+ExecStart=/usr/local/bin/minikube start --driver=docker --force --apiserver-ips=$KUBE_SERVER_IP --apiserver-port=$KUBERNETES_PORT --memory=$MIN_MEMORY_MB --cpus=$MIN_CPUS --disk-size=${MIN_DISK_GB}g --network=$BRIDGE
 ExecStop=/usr/local/bin/minikube stop
 Restart=on-failure
 RestartSec=10
@@ -396,6 +428,7 @@ echo "=============================================================" >> "$DIAG_F
 echo "Diagnostic Test Results" >> "$DIAG_FILE"
 echo "=============================================================" >> "$DIAG_FILE"
 run_test "Check Minikube status" "minikube status"
+run_test "Check Minikube service status" "systemctl status minikube.service"
 run_test "Check kubectl client version" "kubectl version --client"
 run_test "Check Kubernetes nodes" "kubectl get nodes"
 run_test "Check Minikube container status" "docker ps --filter 'name=minikube' --format '{{.Names}} {{.Status}}'"
@@ -406,6 +439,9 @@ run_test "Check Dashboard service" "kubectl get svc -n kubernetes-dashboard"
 run_test "Check Dashboard cluster IP" "kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}:{.spec.ports[0].port}' && curl -k http://\$(kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}'):80"
 run_test "Check Minikube network configuration" "minikube ip && ip addr show $BRIDGE"
 run_test "Check kubeconfig" "kubectl config view --minify"
+run_test "Check iptables hits" "iptables -L INPUT -v -n && iptables -t nat -L PREROUTING -v -n"
+run_test "Check system resources" "free -m && nproc"
+run_test "Check Minikube logs" "minikube logs --last 10"
 run_test "Check Dashboard connectivity (Minikube IP)" "curl -k http://$MINIKUBE_IP:$DASHBOARD_PORT"
 run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k https://$MINIKUBE_IP:$KUBERNETES_PORT"
 run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
