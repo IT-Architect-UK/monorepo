@@ -100,7 +100,7 @@ chmod 644 "$DIAG_FILE"
 # Detect server details
 log "Detecting local server details"
 if [ -z "$KUBE_SERVER_IP" ]; then
-    log "ERROR: Cannot determine server IP"
+    log "ERROR: Could not determine server IP"
     exit 1
 fi
 log "Using $KUBE_SERVER for Kubernetes API"
@@ -136,7 +136,7 @@ check_status "Docker access verification"
 # Verify and restart Docker service
 log "Verifying and restarting Docker service"
 sudo systemctl restart docker
-sleep 10  # Increased delay to ensure Docker is ready
+sleep 15  # Increased delay to ensure Docker is ready
 sudo systemctl status docker >/dev/null 2>&1
 check_status "Docker service verification"
 
@@ -144,6 +144,7 @@ check_status "Docker service verification"
 log "Checking system resources"
 free -m >> "$LOG_FILE"
 nproc >> "$LOG_FILE"
+docker info --format '{{.MemTotal}} {{.NCPU}}' >> "$LOG_FILE"
 
 # Check Docker bridge network
 log "Checking Docker bridge network"
@@ -221,6 +222,40 @@ if ! sudo -H -u "$ORIGINAL_USER" bash -c "docker ps --filter 'name=minikube' --f
     sudo -H -u "$ORIGINAL_USER" bash -c "docker logs minikube" >> "$LOG_FILE" 2>&1
     exit 1
 fi
+# Monitor container health for 120 seconds
+log "Monitoring Minikube container health for 120 seconds"
+for i in {1..24}; do
+    if sudo -H -u "$ORIGINAL_USER" bash -c "docker ps --filter 'name=minikube' --filter 'status=running' --format '{{.Names}}' | grep -q minikube"; then
+        log "Minikube container still running (check $i)"
+        free -m >> "$LOG_FILE"
+        docker info --format '{{.MemTotal}} {{.NCPU}}' >> "$LOG_FILE"
+    else
+        log "ERROR: Minikube container stopped during health check"
+        log "Docker container logs:"
+        sudo -H -u "$ORIGINAL_USER" bash -c "docker logs minikube" >> "$LOG_FILE" 2>&1
+        exit 1
+    fi
+    sleep 5
+done
+
+# Re-verify Docker bridge after Minikube startup
+log "Re-verifying Docker bridge after Minikube startup"
+NETWORK_ID=$(sudo -H -u "$ORIGINAL_USER" bash -c "docker network ls --filter 'name=$BRIDGE' --format '{{.ID}}'")
+if [ -n "$NETWORK_ID" ]; then
+    BRIDGE_IFACE=$(ip link show | grep -o "br-$NETWORK_ID[^:]*" | head -n 1)
+    if [ -n "$BRIDGE_IFACE" ] && ip link show "$BRIDGE_IFACE" >/dev/null 2>&1; then
+        log "Confirmed Docker bridge interface: $BRIDGE_IFACE"
+    else
+        log "ERROR: Docker bridge $BRIDGE not found at IP level after Minikube startup"
+        log "Docker network inspect output:"
+        sudo -H -u "$ORIGINAL_USER" bash -c "docker network inspect $BRIDGE" >> "$LOG_FILE" 2>&1
+        exit 1
+    fi
+else
+    log "ERROR: Minikube network not found after startup"
+    exit 1
+fi
+
 # Log Docker system info
 log "Docker system info"
 sudo -H -u "$ORIGINAL_USER" bash -c "docker info" >> "$LOG_FILE"
@@ -250,7 +285,11 @@ if ! sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config view --minify | grep -q
     sudo -H -u "$ORIGINAL_USER" bash -c "minikube update-context 2>>$LOG_FILE"
     sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config use-context minikube 2>>$LOG_FILE"
     sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config set-cluster minikube --server=https://$MINIKUBE_IP:$KUBERNETES_PORT 2>>$LOG_FILE"
-    check_status "Configuring kubeconfig"
+    if ! sudo -H -u "$ORIGINAL_USER" bash -c "kubectl config view --minify | grep -q 'server: https://$MINIKUBE_IP:$KUBERNETES_PORT'"; then
+        log "ERROR: kubeconfig still invalid, restoring backup"
+        sudo cp "$KUBECONFIG_BACKUP" "$KUBECONFIG" 2>>"$LOG_FILE"
+        check_status "Restoring kubeconfig"
+    fi
 fi
 log "kubeconfig configured successfully"
 
@@ -334,6 +373,8 @@ check_status "Configuring dashboard admin access"
 
 # Configure IPTables for Kubernetes API and dashboard
 log "Configuring IPTables rules"
+# Clean up conflicting MASQUERADE rules
+sudo iptables -t nat -F POSTROUTING
 # Filter table: Allow input for dashboard port on host and Minikube IP
 if ! sudo iptables -C INPUT -p tcp -d "$KUBE_SERVER_IP" --dport "$DASHBOARD_PORT" -j ACCEPT 2>/dev/null; then
     sudo iptables -A INPUT -p tcp -d "$KUBE_SERVER_IP" --dport "$DASHBOARD_PORT" -j ACCEPT
@@ -361,10 +402,8 @@ fi
 if ! sudo iptables -t nat -C POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$DASHBOARD_PORT" -j MASQUERADE 2>/dev/null; then
     sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$DASHBOARD_PORT" -j MASQUERADE
 fi
-# Update existing MASQUERADE rules with correct bridge
-sudo iptables -t nat -D POSTROUTING -s 192.168.49.0/24 ! -o "$BRIDGE_IFACE" -j MASQUERADE 2>/dev/null
+# Update MASQUERADE and DOCKER rules with correct bridge
 sudo iptables -t nat -A POSTROUTING -s 192.168.49.0/24 ! -o "$BRIDGE_IFACE" -j MASQUERADE
-sudo iptables -t nat -D DOCKER -i "$BRIDGE_IFACE" -j RETURN 2>/dev/null
 sudo iptables -t nat -A DOCKER -i "$BRIDGE_IFACE" -j RETURN
 # Save iptables rules
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 >/dev/null
@@ -455,17 +494,19 @@ run_test "Check Docker bridge connectivity" "ip addr show $BRIDGE_IFACE && ping 
 run_test "Check Dashboard pods" "kubectl get pods -n kubernetes-dashboard"
 run_test "Check Dashboard pod logs" "kubectl -n kubernetes-dashboard logs -l k8s-app=kubernetes-dashboard --tail=10"
 run_test "Check Dashboard service" "kubectl get svc -n kubernetes-dashboard"
-run_test "Check Dashboard cluster IP" "kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}:{.spec.ports[0].port}' && curl -k http://\$(kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}'):80"
+run_test "Check Dashboard cluster IP" "kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}:{.spec.ports[0].port}' && curl -k -m 10 http://\$(kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}'):80"
 run_test "Check Minikube network configuration" "minikube ip && ip addr show $BRIDGE_IFACE"
 run_test "Check kubeconfig" "kubectl config view --minify"
-run_test "Check iptables hits" "iptables -L INPUT -v -n && iptables -t nat -L PREROUTING -v -n"
+run_test "Check iptables hits" "sudo iptables -L INPUT -v -n && sudo iptables -t nat -L PREROUTING -v -n"
 run_test "Check system resources" "free -m && nproc"
-run_test "Check Minikube logs" "minikube logs --last 10"
-run_test "Check Dashboard connectivity (Minikube IP)" "curl -k http://$MINIKUBE_IP:$DASHBOARD_PORT"
-run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k https://$MINIKUBE_IP:$KUBERNETES_PORT"
-run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k https://$KUBE_SERVER:$KUBERNETES_PORT"
-run_test "Check Kubernetes API connectivity (local server IP)" "curl -k https://$KUBE_SERVER_IP:$KUBERNETES_PORT"
-run_test "Check Dashboard connectivity (NodePort)" "curl -k http://$KUBE_SERVER_IP:$DASHBOARD_PORT"
+run_test "Check Minikube logs" "minikube logs --tail 10"
+run_test "Check Minikube container uptime" "docker inspect minikube --format '{{.State.Running}} {{.State.StartedAt}} {{.State.FinishedAt}}'"
+run_test "Check system logs for shutdown" "journalctl -u docker --since '10 minutes ago' | grep -i 'stop\\|shutdown\\|kill'"
+run_test "Check Dashboard connectivity (Minikube IP)" "curl -k -m 10 http://$MINIKUBE_IP:$DASHBOARD_PORT"
+run_test "Check Kubernetes API connectivity (local Minikube IP)" "curl -k -m 10 https://$MINIKUBE_IP:$KUBERNETES_PORT"
+run_test "Check Kubernetes API connectivity (local FQDN)" "curl -k -m 10 https://$KUBE_SERVER:$KUBERNETES_PORT"
+run_test "Check Kubernetes API connectivity (local server IP)" "curl -k -m 10 https://$KUBE_SERVER_IP:$KUBERNETES_PORT"
+run_test "Check Dashboard connectivity (NodePort)" "curl -k -m 10 http://$KUBE_SERVER_IP:$DASHBOARD_PORT"
 
 # Display diagnostic summary
 log "Displaying diagnostic summary"
