@@ -1,4 +1,3 @@
-```bash
 #!/bin/bash
 
 # Script to install Minikube and kubectl on Ubuntu 24.04, deploying a single-node Kubernetes cluster
@@ -542,4 +541,3 @@ echo "Access the dashboard at: http://$KUBE_SERVER_IP:$DASHBOARD_PORT"
 if [ -n "$SERVICE_URL" ]; then
     echo "Fallback dashboard URL: $SERVICE_URL"
 fi
-```
