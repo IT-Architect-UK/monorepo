@@ -542,3 +542,4 @@ echo "Access the dashboard at: http://$KUBE_SERVER_IP:$DASHBOARD_PORT"
 if [ -n "$SERVICE_URL" ]; then
     echo "Fallback dashboard URL: $SERVICE_URL"
 fi
+```
