@@ -29,7 +29,7 @@ echo "Detected non-root user: $ORIGINAL_USER"
 # Define variables
 LOG_FILE="/var/log/minikube_install_$(date +%Y%m%d_%H%M%S).log"
 DIAG_FILE="/tmp/minikube_diag_$(date +%Y%m%d_%H%M%S).txt"
-MIN_MEMORY_MB=10240  # Increased to 10GB for stability
+MIN_MEMORY_MB=10240  # 10GB for stability
 MIN_CPUS=4          # 4 CPUs for stability
 MIN_DISK_GB=20
 TEMP_DIR="/tmp"
@@ -100,7 +100,7 @@ chmod 644 "$DIAG_FILE"
 # Detect server details
 log "Detecting local server details"
 if [ -z "$KUBE_SERVER_IP" ]; then
-    log "ERROR: Could not determine server IP"
+    log "ERROR: Cannot determine server IP"
     exit 1
 fi
 log "Using $KUBE_SERVER for Kubernetes API"
@@ -147,20 +147,33 @@ nproc >> "$LOG_FILE"
 
 # Check Docker bridge network
 log "Checking Docker bridge network"
-BRIDGE=$(sudo -H -u "$ORIGINAL_USER" bash -c "docker network ls --filter 'name=minikube' --format '{{.Name}}'")
-if [ -z "$BRIDGE" ]; then
-    log "Creating Minikube bridge network"
-    sudo -H -u "$ORIGINAL_USER" bash -c "docker network create minikube"
-    check_status "Creating Minikube bridge network"
-    BRIDGE="minikube"
-else
-    log "Using existing Docker bridge: $BRIDGE"
-fi
-if ! ip link show "$BRIDGE" >/dev/null 2>&1; then
-    log "ERROR: Docker bridge $BRIDGE not found at IP level"
+BRIDGE="minikube"
+for i in {1..3}; do
+    if ! sudo -H -u "$ORIGINAL_USER" bash -c "docker network ls --filter 'name=$BRIDGE' --format '{{.Name}}' | grep -q $BRIDGE"; then
+        log "Creating Minikube bridge network (attempt $i)"
+        sudo -H -u "$ORIGINAL_USER" bash -c "docker network create $BRIDGE" >> "$LOG_FILE" 2>&1
+        check_status "Creating Minikube bridge network"
+    fi
+    # Get bridge interface name (e.g., br-<network-id>)
+    NETWORK_ID=$(sudo -H -u "$ORIGINAL_USER" bash -c "docker network ls --filter 'name=$BRIDGE' --format '{{.ID}}'")
+    if [ -n "$NETWORK_ID" ]; then
+        BRIDGE_IFACE=$(ip link show | grep -o "br-$NETWORK_ID[^:]*" | head -n 1)
+        if [ -n "$BRIDGE_IFACE" ] && ip link show "$BRIDGE_IFACE" >/dev/null 2>&1; then
+            log "Using Docker bridge interface: $BRIDGE_IFACE"
+            break
+        fi
+    fi
+    log "Docker bridge $BRIDGE not found at IP level, retrying (attempt $i)"
+    sleep 5
+done
+if [ -z "$BRIDGE_IFACE" ] || ! ip link show "$BRIDGE_IFACE" >/dev/null 2>&1; then
+    log "ERROR: Docker bridge $BRIDGE not found at IP level after retries"
+    log "Docker network inspect output:"
+    sudo -H -u "$ORIGINAL_USER" bash -c "docker network inspect $BRIDGE" >> "$LOG_FILE" 2>&1
     exit 1
 fi
-log "Using Docker bridge: $BRIDGE"
+log "Docker network inspect output:"
+sudo -H -u "$ORIGINAL_USER" bash -c "docker network inspect $BRIDGE" >> "$LOG_FILE" 2>&1
 
 # Install kubectl
 TEMP_DIR=$(mktemp -d)
@@ -348,6 +361,11 @@ fi
 if ! sudo iptables -t nat -C POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$DASHBOARD_PORT" -j MASQUERADE 2>/dev/null; then
     sudo iptables -t nat -A POSTROUTING -p tcp -d "$MINIKUBE_IP" --dport "$DASHBOARD_PORT" -j MASQUERADE
 fi
+# Update existing MASQUERADE rules with correct bridge
+sudo iptables -t nat -D POSTROUTING -s 192.168.49.0/24 ! -o "$BRIDGE_IFACE" -j MASQUERADE 2>/dev/null
+sudo iptables -t nat -A POSTROUTING -s 192.168.49.0/24 ! -o "$BRIDGE_IFACE" -j MASQUERADE
+sudo iptables -t nat -D DOCKER -i "$BRIDGE_IFACE" -j RETURN 2>/dev/null
+sudo iptables -t nat -A DOCKER -i "$BRIDGE_IFACE" -j RETURN
 # Save iptables rules
 sudo iptables-save | sudo tee /etc/iptables/rules.v4 >/dev/null
 check_status "Configuring IPTables rules"
@@ -433,11 +451,12 @@ run_test "Check kubectl client version" "kubectl version --client"
 run_test "Check Kubernetes nodes" "kubectl get nodes"
 run_test "Check Minikube container status" "docker ps --filter 'name=minikube' --format '{{.Names}} {{.Status}}'"
 run_test "Check Docker events" "docker events --filter 'container=minikube' --since '5m' --until '0s'"
+run_test "Check Docker bridge connectivity" "ip addr show $BRIDGE_IFACE && ping -c 1 $MINIKUBE_IP"
 run_test "Check Dashboard pods" "kubectl get pods -n kubernetes-dashboard"
 run_test "Check Dashboard pod logs" "kubectl -n kubernetes-dashboard logs -l k8s-app=kubernetes-dashboard --tail=10"
 run_test "Check Dashboard service" "kubectl get svc -n kubernetes-dashboard"
 run_test "Check Dashboard cluster IP" "kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}:{.spec.ports[0].port}' && curl -k http://\$(kubectl -n kubernetes-dashboard get svc kubernetes-dashboard -o jsonpath='{.spec.clusterIP}'):80"
-run_test "Check Minikube network configuration" "minikube ip && ip addr show $BRIDGE"
+run_test "Check Minikube network configuration" "minikube ip && ip addr show $BRIDGE_IFACE"
 run_test "Check kubeconfig" "kubectl config view --minify"
 run_test "Check iptables hits" "iptables -L INPUT -v -n && iptables -t nat -L PREROUTING -v -n"
 run_test "Check system resources" "free -m && nproc"
