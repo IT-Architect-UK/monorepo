@@ -180,6 +180,23 @@ log "Enabling metrics-server addon..."
 log_command "minikube addons enable metrics-server"
 check_success $? "Enabling metrics-server addon"
 
+# Wait for dashboard pod to be ready
+log "Waiting for dashboard pod to be ready..."
+POD_NAME=$(kubectl get pod -n kubernetes-dashboard -l app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -z "$POD_NAME" ]; then
+    log "No dashboard pod found."
+    exit 1
+fi
+log_command "kubectl wait --for=condition=ready pod/$POD_NAME -n kubernetes-dashboard --timeout=120s"
+check_success $? "Waiting for dashboard pod"
+
+# Check if pod is running
+POD_STATUS=$(kubectl get pod/$POD_NAME -n kubernetes-dashboard -o jsonpath='{.status.phase}' 2>/dev/null)
+if [ "$POD_STATUS" != "Running" ]; then
+    log "Dashboard pod is not running. Status: $POD_STATUS"
+    exit 1
+fi
+
 # Ensure dashboard service exists
 if ! kubectl get service -n kubernetes-dashboard kubernetes-dashboard > /dev/null 2>&1; then
     log "Dashboard service not found in namespace kubernetes-dashboard."
@@ -187,7 +204,7 @@ if ! kubectl get service -n kubernetes-dashboard kubernetes-dashboard > /dev/nul
 fi
 
 # Get dashboard service port
-DASHBOARD_SERVICE_PORT=$(kubectl get service -n kubernetes-dashboard kubernetes-dashboard -o jsonpath='{.spec.ports[0].port}')
+DASHBOARD_SERVICE_PORT=$(kubectl get service -n kubernetes-dashboard kubernetes-dashboard -o jsonpath='{.spec.ports[0].port}' 2>/dev/null)
 if [ -z "$DASHBOARD_SERVICE_PORT" ]; then
     log "Failed to get dashboard service port."
     exit 1
