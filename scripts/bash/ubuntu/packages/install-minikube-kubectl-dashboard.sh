@@ -92,7 +92,7 @@ if ! command_exists docker; then
     log_command "docker --version"
     check_success $? "Checking Docker version"
 else
-    log "Docker is already installed."
+    log booking.com is already installed."
 fi
 
 # Verify docker group exists
@@ -180,14 +180,28 @@ log "Enabling metrics-server addon..."
 log_command "minikube addons enable metrics-server"
 check_success $? "Enabling metrics-server addon"
 
-# Wait for dashboard pod to be ready
-log "Waiting for dashboard pod to be ready..."
-POD_NAME=$(kubectl get pod -n kubernetes-dashboard -l app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+# Wait for dashboard pod to be created
+log "Waiting for dashboard pod to be created..."
+for i in {1..60}; do
+    POD_NAME=$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    if [ -n "$POD_NAME" ]; then
+        break
+    fi
+    log "No dashboard pod found yet. Waiting..."
+    sleep 5
+done
 if [ -z "$POD_NAME" ]; then
-    log "No dashboard pod found."
+    log "No dashboard pod found after 5 minutes."
+    log "Checking all pods in namespace:"
+    log_command "kubectl get pods -n kubernetes-dashboard --show-labels"
+    log "Please check Minikube logs with 'minikube logs' for errors."
     exit 1
 fi
-log_command "kubectl wait --for=condition=ready pod/$POD_NAME -n kubernetes-dashboard --timeout=120s"
+log "Dashboard pod found: $POD_NAME"
+
+# Wait for dashboard pod to be ready
+log "Waiting for dashboard pod to be ready..."
+log_command "kubectl wait --for=condition=ready pod/$POD_NAME -n kubernetes-dashboard --timeout=300s"
 check_success $? "Waiting for dashboard pod"
 
 # Check if pod is running
@@ -197,34 +211,28 @@ if [ "$POD_STATUS" != "Running" ]; then
     exit 1
 fi
 
-# Ensure dashboard service exists
-if ! kubectl get service -n kubernetes-dashboard kubernetes-dashboard > /dev/null 2>&1; then
-    log "Dashboard service not found in namespace kubernetes-dashboard."
-    exit 1
+# Get container port
+CONTAINER_PORT=$(kubectl get pod/$POD_NAME -n kubernetes-dashboard -o jsonpath='{.spec.containers[0].ports[0].containerPort}' 2>/dev/null)
+if [ -z "$CONTAINER_PORT" ]; then
+    log "Failed to get container port for dashboard pod. Defaulting to 8443."
+    CONTAINER_PORT=8443
 fi
-
-# Get dashboard service port
-DASHBOARD_SERVICE_PORT=$(kubectl get service -n kubernetes-dashboard kubernetes-dashboard -o jsonpath='{.spec.ports[0].port}' 2>/dev/null)
-if [ -z "$DASHBOARD_SERVICE_PORT" ]; then
-    log "Failed to get dashboard service port."
-    exit 1
-fi
-log "Dashboard service port: $DASHBOARD_SERVICE_PORT"
+log "Dashboard container port: $CONTAINER_PORT"
 
 # Choose a local port, e.g., 8001
 LOCAL_PORT=8001
 
 # Start port-forward
 log "Starting port-forward for dashboard LAN access on port $LOCAL_PORT..."
-log_command "kubectl port-forward --address 0.0.0.0 -n kubernetes-dashboard service/kubernetes-dashboard $LOCAL_PORT:$DASHBOARD_SERVICE_PORT &"
+log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard &"
 sleep 5
 
 # Test dashboard access locally
 log "Testing dashboard access locally..."
-if curl --max-time 10 -s --insecure "https://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"; then
+if curl --max-time 10 -s --insecure "http://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"; then
     log "Dashboard is accessible locally."
     SERVER_IP=$(hostname -I | awk '{print $1}')
-    log "To access the dashboard from your LAN, use: https://$SERVER_IP:$LOCAL_PORT"
+    log "To access the dashboard from your LAN, use: http://$SERVER_IP:$LOCAL_PORT"
     log "Note: You may need to accept the self-signed certificate in your browser."
 else
     log "Failed to access dashboard locally. Check if port-forward is running and dashboard is enabled."
@@ -242,6 +250,6 @@ check_success $? "Checking cluster info"
 log "=== Installation Complete ==="
 log "Minikube, kubectl, and dashboard installed successfully."
 log "Log file: $LOGFILE"
-log "To access the dashboard from your LAN, use: https://$SERVER_IP:$LOCAL_PORT"
+log "To access the dashboard from your LAN, use: http://$SERVER_IP:$LOCAL_PORT"
 log "To stop the dashboard access, run: pkill -f 'kubectl port-forward'"
-log "For issues, review $LOGFILE and Minikube documentation."
+log "For issues, review $LOGFILE and Minikube logs with 'minikube logs'."
