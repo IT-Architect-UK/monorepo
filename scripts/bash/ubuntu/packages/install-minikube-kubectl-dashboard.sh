@@ -85,9 +85,14 @@ if ! command_exists docker; then
     # Set up Docker repository
     log_command "sudo mkdir -p /etc/apt/keyrings"
     check_success $? "Creating keyrings directory"
-    log_command "curl -fsSL [invalid url, do not cite] | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
+    # Verify Docker GPG key URL
+    if ! curl -I -s -f https://download.docker.com/linux/ubuntu/gpg > /dev/null; then
+        log "Docker GPG key URL is not reachable. Check internet connection."
+        exit 1
+    fi
+    log_command "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
     check_success $? "Adding Docker GPG key"
-    log_command "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] [invalid url, do not cite] $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null"
+    log_command "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null"
     check_success $? "Adding Docker repository"
     log_command "sudo apt update"
     check_success $? "apt update after adding Docker repository"
@@ -121,8 +126,8 @@ fi
 # Install kubectl if not exists
 if ! command_exists kubectl; then
     log "Installing kubectl..."
-    KUBECTL_VERSION=$(curl -L -s [invalid url, do not cite])
-    log_command "curl -L \"[invalid url, do not cite] -o /tmp/kubectl"
+    KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+    log_command "curl -L \"https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl\" -o /tmp/kubectl"
     check_success $? "Downloading kubectl"
     if [ ! -f /tmp/kubectl ]; then
         log "kubectl file not found in /tmp after download."
@@ -141,7 +146,7 @@ fi
 # Install minikube if not exists
 if ! command_exists minikube; then
     log "Installing minikube..."
-    log_command "curl -L [invalid url, do not cite] -o /tmp/minikube"
+    log_command "curl -L https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 -o /tmp/minikube"
     check_success $? "Downloading minikube"
     if [ ! -f /tmp/minikube ]; then
         log "minikube file not found in /tmp after download."
