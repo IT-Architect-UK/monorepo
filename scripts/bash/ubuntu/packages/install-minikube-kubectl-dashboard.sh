@@ -43,7 +43,7 @@ command_exists() {
 
 # Log the introduction
 log "=== Minikube Installation Script ==="
-log "Purpose: Installs Minikube, kubectl, and enables the Minikube dashboard."
+log "Purpose: Installs Minikube, kubectl, enables the Minikube dashboard, and sets up auto-restart after reboot."
 log "Target System: Ubuntu 24.04 (clean install)"
 log "Resources Allocated: 8 CPUs, 16GB RAM for Minikube"
 log "Requirements:"
@@ -237,7 +237,7 @@ fi
 
 # Test dashboard access locally
 log "Testing dashboard access locally..."
-if curl --max-time 120 -s "http://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"; then
+if curl --max-time 120 -s "http://127.0.0.0:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"; then
     log "Dashboard is accessible locally."
     SERVER_IP=$(hostname -I | awk '{print $1}')
     DASHBOARD_URL="http://$SERVER_IP:$LOCAL_PORT"
@@ -246,6 +246,34 @@ else
     log "Failed to access dashboard locally. Check if port-forward is running and dashboard is enabled."
     exit 1
 fi
+
+# Create systemd service for Minikube and dashboard auto-restart
+log "Creating systemd service for Minikube and dashboard auto-restart..."
+cat << EOF | sudo tee /etc/systemd/system/minikube.service
+[Unit]
+Description=Minikube and Kubernetes Dashboard Service
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=8 --memory=16384 && minikube addons enable dashboard && minikube addons enable metrics-server && sleep 10 && POD_NAME=\$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME 8001:9090 -n kubernetes-dashboard'
+ExecStop=/bin/bash -c 'minikube stop'
+Restart=always
+RestartSec=10
+User=$USER
+
+[Install]
+WantedBy=multi-user.target
+EOF
+check_success $? "Creating systemd service file"
+
+# Enable and start the service
+log "Enabling and starting minikube service..."
+log_command "sudo systemctl enable minikube.service"
+check_success $? "Enabling minikube service"
+log_command "sudo systemctl start minikube.service"
+check_success $? "Starting minikube service"
 
 # Verify installation
 log "Verifying installation..."
@@ -261,5 +289,7 @@ log "kubectl Version: $(kubectl version --client --output=yaml | grep gitVersion
 log "Kubernetes Dashboard: Accessible at $DASHBOARD_URL"
 log "Remote Management: Copy ~/.kube/config to your local machine, set KUBECONFIG=~/.kube/config, and use 'kubectl' commands."
 log "Log file: $LOGFILE"
-log "To stop the dashboard access, run: pkill -f 'kubectl port-forward'"
+log "To stop the dashboard access manually, run: pkill -f 'kubectl port-forward'"
+log "Minikube and dashboard will auto-restart after reboot via systemd service."
+log "To manage the service, use: systemctl {start|stop|restart|status} minikube.service"
 log "For issues, review $LOGFILE and Minikube logs with 'minikube logs'."
