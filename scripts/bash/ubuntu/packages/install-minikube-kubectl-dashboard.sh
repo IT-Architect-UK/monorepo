@@ -79,11 +79,12 @@ check_success $? "Verifying Docker installation"
 
 # Install kubectl
 echo "Installing kubectl..." | sudo tee -a "$LOGFILE"
-log_command curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+# Download to /tmp to avoid permission issues
+log_command curl -LO https://dl.k8s.io/release/v1.33.0/bin/linux/amd64/kubectl -o /tmp/kubectl
 check_success $? "Downloading kubectl"
-log_command chmod +x kubectl
+log_command chmod +x /tmp/kubectl
 check_success $? "Making kubectl executable"
-log_command sudo mv kubectl /usr/local/bin/
+log_command sudo mv /tmp/kubectl /usr/local/bin/
 check_success $? "Moving kubectl to /usr/local/bin"
 log_command kubectl version --client
 check_success $? "Verifying kubectl installation"
