@@ -51,6 +51,24 @@ check_success() {
     fi
 }
 
+# Check if user is in docker group; if not, add and exit
+if ! groups | grep -q docker; then
+    echo "Adding user to docker group..." | sudo tee -a "$LOGFILE"
+    sudo usermod -aG docker "$USER"
+    check_success $? "Adding user to docker group"
+    echo "Please log out and log back in for group changes to take effect, then rerun this script." | sudo tee -a "$LOGFILE"
+    exit 0
+fi
+
+# Check write permissions for /tmp
+echo "Checking write permissions for /tmp..." | sudo tee -a "$LOGFILE"
+if ! touch /tmp/test_write 2>/dev/null; then
+    echo "Cannot write to /tmp. Check permissions." | sudo tee -a "$LOGFILE"
+    exit 1
+fi
+rm -f /tmp/test_write
+echo "Write permissions for /tmp confirmed." | sudo tee -a "$LOGFILE"
+
 # Update system
 echo "Updating system..." | sudo tee -a "$LOGFILE"
 log_command sudo apt update
@@ -70,6 +88,7 @@ check_success $? "Creating keyrings directory"
 log_command curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 check_success $? "Adding Docker GPG key"
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+check_success $? "Adding Docker repository"
 log_command sudo apt update
 check_success $? "Updating package lists with Docker repo"
 log_command sudo apt install -y docker-ce docker-ce-cli containerd.io
@@ -79,9 +98,12 @@ check_success $? "Verifying Docker installation"
 
 # Install kubectl
 echo "Installing kubectl..." | sudo tee -a "$LOGFILE"
-# Download to /tmp to avoid permission issues
-log_command curl -LO https://dl.k8s.io/release/v1.33.0/bin/linux/amd64/kubectl -o /tmp/kubectl
+log_command curl -L "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" -o /tmp/kubectl
 check_success $? "Downloading kubectl"
+if [ ! -f /tmp/kubectl ]; then
+    echo "kubectl file not found in /tmp after download." | sudo tee -a "$LOGFILE"
+    exit 1
+fi
 log_command chmod +x /tmp/kubectl
 check_success $? "Making kubectl executable"
 log_command sudo mv /tmp/kubectl /usr/local/bin/
@@ -91,11 +113,15 @@ check_success $? "Verifying kubectl installation"
 
 # Install Minikube
 echo "Installing Minikube..." | sudo tee -a "$LOGFILE"
-log_command curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+log_command curl -L https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 -o /tmp/minikube
 check_success $? "Downloading Minikube"
-log_command chmod +x minikube
+if [ ! -f /tmp/minikube ]; then
+    echo "Minikube file not found in /tmp after download." | sudo tee -a "$LOGFILE"
+    exit 1
+fi
+log_command chmod +x /tmp/minikube
 check_success $? "Making Minikube executable"
-log_command sudo mv minikube /usr/local/bin/
+log_command sudo mv /tmp/minikube /usr/local/bin/
 check_success $? "Moving Minikube to /usr/local/bin"
 log_command minikube version
 check_success $? "Verifying Minikube installation"
