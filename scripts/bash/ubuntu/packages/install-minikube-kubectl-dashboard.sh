@@ -225,7 +225,7 @@ LOCAL_PORT=8001
 # Start port-forward
 log "Starting port-forward for dashboard LAN access on port $LOCAL_PORT..."
 log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard > /tmp/port-forward.log 2>&1 &"
-sleep 45  # Increased wait time for proxy to start
+sleep 60  # Increased wait time for proxy to start
 if ! pgrep -f "kubectl port-forward" > /dev/null; then
     log "Port-forward process did not start. Check /tmp/port-forward.log for errors."
     exit 1
@@ -237,10 +237,10 @@ fi
 
 # Test dashboard access locally
 log "Testing dashboard access locally..."
-if curl --max-time 90 -s "[invalid url, do not cite] | grep -q "Kubernetes Dashboard"; then
+if curl --max-time 120 -s "http://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"; then
     log "Dashboard is accessible locally."
     SERVER_IP=$(hostname -I | awk '{print $1}')
-    DASHBOARD_URL="[invalid url, do not cite]
+    DASHBOARD_URL="http://$SERVER_IP:$LOCAL_PORT"
     log "To access the dashboard from your LAN, use: $DASHBOARD_URL"
 else
     log "Failed to access dashboard locally. Check if port-forward is running and dashboard is enabled."
