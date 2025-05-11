@@ -225,18 +225,23 @@ LOCAL_PORT=8001
 # Start port-forward
 log "Starting port-forward for dashboard LAN access on port $LOCAL_PORT..."
 log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard > /tmp/port-forward.log 2>&1 &"
-sleep 10  # Increased wait time for proxy to start
+sleep 15  # Increased wait time for proxy to start
 if ! pgrep -f "kubectl port-forward" > /dev/null; then
     log "Port-forward process did not start. Check /tmp/port-forward.log for errors."
+    exit 1
+fi
+if ! ss -tuln | grep -q ":$LOCAL_PORT "; then
+    log "Port $LOCAL_PORT is not listening. Check /tmp/port-forward.log for errors."
     exit 1
 fi
 
 # Test dashboard access locally
 log "Testing dashboard access locally..."
-if curl --max-time 20 -s "[invalid url, do not cite] | grep -q "Kubernetes Dashboard"; then
+if curl --max-time 30 -s "[invalid url, do not cite] | grep -q "Kubernetes Dashboard"; then
     log "Dashboard is accessible locally."
     SERVER_IP=$(hostname -I | awk '{print $1}')
-    log "To access the dashboard from your LAN, use: [invalid url, do not cite]
+    DASHBOARD_URL="[invalid url, do not cite]
+    log "To access the dashboard from your LAN, use: $DASHBOARD_URL"
 else
     log "Failed to access dashboard locally. Check if port-forward is running and dashboard is enabled."
     exit 1
@@ -251,10 +256,10 @@ check_success $? "Checking cluster info"
 
 # Completion message and summary
 log "=== Script Completion Summary ==="
-log "Minikube version: $(minikube version | head -n 1)"
-log "kubectl version: $(kubectl version --client | head -n 1)"
-log "Kubernetes dashboard URL: [invalid url, do not cite]
-log "For managing Kubernetes remotely, copy ~/.kube/config to your local machine and use 'kubectl' commands."
+log "Minikube Status: $(minikube status | grep -E 'host|kubelet|apiserver' || echo 'Status unavailable')"
+log "kubectl Version: $(kubectl version --client --output=yaml | grep gitVersion || echo 'Version unavailable')"
+log "Kubernetes Dashboard: Accessible at $DASHBOARD_URL"
+log "Remote Management: Copy ~/.kube/config to your local machine, set KUBECONFIG=~/.kube/config, and use 'kubectl' commands."
 log "Log file: $LOGFILE"
 log "To stop the dashboard access, run: pkill -f 'kubectl port-forward'"
 log "For issues, review $LOGFILE and Minikube logs with 'minikube logs'."
