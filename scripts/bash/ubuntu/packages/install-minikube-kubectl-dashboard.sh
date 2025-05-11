@@ -177,6 +177,24 @@ log "Enabling Minikube dashboard..."
 log_command minikube addons enable dashboard
 check_success $? "Enabling Minikube dashboard"
 
+# Start kubectl port-forward for dashboard LAN access
+log "Starting kubectl port-forward for dashboard LAN access..."
+log_command kubectl port-forward --address 0.0.0.0 -n kubernetes-dashboard service/kubernetes-dashboard 8001:443 &
+# Wait for proxy to start
+sleep 5
+
+# Test dashboard access locally
+log "Testing dashboard access locally..."
+if curl -s http://127.0.0.1:8001 | grep -q "Kubernetes Dashboard"; then
+    log "Dashboard is accessible locally."
+    log "To access the dashboard from your LAN, use: http://<your-host-lan-ip>:8001"
+    log "Replace <your-host-lan-ip> with the IP address of this machine on your LAN."
+    log "You can find your host's LAN IP by running 'ip addr show' or 'hostname -I'."
+else
+    log "Failed to access dashboard locally. Check if kubectl port-forward is running and dashboard is enabled."
+    exit 1
+fi
+
 # Verify installation
 log "Verifying installation..."
 log_command minikube status
@@ -188,5 +206,7 @@ check_success $? "Checking cluster info"
 log "=== Installation Complete ==="
 log "Minikube, kubectl, and dashboard installed successfully."
 log "Log file: $LOGFILE"
-log "To access the dashboard, run: minikube dashboard --url"
+log "To access the dashboard from your LAN, use: http://<your-host-lan-ip>:8001"
+log "Replace <your-host-lan-ip> with the IP address of this machine on your LAN."
+log "You can find your host's LAN IP by running 'ip addr show' or 'hostname -I'."
 log "For issues, review $LOGFILE and Minikube documentation."
