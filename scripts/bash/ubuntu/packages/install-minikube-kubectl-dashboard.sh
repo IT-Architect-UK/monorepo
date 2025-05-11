@@ -1,16 +1,6 @@
 #!/bin/bash
 
-# Brief message before sudo prompt
-echo "Starting Minikube installation script. Please enter your sudo password if prompted."
-
-# Cache sudo credentials
-sudo -v
-if [ $? -ne 0 ]; then
-    echo "Failed to obtain sudo privileges. Exiting."
-    exit 1
-fi
-
-# Generate timestamp for unique log file
+# Define log file
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOGFILE="/logs/install_minikube_${TIMESTAMP}.log"
 
@@ -64,6 +54,13 @@ log "Logs: All actions and statuses will be logged to $LOGFILE for troubleshooti
 log "Note: This script assumes a fresh environment and uses Docker as the Minikube driver."
 log "====================================="
 
+# Check sudo privileges
+sudo -v
+if [ $? -ne 0 ]; then
+    log "Failed to obtain sudo privileges. Exiting."
+    exit 1
+fi
+
 # Check write permissions for /tmp
 log "Checking write permissions for /tmp..."
 if ! touch /tmp/test_write 2>/dev/null; then
@@ -73,30 +70,23 @@ fi
 rm -f /tmp/test_write
 log "Write permissions for /tmp confirmed."
 
-# Check if Docker is installed
+# Install Docker if not present
 if ! command_exists docker; then
     log "Installing Docker..."
-    # Update system
     log_command "sudo apt update"
     check_success $? "apt update"
-    # Install dependencies
-    log_command "sudo apt install -y curl apt-transport-https ca-certificates software-properties-common"
+    log_command "sudo apt install -y apt-transport-https ca-certificates curl software-properties-common"
     check_success $? "Installing dependencies"
-    # Set up Docker repository
-    log_command "sudo mkdir -p /etc/apt/keyrings"
+    log_command "sudo install -m 0755 -d /etc/apt/keyrings"
     check_success $? "Creating keyrings directory"
-    # Verify Docker GPG key URL
-    if ! curl -I -s -f https://download.docker.com/linux/ubuntu/gpg > /dev/null; then
-        log "Docker GPG key URL is not reachable. Check internet connection."
-        exit 1
-    fi
-    log_command "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
-    check_success $? "Adding Docker GPG key"
-    log_command "echo 'deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null"
+    log_command "sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc"
+    check_success $? "Downloading Docker GPG key"
+    log_command "sudo chmod a+r /etc/apt/keyrings/docker.asc"
+    check_success $? "Setting permissions for Docker GPG key"
+    log_command "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null"
     check_success $? "Adding Docker repository"
     log_command "sudo apt update"
     check_success $? "apt update after adding Docker repository"
-    # Install Docker
     log_command "sudo apt install -y docker-ce docker-ce-cli containerd.io"
     check_success $? "Installing Docker"
     log_command "docker --version"
@@ -123,7 +113,7 @@ if ! groups | grep -q docker; then
     exit 0
 fi
 
-# Install kubectl if not exists
+# Install kubectl if not present
 if ! command_exists kubectl; then
     log "Installing kubectl..."
     KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
@@ -143,7 +133,7 @@ else
     log "kubectl is already installed."
 fi
 
-# Install minikube if not exists
+# Install minikube if not present
 if ! command_exists minikube; then
     log "Installing minikube..."
     log_command "curl -L https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 -o /tmp/minikube"
@@ -190,32 +180,37 @@ log "Enabling metrics-server addon..."
 log_command "minikube addons enable metrics-server"
 check_success $? "Enabling metrics-server addon"
 
-# Start Minikube dashboard proxy for LAN access
-log "Starting Minikube dashboard proxy for LAN access..."
-log_command "minikube dashboard --url --bind-address=0.0.0.0 > /tmp/dashboard_url.txt 2>&1 &"
-sleep 30  # Increased wait time for proxy to start
-if [ ! -f /tmp/dashboard_url.txt ]; then
-    log "Failed to start Minikube dashboard proxy."
+# Ensure dashboard service exists
+if ! kubectl get service -n kubernetes-dashboard kubernetes-dashboard > /dev/null 2>&1; then
+    log "Dashboard service not found in namespace kubernetes-dashboard."
     exit 1
 fi
-DASHBOARD_URL=$(head -n 1 /tmp/dashboard_url.txt)
-if [ -z "$DASHBOARD_URL" ]; then
-    log "Failed to retrieve dashboard URL."
+
+# Get dashboard service port
+DASHBOARD_SERVICE_PORT=$(kubectl get service -n kubernetes-dashboard kubernetes-dashboard -o jsonpath='{.spec.ports[0].port}')
+if [ -z "$DASHBOARD_SERVICE_PORT" ]; then
+    log "Failed to get dashboard service port."
     exit 1
 fi
-log "Local Dashboard URL: $DASHBOARD_URL"
-SERVER_IP=$(hostname -I | awk '{print $1}')
-DASHBOARD_URL_LAN=$(echo "$DASHBOARD_URL" | sed "s/127\.0\.0\.1/$SERVER_IP/")
-PORT=$(echo "$DASHBOARD_URL" | sed 's/.*://' | sed 's/\/.*//')
-log "LAN Dashboard URL: $DASHBOARD_URL_LAN"
-log "The dashboard is exposed on port $PORT. Ensure your firewall allows incoming connections on this port from your LAN."
+log "Dashboard service port: $DASHBOARD_SERVICE_PORT"
+
+# Choose a local port, e.g., 8001
+LOCAL_PORT=8001
+
+# Start port-forward
+log "Starting port-forward for dashboard LAN access on port $LOCAL_PORT..."
+log_command "kubectl port-forward --address 0.0.0.0 -n kubernetes-dashboard service/kubernetes-dashboard $LOCAL_PORT:$DASHBOARD_SERVICE_PORT &"
+sleep 5
 
 # Test dashboard access locally
 log "Testing dashboard access locally..."
-if curl --max-time 10 -s "$DASHBOARD_URL" | grep -q "Kubernetes Dashboard"; then
+if curl --max-time 10 -s --insecure "https://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"; then
     log "Dashboard is accessible locally."
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    log "To access the dashboard from your LAN, use: https://$SERVER_IP:$LOCAL_PORT"
+    log "Note: You may need to accept the self-signed certificate in your browser."
 else
-    log "Failed to access dashboard locally."
+    log "Failed to access dashboard locally. Check if port-forward is running and dashboard is enabled."
     exit 1
 fi
 
@@ -230,5 +225,6 @@ check_success $? "Checking cluster info"
 log "=== Installation Complete ==="
 log "Minikube, kubectl, and dashboard installed successfully."
 log "Log file: $LOGFILE"
-log "To access the dashboard from your LAN, use: $DASHBOARD_URL_LAN"
+log "To access the dashboard from your LAN, use: https://$SERVER_IP:$LOCAL_PORT"
+log "To stop the dashboard access, run: pkill -f 'kubectl port-forward'"
 log "For issues, review $LOGFILE and Minikube documentation."
