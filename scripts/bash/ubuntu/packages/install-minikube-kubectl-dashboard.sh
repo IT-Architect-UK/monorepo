@@ -214,8 +214,8 @@ fi
 # Get container port
 CONTAINER_PORT=$(kubectl get pod/$POD_NAME -n kubernetes-dashboard -o jsonpath='{.spec.containers[0].ports[0].containerPort}' 2>/dev/null)
 if [ -z "$CONTAINER_PORT" ]; then
-    log "Failed to get container port for dashboard pod. Defaulting to 8443."
-    CONTAINER_PORT=8443
+    log "Failed to get container port for dashboard pod. Defaulting to 9090."
+    CONTAINER_PORT=9090
 fi
 log "Dashboard container port: $CONTAINER_PORT"
 
@@ -224,16 +224,19 @@ LOCAL_PORT=8001
 
 # Start port-forward
 log "Starting port-forward for dashboard LAN access on port $LOCAL_PORT..."
-log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard &"
-sleep 5
+log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard > /tmp/port-forward.log 2>&1 &"
+sleep 10  # Increased wait time for proxy to start
+if ! pgrep -f "kubectl port-forward" > /dev/null; then
+    log "Port-forward process did not start. Check /tmp/port-forward.log for errors."
+    exit 1
+fi
 
 # Test dashboard access locally
 log "Testing dashboard access locally..."
-if curl --max-time 10 -s --insecure "http://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"; then
+if curl --max-time 20 -s "[invalid url, do not cite] | grep -q "Kubernetes Dashboard"; then
     log "Dashboard is accessible locally."
     SERVER_IP=$(hostname -I | awk '{print $1}')
-    log "To access the dashboard from your LAN, use: http://$SERVER_IP:$LOCAL_PORT"
-    log "Note: You may need to accept the self-signed certificate in your browser."
+    log "To access the dashboard from your LAN, use: [invalid url, do not cite]
 else
     log "Failed to access dashboard locally. Check if port-forward is running and dashboard is enabled."
     exit 1
@@ -246,10 +249,12 @@ check_success $? "Checking Minikube status"
 log_command "kubectl cluster-info"
 check_success $? "Checking cluster info"
 
-# Completion message
-log "=== Installation Complete ==="
-log "Minikube, kubectl, and dashboard installed successfully."
+# Completion message and summary
+log "=== Script Completion Summary ==="
+log "Minikube version: $(minikube version | head -n 1)"
+log "kubectl version: $(kubectl version --client | head -n 1)"
+log "Kubernetes dashboard URL: [invalid url, do not cite]
+log "For managing Kubernetes remotely, copy ~/.kube/config to your local machine and use 'kubectl' commands."
 log "Log file: $LOGFILE"
-log "To access the dashboard from your LAN, use: http://$SERVER_IP:$LOCAL_PORT"
 log "To stop the dashboard access, run: pkill -f 'kubectl port-forward'"
 log "For issues, review $LOGFILE and Minikube logs with 'minikube logs'."
