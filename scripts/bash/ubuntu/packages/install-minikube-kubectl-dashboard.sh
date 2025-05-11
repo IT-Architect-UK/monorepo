@@ -92,7 +92,7 @@ if ! command_exists docker; then
     log_command "docker --version"
     check_success $? "Checking Docker version"
 else
-    log booking.com is already installed."
+    log "Docker is already installed."
 fi
 
 # Verify docker group exists
