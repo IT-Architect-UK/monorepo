@@ -2,6 +2,7 @@
 
 # Script to install Ansible AWX on a Minikube Kubernetes cluster on Ubuntu 24.04
 # Deploys the AWX Operator and an AWX instance, configures port forwarding, and verifies the setup
+# Ensures Minikube and AWX restart after system reboot via systemd service
 # Assumes Docker, Minikube, and kubectl are pre-installed and configured (e.g., via install-minikube-kubectl.sh)
 # Uses Minikube's default network setup
 # Preserves existing iptables rules
@@ -116,6 +117,15 @@ fi
 sudo -H -u "$ORIGINAL_USER" bash -c "minikube status >/dev/null 2>&1"
 check_status "Minikube status verification"
 
+# Get Minikube IP
+log "Retrieving Minikube IP"
+MINIKUBE_IP=$(sudo -H -u "$ORIGINAL_USER" bash -c "minikube ip")
+if [ -z "$MINIKUBE_IP" ]; then
+    log "ERROR: Could not retrieve Minikube IP. Ensure Minikube is running."
+    exit 1
+fi
+log "Minikube IP: $MINIKUBE_IP"
+
 # Check kubectl
 log "Checking kubectl installation"
 if ! command -v kubectl >/dev/null 2>&1; then
@@ -149,7 +159,7 @@ check_status "Creating AWX namespace"
 
 # Deploy AWX Operator
 log "Deploying AWX Operator version $RELEASE_TAG"
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/refs/tags/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE"
 check_status "Deploying AWX Operator"
 
 # Wait for AWX Operator to be ready
@@ -197,6 +207,34 @@ if [ -z "$ADMIN_PASSWORD" ]; then
     exit 1
 fi
 log "AWX admin password retrieved successfully"
+
+# Create systemd service for Minikube and AWX auto-restart
+log "Creating systemd service for Minikube and AWX auto-restart"
+cat << EOF | sudo tee /etc/systemd/system/minikube-awx.service
+[Unit]
+Description=Minikube and AWX Service
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=8 --memory=16384 && kubectl create namespace $AWX_NAMESPACE --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/refs/tags/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE && kubectl wait --for=condition=available --timeout=300s deployment/awx-operator-controller-manager -n $AWX_NAMESPACE && kubectl apply -f $TEMP_DIR/awx-demo.yml -n $AWX_NAMESPACE && kubectl wait --for=condition=available --timeout=600s deployment/awx-demo -n $AWX_NAMESPACE && POD_NAME=\$(kubectl get pod -n $AWX_NAMESPACE -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME 8001:9090 -n $AWX_NAMESPACE'
+ExecStop=/bin/bash -c 'minikube stop'
+Restart=always
+RestartSec=10
+User=$ORIGINAL_USER
+
+[Install]
+WantedBy=multi-user.target
+EOF
+check_status "Creating systemd service file"
+
+# Enable and start the service
+log "Enabling and starting minikube-awx service"
+log_command "sudo systemctl enable minikube-awx.service"
+check_status "Enabling minikube-awx service"
+log_command "sudo systemctl start minikube-awx.service"
+check_status "Starting minikube-awx service"
 
 # Display AWX access details
 echo "AWX Installation Complete!"
