@@ -159,7 +159,7 @@ check_status "Creating AWX namespace"
 
 # Deploy AWX Operator
 log "Deploying AWX Operator version $RELEASE_TAG"
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/refs/tags/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE"
+sudo -H -u "$ORIGINAL_USER" bash -c "kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE"
 check_status "Deploying AWX Operator"
 
 # Wait for AWX Operator to be ready
@@ -218,7 +218,7 @@ Requires=docker.service
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=8 --memory=16384 && kubectl create namespace $AWX_NAMESPACE --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/refs/tags/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE && kubectl wait --for=condition=available --timeout=300s deployment/awx-operator-controller-manager -n $AWX_NAMESPACE && kubectl apply -f $TEMP_DIR/awx-demo.yml -n $AWX_NAMESPACE && kubectl wait --for=condition=available --timeout=600s deployment/awx-demo -n $AWX_NAMESPACE && POD_NAME=\$(kubectl get pod -n $AWX_NAMESPACE -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME 8001:9090 -n $AWX_NAMESPACE'
+ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=8 --memory=16384 && kubectl create namespace $AWX_NAMESPACE --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE && kubectl wait --for=condition=available --timeout=300s deployment/awx-operator-controller-manager -n $AWX_NAMESPACE && kubectl apply -f $TEMP_DIR/awx-demo.yml -n $AWX_NAMESPACE && kubectl wait --for=condition=available --timeout=600s deployment/awx-demo -n $AWX_NAMESPACE && POD_NAME=\$(kubectl get pod -n $AWX_NAMESPACE -l app.kubernetes.io/name=awx -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME 8001:80 -n $AWX_NAMESPACE'
 ExecStop=/bin/bash -c 'minikube stop'
 Restart=always
 RestartSec=10
