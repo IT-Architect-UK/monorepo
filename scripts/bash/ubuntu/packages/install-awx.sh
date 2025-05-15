@@ -1,264 +1,265 @@
 #!/bin/bash
 
-# Script to install Ansible AWX on a Minikube Kubernetes cluster on Ubuntu 24.04
-# Deploys the AWX Operator and an AWX instance, configures port forwarding, and verifies the setup
-# Ensures Minikube and AWX restart after system reboot via systemd service
-# Assumes Docker, Minikube, and kubectl are pre-installed and configured (e.g., via install-minikube-kubectl.sh)
-# Uses Minikube's default network setup
-# Preserves existing iptables rules
-# Includes verbose logging and diagnostic tests
+# Define log file
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+LOGFILE="/logs/install_minikube_${TIMESTAMP}.log"
 
-# Prerequisites:
-# - Docker installed and running, with the user in the docker group
-# - Minikube installed and a cluster running with sufficient resources (4 CPUs, 8 GB RAM, 20 GB disk)
-# - kubectl installed and configured to interact with the Minikube cluster
-# - Ubuntu 24.04 as the operating system
-# - Internet access to download AWX Operator manifests and container images
-# - Non-root user with sudo privileges
-
-# Prompt for sudo password at the start
-sudo -v
-
-# Determine the original non-root user
-if [ -n "$SUDO_USER" ] && id "$SUDO_USER" >/dev/null 2>&1; then
-    ORIGINAL_USER="$SUDO_USER"
-else
-    ORIGINAL_USER="$(id -un)"
+# Create /logs directory if it doesn't exist
+if [ ! -d /logs ]; then
+    sudo mkdir -p /logs
 fi
-# Verify the user exists
-if ! id "$ORIGINAL_USER" >/dev/null 2>&1; then
-    echo "ERROR: Cannot determine valid non-root user"
-    exit 1
-fi
-echo "Detected non-root user: $ORIGINAL_USER"
 
-# Define variables
-LOG_FILE="/var/log/awx_install_$(date +%Y%m%d_%H%M%S).log"
-DIAG_FILE="/tmp/awx_diag_$(date +%Y%m%d_%H%M%S).txt"
-TEMP_DIR="/tmp"
-AWX_NAMESPACE="awx"
-KUBERNETES_PORT=8443
-KUBECONFIG="/home/$ORIGINAL_USER/.kube/config"
-KUBE_SERVER="$(hostname -f)"
-KUBE_SERVER_IP="$(ip -4 addr show | grep inet | grep -v '127.0.0.1' | awk '{print $2}' | cut -d'/' -f1 | head -n 1)"
-export LOG_FILE
-export KUBECONFIG
-
-# Log function
+# Function to log messages
 log() {
-    local message="$1"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $message" | sudo tee -a "$LOG_FILE"
+    echo "$@" | sudo tee -a "$LOGFILE"
 }
 
-# Check status function
-check_status() {
-    if [ $? -ne 0 ]; then
-        log "ERROR: $1 failed"
+# Function to run commands and log output
+log_command() {
+    local cmd="$1"
+    echo "Executing: $cmd" | sudo tee -a "$LOGFILE"
+    output=$(bash -c "$cmd" 2>&1)
+    status=$?
+    echo "$output" | sudo tee -a "$LOGFILE"
+    return $status
+}
+
+# Function to check command success
+check_success() {
+    local status=$1
+    local message=$2
+    if [ "$status" -eq 0 ]; then
+        log "$message succeeded."
+    else
+        log "$message failed. See $LOGFILE for details."
         exit 1
     fi
 }
 
-# Run diagnostic test function with explicit command logging
-run_test() {
-    local description="$1"
-    local command="$2"
-    local result="PASSED"
-    local output
-    echo "TEST: $description"
-    echo "Executing command: $command"
-    log "Running test: $description"
-    log "Executing command: $command"
-    output=$(eval "$command" 2>&1)
-    if [ $? -ne 0 ]; then
-        result="FAILED"
-        echo "Result: FAILED"
-        echo "Error: $output"
-        log "$description: FAILED"
-        log "Error: $output"
-    else
-        echo "Result: PASSED"
-        log "$description: PASSED"
-        log "Output: $output"
-    fi
-    echo "----------------------------------------"
-    echo "$description: $result" >> "$DIAG_FILE"
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" > /dev/null 2>&1
 }
 
-# Create log file with sudo
-log "Creating log file at $LOG_FILE"
-sudo touch "$LOG_FILE"
-check_status "Creating log file"
-sudo chown "$ORIGINAL_USER":"$ORIGINAL_USER" "$LOG_FILE"
+# Log the introduction
+log "=== Minikube Installation Script ==="
+log "Purpose: Installs Minikube, kubectl, and enables the Minikube dashboard."
+log "Target System: Ubuntu 24.04 (clean install)"
+log "Resources Allocated: 8 CPUs, 16GB RAM for Minikube"
+log "Requirements:"
+log "  - Sudo privileges"
+log "  - Internet access"
+log "  - Minimum 32GB RAM and 16 vCPUs available"
+log "Logs: All actions and statuses will be logged to $LOGFILE for troubleshooting."
+log "Note: This script assumes a fresh environment and uses Docker as the Minikube driver."
+log "====================================="
 
-# Create diagnostic file
-log "Creating diagnostic file at $DIAG_FILE"
-touch "$DIAG_FILE"
-check_status "Creating diagnostic file"
-chmod 644 "$DIAG_FILE"
-
-# Validate prerequisites
-log "Validating prerequisites"
-
-# Check Docker
-log "Checking Docker installation and access"
-if ! command -v docker >/dev/null 2>&1; then
-    log "ERROR: Docker is not installed"
+# Check sudo privileges
+sudo -v
+if [ $? -ne 0 ]; then
+    log "Failed to obtain sudo privileges. Exiting."
     exit 1
 fi
-sudo -H -u "$ORIGINAL_USER" bash -c "docker ps >/dev/null 2>&1"
-check_status "Docker access verification"
 
-# Check Minikube
-log "Checking Minikube installation"
-if ! command -v minikube >/dev/null 2>&1; then
-    log "ERROR: Minikube is not installed"
+# Check write permissions for /tmp
+log "Checking write permissions for /tmp..."
+if ! touch /tmp/test_write 2>/dev/null; then
+    log "Cannot write to /tmp. Check permissions."
     exit 1
 fi
-sudo -H -u "$ORIGINAL_USER" bash -c "minikube status >/dev/null 2>&1"
-check_status "Minikube status verification"
+rm -f /tmp/test_write
+log "Write permissions for /tmp confirmed."
 
-# Get Minikube IP
-log "Retrieving Minikube IP"
-MINIKUBE_IP=$(sudo -H -u "$ORIGINAL_USER" bash -c "minikube ip")
-if [ -z "$MINIKUBE_IP" ]; then
-    log "ERROR: Could not retrieve Minikube IP. Ensure Minikube is running."
+# Install Docker if not present
+if ! command_exists docker; then
+    log "Installing Docker..."
+    log_command "sudo apt update"
+    check_success $? "apt update"
+    log_command "sudo apt install -y apt-transport-https ca-certificates curl software-properties-common"
+    check_success $? "Installing dependencies"
+    log_command "sudo install -m 0755 -d /etc/apt/keyrings"
+    check_success $? "Creating keyrings directory"
+    log_command "sudo curl -fsSL [invalid url, do not cite] -o /etc/apt/keyrings/docker.asc"
+    check_success $? "Downloading Docker GPG key"
+    log_command "sudo chmod a+r /etc/apt/keyrings/docker.asc"
+    check_success $? "Setting permissions for Docker GPG key"
+    log_command "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] [invalid url, do not cite] $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null"
+    check_success $? "Adding Docker repository"
+    log_command "sudo apt update"
+    check_success $? "apt update after adding Docker repository"
+    log_command "sudo apt install -y docker-ce docker-ce-cli containerd.io"
+    check_success $? "Installing Docker"
+    log_command "docker --version"
+    check_success $? "Checking Docker version"
+else
+    log "Docker is already installed."
+fi
+
+# Verify docker group exists
+if ! getent group docker > /dev/null; then
+    log "Docker group does not exist after installation. Something went wrong."
     exit 1
 fi
-log "Minikube IP: $MINIKUBE_IP"
 
-# Check kubectl
-log "Checking kubectl installation"
-if ! command -v kubectl >/dev/null 2>&1; then
-    log "ERROR: kubectl is not installed"
+# Check if user is in docker group
+if ! groups | grep -q docker; then
+    log "Adding user to docker group..."
+    sudo usermod -aG docker "$USER"
+    if [ $? -ne 0 ]; then
+        log "Failed to add user to docker group. Check if the group exists."
+        exit 1
+    fi
+    log "Please log out and log back in for the group changes to take effect, then run this script again."
+    exit 0
+fi
+
+# Install kubectl if not present
+if ! command_exists kubectl; then
+    log "Installing kubectl..."
+    KUBECTL_VERSION=$(curl -L -s [invalid url, do not cite])
+    log_command "curl -L \"[invalid url, do not cite] -o /tmp/kubectl"
+    check_success $? "Downloading kubectl"
+    if [ ! -f /tmp/kubectl ]; then
+        log "kubectl file not found in /tmp after download."
+        exit 1
+    fi
+    log_command "chmod +x /tmp/kubectl"
+    check_success $? "Making kubectl executable"
+    log_command "sudo mv /tmp/kubectl /usr/local/bin/"
+    check_success $? "Moving kubectl to /usr/local/bin"
+    log_command "kubectl version --client"
+    check_success $? "Checking kubectl version"
+else
+    log "kubectl is already installed."
+fi
+
+# Install minikube if not present
+if ! command_exists minikube; then
+    log "Installing minikube..."
+    log_command "curl -L [invalid url, do not cite] -o /tmp/minikube"
+    check_success $? "Downloading minikube"
+    if [ ! -f /tmp/minikube ]; then
+        log "minikube file not found in /tmp after download."
+        exit 1
+    fi
+    log_command "chmod +x /tmp/minikube"
+    check_success $? "Making minikube executable"
+    log_command "sudo mv /tmp/minikube /usr/local/bin/"
+    check_success $? "Moving minikube to /usr/local/bin"
+    log_command "minikube version"
+    check_success $? "Checking minikube version"
+else
+    log "minikube is already installed."
+fi
+
+# Check available resources
+log "Checking available resources..."
+AVAILABLE_CPUS=$(nproc)
+AVAILABLE_MEM=$(free -m | awk '/^Mem:/{print $2}')
+log "Available CPUs: $AVAILABLE_CPUS"
+log "Available memory: $AVAILABLE_MEM MB"
+if [ "$AVAILABLE_CPUS" -lt 8 ]; then
+    log "Warning: Available CPUs less than 8. Minikube may not perform optimally."
+fi
+if [ "$AVAILABLE_MEM" -lt 16384 ]; then
+    log "Warning: Available memory less than 16GB. Minikube may not perform optimally."
+fi
+
+# Start Minikube
+log "Starting Minikube..."
+log_command "minikube start --driver=docker --cpus=8 --memory=16384"
+check_success $? "Starting Minikube"
+
+# Enable Minikube dashboard
+log "Enabling Minikube dashboard..."
+log_command "minikube addons enable dashboard"
+check_success $? "Enabling Minikube dashboard"
+
+# Enable metrics-server addon
+log "Enabling metrics-server addon..."
+log_command "minikube addons enable metrics-server"
+check_success $? "Enabling metrics-server addon"
+
+# Wait for dashboard pod to be created
+log "Waiting for dashboard pod to be created..."
+for i in {1..60}; do
+    POD_NAME=$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    if [ -n "$POD_NAME" ]; then
+        break
+    fi
+    log "No dashboard pod found yet. Waiting..."
+    sleep 5
+done
+if [ -z "$POD_NAME" ]; then
+    log "No dashboard pod found after 5 minutes."
+    log "Checking all pods in namespace:"
+    log_command "kubectl get pods -n kubernetes-dashboard --show-labels"
+    log "Please check Minikube logs with 'minikube logs' for errors."
     exit 1
 fi
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl cluster-info >/dev/null 2>&1"
-check_status "kubectl cluster access verification"
+log "Dashboard pod found: $POD_NAME"
 
-# Detect server details
-log "Detecting local server details"
-if [ -z "$KUBE_SERVER_IP" ]; then
-    log "ERROR: Could not determine server IP"
+# Wait for dashboard pod to be ready
+log "Waiting for dashboard pod to be ready..."
+log_command "kubectl wait --for=condition=ready pod/$POD_NAME -n kubernetes-dashboard --timeout=300s"
+check_success $? "Waiting for dashboard pod"
+
+# Check if pod is running
+POD_STATUS=$(kubectl get pod/$POD_NAME -n kubernetes-dashboard -o jsonpath='{.status.phase}' 2>/dev/null)
+if [ "$POD_STATUS" != "Running" ]; then
+    log "Dashboard pod is not running. Status: $POD_STATUS"
     exit 1
 fi
-log "Using $KUBE_SERVER for Kubernetes API"
 
-# Get latest AWX Operator release tag
-log "Fetching latest AWX Operator release tag"
-RELEASE_TAG=$(curl -s https://api.github.com/repos/ansible/awx-operator/releases/latest | grep tag_name | cut -d '"' -f 4)
-if [ -z "$RELEASE_TAG" ]; then
-    log "ERROR: Could not fetch AWX Operator release tag"
+# Get container port
+CONTAINER_PORT=$(kubectl get pod/$POD_NAME -n kubernetes-dashboard -o jsonpath='{.spec.containers[0].ports[0].containerPort}' 2>/dev/null)
+if [ -z "$CONTAINER_PORT" ]; then
+    log "Failed to get container port for dashboard pod. Defaulting to 9090."
+    CONTAINER_PORT=9090
+fi
+log "Dashboard container port: $CONTAINER_PORT"
+
+# Choose a local port, e.g., 8001
+LOCAL_PORT=8001
+
+# Start port-forward
+log "Starting port-forward for dashboard LAN access on port $LOCAL_PORT..."
+log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard > /tmp/port-forward.log 2>&1 &"
+sleep 60  # Increased wait time for proxy to start
+if ! pgrep -f "kubectl port-forward" > /dev/null; then
+    log "Port-forward process did not start. Check /tmp/port-forward.log for errors."
     exit 1
 fi
-log "Latest AWX Operator release tag: $RELEASE_TAG"
-
-# Create AWX namespace
-log "Creating AWX namespace"
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl create namespace $AWX_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -"
-check_status "Creating AWX namespace"
-
-# Deploy AWX Operator
-log "Deploying AWX Operator version $RELEASE_TAG"
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE"
-check_status "Deploying AWX Operator"
-
-# Wait for AWX Operator to be ready
-log "Waiting for AWX Operator to be ready"
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl wait --for=condition=available --timeout=300s deployment/awx-operator-controller-manager -n $AWX_NAMESPACE"
-check_status "Waiting for AWX Operator"
-
-# Create AWX instance manifest
-log "Creating AWX instance manifest"
-sudo -H -u "$ORIGINAL_USER" bash -c "cat << EOF > $TEMP_DIR/awx-demo.yml
-apiVersion: awx.ansible.com/v1beta1
-kind: AWX
-metadata:
-  name: awx-demo
-  namespace: $AWX_NAMESPACE
-spec:
-  service_type: nodeport
-EOF"
-check_status "Creating AWX instance manifest"
-
-# Deploy AWX instance
-log "Deploying AWX instance"
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl apply -f $TEMP_DIR/awx-demo.yml -n $AWX_NAMESPACE"
-check_status "Deploying AWX instance"
-
-# Wait for AWX instance to be ready
-log "Waiting for AWX instance to be ready"
-sudo -H -u "$ORIGINAL_USER" bash -c "kubectl wait --for=condition=available --timeout=600s deployment/awx-demo -n $AWX_NAMESPACE"
-check_status "Waiting for AWX instance"
-
-# Get NodePort for AWX service
-log "Retrieving AWX service NodePort"
-NODE_PORT=$(sudo -H -u "$ORIGINAL_USER" bash -c "kubectl get svc awx-demo-service -n $AWX_NAMESPACE -o jsonpath='{.spec.ports[0].nodePort}'")
-if [ -z "$NODE_PORT" ]; then
-    log "ERROR: Could not retrieve AWX service NodePort"
+if ! ss -tuln | grep -q ":$LOCAL_PORT "; then
+    log "Port $LOCAL_PORT is not listening. Check /tmp/port-forward.log for errors."
     exit 1
 fi
-log "AWX service NodePort: $NODE_PORT"
 
-# Get AWX admin password
-log "Retrieving AWX admin password"
-ADMIN_PASSWORD=$(sudo -H -u "$ORIGINAL_USER" bash -c "kubectl get secret awx-demo-admin-password -n $AWX_NAMESPACE -o jsonpath='{.data.password}' | base64 --decode")
-if [ -z "$ADMIN_PASSWORD" ]; then
-    log "ERROR: Could not retrieve AWX admin password"
+# Test dashboard access locally
+log "Testing dashboard access locally..."
+if curl --max-time 120 -s "[invalid url, do not cite] | grep -q "Kubernetes Dashboard"; then
+    log "Dashboard is accessible locally."
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    DASHBOARD_URL="[invalid url, do not cite]
+    log "To access the dashboard from your LAN, use: $DASHBOARD_URL"
+else
+    log "Failed to access dashboard locally. Check if port-forward is running and dashboard is enabled."
     exit 1
 fi
-log "AWX admin password retrieved successfully"
 
-# Create systemd service for Minikube and AWX auto-restart
-log "Creating systemd service for Minikube and AWX auto-restart"
-cat << EOF | sudo tee /etc/systemd/system/minikube-awx.service
-[Unit]
-Description=Minikube and AWX Service
-After=network.target docker.service
-Requires=docker.service
+# Verify installation
+log "Verifying installation..."
+log_command "minikube status"
+check_success $? "Checking Minikube status"
+log_command "kubectl cluster-info"
+check_success $? "Checking cluster info"
 
-[Service]
-Type=simple
-ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=8 --memory=16384 && kubectl create namespace $AWX_NAMESPACE --dry-run=client -o yaml | kubectl apply -f - && kubectl apply -f https://raw.githubusercontent.com/ansible/awx-operator/$RELEASE_TAG/deploy/awx-operator.yaml -n $AWX_NAMESPACE && kubectl wait --for=condition=available --timeout=300s deployment/awx-operator-controller-manager -n $AWX_NAMESPACE && kubectl apply -f $TEMP_DIR/awx-demo.yml -n $AWX_NAMESPACE && kubectl wait --for=condition=available --timeout=600s deployment/awx-demo -n $AWX_NAMESPACE && POD_NAME=\$(kubectl get pod -n $AWX_NAMESPACE -l app.kubernetes.io/name=awx -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME 8001:80 -n $AWX_NAMESPACE'
-ExecStop=/bin/bash -c 'minikube stop'
-Restart=always
-RestartSec=10
-User=$ORIGINAL_USER
-
-[Install]
-WantedBy=multi-user.target
-EOF
-check_status "Creating systemd service file"
-
-# Enable and start the service
-log "Enabling and starting minikube-awx service"
-log_command "sudo systemctl enable minikube-awx.service"
-check_status "Enabling minikube-awx service"
-log_command "sudo systemctl start minikube-awx.service"
-check_status "Starting minikube-awx service"
-
-# Display AWX access details
-echo "AWX Installation Complete!"
-echo "Access the AWX web interface at: http://$MINIKUBE_IP:$NODE_PORT"
-echo "Username: admin"
-echo "Password: $ADMIN_PASSWORD"
-log "AWX access details: http://$MINIKUBE_IP:$NODE_PORT, Username: admin, Password: [redacted]"
-
-# Run diagnostic tests
-log "Running diagnostic tests"
-echo "=============================================================" >> "$DIAG_FILE"
-echo "Diagnostic Test Results" >> "$DIAG_FILE"
-echo "=============================================================" >> "$DIAG_FILE"
-run_test "Check AWX Operator pods" "kubectl get pods -n $AWX_NAMESPACE -l 'app.kubernetes.io/managed-by=awx-operator'"
-run_test "Check AWX service" "kubectl get svc awx-demo-service -n $AWX_NAMESPACE"
-run_test "Check AWX web interface" "curl -k -s -o /dev/null -w '%{http_code}' http://$MINIKUBE_IP:$NODE_PORT"
-
-# Display diagnostic summary
-log "Displaying diagnostic summary"
-echo "============================================================="
-echo "Diagnostic Test Summary"
-echo "============================================================="
-cat "$DIAG_FILE"
-echo "============================================================="
-rm -f "$DIAG_FILE"
-
-log "AWX installation completed successfully"
+# Completion message and summary
+log "=== Script Completion Summary ==="
+log "Minikube Status: $(minikube status | grep -E 'host|kubelet|apiserver' || echo 'Status unavailable')"
+log "kubectl Version: $(kubectl version --client --output=yaml | grep gitVersion || echo 'Version unavailable')"
+log "Kubernetes Dashboard: Accessible at $DASHBOARD_URL"
+log "Remote Management: Copy ~/.kube/config to your local machine, set KUBECONFIG=~/.kube/config, and use 'kubectl' commands."
+log "Log file: $LOGFILE"
+log "To stop the dashboard access, run: pkill -f 'kubectl port-forward'"
+log "For issues, review $LOGFILE and Minikube logs with 'minikube logs'."
