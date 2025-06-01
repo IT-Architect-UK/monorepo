@@ -1,8 +1,24 @@
 #!/bin/bash
 
-# Define log file
+# === Minikube Installation Script ===
+# Purpose: Installs Minikube, kubectl, enables the Minikube dashboard, and sets up auto-restart after reboot.
+# Target System: Ubuntu 24.04 (clean install)
+# Resources Allocated: 8 CPUs, 16GB RAM for Minikube
+# Requirements:
+#   - Sudo privileges
+#   - Internet access
+#   - Minimum 32GB RAM and 16 vCPUs available
+# Logs: All actions and statuses will be logged to $LOGFILE for troubleshooting.
+# Note: This script assumes a fresh environment and uses Docker as the Minikube driver.
+# =====================================
+
+# Define variables
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOGFILE="/logs/install_minikube_${TIMESTAMP}.log"
+MINIKUBE_CPUS=8
+MINIKUBE_MEMORY=16384
+LOCAL_PORT=8001
+CONTAINER_PORT=9090
 
 # Create /logs directory if it doesn't exist
 if [ ! -d /logs ]; then
@@ -40,19 +56,6 @@ check_success() {
 command_exists() {
     command -v "$1" > /dev/null 2>&1
 }
-
-# Log the introduction
-log "=== Minikube Installation Script ==="
-log "Purpose: Installs Minikube, kubectl, enables the Minikube dashboard, and sets up auto-restart after reboot."
-log "Target System: Ubuntu 24.04 (clean install)"
-log "Resources Allocated: 8 CPUs, 16GB RAM for Minikube"
-log "Requirements:"
-log "  - Sudo privileges"
-log "  - Internet access"
-log "  - Minimum 32GB RAM and 16 vCPUs available"
-log "Logs: All actions and statuses will be logged to $LOGFILE for troubleshooting."
-log "Note: This script assumes a fresh environment and uses Docker as the Minikube driver."
-log "====================================="
 
 # Check sudo privileges
 sudo -v
@@ -158,16 +161,16 @@ AVAILABLE_CPUS=$(nproc)
 AVAILABLE_MEM=$(free -m | awk '/^Mem:/{print $2}')
 log "Available CPUs: $AVAILABLE_CPUS"
 log "Available memory: $AVAILABLE_MEM MB"
-if [ "$AVAILABLE_CPUS" -lt 8 ]; then
-    log "Warning: Available CPUs less than 8. Minikube may not perform optimally."
+if [ "$AVAILABLE_CPUS" -lt "$MINIKUBE_CPUS" ]; then
+    log "Warning: Available CPUs less than $MINIKUBE_CPUS. Minikube may not perform optimally."
 fi
-if [ "$AVAILABLE_MEM" -lt 16384 ]; then
-    log "Warning: Available memory less than 16GB. Minikube may not perform optimally."
+if [ "$AVAILABLE_MEM" -lt "$MINIKUBE_MEMORY" ]; then
+    log "Warning: Available memory less than $MINIKUBE_MEMORY MB. Minikube may not perform optimally."
 fi
 
 # Start Minikube
 log "Starting Minikube..."
-log_command "minikube start --driver=docker --cpus=8 --memory=16384"
+log_command "minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY"
 check_success $? "Starting Minikube"
 
 # Enable Minikube dashboard
@@ -179,6 +182,52 @@ check_success $? "Enabling Minikube dashboard"
 log "Enabling metrics-server addon..."
 log_command "minikube addons enable metrics-server"
 check_success $? "Enabling metrics-server addon"
+
+# Fix RBAC issues
+log "Applying RBAC rolebindings to fix permissions..."
+cat <<EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: kube-system
+  name: node-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["csidrivers", "csinodes", "storageclasses"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: kube-system
+  name: node-binding
+subjects:
+- kind: User
+  name: system:node:minikube
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: node-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: kube-system
+  name: extension-apiserver-authentication-reader-binding
+subjects:
+- kind: User
+  name: system:kube-scheduler
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: extension-apiserver-authentication-reader
+  apiGroup: rbac.authorization.k8s.io
+EOF
+check_success $? "Applying RBAC rolebindings"
 
 # Wait for dashboard pod to be created
 log "Waiting for dashboard pod to be created..."
@@ -214,18 +263,14 @@ fi
 # Get container port
 CONTAINER_PORT=$(kubectl get pod/$POD_NAME -n kubernetes-dashboard -o jsonpath='{.spec.containers[0].ports[0].containerPort}' 2>/dev/null)
 if [ -z "$CONTAINER_PORT" ]; then
-    log "Failed to get container port for dashboard pod. Defaulting to 9090."
-    CONTAINER_PORT=9090
+    log "Failed to get container port for dashboard pod. Defaulting to $CONTAINER_PORT."
 fi
 log "Dashboard container port: $CONTAINER_PORT"
-
-# Choose a local port, e.g., 8001
-LOCAL_PORT=8001
 
 # Start port-forward
 log "Starting port-forward for dashboard LAN access on port $LOCAL_PORT..."
 log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard > /tmp/port-forward.log 2>&1 &"
-sleep 60  # Increased wait time for proxy to start
+sleep 60
 if ! pgrep -f "kubectl port-forward" > /dev/null; then
     log "Port-forward process did not start. Check /tmp/port-forward.log for errors."
     exit 1
@@ -237,7 +282,7 @@ fi
 
 # Test dashboard access locally
 log "Testing dashboard access locally..."
-if curl --max-time 120 -s "http://127.0.0.0:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"; then
+if curl --max-time 120 -s "http://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"; then
     log "Dashboard is accessible locally."
     SERVER_IP=$(hostname -I | awk '{print $1}')
     DASHBOARD_URL="http://$SERVER_IP:$LOCAL_PORT"
@@ -257,7 +302,7 @@ Requires=docker.service
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=8 --memory=16384 && minikube addons enable dashboard && minikube addons enable metrics-server && sleep 10 && POD_NAME=\$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME 8001:9090 -n kubernetes-dashboard'
+ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY && minikube addons enable dashboard && minikube addons enable metrics-server && sleep 10 && POD_NAME=\$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard'
 ExecStop=/bin/bash -c 'minikube stop'
 Restart=always
 RestartSec=10
@@ -292,4 +337,3 @@ log "Log file: $LOGFILE"
 log "To stop the dashboard access manually, run: pkill -f 'kubectl port-forward'"
 log "Minikube and dashboard will auto-restart after reboot via systemd service."
 log "To manage the service, use: systemctl {start|stop|restart|status} minikube.service"
-log "For issues, review $LOGFILE and Minikube logs with 'minikube logs'."
