@@ -148,9 +148,17 @@ log "Cloning AWX operator repository..."
 if [ ! -d "$WORKDIR/awx-operator" ]; then
     log_command "sudo git clone https://github.com/ansible/awx-operator.git $WORKDIR/awx-operator"
     check_success $? "Cloning AWX operator repository"
+    log "Fixing ownership of awx-operator directory..."
+    log_command "sudo chown -R $USER:$USER $WORKDIR/awx-operator"
+    check_success $? "Fixing ownership of awx-operator directory"
 else
     log "awx-operator directory already exists, skipping clone."
 fi
+
+# Add awx-operator directory to Git safe directories
+log "Adding $WORKDIR/awx-operator to Git safe directories..."
+log_command "git config --global --add safe.directory $WORKDIR/awx-operator"
+check_success $? "Adding awx-operator to Git safe directories"
 
 # Change to awx-operator directory
 cd "$WORKDIR/awx-operator" || { log "Failed to change to awx-operator directory."; exit 1; }
