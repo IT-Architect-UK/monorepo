@@ -258,17 +258,19 @@ log "Creating systemd service for Minikube and dashboard auto-restart..."
 cat << EOF | sudo tee /etc/systemd/system/minikube.service
 [Unit]
 Description=Minikube and Kubernetes Dashboard Service
-After=network.target docker.service
-Requires=docker.service
+After=network-online.target docker.service
+Requires=network-online.target docker.service
+Wants=network-online.target
 
 [Service]
 Type=simple
 Environment="KUBECONFIG=$KUBECONFIG_PATH"
-ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY && minikube update-context && minikube addons enable dashboard && minikube addons enable metrics-server && sleep 10 && until POD_NAME=\$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null); do sleep 5; done && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard'
+ExecStart=/bin/bash -c 'for i in {1..3}; do minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY && minikube update-context && minikube addons enable dashboard && minikube addons enable metrics-server && break || sleep 10; done && until POD_NAME=\$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null); do sleep 5; done && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard'
 ExecStop=/bin/bash -c 'minikube stop'
 Restart=always
 RestartSec=10
 User=$USER
+TimeoutStartSec=600
 
 [Install]
 WantedBy=multi-user.target
