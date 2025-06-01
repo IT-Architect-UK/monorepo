@@ -193,9 +193,24 @@ log "Applying AWX instance configuration..."
 log_command "kubectl apply -f awx-demo.yml -n $NAMESPACE"
 check_success $? "Applying AWX instance configuration"
 
+# Wait for AWX custom resource to be ready
+log "Waiting for AWX custom resource to be created..."
+for i in {1..60}; do
+    if kubectl get awx awx-demo -n $NAMESPACE --no-headers 2>/dev/null | grep -q awx-demo; then
+        log "AWX custom resource created."
+        break
+    fi
+    log "Waiting for AWX custom resource..."
+    sleep 5
+done
+if ! kubectl get awx awx-demo -n $NAMESPACE --no-headers 2>/dev/null | grep -q awx-demo; then
+    log "AWX custom resource not found after 5 minutes."
+    exit 1
+fi
+
 # Wait for AWX deployment to be ready
 log "Waiting for AWX deployment to be ready..."
-log_command "kubectl wait --for=condition=available --timeout=600s deployment/awx-demo -n $NAMESPACE"
+log_command "kubectl wait --for=condition=available --timeout=600s deployment -l app.kubernetes.io/name=awx -n $NAMESPACE"
 check_success $? "Waiting for AWX deployment"
 
 # Wait for AWX postgres pod to be ready
