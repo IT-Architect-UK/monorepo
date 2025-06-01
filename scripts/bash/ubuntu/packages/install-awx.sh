@@ -18,6 +18,7 @@
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOGFILE="/logs/install_awx_${TIMESTAMP}.log"
 NAMESPACE="ansible-awx"
+OPERATOR_NAMESPACE="awx"
 AWX_OPERATOR_VERSION="2.19.1"
 WORKDIR="/source-files/github/monorepo/scripts/bash/ubuntu/packages"
 
@@ -126,7 +127,7 @@ else
     log "curl is already installed."
 fi
 
-# Check if ingress is enabled
+# Check if ingress addon is enabled
 log "Checking Minikube ingress addon..."
 INGRESS_STATUS=$(minikube addons list | grep ingress | awk '{print $2}')
 if [ "$INGRESS_STATUS" != "enabled" ]; then
@@ -150,24 +151,38 @@ else
     log "Ingress addon is already enabled."
 fi
 
-# Create namespace if it doesn't exist
+# Create namespaces if they don't exist
 log "Creating namespace $NAMESPACE if it doesn't exist..."
 log_command "kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -"
 check_success $? "Creating namespace $NAMESPACE"
 
-# Create dummy redhat-operators-pull-secret to bypass error
+log "Creating namespace $OPERATOR_NAMESPACE if it doesn't exist..."
+log_command "kubectl create namespace $OPERATOR_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -"
+check_success $? "Creating namespace $OPERATOR_NAMESPACE"
+
+# Create dummy redhat-operators-pull-secret in both namespaces
+log "Creating dummy redhat-operators-pull-secret in namespace $OPERATOR_NAMESPACE..."
+log_command "kubectl -n $OPERATOR_NAMESPACE create secret docker-registry redhat-operators-pull-secret --docker-server=dummy.example.com --docker-username=dummy --docker-password=dummy"
+check_success $? "Creating dummy redhat-operators-pull-secret in $OPERATOR_NAMESPACE"
+
 log "Creating dummy redhat-operators-pull-secret in namespace $NAMESPACE..."
-cat << EOF | kubectl apply -f -
-apiVersion: v1
-kind: Secret
-metadata:
-  name: redhat-operators-pull-secret
-  namespace: $NAMESPACE
-type: kubernetes.io/dockerconfigjson
-data:
-  .dockerconfigjson: e30=
-EOF
-check_success $? "Creating dummy redhat-operators-pull-secret"
+log_command "kubectl -n $NAMESPACE create secret docker-registry redhat-operators-pull-secret --docker-server=dummy.example.com --docker-username=dummy --docker-password=dummy"
+check_success $? "Creating dummy redhat-operators-pull-secret in $NAMESPACE"
+
+# Verify secrets exist
+log "Verifying redhat-operators-pull-secret in $OPERATOR_NAMESPACE..."
+if ! kubectl get secret redhat-operators-pull-secret -n $OPERATOR_NAMESPACE --no-headers 2>/dev/null | grep -q redhat-operators-pull-secret; then
+    log "redhat-operators-pull-secret not found in $OPERATOR_NAMESPACE."
+    exit 1
+fi
+log "redhat-operators-pull-secret verified in $OPERATOR_NAMESPACE."
+
+log "Verifying redhat-operators-pull-secret in $NAMESPACE..."
+if ! kubectl get secret redhat-operators-pull-secret -n $NAMESPACE --no-headers 2>/dev/null | grep -q redhat-operators-pull-secret; then
+    log "redhat-operators-pull-secret not found in $NAMESPACE."
+    exit 1
+fi
+log "redhat-operators-pull-secret verified in $NAMESPACE."
 
 # Clone AWX operator repository
 log "Cloning AWX operator repository..."
@@ -178,7 +193,7 @@ if [ ! -d "$WORKDIR/awx-operator" ]; then
     log_command "sudo chown -R $USER:$USER $WORKDIR/awx-operator"
     check_success $? "Fixing ownership of awx-operator directory"
 else
-    log "awx-operator repository already exists, skipping clone."
+    log "awx-operator directory already exists, skipping clone."
 fi
 
 # Add awx-operator directory to Git safe directories
@@ -201,8 +216,8 @@ check_success $? "Deploying AWX operator"
 
 # Check for image pull secret issues
 log "Checking for AWX Operator pod events..."
-log_command "kubectl get events -n $NAMESPACE --field-selector involvedObject.kind=Pod"
-if kubectl get events -n $NAMESPACE 2>/dev/null | grep -q "FailedToRetrieveImagePullSecret"; then
+log_command "kubectl get events -n $OPERATOR_NAMESPACE --field-selector involvedObject.kind=Pod"
+if kubectl get events -n $OPERATOR_NAMESPACE 2>/dev/null | grep -q "FailedToRetrieveImagePullSecret"; then
     log "Warning: Image pull secret issue detected. AWX Operator may have issues pulling images."
 fi
 
@@ -318,4 +333,4 @@ log "AWX Admin Username: admin"
 log "AWX Admin Password: $AWX_PASSWORD"
 log "Log file: $LOGFILE"
 log "To access AWX, visit the AWX UI URL in your browser and log in with the admin credentials."
-log "For issues, review $LOGFILE and AWX operator logs with 'kubectl logs -f deployments/awx-operator-controller-manager -c awx-manager -n $NAMESPACE'."
+log "For issues, review $LOGFILE and AWX operator logs with 'kubectl logs -f deployments/awx-operator-controller-manager -c awx-manager -n $OPERATOR_NAMESPACE'."
