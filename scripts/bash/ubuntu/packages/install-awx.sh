@@ -134,21 +134,28 @@ if [ "$INGRESS_STATUS" != "enabled" ]; then
     log "Enabling Minikube ingress addon..."
     log_command "minikube addons enable ingress"
     check_success $? "Enabling ingress addon"
-    log "Waiting for ingress controller to be ready..."
-    for i in {1..60}; do
-        if kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --no-headers 2>/dev/null | grep -q Running; then
-            log "Ingress controller is ready."
-            break
-        fi
-        log "Waiting for ingress controller..."
-        sleep 5
-    done
-    if ! kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --no-headers 2>/dev/null | grep -q Running; then
-        log "Ingress controller not ready after 5 minutes."
-        exit 1
+fi
+
+# Ensure ingress-nginx-admission secret exists
+log "Checking for ingress-nginx-admission secret..."
+if ! kubectl get secret ingress-nginx-admission -n ingress-nginx --no-headers 2>/dev/null | grep -q ingress-nginx-admission; then
+    log "ingress-nginx-admission secret not found. Recreating..."
+    log_command "kubectl delete -n ingress-nginx secret ingress-nginx-admission --ignore-not-found"
+    log_command "minikube addons disable ingress && minikube addons enable ingress"
+    check_success $? "Recreating ingress-nginx-admission secret"
+fi
+log "Waiting for ingress controller to be ready..."
+for i in {1..120}; do
+    if kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --no-headers 2>/dev/null | grep -q Running; then
+        log "Ingress controller is ready."
+        break
     fi
-else
-    log "Ingress addon is already enabled."
+    log "Waiting for ingress controller..."
+    sleep 5
+done
+if ! kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --no-headers 2>/dev/null | grep -q Running; then
+    log "Ingress controller not ready after 10 minutes."
+    exit 1
 fi
 
 # Create namespaces if they don't exist
@@ -258,7 +265,7 @@ fi
 
 # Wait for AWX pods to be created
 log "Waiting for AWX pods to be created..."
-for i in {1..60}; do
+for i in {1..120}; do
     if kubectl get pods -n $NAMESPACE -l app.kubernetes.io/part-of=awx --no-headers 2>/dev/null | grep -q .; then
         log "AWX pods found."
         break
@@ -267,7 +274,7 @@ for i in {1..60}; do
     sleep 5
 done
 if ! kubectl get pods -n $NAMESPACE -l app.kubernetes.io/part-of=awx --no-headers 2>/dev/null | grep -q .; then
-    log "No AWX pods found after 5 minutes."
+    log "No AWX pods found after 10 minutes."
     exit 1
 fi
 
