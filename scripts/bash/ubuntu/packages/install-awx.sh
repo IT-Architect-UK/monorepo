@@ -9,6 +9,7 @@
 #   - Internet access
 #   - Minikube running with kubectl configured
 #   - Git installed
+#   - Curl installed for AWX availability check
 # Logs: All actions and statuses will be logged to /logs/install_awx_<timestamp>.log for troubleshooting.
 # Note: This script assumes Minikube is already set up and uses the latest AWX Operator version.
 # ==============================
@@ -114,6 +115,17 @@ else
     log "git is already installed."
 fi
 
+# Install curl if not present
+if ! command_exists curl; then
+    log "Installing curl..."
+    log_command "sudo apt update"
+    check_success $? "apt update"
+    log_command "sudo apt install -y curl"
+    check_success $? "Installing curl"
+else
+    log "curl is already installed."
+fi
+
 # Check if ingress addon is enabled
 log "Checking Minikube ingress addon..."
 INGRESS_STATUS=$(minikube addons list | grep ingress | awk '{print $2}')
@@ -193,7 +205,7 @@ log "Applying AWX instance configuration..."
 log_command "kubectl apply -f awx-demo.yml -n $NAMESPACE"
 check_success $? "Applying AWX instance configuration"
 
-# Wait for AWX custom resource to be ready
+# Wait for AWX custom resource to be created
 log "Waiting for AWX custom resource to be created..."
 for i in {1..60}; do
     if kubectl get awx awx-demo -n $NAMESPACE --no-headers 2>/dev/null | grep -q awx-demo; then
@@ -208,10 +220,10 @@ if ! kubectl get awx awx-demo -n $NAMESPACE --no-headers 2>/dev/null | grep -q a
     exit 1
 fi
 
-# Wait for AWX deployment to be ready
-log "Waiting for AWX deployment to be ready..."
-log_command "kubectl wait --for=condition=available --timeout=600s deployment -l app.kubernetes.io/name=awx -n $NAMESPACE"
-check_success $? "Waiting for AWX deployment"
+# Wait for AWX pods to be ready
+log "Waiting for AWX pods to be ready..."
+log_command "kubectl wait --for=condition=ready pod -l app.kubernetes.io/managed-by=awx-operator -n $NAMESPACE --timeout=600s"
+check_success $? "Waiting for AWX pods"
 
 # Wait for AWX postgres pod to be ready
 log "Waiting for AWX postgres pod to be ready..."
@@ -236,6 +248,26 @@ if [ -z "$AWX_PASSWORD" ]; then
 fi
 log "AWX admin username: admin"
 log "AWX admin password: $AWX_PASSWORD"
+
+# Poll AWX to verify availability
+log "Polling AWX to verify availability..."
+for i in {1..120}; do
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$AWX_URL" --max-time 5)
+    if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 302 ]; then
+        log "AWX is available (HTTP status: $HTTP_STATUS)."
+        echo "AWX installation complete!"
+        echo "Access AWX at: $AWX_URL"
+        echo "Username: admin"
+        echo "Password: $AWX_PASSWORD"
+        break
+    fi
+    log "AWX not yet available (HTTP status: $HTTP_STATUS). Retrying in 5 seconds..."
+    sleep 5
+done
+if [ "$HTTP_STATUS" != 200 ] && [ "$HTTP_STATUS" != 302 ]; then
+    log "AWX not available after 10 minutes."
+    exit 1
+fi
 
 # Verify installation
 log "Verifying AWX installation..."
