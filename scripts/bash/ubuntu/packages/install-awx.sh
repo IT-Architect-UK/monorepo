@@ -185,6 +185,13 @@ log "Deploying AWX operator..."
 log_command "make deploy"
 check_success $? "Deploying AWX operator"
 
+# Check for image pull secret issues
+log "Checking for AWX Operator pod events..."
+log_command "kubectl get events -n awx --field-selector involvedObject.name=awx-operator-controller-manager-58b7c97f4b-drxf7"
+if kubectl get events -n awx --field-selector involvedObject.name=awx-operator-controller-manager-58b7c97f4b-drxf7 2>/dev/null | grep -q "FailedToRetrieveImagePullSecret"; then
+    log "Warning: Image pull secret issue detected. AWX Operator may have issues pulling images."
+fi
+
 # Create AWX instance configuration
 log "Creating AWX instance configuration..."
 cat << EOF > awx-demo.yml
@@ -220,9 +227,24 @@ if ! kubectl get awx awx-demo -n $NAMESPACE --no-headers 2>/dev/null | grep -q a
     exit 1
 fi
 
+# Wait for AWX pods to be created
+log "Waiting for AWX pods to be created..."
+for i in {1..60}; do
+    if kubectl get pods -n $NAMESPACE -l app.kubernetes.io/part-of=awx --no-headers 2>/dev/null | grep -q .; then
+        log "AWX pods found."
+        break
+    fi
+    log "Waiting for AWX pods..."
+    sleep 5
+done
+if ! kubectl get pods -n $NAMESPACE -l app.kubernetes.io/part-of=awx --no-headers 2>/dev/null | grep -q .; then
+    log "No AWX pods found after 5 minutes."
+    exit 1
+fi
+
 # Wait for AWX pods to be ready
 log "Waiting for AWX pods to be ready..."
-log_command "kubectl wait --for=condition=ready pod -l app.kubernetes.io/managed-by=awx-operator -n $NAMESPACE --timeout=600s"
+log_command "kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=awx -n $NAMESPACE --timeout=600s"
 check_success $? "Waiting for AWX pods"
 
 # Wait for AWX postgres pod to be ready
