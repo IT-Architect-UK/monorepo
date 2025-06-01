@@ -201,7 +201,12 @@ roleRef:
 EOF
 check_success $? "Applying RBAC rolebindings"
 
-# Wait for dashboard pod
+# Verify dashboard service
+log "Verifying dashboard service..."
+log_command "kubectl get svc -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard"
+check_success $? "Verifying dashboard service"
+
+# Wait for dashboard pod with retry
 log "Waiting for dashboard pod..."
 for i in {1..60}; do
     POD_NAME=$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
@@ -214,17 +219,22 @@ log "Dashboard pod found: $POD_NAME"
 
 # Wait for dashboard pod to be ready
 log "Waiting for dashboard pod to be ready..."
-log_command "kubectl wait --for=condition=ready pod/$POD_NAME -n kubernetes-dashboard --timeout=300s"
+for i in {1..3}; do
+    log_command "kubectl wait --for=condition=ready pod/$POD_NAME -n kubernetes-dashboard --timeout=300s"
+    [ $? -eq 0 ] && break
+    log "Dashboard pod not ready. Retrying ($i/3)..."
+    sleep 10
+done
 check_success $? "Waiting for dashboard pod"
 
 # Start port-forward with retry
 log "Starting port-forward for dashboard LAN access on port $LOCAL_PORT..."
 for i in {1..3}; do
+    pkill -f "kubectl port-forward" 2>/dev/null
     log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard > /tmp/port-forward.log 2>&1 &"
     sleep 10
-    pgrep -f "kubectl port-forward" > /dev/null && break
+    pgrep -f "kubectl port-forward" > /dev/null && ss -tuln | grep -q ":$LOCAL_PORT" && break
     log "Port-forward attempt $i failed. Retrying..."
-    pkill -f "kubectl port-forward" 2>/dev/null
     sleep 5
 done
 pgrep -f "kubectl port-forward" > /dev/null
@@ -232,7 +242,7 @@ check_success $? "Starting port-forward process"
 
 # Test dashboard access with longer timeout
 log "Testing dashboard access locally..."
-sleep 10 # Give port-forward time to stabilize
+sleep 10
 curl --max-time 30 -s "http://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"
 if [ $? -eq 0 ]; then
     log "Accessing dashboard locally succeeded."
