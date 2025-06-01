@@ -18,6 +18,7 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOGFILE="/logs/install_awx_${TIMESTAMP}.log"
 NAMESPACE="ansible-awx"
 AWX_OPERATOR_VERSION="2.19.1"
+WORKDIR="/source-files/github/monorepo/scripts/bash/ubuntu/packages"
 
 # Create /logs directory if it doesn't exist
 if [ ! -d /logs ]; then
@@ -71,6 +72,20 @@ if ! touch /tmp/test_write 2>/dev/null; then
 fi
 rm -f /tmp/test_write
 log "Write permissions for /tmp confirmed."
+
+# Check write permissions for working directory
+log "Checking write permissions for $WORKDIR..."
+if ! touch "$WORKDIR/test_write" 2>/dev/null; then
+    log "Cannot write to $WORKDIR. Attempting to fix permissions..."
+    log_command "sudo chown $USER:$USER $WORKDIR"
+    check_success $? "Fixing permissions for $WORKDIR"
+    if ! touch "$WORKDIR/test_write" 2>/dev/null; then
+        log "Still cannot write to $WORKDIR. Check permissions."
+        exit 1
+    fi
+fi
+rm -f "$WORKDIR/test_write"
+log "Write permissions for $WORKDIR confirmed."
 
 # Check if Minikube is running
 log "Checking Minikube status..."
@@ -130,15 +145,15 @@ check_success $? "Creating namespace $NAMESPACE"
 
 # Clone AWX operator repository
 log "Cloning AWX operator repository..."
-if [ ! -d "awx-operator" ]; then
-    log_command "git clone https://github.com/ansible/awx-operator.git"
+if [ ! -d "$WORKDIR/awx-operator" ]; then
+    log_command "sudo git clone https://github.com/ansible/awx-operator.git $WORKDIR/awx-operator"
     check_success $? "Cloning AWX operator repository"
 else
     log "awx-operator directory already exists, skipping clone."
 fi
 
 # Change to awx-operator directory
-cd awx-operator || { log "Failed to change to awx-operator directory."; exit 1; }
+cd "$WORKDIR/awx-operator" || { log "Failed to change to awx-operator directory."; exit 1; }
 
 # Checkout the latest AWX operator version
 log "Checking out AWX operator version $AWX_OPERATOR_VERSION..."
