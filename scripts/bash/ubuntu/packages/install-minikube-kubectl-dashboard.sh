@@ -4,13 +4,9 @@
 # Purpose: Installs Minikube, kubectl, enables the Minikube dashboard, and sets up auto-restart after reboot.
 # Target System: Ubuntu 24.04 (clean install)
 # Resources Allocated: 8 CPUs, 16GB RAM for Minikube
-# Requirements:
-#   - Sudo privileges
-#   - Internet access
-#   - Minimum 32GB RAM and 16 vCPUs available
-# Logs: All actions and statuses will be logged to $LOGFILE for troubleshooting.
-# Note: This script assumes a fresh environment and uses Docker as the Minikube driver.
-# =====================================
+# Requirements: Sudo privileges, Internet access, Minimum 32GB RAM and 16 vCPUs
+# Logs: Actions logged to /logs/install_minikube_<timestamp>.log
+# Note: Uses Docker as the Minikube driver.
 
 # Define variables
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
@@ -21,7 +17,7 @@ LOCAL_PORT=8001
 CONTAINER_PORT=8443
 KUBECONFIG_PATH="/home/$USER/.kube/config"
 
-# Create /logs directory if it doesn't exist
+# Create /logs directory
 sudo mkdir -p /logs
 
 # Function to log messages
@@ -140,7 +136,7 @@ AVAILABLE_MEM=$(free -m | awk '/^Mem:/{print $2}')
 log "Available CPUs: $AVAILABLE_CPUS"
 log "Available memory: $AVAILABLE_MEM MB"
 [ "$AVAILABLE_CPUS" -lt "$MINIKUBE_CPUS" ] && log "Warning: Available CPUs less than $MINIKUBE_CPUS."
-[ "$AVAILABLE_MEM" -lt "$MINIKUBE_MEMORY" ] && log "Warning: Available memory less than $MINIKUBE_MEMORY MB."
+[ "$AVAILABLE_MEM" -lt "$MINIKUBE_MEMORY" ] && log "Available memory less than $MINIKUBE_MEMORY MB."
 
 # Start Minikube
 log "Starting Minikube..."
@@ -221,20 +217,31 @@ log "Waiting for dashboard pod to be ready..."
 log_command "kubectl wait --for=condition=ready pod/$POD_NAME -n kubernetes-dashboard --timeout=300s"
 check_success $? "Waiting for dashboard pod"
 
-# Start port-forward
+# Start port-forward with retry
 log "Starting port-forward for dashboard LAN access on port $LOCAL_PORT..."
-log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard > /tmp/port-forward.log 2>&1 &"
-sleep 10
+for i in {1..3}; do
+    log_command "kubectl port-forward --address 0.0.0.0 pods/$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard > /tmp/port-forward.log 2>&1 &"
+    sleep 10
+    pgrep -f "kubectl port-forward" > /dev/null && break
+    log "Port-forward attempt $i failed. Retrying..."
+    pkill -f "kubectl port-forward" 2>/dev/null
+    sleep 5
+done
 pgrep -f "kubectl port-forward" > /dev/null
 check_success $? "Starting port-forward process"
 
-# Test dashboard access
+# Test dashboard access with longer timeout
 log "Testing dashboard access locally..."
-curl --max-time 10 -s "http://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"
-check_success $? "Accessing dashboard locally"
-SERVER_IP=$(hostname -I | awk '{print $1}')
-DASHBOARD_URL="http://$SERVER_IP:$LOCAL_PORT"
-log "Dashboard accessible at: $DASHBOARD_URL"
+sleep 10 # Give port-forward time to stabilize
+curl --max-time 30 -s "http://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"
+if [ $? -eq 0 ]; then
+    log "Accessing dashboard locally succeeded."
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+    DASHBOARD_URL="http://$SERVER_IP:$LOCAL_PORT"
+    log "Dashboard accessible at: $DASHBOARD_URL"
+else
+    log "Warning: Dashboard access test failed. Check /tmp/port-forward.log for details."
+fi
 
 # Create systemd service
 log "Creating systemd service for Minikube and dashboard auto-restart..."
@@ -260,6 +267,8 @@ check_success $? "Creating systemd service file"
 
 # Enable and start the service
 log "Enabling and starting minikube service..."
+log_command "sudo systemctl daemon-reload"
+check_success $? "Reloading systemd daemon"
 log_command "sudo systemctl enable minikube.service"
 check_success $? "Enabling minikube service"
 log_command "sudo systemctl start minikube.service"
@@ -276,6 +285,6 @@ check_success $? "Checking cluster info"
 log "=== Script Completion Summary ==="
 log "Minikube Status: $(minikube status | grep -E 'host|kubelet|apiserver' || echo 'Status unavailable')"
 log "kubectl Version: $(kubectl version --client --output=yaml | grep gitVersion || echo 'Version unavailable')"
-log "Kubernetes Dashboard: Accessible at $DASHBOARD_URL"
+log "Kubernetes Dashboard: Accessible at $DASHBOARD_URL (if test succeeded)"
 log "Log file: $LOGFILE"
 log "To manage the service, use: systemctl {start|stop|restart|status} minikube.service"
