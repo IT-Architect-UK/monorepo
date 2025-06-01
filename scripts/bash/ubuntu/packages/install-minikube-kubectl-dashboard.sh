@@ -136,7 +136,7 @@ AVAILABLE_MEM=$(free -m | awk '/^Mem:/{print $2}')
 log "Available CPUs: $AVAILABLE_CPUS"
 log "Available memory: $AVAILABLE_MEM MB"
 [ "$AVAILABLE_CPUS" -lt "$MINIKUBE_CPUS" ] && log "Warning: Available CPUs less than $MINIKUBE_CPUS."
-[ "$AVAILABLE_MEM" -lt "$MINIKUBE_MEMORY" ] && log "Available memory less than $MINIKUBE_MEMORY MB."
+[ "$AVAILABLE_MEM" -lt "$MINIKUBE_MEMORY" ] && log "Warning: Available memory less than $MINIKUBE_MEMORY MB."
 
 # Start Minikube
 log "Starting Minikube..."
@@ -206,7 +206,7 @@ log "Verifying dashboard service..."
 log_command "kubectl get svc -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard"
 check_success $? "Verifying dashboard service"
 
-# Wait for dashboard pod with retry
+# Wait for dashboard pod
 log "Waiting for dashboard pod..."
 for i in {1..60}; do
     POD_NAME=$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
@@ -240,7 +240,7 @@ done
 pgrep -f "kubectl port-forward" > /dev/null
 check_success $? "Starting port-forward process"
 
-# Test dashboard access with longer timeout
+# Test dashboard access
 log "Testing dashboard access locally..."
 sleep 10
 curl --max-time 30 -s "http://127.0.0.1:$LOCAL_PORT" | grep -q "Kubernetes Dashboard"
@@ -296,5 +296,7 @@ log "=== Script Completion Summary ==="
 log "Minikube Status: $(minikube status | grep -E 'host|kubelet|apiserver' || echo 'Status unavailable')"
 log "kubectl Version: $(kubectl version --client --output=yaml | grep gitVersion || echo 'Version unavailable')"
 log "Kubernetes Dashboard: Accessible at $DASHBOARD_URL (if test succeeded)"
+log "Remote Management: Copy ~/.kube/config to your local machine, set KUBECONFIG=~/.kube/config, and use 'kubectl' commands."
 log "Log file: $LOGFILE"
+log "To stop dashboard access manually, run: pkill -f 'kubectl port-forward'"
 log "To manage the service, use: systemctl {start|stop|restart|status} minikube.service"
