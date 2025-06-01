@@ -126,7 +126,7 @@ else
     log "curl is already installed."
 fi
 
-# Check if ingress addon is enabled
+# Check if ingress is enabled
 log "Checking Minikube ingress addon..."
 INGRESS_STATUS=$(minikube addons list | grep ingress | awk '{print $2}')
 if [ "$INGRESS_STATUS" != "enabled" ]; then
@@ -156,13 +156,13 @@ log_command "kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kube
 check_success $? "Creating namespace $NAMESPACE"
 
 # Create dummy redhat-operators-pull-secret to bypass error
-log "Creating dummy redhat-operators-pull-secret..."
+log "Creating dummy redhat-operators-pull-secret in namespace $NAMESPACE..."
 cat << EOF | kubectl apply -f -
 apiVersion: v1
 kind: Secret
 metadata:
   name: redhat-operators-pull-secret
-  namespace: awx
+  namespace: $NAMESPACE
 type: kubernetes.io/dockerconfigjson
 data:
   .dockerconfigjson: e30=
@@ -178,7 +178,7 @@ if [ ! -d "$WORKDIR/awx-operator" ]; then
     log_command "sudo chown -R $USER:$USER $WORKDIR/awx-operator"
     check_success $? "Fixing ownership of awx-operator directory"
 else
-    log "awx-operator directory already exists, skipping clone."
+    log "awx-operator repository already exists, skipping clone."
 fi
 
 # Add awx-operator directory to Git safe directories
@@ -201,8 +201,8 @@ check_success $? "Deploying AWX operator"
 
 # Check for image pull secret issues
 log "Checking for AWX Operator pod events..."
-log_command "kubectl get events -n awx --field-selector involvedObject.kind=Pod"
-if kubectl get events -n awx 2>/dev/null | grep -q "FailedToRetrieveImagePullSecret"; then
+log_command "kubectl get events -n $NAMESPACE --field-selector involvedObject.kind=Pod"
+if kubectl get events -n $NAMESPACE 2>/dev/null | grep -q "FailedToRetrieveImagePullSecret"; then
     log "Warning: Image pull secret issue detected. AWX Operator may have issues pulling images."
 fi
 
