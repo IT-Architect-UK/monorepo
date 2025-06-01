@@ -14,7 +14,7 @@ LOGFILE="/logs/install_minikube_${TIMESTAMP}.log"
 MINIKUBE_CPUS=8
 MINIKUBE_MEMORY=16384
 LOCAL_PORT=8001
-CONTAINER_PORT=8443
+CONTAINER_PORT=9090
 KUBECONFIG_PATH="/home/$USER/.kube/config"
 
 # Create /logs directory
@@ -264,7 +264,7 @@ Requires=docker.service
 [Service]
 Type=simple
 Environment="KUBECONFIG=$KUBECONFIG_PATH"
-ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY && minikube update-context && minikube addons enable dashboard && minikube addons enable metrics-server && sleep 10 && POD_NAME=\$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}') && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard'
+ExecStart=/bin/bash -c 'minikube start --driver=docker --cpus=$MINIKUBE_CPUS --memory=$MINIKUBE_MEMORY && minikube update-context && minikube addons enable dashboard && minikube addons enable metrics-server && sleep 10 && until POD_NAME=\$(kubectl get pod -n kubernetes-dashboard -l k8s-app=kubernetes-dashboard -o jsonpath='{.items[0].metadata.name}' 2>/dev/null); do sleep 5; done && kubectl port-forward --address 0.0.0.0 pods/\$POD_NAME $LOCAL_PORT:$CONTAINER_PORT -n kubernetes-dashboard'
 ExecStop=/bin/bash -c 'minikube stop'
 Restart=always
 RestartSec=10
