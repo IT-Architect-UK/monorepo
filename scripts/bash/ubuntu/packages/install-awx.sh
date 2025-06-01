@@ -155,6 +155,20 @@ log "Creating namespace $NAMESPACE if it doesn't exist..."
 log_command "kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -"
 check_success $? "Creating namespace $NAMESPACE"
 
+# Create dummy redhat-operators-pull-secret to bypass error
+log "Creating dummy redhat-operators-pull-secret..."
+cat << EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redhat-operators-pull-secret
+  namespace: awx
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: e30=
+EOF
+check_success $? "Creating dummy redhat-operators-pull-secret"
+
 # Clone AWX operator repository
 log "Cloning AWX operator repository..."
 if [ ! -d "$WORKDIR/awx-operator" ]; then
@@ -187,8 +201,8 @@ check_success $? "Deploying AWX operator"
 
 # Check for image pull secret issues
 log "Checking for AWX Operator pod events..."
-log_command "kubectl get events -n awx --field-selector involvedObject.name=awx-operator-controller-manager-58b7c97f4b-drxf7"
-if kubectl get events -n awx --field-selector involvedObject.name=awx-operator-controller-manager-58b7c97f4b-drxf7 2>/dev/null | grep -q "FailedToRetrieveImagePullSecret"; then
+log_command "kubectl get events -n awx --field-selector involvedObject.kind=Pod"
+if kubectl get events -n awx 2>/dev/null | grep -q "FailedToRetrieveImagePullSecret"; then
     log "Warning: Image pull secret issue detected. AWX Operator may have issues pulling images."
 fi
 
