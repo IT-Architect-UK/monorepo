@@ -3,7 +3,7 @@
 # === AWX Installation Script ===
 # Purpose: Installs AWX on a Minikube cluster using the AWX Operator.
 # Target System: Ubuntu 24.04 with Minikube (Docker driver)
-# Resources Allocated: Assumes Minikube is running with 8 CPUs, 16GB RAM
+# Resources Allocated: Ensures Minikube has 8 CPUs, 16GB RAM
 # Requirements:
 #   - Sudo privileges
 #   - Internet access
@@ -11,7 +11,7 @@
 #   - Git installed
 #   - Curl installed for AWX availability check
 # Logs: All actions and statuses will be logged to /logs/install_awx_<timestamp>.log for troubleshooting.
-# Note: This script assumes Minikube is already set up and uses the latest AWX Operator version.
+# Note: This script ensures Minikube resource allocation and debug logging for AWX pod issues.
 # ==============================
 
 # Define variables
@@ -88,6 +88,26 @@ if ! touch "$WORKDIR/test_write" 2>/dev/null; then
 fi
 rm -f "$WORKDIR/test_write"
 log "Write permissions for $WORKDIR confirmed."
+
+# Ensure Minikube resource allocation
+log "Ensuring Minikube resource allocation (8 CPUs, 16GB memory)..."
+log_command "minikube config set cpus 8"
+check_success $? "Setting Minikube CPUs"
+log_command "minikube config set memory 16384"
+check_success $? "Setting Minikube memory"
+log_command "minikube stop"
+check_success $? "Stopping Minikube"
+log_command "minikube start"
+check_success $? "Starting Minikube"
+
+# Verify Minikube resources
+log "Verifying Minikube resource allocation..."
+log_command "minikube config get cpus"
+check_success $? "Checking Minikube CPUs"
+log_command "minikube config get memory"
+check_success $? "Checking Minikube memory"
+log_command "minikube ssh -- docker info --format '{{.NCPU}} {{.MemTotal}}'"
+check_success $? "Checking Minikube VM resources"
 
 # Check if Minikube is running
 log "Checking Minikube status..."
@@ -248,6 +268,16 @@ log "Applying AWX instance configuration..."
 log_command "kubectl apply -f awx-demo.yml -n $NAMESPACE"
 check_success $? "Applying AWX instance configuration"
 
+# Check AWX operator logs for errors
+log "Checking AWX operator logs for errors..."
+log_command "kubectl logs -n $OPERATOR_NAMESPACE -l app.kubernetes.io/name=awx-operator --tail=100"
+check_success $? "Checking AWX operator logs"
+
+# Check AWX custom resource status
+log "Checking AWX custom resource status..."
+log_command "kubectl describe awx awx-demo -n $NAMESPACE"
+check_success $? "Checking AWX custom resource status"
+
 # Wait for AWX custom resource to be created
 log "Waiting for AWX custom resource to be created..."
 for i in {1..60}; do
@@ -263,9 +293,9 @@ if ! kubectl get awx awx-demo -n $NAMESPACE --no-headers 2>/dev/null | grep -q a
     exit 1
 fi
 
-# Wait for AWX pods to be created
+# Wait for AWX pods to be created (extended to 20 minutes)
 log "Waiting for AWX pods to be created..."
-for i in {1..120}; do
+for i in {1..240}; do
     if kubectl get pods -n $NAMESPACE -l app.kubernetes.io/part-of=awx --no-headers 2>/dev/null | grep -q .; then
         log "AWX pods found."
         break
@@ -274,9 +304,15 @@ for i in {1..120}; do
     sleep 5
 done
 if ! kubectl get pods -n $NAMESPACE -l app.kubernetes.io/part-of=awx --no-headers 2>/dev/null | grep -q .; then
-    log "No AWX pods found after 10 minutes."
+    log "No AWX pods found after 20 minutes."
     exit 1
 fi
+
+# Check for pod creation errors
+log "Checking for AWX pod creation errors..."
+log_command "kubectl get pods -n $NAMESPACE -l app.kubernetes.io/part-of=awx --no-headers"
+log_command "kubectl describe pods -n $NAMESPACE -l app.kubernetes.io/part-of=awx"
+check_success $? "Checking AWX pod creation"
 
 # Wait for AWX pods to be ready
 log "Waiting for AWX pods to be ready..."
