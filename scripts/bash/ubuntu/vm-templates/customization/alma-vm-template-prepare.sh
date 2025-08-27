@@ -27,6 +27,10 @@ sudo rm -f /etc/NetworkManager/system-connections/*
 sudo truncate -s 0 /etc/hostname
 sudo hostnamectl set-hostname ""
 
+# Create default NetworkManager configuration for DHCP
+sudo nmcli connection add type ethernet con-name default-eth0 ifname '*' ipv4.method auto ipv6.method disabled
+sudo nmcli connection modify default-eth0 connection.autoconnect yes
+
 # Disable IPv6
 # Add GRUB parameters
 sudo sed -i 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="ipv6.disable=1 /' /etc/default/grub
@@ -37,7 +41,7 @@ echo -e "net.ipv6.conf.all.disable_ipv6 = 1\nnet.ipv6.conf.default.disable_ipv6 
 sudo sysctl -p /etc/sysctl.d/99-disable-ipv6.conf
 
 # Disable IPv6 in NetworkManager
-sudo nmcli connection modify "$(nmcli -t -f UUID,TYPE connection show | grep ethernet | cut -d: -f1)" ipv6.method disabled
+sudo nmcli connection modify default-eth0 ipv6.method disabled
 sudo systemctl restart NetworkManager
 
 # Clear machine ID (safely)
