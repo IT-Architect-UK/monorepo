@@ -11,17 +11,14 @@ touch $LOG_FILE
         echo "Error: This script requires sudo privileges."
         exit 1
     fi
-    # Update package lists
-    echo "Updating Package Lists"
-    if sudo apt-get update; then
-        echo "Successfully updated package lists."
-    else
-        echo "Error occurred while updating package lists."
-        exit 1
-    fi
-    # Download and run official Webmin setup script
+    # Clean up any existing Webmin repository and key (from prior failed installs)
+    echo "Cleaning up existing Webmin repository and key..."
+    sudo rm -f /etc/apt/sources.list.d/webmin.list
+    sudo rm -f /usr/share/keyrings/webmin-archive-keyring.gpg
+    echo "Cleanup completed."
+    # Download and run official Webmin setup script (non-interactively)
     echo "Downloading and running official Webmin setup script..."
-    if curl -o webmin-setup-repo.sh https://raw.githubusercontent.com/webmin/webmin/master/webmin-setup-repo.sh && sudo sh webmin-setup-repo.sh; then
+    if curl -o webmin-setup-repo.sh https://raw.githubusercontent.com/webmin/webmin/master/webmin-setup-repo.sh && echo y | sudo sh webmin-setup-repo.sh; then
         echo "Webmin repository and GPG key configured successfully."
         rm -f webmin-setup-repo.sh  # Clean up the downloaded script
     else
@@ -38,7 +35,7 @@ touch $LOG_FILE
     fi
     # Install Webmin
     echo "Installing Webmin..."
-    if sudo apt-get install -y webmin; then
+    if sudo apt-get install -y webmin --install-recommends; then
         echo "Successfully installed Webmin."
         sudo systemctl restart webmin
         if sudo systemctl status webmin | grep "active (running)"; then
