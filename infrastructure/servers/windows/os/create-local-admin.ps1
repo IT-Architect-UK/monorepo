@@ -1,86 +1,122 @@
-param(
-    [string]$AdminUser,
-    [string]$AdminPassword
-)
-
 <#
 .SYNOPSIS
-This script creates a custom local admin user. This version of the script uses parameters:
-
-> $AdminUser
-> $AdminPassword
-
-You can pass the username and password as switches when calling the script.
-It checks if these parameters are provided; if not, it prompts the user to input them.
-
-To run this script and pass the username and password as parameters, you would call it from the PowerShell command line like this:
-
-```powershell
-.\YourScriptName.ps1 -AdminUser "username" -AdminPassword "password"
+    Creates a local administrator account on the server.
 
 .DESCRIPTION
-The script performs the following actions:
-- Optionally accepts a local admin username and password as command-line switches.
-- Prompts for local admin username and password if not provided.
-- Creates custom local admin user.
+    Creates a local user account and adds it to the local Administrators group.
+    Skips creation if the user already exists. Skips on Domain Controllers
+    where local user management is not applicable.
+    The password is always passed as a SecureString — it is never stored in
+    plain text or written to the log.
+
+.PARAMETER AdminUser
+    Username for the new local administrator account. Prompted if not supplied.
+
+.PARAMETER AdminPassword
+    Password as a SecureString. Prompted securely if not supplied.
+
+.EXAMPLE
+    .\create-local-admin.ps1 -AdminUser "localadmin"
+    # Prompts for password securely at runtime.
+
+.EXAMPLE
+    $pwd = Read-Host -AsSecureString "Password"
+    .\create-local-admin.ps1 -AdminUser "localadmin" -AdminPassword $pwd
 
 .NOTES
-Version:        1.2
-Author:         Darren Pilkington
-Modification Date:  08-03-2024
+    Version:           1.2
+    Author:            Darren Pilkington
+    Modification Date: 31-05-2026
+    Requires:          Local Administrator rights (not applicable on Domain Controllers)
 #>
 
-# Check if username was passed as a parameter, prompt if not.
-if (-not $AdminUser) {
+[CmdletBinding()]
+param(
+    [string]      $AdminUser     = '',
+    [SecureString] $AdminPassword = $null
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+$LogDirectory = if (Test-Path 'D:\') { 'D:\Logs\UserManagement' } else { 'C:\Logs\UserManagement' }
+if (-not (Test-Path $LogDirectory)) {
+    New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
+}
+$LogFile = Join-Path $LogDirectory "create-local-admin-$(Get-Date -Format 'yyyy-MM-dd-HH-mm-ss').log"
+
+function Write-Log {
+    param(
+        [string] $Message,
+        [ValidateSet('INFO','WARN','ERROR')] [string] $Level = 'INFO'
+    )
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level]  $Message"
+    Write-Host $entry
+    Add-Content -Path $LogFile -Value $entry
+}
+
+Write-Log "Create local admin script starting on $env:COMPUTERNAME."
+Write-Log "Log file: $LogFile"
+
+# ─── Pre-flight ──────────────────────────────────────────────────────────────
+$currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Log "Script must be run as Administrator." -Level ERROR
+    exit 1
+}
+
+# Skip on Domain Controllers
+$dcRole = Get-WindowsFeature -Name 'AD-Domain-Services' -ErrorAction SilentlyContinue
+if ($dcRole -and $dcRole.Installed) {
+    Write-Log "This server is a Domain Controller — local user management is not applicable." -Level WARN
+    Write-Log "Manage users via Active Directory Users and Computers or PowerShell AD cmdlets."
+    exit 0
+}
+
+# ─── Prompt for missing parameters ───────────────────────────────────────────
+if ([string]::IsNullOrWhiteSpace($AdminUser)) {
     $AdminUser = Read-Host "Enter the local admin username"
 }
+if ($null -eq $AdminPassword) {
+    $AdminPassword = Read-Host "Enter the local admin password" -AsSecureString
+}
 
-# Check if password was passed as a parameter, prompt if not.
-if (-not $AdminPassword) {
-    $plaintextPassword = Read-Host "Enter the local admin password" -AsSecureString
+Write-Log "Target username: $AdminUser"
+
+# ─── Check if user already exists ────────────────────────────────────────────
+$existingUser = Get-LocalUser -Name $AdminUser -ErrorAction SilentlyContinue
+if ($existingUser) {
+    Write-Log "User '$AdminUser' already exists — skipping creation." -Level WARN
 } else {
-    $plaintextPassword = ConvertTo-SecureString -String $AdminPassword -AsPlainText -Force
+    # ─── Create the user ─────────────────────────────────────────────────────
+    Write-Log "Creating local user '$AdminUser'..."
+    New-LocalUser `
+        -Name                 $AdminUser `
+        -Password             $AdminPassword `
+        -PasswordNeverExpires:$false `
+        -AccountNeverExpires `
+        -Description          "Local administrator — managed by create-local-admin.ps1" | Out-Null
+    Write-Log "User '$AdminUser' created."
 }
 
-# Convert the secure string password back to plain text. This is needed for 'net user' command.
-$ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToCoTaskMemUnicode($plaintextPassword)
-try {
-    $password = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($ptr)
-}
-finally {
-    [System.Runtime.InteropServices.Marshal]::ZeroFreeCoTaskMemUnicode($ptr)
-}
-
-# Output a message indicating the creation of the admin user if it doesn't exist and if the DC role is not installed.
-Write-Output "Creating $AdminUser if the user does not exist & the DC role is not installed"
-
-# Check if the 'AD-Domain-Services' role is installed on the server.
-$domainControllerRole = Get-WindowsFeature 'AD-Domain-Services'
-
-# If the role is installed, output a message indicating that the server is a domain controller and skip user creation.
-if ($domainControllerRole.Installed) {
-    Write-Output "Server is a domain controller; skipping user creation."
-}
-else {
-    # If the role is not installed, proceed with user creation.
-    Write-Output "Creating user $AdminUser"
-
-    # Check if the user already exists on the system.
-    try {
-        $userExists = Get-LocalUser -Name $AdminUser -ErrorAction SilentlyContinue
+# ─── Add to local Administrators group ───────────────────────────────────────
+$adminsGroup = Get-LocalGroup -Name 'Administrators' -ErrorAction SilentlyContinue
+if ($adminsGroup) {
+    $isMember = Get-LocalGroupMember -Group 'Administrators' -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match "\\$AdminUser$" -or $_.Name -eq $AdminUser }
+    if ($isMember) {
+        Write-Log "User '$AdminUser' is already in the Administrators group."
+    } else {
+        Add-LocalGroupMember -Group 'Administrators' -Member $AdminUser
+        Write-Log "User '$AdminUser' added to the Administrators group."
     }
-    catch {
-        $userExists = $null
-    }
-
-    # If the user exists, output a message indicating so.
-    if ($null -ne $userExists) {
-        Write-Output "User $AdminUser already exists."
-    }
-    else {
-        # If the user doesn't exist, create the user with the provided password and add them to the local administrators group.
-        net user $AdminUser $password /add /y
-        net localgroup administrators $AdminUser /add
-        Write-Output "User $AdminUser created and added to the administrators group."
-    }
+} else {
+    Write-Log "Could not find the Administrators group." -Level ERROR
+    exit 1
 }
+
+Write-Log "Local admin account setup complete."
+Write-Log "  Username : $AdminUser"
+Write-Log "  Groups   : Administrators"
+Write-Log "  Log file : $LogFile"

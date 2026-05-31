@@ -1,77 +1,131 @@
 <#
 .SYNOPSIS
-This script installs Chocolatey with Git, Notepad++, and PowerShell Core default packages.
+    Installs Chocolatey and a standard set of software packages.
 
 .DESCRIPTION
-The script performs the following actions:
-- Checks for an active internet connection.
-- Installs Chocolatey.
-- Installs Git and adds it to the system PATH.
-- Installs Notepad++.
-- Installs PowerShell Core.
-- Writes installation actions to a log file.
+    Checks for an active internet connection, installs Chocolatey if not
+    present, then installs each package in the defined list. Skips packages
+    that are already installed. Logs all actions.
+
+    Default package list: git, notepadplusplus, powershell-core
+    Edit the $ChocoPackages array below to customise.
+
+.PARAMETER Packages
+    Override the default package list with a custom array of Chocolatey
+    package names.
+
+.EXAMPLE
+    .\install-chocolatey-packages.ps1
+
+.EXAMPLE
+    .\install-chocolatey-packages.ps1 -Packages @('git','7zip','vscode')
 
 .NOTES
-Version:        1.1
-Author:         Darren Pilkington
-Modification Date:  17-03-2024
+    Version:           1.2
+    Author:            Darren Pilkington
+    Modification Date: 31-05-2026
+    Requires:          Local Administrator rights, internet access
 #>
 
-# Function to write output to both console and log file
+[CmdletBinding()]
+param(
+    [string[]] $Packages = @()
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+$LogDirectory = if (Test-Path 'D:\') { 'D:\Logs\Chocolatey' } else { 'C:\Logs\Chocolatey' }
+if (-not (Test-Path $LogDirectory)) {
+    New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
+}
+$LogFile = Join-Path $LogDirectory "install-chocolatey-$(Get-Date -Format 'yyyy-MM-dd-HH-mm-ss').log"
+
 function Write-Log {
-    Param([string]$message)
-    Write-Output $message
-    Add-Content -Path $logPath -Value $message
+    param(
+        [string] $Message,
+        [ValidateSet('INFO','WARN','ERROR')] [string] $Level = 'INFO'
+    )
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level]  $Message"
+    Write-Host $entry
+    Add-Content -Path $LogFile -Value $entry
 }
 
-Write-Output "Installing Chocolatey and Packages ...."
-Write-Output "Configuring Script Log Settings."
-# Determine log file path
-$logDir = if (Test-Path D:\) { "D:\Logs\Chocolatey" } else { "C:\Logs\Chocolatey" }
-$logFileName = "chocolatey-install-$(Get-Date -Format "yyyyMMdd-HHmmss").log"
-$logPath = Join-Path -Path $logDir -ChildPath $logFileName
-# Ensure log directory exists
-if (-not (Test-Path $logDir)) {New-Item -Path $logDir -ItemType Directory}
-Write-Log "Log file path set to $logPath."
+Write-Log "Chocolatey package installation starting on $env:COMPUTERNAME."
+Write-Log "Log file: $LogFile"
 
-# Check for active internet connection
-$pingTest = Test-Connection 8.8.8.8 -Count 2 -Quiet
-if (-not $pingTest) {
-    Write-Host "No active internet connection found. Please ensure you are connected to the internet before running this script." -ForegroundColor Red
-    Write-Log "No active internet connection found. Please ensure you are connected to the internet before running this script."
-    exit
+# ─── Pre-flight ──────────────────────────────────────────────────────────────
+$currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Log "Script must be run as Administrator." -Level ERROR
+    exit 1
 }
-Write-Log "Active internet connection detected. Continuing with script ..."
 
-Write-Log "Installing Chocolatey with Git, Notepad++, and PowerShell Core ..."
+# ─── Connectivity check ──────────────────────────────────────────────────────
+Write-Log "Checking internet connectivity..."
+if (-not (Test-Connection -ComputerName '8.8.8.8' -Count 2 -Quiet)) {
+    Write-Log "No internet connectivity detected. Ensure the server has outbound access before running this script." -Level ERROR
+    exit 1
+}
+Write-Log "Internet connectivity confirmed."
 
-# Define a list of default packages to be installed
-$chocoPackages = 'git', 'notepadplusplus', 'powershell-core'
+# ─── Package list ─────────────────────────────────────────────────────────────
+# Default packages — edit this array or pass -Packages at runtime to override
+$DefaultPackages = @(
+    'git',
+    'notepadplusplus',
+    'powershell-core'
+)
 
-Write-Log "Checking if Chocolatey is already installed. If not, install it."
-if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
-    Write-Log "Installing Chocolatey ..."
+$ChocoPackages = if ($Packages.Count -gt 0) { $Packages } else { $DefaultPackages }
+Write-Log "Packages to install: $($ChocoPackages -join ', ')"
+
+# ─── Install Chocolatey ──────────────────────────────────────────────────────
+if (Get-Command choco -ErrorAction SilentlyContinue) {
+    Write-Log "Chocolatey is already installed: $(choco --version)"
+} else {
+    Write-Log "Installing Chocolatey..."
     Set-ExecutionPolicy Bypass -Scope Process -Force
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-    $chocoInstallScript = (Invoke-WebRequest -Uri 'https://chocolatey.org/install.ps1' -UseBasicParsing).Content
-    if ($chocoInstallScript) {
-        Invoke-Expression $chocoInstallScript
-    } else {Write-Log "Failed to download Chocolatey installation script."}
+    [System.Net.ServicePointManager]::SecurityProtocol = `
+        [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+
+    $installScript = (Invoke-WebRequest -Uri 'https://community.chocolatey.org/install.ps1' `
+        -UseBasicParsing).Content
+    if ([string]::IsNullOrWhiteSpace($installScript)) {
+        Write-Log "Failed to download Chocolatey installation script." -Level ERROR
+        exit 1
+    }
+    Invoke-Expression $installScript
+
+    # Reload PATH so 'choco' is available in this session
+    $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' +
+                [System.Environment]::GetEnvironmentVariable('PATH', 'User')
+
+    Write-Log "Chocolatey installed: $(choco --version)"
 }
 
-# Install each package
-Write-Log "Installing Chocolatey Packages ..."
-foreach ($package in $chocoPackages) {
+# ─── Install packages ────────────────────────────────────────────────────────
+Write-Log "Installing packages..."
+foreach ($package in $ChocoPackages) {
     try {
-        if (!(choco list --local-only | Select-String -Pattern $package)) {
+        # Check if already installed
+        $installed = choco list --local-only --exact $package 2>$null |
+                     Select-String -Pattern "^$package "
+        if ($installed) {
+            Write-Log "  $package : already installed — skipping."
+        } else {
+            Write-Log "  $package : installing..."
             choco install $package -y --no-progress | Out-Null
-            Write-Log "$package installed successfully."
+            Write-Log "  $package : installed successfully."
         }
     } catch {
-        Write-Output "$package is already installed or encountered an error."
-        Write-Log "$package is already installed or encountered an error."
+        Write-Log "  $package : installation failed — $_" -Level WARN
     }
 }
 
-Write-Log "Adding Git to PATH is handled within Chocolatey package installation scripts."
-Write-Log "Installation complete. Please verify Git and other packages are correctly installed by running 'git --version', 'notepad++ --version', and 'pwsh --version'."
+# ─── Summary ─────────────────────────────────────────────────────────────────
+Write-Log "Package installation complete."
+Write-Log "Installed packages:"
+choco list --local-only 2>$null | ForEach-Object { Write-Log "  $_" }
+Write-Log "Log file: $LogFile"

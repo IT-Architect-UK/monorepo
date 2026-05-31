@@ -1,46 +1,73 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Disable IPv6 — Ubuntu
+# Persistently disables IPv6 across all network interfaces by writing
+# sysctl parameters. Checks for existing entries before writing to prevent
+# duplicate lines on repeated runs (idempotent).
+#
+# Changes made:
+#   /etc/sysctl.conf — net.ipv6.conf.*.disable_ipv6 = 1
+#
+# Applied immediately via: sysctl -p
+#
+# Usage:
+#   sudo ./disable-ipv6.sh
+#
+# Author:            Darren Pilkington
+# Version:           1.1
+# Date:              31-05-2026
+# =============================================================================
+
 set -euo pipefail
 
-# --- Helpers ---
-log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
-fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
+# ─── Logging ─────────────────────────────────────────────────────────────────
+LOG_DIR="/var/log/system-configuration"
+LOG_FILE="${LOG_DIR}/disable-ipv6-$(date '+%Y%m%d-%H%M%S').log"
+mkdir -p "${LOG_DIR}"
 
-# Define log file name
-LOG_FILE="/logs/disable-ipv6-$(date '+%Y%m%d').log"
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*" | tee -a "${LOG_FILE}"; }
+warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*" | tee -a "${LOG_FILE}"; }
+fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" | tee -a "${LOG_FILE}" >&2; exit 1; }
 
-# Create Logs Directory and Log File
-mkdir -p /logs
-touch $LOG_FILE
+# ─── Pre-flight ──────────────────────────────────────────────────────────────
+[[ "${EUID}" -eq 0 ]] || fail "Run as root: sudo ./disable-ipv6.sh"
 
-{
-    echo "Script started on $(date)"
+log "Disabling IPv6 on $(hostname -f 2>/dev/null || hostname)"
+log "Log file: ${LOG_FILE}"
 
-    # Verify sudo privileges without password
-    if ! sudo -n true 2>/dev/null; then
-        echo "Error: User does not have sudo privileges or requires a password for sudo."
-        exit 1
-    fi
+# ─── Write sysctl parameters (idempotent) ────────────────────────────────────
+log "Writing IPv6 disable parameters to /etc/sysctl.conf..."
 
-    echo "Disabling IPv6"
+declare -A IPV6_PARAMS=(
+    ["net.ipv6.conf.all.disable_ipv6"]="1"
+    ["net.ipv6.conf.default.disable_ipv6"]="1"
+    ["net.ipv6.conf.lo.disable_ipv6"]="1"
+)
 
-    # Append IPv6 disable settings to sysctl.conf
-    if echo "net.ipv6.conf.all.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf && \
-       echo "net.ipv6.conf.default.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf && \
-       echo "net.ipv6.conf.lo.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf; then
-        echo "IPv6 disable settings added to sysctl.conf."
+for param in "${!IPV6_PARAMS[@]}"; do
+    value="${IPV6_PARAMS[$param]}"
+    if grep -qE "^${param}\s*=" /etc/sysctl.conf 2>/dev/null; then
+        # Update existing entry to ensure correct value
+        sed -i "s|^${param}\s*=.*|${param}=${value}|" /etc/sysctl.conf
+        log "Updated existing entry: ${param}=${value}"
     else
-        echo "Error occurred while updating sysctl.conf."
-        exit 1
+        echo "${param}=${value}" >> /etc/sysctl.conf
+        log "Added new entry: ${param}=${value}"
     fi
+done
 
-    # Reload sysctl configuration
-    if sudo sysctl -p; then
-        echo "Sysctl configuration reloaded successfully."
-    else
-        echo "Error occurred while reloading sysctl configuration."
-        exit 1
-    fi
+# ─── Apply changes immediately ───────────────────────────────────────────────
+log "Applying sysctl configuration..."
+sysctl -p 2>&1 | tee -a "${LOG_FILE}"
+log "Sysctl configuration applied."
 
-    echo "IPv6 has been successfully disabled."
-    echo "Script completed successfully on $(date)"
-} 2>&1 | tee -a $LOG_FILE
+# ─── Verify ──────────────────────────────────────────────────────────────────
+log "Verifying IPv6 is disabled..."
+IPV6_STATUS=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null || echo "unknown")
+if [[ "${IPV6_STATUS}" == "1" ]]; then
+    log "IPv6 successfully disabled (disable_ipv6=1)."
+else
+    warn "IPv6 may not be fully disabled (disable_ipv6=${IPV6_STATUS}). A reboot may be required."
+fi
+
+log "IPv6 disable complete. Log: ${LOG_FILE}"

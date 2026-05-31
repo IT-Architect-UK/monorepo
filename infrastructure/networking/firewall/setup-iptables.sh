@@ -1,87 +1,133 @@
 #!/usr/bin/env bash
+# =============================================================================
+# IPTables Baseline Firewall — Ubuntu
+# Applies a defence-in-depth iptables ruleset suitable for infrastructure
+# servers. Allows SSH, ICMP, and all traffic from RFC-1918 private subnets.
+# Drops all other inbound traffic. Saves rules persistently via
+# iptables-persistent.
+#
+# Default policy:
+#   INPUT   — DROP  (allowlist model)
+#   FORWARD — DROP
+#   OUTPUT  — ACCEPT
+#
+# Allowed inbound:
+#   - Loopback (lo)
+#   - Established / related connections
+#   - All traffic from 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+#   - SSH (port auto-detected from sshd_config, default 22)
+#   - ICMP from private subnets
+#
+# Usage:
+#   sudo ./setup-iptables.sh
+#   sudo ./setup-iptables.sh --ssh-port 2222
+#
+# Options:
+#   --ssh-port <port>   Override SSH port (auto-detected by default)
+#
+# Author:            Darren Pilkington
+# Version:           1.1
+# Date:              31-05-2026
+# =============================================================================
+
 set -euo pipefail
 
-# --- Helpers ---
-log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
-fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
+# ─── Logging ─────────────────────────────────────────────────────────────────
+LOG_DIR="/var/log/firewall-setup"
+LOG_FILE="${LOG_DIR}/setup-iptables-$(date '+%Y%m%d-%H%M%S').log"
+mkdir -p "${LOG_DIR}"
 
-# Define log file name
-LOG_FILE="/logs/setup-iptables-$(date '+%Y%m%d').log"
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*" | tee -a "${LOG_FILE}"; }
+warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*" | tee -a "${LOG_FILE}"; }
+fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" | tee -a "${LOG_FILE}" >&2; exit 1; }
 
-# Create Logs Directory and Log File
-mkdir -p /logs
-touch "$LOG_FILE"
+# ─── Argument parsing ────────────────────────────────────────────────────────
+SSH_PORT_OVERRIDE=""
 
-{
-    echo "Script started on $(date)"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --ssh-port) SSH_PORT_OVERRIDE="$2"; shift 2 ;;
+        --help)
+            grep '^#' "$0" | grep -v '#!/' | sed 's/^# \{0,2\}//'
+            exit 0
+            ;;
+        *) fail "Unknown argument: $1. Use --help for usage." ;;
+    esac
+done
 
-    # Verify sudo privileges without password
-    if ! sudo -n true 2>/dev/null; then
-        echo "Error: User does not have sudo privileges or requires a password for sudo."
-        exit 1
-    fi
+# ─── Pre-flight ──────────────────────────────────────────────────────────────
+[[ "${EUID}" -eq 0 ]]          || fail "Run as root: sudo ./setup-iptables.sh"
+command -v iptables &>/dev/null || fail "iptables not found."
 
-    # Array of private subnets
-    subnets=("10.0.0.0/8" "172.16.0.0/12" "192.168.0.0/16")
+log "Configuring iptables on $(hostname -f 2>/dev/null || hostname)"
+log "Log file: ${LOG_FILE}"
 
-    echo "Configuring Firewall Rules"
+# ─── Detect SSH port ─────────────────────────────────────────────────────────
+if [[ -n "${SSH_PORT_OVERRIDE}" ]]; then
+    SSH_PORT="${SSH_PORT_OVERRIDE}"
+else
+    SSH_PORT=$(grep -E "^Port " /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' | head -1)
+    SSH_PORT="${SSH_PORT:-22}"
+fi
+log "SSH port: ${SSH_PORT}"
 
-    # Flush existing rules and set chain policies to DROP
-    echo "Flushing existing rules..."
-    sudo iptables -F
-    sudo iptables -X
-    sudo iptables -t nat -F
-    sudo iptables -t nat -X
-    sudo iptables -t mangle -F
-    sudo iptables -t mangle -X
-    sudo iptables -P INPUT DROP
-    sudo iptables -P FORWARD DROP
-    sudo iptables -P OUTPUT DROP
+# ─── Private subnets ─────────────────────────────────────────────────────────
+PRIVATE_SUBNETS=("10.0.0.0/8" "172.16.0.0/12" "192.168.0.0/16")
 
-    echo "Setting up basic rules..."
-    # Allow all outbound traffic
-    sudo iptables -A OUTPUT -j ACCEPT
-    # Allow established and related incoming connections
-    sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-    # Allow essential traffic
-    sudo iptables -A INPUT -i lo -j ACCEPT
-    sudo iptables -A OUTPUT -o lo -j ACCEPT
-    for subnet in "${subnets[@]}"; do
-        sudo iptables -A INPUT -s "$subnet" -j ACCEPT
-    done
+# ─── Flush existing rules and reset policies ─────────────────────────────────
+log "Flushing existing iptables rules..."
+iptables -F
+iptables -X
+iptables -t nat -F
+iptables -t nat -X
+iptables -t mangle -F
+iptables -t mangle -X
 
-    # Allow SSH to maintain connectivity
-    echo "Adding rule to allow SSH..."
-    SSH_PORT=$(grep ^Port /etc/ssh/sshd_config | cut -d ' ' -f2)
-    if [ -z "$SSH_PORT" ]; then
-        SSH_PORT=22 # Default SSH port
-    fi
-    sudo iptables -A INPUT -p tcp --dport "$SSH_PORT" -j ACCEPT
+log "Setting default chain policies..."
+iptables -P INPUT   DROP
+iptables -P FORWARD DROP
+iptables -P OUTPUT  ACCEPT
+log "Default policies: INPUT=DROP, FORWARD=DROP, OUTPUT=ACCEPT"
 
-    # Allow ICMP (Ping) from private subnets
-    echo "Allowing ICMP from private subnets..."
-    for subnet in "${subnets[@]}"; do
-        sudo iptables -A INPUT -s "$subnet" -p icmp -j ACCEPT
-    done
+# ─── Loopback ────────────────────────────────────────────────────────────────
+log "Allowing loopback traffic..."
+iptables -A INPUT  -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
 
-    # Install iptables-persistent
-    echo "Installing iptables-persistent..."
-    if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent; then
-        echo "iptables-persistent installed successfully."
-    else
-        echo "Error occurred while installing iptables-persistent."
-        exit 1
-    fi
+# ─── Established and related connections ─────────────────────────────────────
+log "Allowing established and related inbound connections..."
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
-    # Save the rules
-    echo "Saving IPTables rules..."
-    if sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null; then
-        echo "IPTables rules saved successfully."
-    else
-        echo "Error occurred while saving IPTables rules."
-        exit 1
-    fi
+# ─── Private subnet access ───────────────────────────────────────────────────
+log "Allowing all inbound traffic from private subnets..."
+for subnet in "${PRIVATE_SUBNETS[@]}"; do
+    iptables -A INPUT -s "${subnet}" -j ACCEPT
+    log "  Allowed: ${subnet}"
+done
 
-    echo "Firewall rules configured and saved."
-    echo "Script completed successfully on $(date)"
-} 2>&1 | tee -a "$LOG_FILE"
+# ─── SSH ─────────────────────────────────────────────────────────────────────
+log "Allowing SSH on port ${SSH_PORT}..."
+iptables -A INPUT -p tcp --dport "${SSH_PORT}" -j ACCEPT
+
+# ─── ICMP (ping) from private subnets ───────────────────────────────────────
+log "Allowing ICMP from private subnets..."
+for subnet in "${PRIVATE_SUBNETS[@]}"; do
+    iptables -A INPUT -s "${subnet}" -p icmp -j ACCEPT
+done
+
+# ─── Install iptables-persistent ─────────────────────────────────────────────
+log "Installing iptables-persistent for rule persistence across reboots..."
+DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent \
+    2>&1 | tee -a "${LOG_FILE}"
+
+# ─── Save rules ──────────────────────────────────────────────────────────────
+log "Saving iptables rules to /etc/iptables/rules.v4..."
+mkdir -p /etc/iptables
+iptables-save | tee /etc/iptables/rules.v4 > /dev/null
+log "Rules saved."
+
+# ─── Display active rules ────────────────────────────────────────────────────
+log "Active iptables rules:"
+iptables -L -n -v 2>&1 | tee -a "${LOG_FILE}"
+
+log "Firewall configuration complete. Log: ${LOG_FILE}"

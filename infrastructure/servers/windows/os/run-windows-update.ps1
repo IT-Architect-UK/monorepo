@@ -1,94 +1,164 @@
 <#
 .SYNOPSIS
-This script removes WSUS settings from the registry, checks for Windows updates, installs the NuGet provider without user input, and applies updates. It logs all actions to D:\Logs\WindowsUpdate if available, otherwise to the system drive. It also displays update installation progress.
+    Installs all available Windows Updates and optionally reboots.
 
 .DESCRIPTION
-The script performs the following actions:
-- Removes WSUS registry settings if they exist.
-- Ensures the NuGet and PSWindowsUpdate providers are installed without user input.
-- Restarts the Windows Update service to apply changes.
-- Checks for the presence of a specific log file in the Logs directory on D:\ or the system drive; if not found, proceeds with the update process.
-- Logs the list of available updates and the results of the updates installation.
-- Displays update installation progress in the PowerShell window.
+    Removes any WSUS group policy overrides so updates are sourced directly
+    from Microsoft Update. Installs the PSWindowsUpdate module if not present.
+    Downloads and installs all available updates, logs results, and optionally
+    restarts the computer when complete.
+
+.PARAMETER AutoReboot
+    Restart the computer automatically if updates require it.
+
+.PARAMETER NoAutoReboot
+    Skip any automatic restart (default — you control when to reboot).
+
+.EXAMPLE
+    .\run-windows-update.ps1
+    # Installs updates, no automatic reboot.
+
+.EXAMPLE
+    .\run-windows-update.ps1 -AutoReboot
+    # Installs updates and reboots if required.
 
 .NOTES
-Version:        1.0
-Author:         IT Surgery
-Modification Date:  08-03-2024
+    Version:           1.1
+    Author:            Darren Pilkington
+    Modification Date: 31-05-2026
+    Requires:          Local Administrator rights, internet access
 #>
 
-Write-Output "Remove WSUS settings from the registry"
-$wsusRegPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate"
-if (Test-Path $wsusRegPath) {
-    Remove-ItemProperty -Path $wsusRegPath -Name WUServer -ErrorAction SilentlyContinue
-    Remove-ItemProperty -Path $wsusRegPath -Name WUStatusServer -ErrorAction SilentlyContinue
+[CmdletBinding()]
+param(
+    [switch] $AutoReboot
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+$LogDirectory = if (Test-Path 'D:\') { 'D:\Logs\WindowsUpdate' } else { 'C:\Logs\WindowsUpdate' }
+if (-not (Test-Path $LogDirectory)) {
+    New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
+}
+$LogFile = Join-Path $LogDirectory "windows-update-$(Get-Date -Format 'yyyy-MM-dd-HH-mm-ss').log"
+
+function Write-Log {
+    param(
+        [string] $Message,
+        [ValidateSet('INFO','WARN','ERROR')] [string] $Level = 'INFO'
+    )
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level]  $Message"
+    Write-Host $entry
+    Add-Content -Path $LogFile -Value $entry
 }
 
-Write-Output "Restarting the Windows Update service to apply changes"
+Write-Log "Windows Update script starting on $env:COMPUTERNAME."
+Write-Log "Log file: $LogFile"
+
+# ─── Pre-flight ──────────────────────────────────────────────────────────────
+$currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Log "Script must be run as Administrator." -Level ERROR
+    exit 1
+}
+
+# ─── Remove WSUS policy overrides ────────────────────────────────────────────
+Write-Log "Removing WSUS registry overrides to enable direct Microsoft Update..."
+$wsusPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+if (Test-Path $wsusPath) {
+    Remove-ItemProperty -Path $wsusPath -Name 'WUServer'       -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $wsusPath -Name 'WUStatusServer' -ErrorAction SilentlyContinue
+    Write-Log "WSUS overrides removed."
+} else {
+    Write-Log "No WSUS policy keys found — skipping."
+}
+
+# ─── Restart Windows Update service ─────────────────────────────────────────
+Write-Log "Restarting Windows Update service..."
 Restart-Service -Name wuauserv -Force
+Write-Log "Windows Update service restarted."
 
-Write-Output "Installing the NuGet provider if it's not already installed"
+# ─── Install NuGet provider ───────────────────────────────────────────────────
+Write-Log "Ensuring NuGet package provider is available..."
 if (-not (Get-PackageProvider -ListAvailable -Name NuGet -ErrorAction SilentlyContinue)) {
-    Install-PackageProvider -Name NuGet -Force -Scope CurrentUser
+    Install-PackageProvider -Name NuGet -Force -Scope CurrentUser | Out-Null
+    Write-Log "NuGet provider installed."
+} else {
+    Write-Log "NuGet provider already installed."
 }
 
-Write-Output "Installing the PSWindowsUpdate module if it's not already installed"
+# ─── Install PSWindowsUpdate module ──────────────────────────────────────────
+Write-Log "Ensuring PSWindowsUpdate module is available..."
 if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
-    Install-Module -Name PSWindowsUpdate -Force -Confirm:$false
-}
-
-Write-Output "Importing the PSWindowsUpdate module"
-Import-Module PSWindowsUpdate
-# Allow the module to access the Windows Update API
-Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d -Confirm:$false
-
-# Check if D:\ is available and is not a CD/DVD drive
-# Get all available drives
-$allDrives = Get-PSDrive -PSProvider FileSystem
-$driveD = $allDrives | Where-Object { $_.Root -eq 'D:\' }
-if ($driveD) {
-    Write-Output "D:\ is available as a local disk. Logs will be written to D:\Logs\WindowsUpdate"
-    $logsDir = "D:\Logs\WindowsUpdate"
+    Install-Module -Name PSWindowsUpdate -Force -Confirm:$false -Scope CurrentUser
+    Write-Log "PSWindowsUpdate module installed."
 } else {
-    Write-Output "D:\ is not available. Using system drive for logs."
-    $logsDir = "$env:SystemDrive\Logs\WindowsUpdate"
+    Write-Log "PSWindowsUpdate module already installed."
 }
 
-$logFile = "$logsDir\windows-update-install-log-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log"
+Import-Module PSWindowsUpdate -Force
 
-Write-Output "Creating the Logs directory if it doesn't exist"
-if (-not (Test-Path $logsDir)) {
-    New-Item -Path $logsDir -ItemType Directory | Out-Null
-    Write-Output "Created logs directory at $logsDir"
+# Register Microsoft Update service
+Add-WUServiceManager -ServiceID '7971f918-a847-4430-9279-4a52d1efe18d' -Confirm:$false | Out-Null
+Write-Log "Microsoft Update service registered."
+
+# ─── Check for available updates ─────────────────────────────────────────────
+Write-Log "Checking for available updates..."
+$availableUpdates = Get-WindowsUpdate -MicrosoftUpdate -ErrorAction SilentlyContinue
+
+if ($availableUpdates.Count -eq 0) {
+    Write-Log "No updates available. System is up to date."
+    exit 0
 }
 
-# Check for the presence of the log file
-if (Test-Path $logFile) {
-    Write-Output "Log file exists. Windows Update has already completed. Skipping ..."
+Write-Log "$($availableUpdates.Count) update(s) available:"
+foreach ($update in $availableUpdates) {
+    Write-Log "  - $($update.Title)"
+}
+
+# ─── Install updates ─────────────────────────────────────────────────────────
+Write-Log "Installing updates..."
+$installParams = @{
+    MicrosoftUpdate = $true
+    AcceptAll       = $true
+    Confirm         = $false
+    Install         = $true
+}
+
+if ($AutoReboot) {
+    $installParams['AutoReboot'] = $true
+    Write-Log "Auto-reboot enabled — server will restart automatically if required."
 } else {
-    # Get the list of available updates
-    $updates = Get-WindowsUpdate -MicrosoftUpdate
-    # Log the list of available updates
-    if ($updates.Count -gt 0) {
-        Write-Output "Updates available:" | Out-File $logFile -Append
-        $updates | ForEach-Object {
-            $updateInfo = "$($_.Title)"
-            Write-Output $updateInfo
-            Write-Output $updateInfo | Out-File $logFile -Append
-        }
-    } else {
-        Write-Output "No updates available." | Out-File $logFile -Append
-    }
-    Write-Output "Installing the latest Windows Updates and recording the results in the log file"
-    $installResults = Get-WindowsUpdate -AcceptAll -AutoReboot -ForceInstall -Install -MicrosoftUpdate -Confirm:$false
-    if ($installResults) {
-        Write-Output "Updates installed:" | Out-File $logFile -Append
-        $installResults | ForEach-Object {
-            $installResultInfo = "$($_.Title) installed successfully."
-            Write-Output $installResultInfo
-            Write-Output $installResultInfo | Out-File $logFile -Append
-        }
-    } else {
-        Write-Output "No updates were installed." | Out-File $logFile -Append
-    }
+    $installParams['IgnoreReboot'] = $true
+    Write-Log "Auto-reboot disabled — restart manually if required after updates complete."
 }
+
+$results = Get-WindowsUpdate @installParams
+
+# ─── Log results ─────────────────────────────────────────────────────────────
+if ($results) {
+    Write-Log "Updates installed:"
+    foreach ($result in $results) {
+        Write-Log "  [$($result.ResultCode)] $($result.Title)"
+    }
+} else {
+    Write-Log "No update results returned (updates may have installed silently)."
+}
+
+# ─── Check reboot requirement ────────────────────────────────────────────────
+$rebootRequired = (Get-WURebootStatus -Silent -ErrorAction SilentlyContinue)
+if ($rebootRequired) {
+    if ($AutoReboot) {
+        Write-Log "Reboot required. Restarting in 30 seconds..."
+        Start-Sleep -Seconds 30
+        Restart-Computer -Force
+    } else {
+        Write-Log "Reboot required to complete update installation. Run: Restart-Computer" -Level WARN
+    }
+} else {
+    Write-Log "No reboot required."
+}
+
+Write-Log "Windows Update complete. Log: $LogFile"

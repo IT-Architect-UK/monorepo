@@ -1,74 +1,136 @@
 <#
 .SYNOPSIS
-This script configures virtual hard disks on a Windows system.
+    Initialises and formats all unformatted (RAW) hard disks on the server.
 
 .DESCRIPTION
-The script performs the following actions:
-- Renames the C: drive label to "OS".
-- Changes the CD-ROM drive letter to Z: if present.
-- Initializes and formats RAW disks with GPT partition style.
-- Assigns drive letters dynamically to new data disks, starting from D:.
-- Renames the D: drive label to "Applications & Data".
-- Renames the remaining drive labels match their assigned drive letter.
+    Performs the following operations:
+      1. Renames the C: drive label to "OS"
+      2. Moves the CD-ROM drive to drive letter Z: (if present)
+      3. For each RAW (unformatted) disk:
+           - Initialises with GPT partition style
+           - Creates a single partition using the full disk size
+           - Formats with NTFS
+           - Assigns drive letter D: to the first data disk (labelled "Data")
+           - Assigns subsequent letters alphabetically
+    Safe to run on a server with no unformatted disks — no changes will be made.
+
+.EXAMPLE
+    .\setup-hdds.ps1
 
 .NOTES
-Version:        1.0
-Author:         Darren Pilkington
-Creation Date:  03-03-2024
+    Version:           1.1
+    Author:            Darren Pilkington
+    Modification Date: 31-05-2026
+    Requires:          Local Administrator rights
 #>
 
-# Function to find the next available drive letter
+[CmdletBinding()]
+param()
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+$LogDirectory = if (Test-Path 'D:\') { 'D:\Logs\DiskSetup' } else { 'C:\Logs\DiskSetup' }
+if (-not (Test-Path $LogDirectory)) {
+    New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
+}
+$LogFile = Join-Path $LogDirectory "setup-hdds-$(Get-Date -Format 'yyyy-MM-dd-HH-mm-ss').log"
+
+function Write-Log {
+    param(
+        [string] $Message,
+        [ValidateSet('INFO','WARN','ERROR')] [string] $Level = 'INFO'
+    )
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level]  $Message"
+    Write-Host $entry
+    Add-Content -Path $LogFile -Value $entry
+}
+
 function Get-NextAvailableDriveLetter {
-    $usedLetters = (Get-Partition | Where-Object DriveLetter -ne $null).DriveLetter
-    $alphabet = 67..90 | ForEach-Object { [char]$_ }  # C to Z
-    $availableLetters = $alphabet | Where-Object { $_ -notin $usedLetters }
-    return $availableLetters[0]
+    # Returns the next unused drive letter from D onwards
+    $usedLetters = (Get-Partition | Where-Object { $null -ne $_.DriveLetter }).DriveLetter
+    $candidates  = 68..90 | ForEach-Object { [char]$_ }  # D to Z
+    return ($candidates | Where-Object { $_ -notin $usedLetters })[0]
 }
 
-Write-Output "Configuring the virtual hard disks"
+Write-Log "Disk setup starting on $env:COMPUTERNAME."
+Write-Log "Log file: $LogFile"
 
-Write-Output "Renaming the C: drive label to OS"
-Get-Volume -DriveLetter C | Set-Volume -NewFileSystemLabel "OS"
-
-Write-Output "Get the CD-ROM drive information"
-$cdRomDrive = Get-CimInstance -ClassName Win32_CDROMDrive
-
-Write-Output "If a CD-ROM drive is found, change its drive letter to Z:"
-if ($cdRomDrive) {
-    Get-WmiObject -Class win32_volume -Filter "DriveLetter = '$($cdRomDrive.Drive)' " | Set-WmiInstance -Arguments @{DriveLetter='Z:'}
+# ─── Pre-flight ──────────────────────────────────────────────────────────────
+$currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Log "Script must be run as Administrator." -Level ERROR
+    exit 1
 }
 
-Write-Output "Get all the disks on the system"
-$disks = Get-Disk
+# ─── Rename OS drive label ────────────────────────────────────────────────────
+Write-Log "Renaming C: drive label to 'OS'..."
+try {
+    Get-Volume -DriveLetter C | Set-Volume -NewFileSystemLabel 'OS'
+    Write-Log "C: drive label set to 'OS'."
+} catch {
+    Write-Log "Could not rename C: drive label: $_" -Level WARN
+}
 
-Write-Output "Filter out the disks that have a RAW partition style (i.e., unformatted)"
-$rawDisks = $disks | Where-Object PartitionStyle -eq 'RAW'
-
-Write-Output "Initialize a counter for data disks"
-$dataDiskCount = 1
-
-Write-Output "Loop through each RAW disk to initialize and format it"
-foreach ($disk in $rawDisks) {
-    $diskNumber = $disk.Number
-
-    Write-Output "Initialize the disk with GPT partition style"
-    Initialize-Disk -Number $diskNumber -PartitionStyle GPT -PassThru
-
-    Write-Output "Create a new partition using the maximum available size on the disk"
-    $partition = New-Partition -DiskNumber $diskNumber -UseMaximumSize
-
-    if ($dataDiskCount -eq 1) {
-        Write-Output "If this is the first data disk, assign it the letter D: and label it Applications & Data"
-        $partition | Set-Partition -NewDriveLetter 'D'
-        Format-Volume -Partition $partition -FileSystem NTFS -NewFileSystemLabel "Applications & Data" -Confirm:$false
-    } else {
-        Write-Output "For subsequent data disks, assign the next available drive letter and label it 'Data'"
-        $nextLetter = Get-NextAvailableDriveLetter
-        $partition | Set-Partition -NewDriveLetter $nextLetter
-        Format-Volume -Partition $partition -FileSystem NTFS -NewFileSystemLabel $nextLetter -Confirm:$false
+# ─── Move CD-ROM to Z: ────────────────────────────────────────────────────────
+Write-Log "Checking for CD-ROM drive..."
+$cdRom = Get-CimInstance -ClassName Win32_CDROMDrive -ErrorAction SilentlyContinue
+if ($cdRom) {
+    Write-Log "CD-ROM found at $($cdRom.Drive). Moving to Z:..."
+    # CIM-based volume query — avoids deprecated Get-WmiObject
+    $cdVolume = Get-CimInstance -ClassName Win32_Volume `
+        -Filter "DriveLetter = '$($cdRom.Drive)'" -ErrorAction SilentlyContinue
+    if ($cdVolume) {
+        Set-CimInstance -InputObject $cdVolume -Property @{ DriveLetter = 'Z:' }
+        Write-Log "CD-ROM moved to Z:."
     }
-    $dataDiskCount++
+} else {
+    Write-Log "No CD-ROM drive found."
 }
 
-Write-Output "Hard Disk Configuration Complete"
-Write-Output "Please update assigned drive letter and labels as required"
+# ─── Initialise and format RAW disks ─────────────────────────────────────────
+Write-Log "Scanning for unformatted (RAW) disks..."
+$rawDisks = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' }
+
+if ($rawDisks.Count -eq 0) {
+    Write-Log "No RAW disks found — nothing to initialise."
+} else {
+    Write-Log "$($rawDisks.Count) RAW disk(s) found."
+    $dataDiskCount = 1
+
+    foreach ($disk in $rawDisks) {
+        Write-Log "Processing Disk $($disk.Number) ($([math]::Round($disk.Size / 1GB, 1)) GB)..."
+
+        # Initialise with GPT
+        Initialize-Disk -Number $disk.Number -PartitionStyle GPT -PassThru | Out-Null
+        Write-Log "  Disk $($disk.Number): initialised with GPT."
+
+        # Create partition using full disk
+        $partition = New-Partition -DiskNumber $disk.Number -UseMaximumSize
+        Write-Log "  Disk $($disk.Number): partition created."
+
+        if ($dataDiskCount -eq 1) {
+            # First data disk gets D: and label "Data"
+            $partition | Set-Partition -NewDriveLetter 'D'
+            Format-Volume -Partition $partition -FileSystem NTFS -NewFileSystemLabel 'Data' -Confirm:$false | Out-Null
+            Write-Log "  Disk $($disk.Number): formatted NTFS, drive letter D:, label 'Data'."
+        } else {
+            $nextLetter = Get-NextAvailableDriveLetter
+            $partition | Set-Partition -NewDriveLetter $nextLetter
+            $label = "Data-$nextLetter"
+            Format-Volume -Partition $partition -FileSystem NTFS -NewFileSystemLabel $label -Confirm:$false | Out-Null
+            Write-Log "  Disk $($disk.Number): formatted NTFS, drive letter ${nextLetter}:, label '$label'."
+        }
+
+        $dataDiskCount++
+    }
+}
+
+# ─── Summary ─────────────────────────────────────────────────────────────────
+Write-Log "Disk configuration complete."
+Write-Log "Current volumes:"
+Get-Volume | Where-Object { $null -ne $_.DriveLetter } |
+    ForEach-Object { Write-Log "  $($_.DriveLetter): [$($_.FileSystemLabel)] $($_.FileSystem) $([math]::Round($_.Size/1GB,1))GB" }
+Write-Log "Log file: $LogFile"
+Write-Log "Review drive letters and labels and update as required."

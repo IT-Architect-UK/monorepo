@@ -1,156 +1,135 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-# --- Helpers ---
-log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
-fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
-
-# Script to mount an NFS volume on Ubuntu with verbose logging
+# =============================================================================
+# Mount NFS Volume — Ubuntu
+# Mounts an NFS share on a local mount point and optionally persists the
+# mount in /etc/fstab so it survives reboots.
 #
-# Purpose:
-#   This script automates the process of mounting an NFS (Network File System) share
-#   on an Ubuntu system. It checks for required dependencies, validates user-provided
-#   NFS server details, creates a local mount point, mounts the NFS share, and
-#   optionally adds the mount to /etc/fstab for persistence across reboots.
+# Installs nfs-common if not already present. Tests server connectivity
+# before attempting to mount. Uses NFSv4 by default.
 #
 # Usage:
-#   1. Run the script with root privileges: `sudo ./nfs_mount.sh`
-#   2. Follow the prompts to enter the NFS server hostname/IP, export path, and
-#      local mount point.
-#   3. Check the log file (/var/log/nfs_mount.log) and terminal output for status
-#      messages and errors.
+#   sudo ./mount-nfs-volume.sh --server 192.168.1.100 --export /data --mount /mnt/nfs
+#   sudo ./mount-nfs-volume.sh --server nas.corp.local --export /backups --mount /mnt/backups --nfs-version 3
+#   sudo ./mount-nfs-volume.sh --server 192.168.1.100 --export /data --mount /mnt/nfs --no-fstab
 #
-# Requirements:
-#   - Ubuntu system with internet access (for installing nfs-common if needed).
-#   - Root or sudo privileges.
-#   - NFS server with a valid export path accessible from this client.
-#   - Network connectivity to the NFS server.
+# Options:
+#   --server <host/ip>    NFS server hostname or IP (required)
+#   --export <path>       NFS export path on the server (required)
+#   --mount <path>        Local directory to mount to (required)
+#   --nfs-version <n>     NFS version: 3 or 4 (default: 4)
+#   --no-fstab            Skip adding the mount to /etc/fstab
 #
-# Logging:
-#   - All actions and errors are logged to /var/log/nfs_mount.log.
-#   - Messages are also displayed on the terminal for immediate feedback.
-#
-# Notes:
-#   - Ensure the NFS server is configured to allow mounts from this client (check
-#     /etc/exports on the server).
-#   - The script uses NFS version 4 by default (vers=4).
-#   - Input is validated to prevent empty or invalid values.
+# Author:            Darren Pilkington
+# Version:           1.1
+# Date:              31-05-2026
+# =============================================================================
 
-# Log file setup
-LOG_FILE="/var/log/nfs_mount.log"
-echo "===== NFS Mount Script Started: $(date) =====" | tee -a "$LOG_FILE"
+set -euo pipefail
 
-# Function to log messages to both log file and terminal
-log_message() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE" > /dev/tty
-}
+# ─── Logging ─────────────────────────────────────────────────────────────────
+LOG_DIR="/var/log/storage-management"
+LOG_FILE="${LOG_DIR}/mount-nfs-$(date '+%Y%m%d-%H%M%S').log"
+mkdir -p "${LOG_DIR}"
 
-# Check if script is run as root
-if [[ $EUID -ne 0 ]]; then
-    log_message "ERROR: This script must be run as root"
-    echo "Please run this script with sudo" > /dev/tty
-    exit 1
-fi
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*" | tee -a "${LOG_FILE}"; }
+warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*" | tee -a "${LOG_FILE}"; }
+fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" | tee -a "${LOG_FILE}" >&2; exit 1; }
 
-# Check if NFS client is installed
-if ! dpkg -l | grep -q nfs-common; then
-    log_message "Installing nfs-common package"
-    apt-get update && apt-get install -y nfs-common
-    if [[ $? -ne 0 ]]; then
-        log_message "ERROR: Failed to install nfs-common"
-        echo "Failed to install nfs-common" > /dev/tty
-        exit 1
-    fi
-fi
+# ─── Argument parsing ────────────────────────────────────────────────────────
+NFS_SERVER=""
+NFS_EXPORT=""
+MOUNT_POINT=""
+NFS_VERSION="4"
+ADD_FSTAB=true
 
-# Prompt for NFS server hostname
-echo "Enter the NFS server hostname or IP address" > /dev/tty
-echo "Example: nfs-server.example.com or 192.168.1.100" > /dev/tty
-read -p "NFS Server: " NFS_HOST < /dev/tty
-log_message "User entered NFS server: $NFS_HOST"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --server)      NFS_SERVER="$2";   shift 2 ;;
+        --export)      NFS_EXPORT="$2";   shift 2 ;;
+        --mount)       MOUNT_POINT="$2";  shift 2 ;;
+        --nfs-version) NFS_VERSION="$2";  shift 2 ;;
+        --no-fstab)    ADD_FSTAB=false;   shift   ;;
+        --help)
+            grep '^#' "$0" | grep -v '#!/' | sed 's/^# \{0,2\}//'
+            exit 0
+            ;;
+        *) fail "Unknown argument: $1. Use --help for usage." ;;
+    esac
+done
 
-# Validate hostname/IP
-if [[ -z "$NFS_HOST" ]]; then
-    log_message "ERROR: No hostname/IP provided"
-    echo "Hostname/IP cannot be empty" > /dev/tty
-    exit 1
-fi
+# ─── Pre-flight ──────────────────────────────────────────────────────────────
+[[ "${EUID}" -eq 0 ]]      || fail "Run as root: sudo ./mount-nfs-volume.sh"
+[[ -n "${NFS_SERVER}" ]]   || fail "--server is required."
+[[ -n "${NFS_EXPORT}" ]]   || fail "--export is required."
+[[ -n "${MOUNT_POINT}" ]]  || fail "--mount is required."
+[[ "${NFS_EXPORT}" == /* ]] || fail "--export must be an absolute path starting with /"
+[[ "${MOUNT_POINT}" == /* ]] || fail "--mount must be an absolute path starting with /"
+[[ "${NFS_VERSION}" == "3" || "${NFS_VERSION}" == "4" ]] \
+    || fail "--nfs-version must be 3 or 4."
 
-# Prompt for NFS export path
-echo "Enter the NFS export path" > /dev/tty
-echo "Example: /export/data or /nfs/share" > /dev/tty
-read -p "NFS Path: " NFS_PATH < /dev/tty
-log_message "User entered NFS path: $NFS_PATH"
+log "Mounting NFS volume on $(hostname -f 2>/dev/null || hostname)"
+log "  Server      : ${NFS_SERVER}"
+log "  Export      : ${NFS_EXPORT}"
+log "  Mount point : ${MOUNT_POINT}"
+log "  NFS version : ${NFS_VERSION}"
+log "  fstab entry : ${ADD_FSTAB}"
+log "Log file: ${LOG_FILE}"
 
-# Validate NFS path
-if [[ -z "$NFS_PATH" || ! "$NFS_PATH" =~ ^/.* ]]; then
-    log_message "ERROR: Invalid NFS path provided"
-    echo "NFS path must start with '/' and cannot be empty" > /dev/tty
-    exit 1
-fi
-
-# Prompt for local mount point
-echo "Enter the local mount point directory" > /dev/tty
-echo "Example: /mnt/nfs or /data" > /dev/tty
-read -p "Mount Point: " MOUNT_POINT < /dev/tty
-log_message "User entered mount point: $MOUNT_POINT"
-
-# Validate and create mount point
-if [[ -z "$MOUNT_POINT" || ! "$MOUNT_POINT" =~ ^/.* ]]; then
-    log_message "ERROR: Invalid mount point provided"
-    echo "Mount point must start with '/' and cannot be empty" > /dev/tty
-    exit 1
-fi
-
-if [[ ! -d "$MOUNT_POINT" ]]; then
-    log_message "Creating mount point directory: $MOUNT_POINT"
-    mkdir -p "$MOUNT_POINT"
-    if [[ $? -ne 0 ]]; then
-        log_message "ERROR: Failed to create mount point"
-        echo "Failed to create mount point directory" > /dev/tty
-        exit 1
-    fi
-fi
-
-# Test NFS server connectivity
-log_message "Testing NFS server connectivity"
-if ! ping -c 2 "$NFS_HOST" > /dev/null 2>&1; then
-    log_message "WARNING: Unable to ping NFS server"
-    echo "Warning: Could not ping NFS server. Continuing anyway..." > /dev/tty
-fi
-
-# Attempt to mount NFS share
-log_message "Attempting to mount $NFS_HOST:$NFS_PATH to $MOUNT_POINT"
-mount -t nfs -o vers=4 "$NFS_HOST:$NFS_PATH" "$MOUNT_POINT"
-if [[ $? -ne 0 ]]; then
-    log_message "ERROR: Failed to mount NFS share"
-    echo "Failed to mount NFS share. Check server configuration and try again." > /dev/tty
-    exit 1
-fi
-
-# Verify mount
-if mount | grep -q "$MOUNT_POINT"; then
-    log_message "SUCCESS: NFS share mounted successfully"
-    echo "NFS share mounted successfully at $MOUNT_POINT" > /dev/tty
+# ─── Install nfs-common ──────────────────────────────────────────────────────
+if ! dpkg -l nfs-common 2>/dev/null | grep -q "^ii"; then
+    log "Installing nfs-common..."
+    apt-get update -y 2>&1 | tee -a "${LOG_FILE}"
+    apt-get install -y nfs-common 2>&1 | tee -a "${LOG_FILE}"
+    log "nfs-common installed."
 else
-    log_message "ERROR: Mount verification failed"
-    echo "Mount verification failed" > /dev/tty
-    exit 1
+    log "nfs-common already installed."
 fi
 
-# Add to fstab for persistence
-FSTAB_ENTRY="$NFS_HOST:$NFS_PATH $MOUNT_POINT nfs defaults,vers=4 0 0"
-if ! grep -q "$NFS_HOST:$NFS_PATH" /etc/fstab; then
-    log_message "Adding NFS mount to /etc/fstab"
-    echo "$FSTAB_ENTRY" >> /etc/fstab
-    if [[ $? -ne 0 ]]; then
-        log_message "WARNING: Failed to update /etc/fstab"
-        echo "Warning: Could not update /etc/fstab. Mount will not persist after reboot." > /dev/tty
+# ─── Test server connectivity ─────────────────────────────────────────────────
+log "Testing connectivity to NFS server ${NFS_SERVER}..."
+if ping -c 2 -W 3 "${NFS_SERVER}" &>/dev/null; then
+    log "NFS server is reachable."
+else
+    warn "Cannot ping ${NFS_SERVER}. Attempting mount anyway — server may not respond to ICMP."
+fi
+
+# ─── Create mount point ───────────────────────────────────────────────────────
+if [[ ! -d "${MOUNT_POINT}" ]]; then
+    log "Creating mount point: ${MOUNT_POINT}..."
+    mkdir -p "${MOUNT_POINT}"
+    log "Mount point created."
+else
+    log "Mount point already exists: ${MOUNT_POINT}"
+fi
+
+# ─── Check if already mounted ─────────────────────────────────────────────────
+if mountpoint -q "${MOUNT_POINT}" 2>/dev/null; then
+    warn "${MOUNT_POINT} is already mounted. Skipping mount."
+else
+    # ─── Mount the NFS share ──────────────────────────────────────────────────
+    log "Mounting ${NFS_SERVER}:${NFS_EXPORT} at ${MOUNT_POINT} (NFS v${NFS_VERSION})..."
+    mount -t nfs -o "rw,nfsvers=${NFS_VERSION},hard,timeo=600,retrans=2" \
+        "${NFS_SERVER}:${NFS_EXPORT}" "${MOUNT_POINT}" \
+        2>&1 | tee -a "${LOG_FILE}"
+
+    mountpoint -q "${MOUNT_POINT}" || fail "Mount verification failed. Check server exports and firewall rules."
+    log "NFS share mounted successfully at ${MOUNT_POINT}."
+fi
+
+# ─── Add to fstab for persistence ────────────────────────────────────────────
+if [[ "${ADD_FSTAB}" == true ]]; then
+    FSTAB_ENTRY="${NFS_SERVER}:${NFS_EXPORT}  ${MOUNT_POINT}  nfs  rw,nfsvers=${NFS_VERSION},hard,timeo=600,retrans=2,_netdev  0  0"
+
+    if grep -qF "${NFS_SERVER}:${NFS_EXPORT}" /etc/fstab 2>/dev/null; then
+        warn "fstab already contains an entry for ${NFS_SERVER}:${NFS_EXPORT} — skipping."
     else
-        log_message "Successfully updated /etc/fstab"
-        echo "Mount added to /etc/fstab for persistence" > /dev/tty
+        log "Adding mount to /etc/fstab for persistence across reboots..."
+        cp /etc/fstab "/etc/fstab.bak.$(date '+%Y%m%d-%H%M%S')"
+        echo "${FSTAB_ENTRY}" >> /etc/fstab
+        log "fstab entry added."
+        log "  ${FSTAB_ENTRY}"
     fi
 fi
 
-echo "===== NFS Mount Script Completed: $(date) =====" | tee -a "$LOG_FILE"
-log_message "Script execution completed"
+log "NFS mount complete. Log: ${LOG_FILE}"
+df -h "${MOUNT_POINT}" 2>&1 | tee -a "${LOG_FILE}"

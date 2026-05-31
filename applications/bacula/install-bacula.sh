@@ -1,308 +1,208 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Bacula Backup Server Installation — Ubuntu
+# Installs Bacula (Director, Storage Daemon, File Daemon) on Ubuntu 24.04.
+# Optionally installs the Bacularis web management interface.
+#
+# Bacula requires interactive debconf prompts during installation for
+# database configuration. This script uses the `script` utility to
+# provide a proper TTY for those prompts.
+#
+# Usage:
+#   sudo ./install-bacula.sh
+#   sudo ./install-bacula.sh --skip-bacularis
+#
+# Options:
+#   --skip-bacularis    Skip the optional Bacularis web interface installation
+#
+# Author:            Darren Pilkington
+# Version:           1.1
+# Date:              31-05-2026
+# =============================================================================
+
 set -euo pipefail
 
-# --- Helpers ---
-log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
-fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
+# ─── Logging ─────────────────────────────────────────────────────────────────
+LOG_DIR="/var/log/bacula-install"
+LOG_FILE="${LOG_DIR}/install-bacula-$(date '+%Y%m%d-%H%M%S').log"
+mkdir -p "${LOG_DIR}"
 
-# Simplified script to install Bacula and optionally Bacularis web interface on Ubuntu 24.04
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*" | tee -a "${LOG_FILE}"; }
+warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]  $*" | tee -a "${LOG_FILE}"; }
+fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" | tee -a "${LOG_FILE}" >&2; exit 1; }
 
-# Variables
-LOG_FILE="/var/log/bacula_install_$(date +%Y%m%d_%H%M%S).log"
+# ─── Argument parsing ────────────────────────────────────────────────────────
+SKIP_BACULARIS=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-bacularis) SKIP_BACULARIS=true; shift ;;
+        --help)
+            grep '^#' "$0" | grep -v '#!/' | sed 's/^# \{0,2\}//'
+            exit 0
+            ;;
+        *) fail "Unknown argument: $1. Use --help for usage." ;;
+    esac
+done
+
+# ─── Configuration ───────────────────────────────────────────────────────────
 BACKUP_DIR="/bacula/backup"
 RESTORE_DIR="/bacula/restore"
-CONFIG_DIR="/etc/bacula"
-BACULA_PACKAGE="bacula"
-Bacularis_PACKAGES=("baculum-common" "baculum-api" "baculum-web")
 BACULA_SERVICES=("bacula-dir" "bacula-sd" "bacula-fd")
-MIN_RAM="2G"  # Minimum RAM recommended for Bacula server
-VERBOSE=true  # Enable verbose logging
-SERVICE_TIMEOUT=30  # Timeout for service commands in seconds
-DIR_OWNER="root"  # Owner for backup/restore directories
-DIR_GROUP="root"  # Group for backup/restore directories
-APACHE_PORT=80  # Default Apache port
+SERVICE_TIMEOUT=30
+BACULARIS_PACKAGES=("baculum-common" "baculum-api" "baculum-web")
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'  # No Color
+# ─── Pre-flight ──────────────────────────────────────────────────────────────
+[[ "${EUID}" -eq 0 ]] || fail "Run as root: sudo ./install-bacula.sh"
+command -v apt-get &>/dev/null || fail "apt-get not found — Ubuntu/Debian required."
 
-# Function to log messages
-log_message() {
-    local message="$1"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] $message" >> "$LOG_FILE"
-    if [ "$VERBOSE" = true ]; then
-        echo -e "${YELLOW}[$timestamp] $message${NC}"
-    fi
-}
+log "Installing Bacula on $(hostname -f 2>/dev/null || hostname)"
+log "Log file: ${LOG_FILE}"
 
-# Function to check if script is run as root
-check_root() {
-    if [ "$EUID" -ne 0 ]; then
-        log_message "ERROR: This script must be run as root."
-        exit 1
-    fi
-    log_message "Running as root."
-}
+# ─── System requirements check ───────────────────────────────────────────────
+log "Checking system requirements..."
+TOTAL_RAM=$(free -m | awk '/^Mem:/{print $2}')
+FREE_DISK=$(df -m / | tail -1 | awk '{print $4}')
 
-# Function to check system requirements
-check_requirements() {
-    log_message "Checking system requirements..."
-    local total_ram=$(free -m | awk '/^Mem:/{print $2}')
-    if [ "$total_ram" -lt 2048 ]; then
-        log_message "WARNING: System has less than $MIN_RAM RAM ($total_ram MB detected). Bacula may require more resources."
+[[ "${TOTAL_RAM}" -ge 2048 ]] \
+    || warn "System has ${TOTAL_RAM} MB RAM. Bacula recommends at least 2 GB."
+[[ "${FREE_DISK}" -ge 2048 ]] \
+    || warn "Only ${FREE_DISK} MB free on /. Bacula installation may fail."
+
+log "RAM: ${TOTAL_RAM} MB | Free disk: ${FREE_DISK} MB"
+
+# ─── Check for existing Bacula installation ──────────────────────────────────
+log "Checking for existing Bacula installation..."
+if dpkg -l bacula 2>/dev/null | grep -q "^ii"; then
+    warn "Bacula is already installed."
+    read -r -p "Continue anyway? This may overwrite configuration files. [y/N] " CONFIRM
+    [[ "${CONFIRM,,}" == "y" ]] || { log "Aborted by user."; exit 0; }
+fi
+
+# ─── Check apt locks ─────────────────────────────────────────────────────────
+log "Checking for apt lock conflicts..."
+if fuser /var/lib/dpkg/lock-frontend &>/dev/null 2>&1; then
+    fail "Another apt process is running. Wait for it to complete before retrying."
+fi
+
+# ─── Update package lists ────────────────────────────────────────────────────
+log "Updating package lists..."
+apt-get update -y 2>&1 | tee -a "${LOG_FILE}"
+
+# ─── Install Bacula (requires interactive TTY for debconf) ───────────────────
+log "Installing Bacula (interactive — answer database configuration prompts)..."
+TEMP_LOG=$(mktemp)
+trap 'rm -f "${TEMP_LOG}"' EXIT
+
+script -q -c "apt-get install -y bacula" "${TEMP_LOG}" 2>&1 \
+    || { cat "${TEMP_LOG}" >> "${LOG_FILE}"; fail "Bacula installation failed."; }
+cat "${TEMP_LOG}" >> "${LOG_FILE}"
+
+INSTALLED_VERSION=$(dpkg -l bacula 2>/dev/null | awk '/^ii/ {print $3}' || echo "unknown")
+log "Bacula ${INSTALLED_VERSION} installed."
+
+# ─── Create backup and restore directories ───────────────────────────────────
+log "Creating backup and restore directories..."
+mkdir -p "${BACKUP_DIR}" "${RESTORE_DIR}"
+chown -R root:root "${BACKUP_DIR}" "${RESTORE_DIR}"
+chmod -R 700 "${BACKUP_DIR}" "${RESTORE_DIR}"
+log "Directories created: ${BACKUP_DIR}, ${RESTORE_DIR}"
+
+# ─── Start and enable Bacula services ────────────────────────────────────────
+log "Starting and enabling Bacula services..."
+for service in "${BACULA_SERVICES[@]}"; do
+    timeout "${SERVICE_TIMEOUT}" systemctl restart "${service}" 2>&1 | tee -a "${LOG_FILE}" \
+        || fail "Failed to restart ${service}."
+    systemctl enable "${service}"
+    log "  ${service}: started and enabled."
+done
+
+# ─── Verify services ─────────────────────────────────────────────────────────
+log "Verifying Bacula services..."
+for service in "${BACULA_SERVICES[@]}"; do
+    if systemctl is-active --quiet "${service}"; then
+        log "  ${service}: running."
     else
-        log_message "RAM check passed: $total_ram MB detected."
+        fail "${service} is not running after install. Check: journalctl -u ${service}"
     fi
-    # Check disk space
-    local disk_space=$(df -m / | tail -1 | awk '{print $4}')
-    if [ "$disk_space" -lt 2048 ]; then
-        log_message "WARNING: Less than 2GB free disk space on / ($disk_space MB detected). Bacula installation may fail."
-    else
-        log_message "Disk space check passed: $disk_space MB free on /."
-    fi
-}
+done
 
-# Function to detect existing Bacula installation
-check_existing_install() {
-    log_message "Checking for existing Bacula installation..."
-    if dpkg -l | grep -q "$BACULA_PACKAGE"; then
-        log_message "${RED}WARNING: Bacula is already installed on this system!${NC}"
-        log_message "Existing Bacula packages:"
-        dpkg -l | grep bacula | tee -a "$LOG_FILE"
-        read -p "Do you want to continue with the installation? This may overwrite existing configurations! (y/N): " confirm
-        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-            log_message "User chose to exit due to existing Bacula installation."
-            exit 0
-        else
-            log_message "User confirmed to proceed with installation despite existing Bacula."
+# ─── Optional: Bacularis web interface ───────────────────────────────────────
+if [[ "${SKIP_BACULARIS}" == false ]]; then
+    read -r -p "Install Bacularis web management interface? [y/N] " INSTALL_WEB
+    if [[ "${INSTALL_WEB,,}" == "y" ]]; then
+        log "Installing Bacularis web interface..."
+
+        # Check Apache port availability
+        if ss -tlnp 2>/dev/null | grep -q ":80 "; then
+            fail "Port 80 is in use. Stop the conflicting service before installing Bacularis."
         fi
-    else
-        log_message "No existing Bacula installation detected."
-    fi
-}
 
-# Function to set up logging
-setup_logging() {
-    log_message "Setting up logging..."
-    touch "$LOG_FILE" || {
-        echo "ERROR: Cannot create log file at $LOG_FILE" | tee -a "$LOG_FILE"
-        exit 1
-    }
-    chmod 644 "$LOG_FILE"
-    log_message "Logging initialized to $LOG_FILE"
-}
+        # Install Apache and PHP prerequisites
+        log "Installing Apache and PHP prerequisites..."
+        TEMP_LOG2=$(mktemp)
+        script -q -c "apt-get install -y apache2 php php-pgsql php-json php-curl" "${TEMP_LOG2}" 2>&1 \
+            || { cat "${TEMP_LOG2}" >> "${LOG_FILE}"; fail "Apache/PHP installation failed."; }
+        cat "${TEMP_LOG2}" >> "${LOG_FILE}"
+        rm -f "${TEMP_LOG2}"
 
-# Function to check for apt locks
-check_apt_locks() {
-    log_message "Checking for apt locks..."
-    if pgrep -x "apt|apt-get" > /dev/null; then
-        log_message "ERROR: Another apt process is running. Please wait or terminate it."
-        exit 1
-    fi
-    if [ -f /var/lib/dpkg/lock-frontend ]; then
-        log_message "WARNING: Dpkg lock detected. Attempting to clear..."
-        rm -f /var/lib/dpkg/lock-frontend
-        rm -f /var/cache/apt/archives/lock
-        dpkg --configure -a | tee -a "$LOG_FILE"
-    fi
-    log_message "No apt locks detected."
-}
+        # Add Bacularis repository using modern keyring method
+        log "Adding Bacularis apt repository..."
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL http://bacula.org/downloads/baculum/baculum.pub \
+            | gpg --dearmor -o /etc/apt/keyrings/baculum-archive-keyring.gpg
+        echo "deb [signed-by=/etc/apt/keyrings/baculum-archive-keyring.gpg] http://bacula.org/downloads/baculum/stable-24.04/ubuntu noble main" \
+            > /etc/apt/sources.list.d/baculum.list
+        apt-get update -y 2>&1 | tee -a "${LOG_FILE}"
 
-# Function to debug debconf and TTY
-debug_debconf() {
-    log_message "Debugging debconf and TTY settings..."
-    log_message "Current TTY:"
-    tty | tee -a "$LOG_FILE"
-    log_message "Debconf frontend:"
-    debconf-show debconf | grep frontend | tee -a "$LOG_FILE"
-    log_message "TERM environment variable: $TERM"
-    log_message "DEBIAN_FRONTEND: $DEBIAN_FRONTEND"
-}
+        # Install Bacularis packages
+        log "Installing Bacularis packages..."
+        TEMP_LOG3=$(mktemp)
+        script -q -c "apt-get install -y ${BACULARIS_PACKAGES[*]}" "${TEMP_LOG3}" 2>&1 \
+            || { cat "${TEMP_LOG3}" >> "${LOG_FILE}"; fail "Bacularis installation failed."; }
+        cat "${TEMP_LOG3}" >> "${LOG_FILE}"
+        rm -f "${TEMP_LOG3}"
 
-# Function to check Apache port
-check_apache_port() {
-    log_message "Checking if Apache port $APACHE_PORT is in use..."
-    if netstat -tuln | grep -q ":$APACHE_PORT "; then
-        log_message "ERROR: Port $APACHE_PORT is already in use. Stop the conflicting service or change the Apache port."
-        exit 1
-    fi
-    log_message "Port $APACHE_PORT is free."
-}
+        # Configure Bacularis database connection
+        read -r -p "PostgreSQL user for Bacularis [bacula]: " PG_USER
+        PG_USER="${PG_USER:-bacula}"
+        read -r -s -p "PostgreSQL password: " PG_PASSWORD
+        echo ""
 
-# Function to install Bacula interactively
-install_bacula() {
-    log_message "Starting Bacula installation interactively..."
-    log_message "Please respond to the prompts for database configuration and other settings."
-    # Run apt-get install in a script session to ensure TTY for debconf prompts
-    TEMP_OUTPUT=$(mktemp)
-    script -q -c "apt-get install $BACULA_PACKAGE" "$TEMP_OUTPUT" || {
-        log_message "ERROR: Failed to install Bacula. Check $TEMP_OUTPUT and $LOG_FILE for details."
-        cat "$TEMP_OUTPUT" >> "$LOG_FILE"
-        rm "$TEMP_OUTPUT"
-        exit 1
-    }
-    cat "$TEMP_OUTPUT" >> "$LOG_FILE"
-    rm "$TEMP_OUTPUT"
-    # Log the installed Bacula version
-    local installed_version=$(dpkg -l | grep bacula | awk '{print $3}' | head -1)
-    log_message "Bacula installed successfully. Installed version: $installed_version"
-}
-
-# Function to configure Bacula directories
-configure_bacula() {
-    log_message "Configuring Bacula directories..."
-    # Create backup and restore directories
-    mkdir -p "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to create directories $BACKUP_DIR or $RESTORE_DIR."
-        exit 1
-    }
-    # Set ownership and permissions
-    chown -R "$DIR_OWNER:$DIR_GROUP" "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to set ownership for $BACKUP_DIR or $RESTORE_DIR."
-        exit 1
-    }
-    chmod -R 700 "$BACKUP_DIR" "$RESTORE_DIR" | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to set permissions for $BACKUP_DIR or $RESTORE_DIR."
-        exit 1
-    }
-    log_message "Backup and restore directories configured."
-}
-
-# Function to install Bacularis
-install_bacularis() {
-    log_message "Installing Bacularis web interface..."
-    # Install Apache and PHP prerequisites interactively
-    log_message "Please respond to any prompts for Apache and PHP installation."
-    TEMP_OUTPUT=$(mktemp)
-    script -q -c "apt-get install apache2 php php-pgsql php-json php-curl" "$TEMP_OUTPUT" || {
-        log_message "ERROR: Failed to install Apache and PHP. Check $TEMP_OUTPUT and $LOG_FILE for details."
-        cat "$TEMP_OUTPUT" >> "$LOG_FILE"
-        rm "$TEMP_OUTPUT"
-        exit 1
-    }
-    cat "$TEMP_OUTPUT" >> "$LOG_FILE"
-    rm "$TEMP_OUTPUT"
-    # Add Bacularis repository
-    wget -qO - http://bacula.org/downloads/baculum/baculum.pub | apt-key add - | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to add Bacularis repository key."
-        exit 1
-    }
-    echo "deb http://bacula.org/downloads/baculum/stable-24.04/ubuntu noble main" > /etc/apt/sources.list.d/baculum.list
-    apt-get update -y | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to update package lists after adding Bacularis repository."
-        exit 1
-    }
-    # Install Bacularis packages interactively
-    log_message "Please respond to any prompts for Bacularis installation."
-    TEMP_OUTPUT=$(mktemp)
-    script -q -c "apt-get install ${Bacularis_PACKAGES[*]}" "$TEMP_OUTPUT" || {
-        log_message "ERROR: Failed to install Bacularis. Check $TEMP_OUTPUT and $LOG_FILE for details."
-        cat "$TEMP_OUTPUT" >> "$LOG_FILE"
-        rm "$TEMP_OUTPUT"
-        exit 1
-    }
-    cat "$TEMP_OUTPUT" >> "$LOG_FILE"
-    rm "$TEMP_OUTPUT"
-    # Configure Bacularis
-    log_message "Configuring Bacularis..."
-    read -p "Enter the PostgreSQL user for Bacularis (default: bacula): " pg_user
-    pg_user=${pg_user:-bacula}
-    read -p "Enter the PostgreSQL password for Bacularis: " pg_password
-    cat << EOF > /etc/baculum/Config-api-apache/baculum.api.conf
+        for conf_dir in Config-api-apache Config-web-apache; do
+            conf_file="/etc/baculum/${conf_dir}/baculum.$(echo "${conf_dir}" | cut -d- -f2).conf"
+            cat > "${conf_file}" <<EOF
 [db]
 type = pgsql
 host = localhost
 name = bacula
-user = $pg_user
-password = $pg_password
+user = ${PG_USER}
+password = ${PG_PASSWORD}
 EOF
-    cat << EOF > /etc/baculum/Config-web-apache/baculum.web.conf
-[db]
-type = pgsql
-host = localhost
-name = bacula
-user = $pg_user
-password = $pg_password
-EOF
-    chown www-data:www-data /etc/baculum/Config-*-apache/*.conf
-    chmod 640 /etc/baculum/Config-*-apache/*.conf
-    systemctl restart apache2 | tee -a "$LOG_FILE" || {
-        log_message "ERROR: Failed to restart Apache."
-        exit 1
-    }
-    log_message "Bacularis installed and configured. Access at http://<server-ip>/baculum"
-}
+            chown www-data:www-data "${conf_file}"
+            chmod 640 "${conf_file}"
+        done
 
-# Function to restart Bacula services
-restart_services() {
-    log_message "Restarting Bacula services..."
-    for service in "${BACULA_SERVICES[@]}"; do
-        timeout -k 10 "$SERVICE_TIMEOUT" systemctl restart "$service" | tee -a "$LOG_FILE" || {
-            log_message "ERROR: Failed to restart $service."
-            exit 1
-        }
-        timeout -k 10 "$SERVICE_TIMEOUT" systemctl enable "$service" | tee -a "$LOG_FILE" || {
-            log_message "ERROR: Failed to enable $service."
-            exit 1
-        }
-        log_message "$service restarted and enabled."
-    done
-}
+        systemctl restart apache2 2>&1 | tee -a "${LOG_FILE}"
+        log "Bacularis installed."
 
-# Function to verify installation
-verify_installation() {
-    log_message "Verifying Bacula installation..."
-    for service in "${BACULA_SERVICES[@]}"; do
-        if systemctl is-active --quiet "$service"; then
-            log_message "$service is running."
-        else
-            log_message "ERROR: $service is not running."
-            exit 1
-        fi
-    done
-    log_message "Bacula installation verified successfully."
-}
-
-# Main execution
-echo "Starting Bacula installation script on $(date)" | tee -a "$LOG_FILE"
-log_message "Starting Bacula installation script on Ubuntu 24.04..."
-
-check_root
-setup_logging
-debug_debconf
-check_requirements
-check_existing_install
-check_apt_locks
-install_bacula
-configure_bacula
-restart_services
-verify_installation
-
-# Prompt for Bacularis installation
-log_message "Bacula base installation completed."
-read -p "Do you want to install the Bacularis web management interface? (y/N): " install_bacularis
-if [[ "$install_bacularis" =~ ^[Yy]$ ]]; then
-    check_apache_port
-    install_bacularis
-else
-    log_message "Skipping Bacularis installation as per user choice."
+        SERVER_IP=$(hostname -I | awk '{print $1}')
+        log "  Bacularis URL: http://${SERVER_IP}/baculum"
+    else
+        log "Skipping Bacularis installation."
+    fi
 fi
 
-# Final output
-log_message "${GREEN}Bacula installation completed successfully!${NC}"
-log_message "Log file: $LOG_FILE"
-if [[ "$install_bacularis" =~ ^[Yy]$ ]]; then
-    log_message "Bacularis web interface available at http://<server-ip>/baculum"
-fi
-log_message "Next steps:"
-if [[ "$install_bacularis" =~ ^[Yy]$ ]]; then
-    log_message "1. Access Bacularis to manage Bacula: http://<server-ip>/baculum"
-fi
-log_message "2. Edit configuration files in $CONFIG_DIR for advanced setup."
-log_message "3. Use 'bconsole' for command-line management."
-log_message "4. Check the official Bacula documentation: https://www.bacula.org"
-
-exit 0
+# ─── Summary ─────────────────────────────────────────────────────────────────
+log "Bacula installation complete."
+log "  Version      : ${INSTALLED_VERSION}"
+log "  Backup dir   : ${BACKUP_DIR}"
+log "  Restore dir  : ${RESTORE_DIR}"
+log "  Management   : bconsole (CLI)"
+log "  Config dir   : /etc/bacula"
+log "  Log file     : ${LOG_FILE}"
+log ""
+log "Next steps:"
+log "  1. Edit /etc/bacula/bacula-dir.conf to configure jobs and clients."
+log "  2. Run 'bconsole' to manage Bacula interactively."
+log "  3. Reference: https://www.bacula.org/documentation/"

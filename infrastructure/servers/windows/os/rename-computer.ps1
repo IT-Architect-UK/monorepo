@@ -1,54 +1,102 @@
 <#
 .SYNOPSIS
-This script renames the computer and optionally restarts it. This version of the script allows for a custom computer name to be passed as a parameter:
-
-> $NewComputerName
-
-If the new computer name is not passed when calling the script, it will generate a unique name based on the Unix timestamp.
+    Renames the local computer and restarts it to apply the change.
 
 .DESCRIPTION
-The script performs the following actions:
-- Optionally accepts a new computer name as a command-line switch.
-- Generates a unique computer name if no custom name is provided.
-- Renames the computer to the specified or generated name.
-- Restarts the computer.
+    Renames the computer to a specified name or auto-generates a unique name
+    using a timestamp suffix (format: SVRXXXXXXXXXX). The computer restarts
+    automatically after rename unless -NoRestart is specified.
+
+.PARAMETER NewComputerName
+    The new computer name. If not provided, a unique name is auto-generated.
+
+.PARAMETER NoRestart
+    Skip the automatic restart after rename.
+
+.EXAMPLE
+    .\rename-computer.ps1 -NewComputerName "WEB-PROD-01"
+
+.EXAMPLE
+    .\rename-computer.ps1
+    # Auto-generates a unique name and restarts.
 
 .NOTES
-Version:        1.0
-Author:         IT Surgery
-Modification Date:  08-03-2024
-
-To run this script and pass the new computer name as a parameter, you would call it from the PowerShell command line like this:
-
-```powershell
-.\rename-computer.ps1 -NewComputerName "NewComputerName"
+    Version:           1.1
+    Author:            Darren Pilkington
+    Modification Date: 31-05-2026
+    Requires:          Local Administrator rights
 #>
 
+[CmdletBinding()]
 param(
-    # Optional parameter for custom computer name
-    [string]$NewComputerName
+    [string] $NewComputerName = '',
+    [switch] $NoRestart
 )
 
-function Get-UniqueNumber {
-    # Get the current Unix timestamp
-    $timestamp = [int][double]::Parse((Get-Date (Get-Date).ToUniversalTime() -UFormat %s))
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
-    # Use modulo to ensure the number stays within 10 digits
-    # This operation guarantees a result that's within the range of 0 to 9999999999 (10 digits)
-    $uniqueNumber = $timestamp % 10000000000
-    return $uniqueNumber
+# ─── Logging ─────────────────────────────────────────────────────────────────
+$LogDirectory = if (Test-Path 'D:\') { 'D:\Logs\OS' } else { 'C:\Logs\OS' }
+if (-not (Test-Path $LogDirectory)) {
+    New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
+}
+$LogFile = Join-Path $LogDirectory "rename-computer-$(Get-Date -Format 'yyyy-MM-dd-HH-mm-ss').log"
+
+function Write-Log {
+    param(
+        [string] $Message,
+        [ValidateSet('INFO','WARN','ERROR')] [string] $Level = 'INFO'
+    )
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level]  $Message"
+    Write-Host $entry
+    Add-Content -Path $LogFile -Value $entry
 }
 
-# Determine the new computer name based on whether a custom name was provided
-$newName = if (-not [string]::IsNullOrEmpty($NewComputerName)) {
-    $NewComputerName
+Write-Log "Rename computer script starting."
+Write-Log "Log file: $LogFile"
+
+# ─── Pre-flight ──────────────────────────────────────────────────────────────
+$currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Log "Script must be run as Administrator." -Level ERROR
+    exit 1
+}
+
+# ─── Determine new name ──────────────────────────────────────────────────────
+if ([string]::IsNullOrWhiteSpace($NewComputerName)) {
+    # Generate a unique name from a Unix-epoch timestamp (last 8 digits)
+    $timestamp  = [int64](Get-Date -UFormat %s) % 100000000
+    $NewComputerName = "SVR$timestamp"
+    Write-Log "No name provided — auto-generated: $NewComputerName"
 } else {
-    $uniqueNumber = Get-UniqueNumber
-    "SVRMW$uniqueNumber"
+    Write-Log "New computer name specified: $NewComputerName"
 }
 
-# Rename the computer
-Rename-Computer -NewName $newName -Force
+# Validate name length (NetBIOS limit: 15 chars)
+if ($NewComputerName.Length -gt 15) {
+    Write-Log "Computer name '$NewComputerName' exceeds 15 characters." -Level ERROR
+    exit 1
+}
 
-# Restart the computer
-Restart-Computer
+$currentName = $env:COMPUTERNAME
+Write-Log "Current computer name: $currentName"
+
+if ($currentName -eq $NewComputerName) {
+    Write-Log "Computer is already named '$NewComputerName' — nothing to do."
+    exit 0
+}
+
+# ─── Rename ───────────────────────────────────────────────────────────────────
+Write-Log "Renaming computer from '$currentName' to '$NewComputerName'..."
+Rename-Computer -NewName $NewComputerName -Force
+Write-Log "Computer renamed successfully."
+
+# ─── Restart ─────────────────────────────────────────────────────────────────
+if ($NoRestart) {
+    Write-Log "Restart skipped (-NoRestart). Restart manually to apply the new name."
+} else {
+    Write-Log "Restarting in 5 seconds to apply the new computer name..."
+    Start-Sleep -Seconds 5
+    Restart-Computer -Force
+}

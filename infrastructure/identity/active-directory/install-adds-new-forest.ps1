@@ -1,129 +1,157 @@
 <#
 .SYNOPSIS
-This script installs Active Directory Domain Services and creates a new Active Directory Forest.
+    Installs Active Directory Domain Services and promotes the server to a new forest root DC.
 
 .DESCRIPTION
-The script installs the AD Domain Services role, configures DNS settings, sets up the PDC as an authoritative time server, and performs additional configurations for a new AD forest.
-
-.NOTES
-Version: 1.1
-Author: IT Architect UK
-Modification Date: 31-05-2026
+    Installs the AD-Domain-Services Windows feature, imports the ADDSDeployment module,
+    and runs Install-ADDSForest to create a new AD forest. Also configures:
+      - DNS suffix on all active network adapters
+      - PDC as the authoritative NTP time source (W32Time)
+    The server reboots automatically to complete the promotion.
 
 .PARAMETER AdDomainName
-The desired Active Directory domain name. Default is "adds.private".
+    The fully qualified Active Directory domain name (e.g. corp.example.com).
+    Default: adds.private
 
 .PARAMETER AdNetbiosName
-The NetBIOS name of the domain. Default is "ADDS".
+    The NetBIOS name for the domain (e.g. CORP). Default: ADDS
 
 .PARAMETER SafeModePassword
-The Directory Services Restore Mode (DSRM) password as a SecureString. This parameter is mandatory.
-Supply it at runtime: -SafeModePassword (Read-Host -AsSecureString "Enter DSRM password")
+    The Directory Services Restore Mode (DSRM) administrator password as a SecureString.
+    This parameter is mandatory — no default value.
 
 .PARAMETER NtpServer
-NTP server string used to configure the PDC as an authoritative time source. Defaults to "pool.ntp.org,0x9".
+    NTP server string for W32Time configuration on the PDC.
+    Default: pool.ntp.org,0x9
 
 .EXAMPLE
-$pwd = Read-Host -AsSecureString "Enter DSRM password"
-.\install-adds-new-forest.ps1 -AdDomainName "corp.example.com" -AdNetbiosName "CORP" -SafeModePassword $pwd
+    $pwd = Read-Host -AsSecureString "Enter DSRM password"
+    .\install-adds-new-forest.ps1 -AdDomainName "corp.example.com" -AdNetbiosName "CORP" -SafeModePassword $pwd
+
+.NOTES
+    Version:           1.2
+    Author:            Darren Pilkington
+    Modification Date: 31-05-2026
+    Requires:          Windows Server 2019/2022, PowerShell 5.1+, local Administrator rights
 #>
 
+[CmdletBinding()]
 param(
-    [string]$AdDomainName = "adds.private",
-    [string]$AdNetbiosName = "ADDS",
+    [string]   $AdDomainName   = 'adds.private',
+    [string]   $AdNetbiosName  = 'ADDS',
     [Parameter(Mandatory = $true)]
-    [SecureString]$SafeModePassword,
-    [string]$NtpServer = "pool.ntp.org,0x9"
+    [SecureString] $SafeModePassword,
+    [string]   $NtpServer      = 'pool.ntp.org,0x9'
 )
 
-# Function to write output to both console and log file
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+$LogDirectory = if (Test-Path 'D:\') { 'D:\Logs\ADDS' } else { 'C:\Logs\ADDS' }
+if (-not (Test-Path $LogDirectory)) {
+    New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
+}
+$LogFile = Join-Path $LogDirectory "ADDS-Forest-Install-$(Get-Date -Format 'yyyy-MM-dd-HH-mm-ss').log"
+
 function Write-Log {
     param(
-        [string]$Message
+        [string] $Message,
+        [ValidateSet('INFO','WARN','ERROR')] [string] $Level = 'INFO'
     )
-    Write-Output $Message
-    $Message | Out-File -FilePath $logPath -Append
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$Level]  $Message"
+    Write-Host $entry
+    Add-Content -Path $LogFile -Value $entry
 }
 
-# Determine log file location based on D:\ presence
-$logDirectory = if (Test-Path 'D:\') { "D:\Logs\ADDS" } else { "C:\Logs\ADDS" }
-if (-not (Test-Path $logDirectory)) {New-Item -ItemType Directory -Path $logDirectory -Force}
-$currentDateTime = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
-$logPath = "$logDirectory\ADDS-Forest-Install-$currentDateTime.log"
+Write-Log "ADDS Forest installation starting."
+Write-Log "  Domain name  : $AdDomainName"
+Write-Log "  NetBIOS name : $AdNetbiosName"
+Write-Log "  NTP server   : $NtpServer"
+Write-Log "  Log file     : $LogFile"
 
-# SafeModePassword is already a SecureString — use it directly
-$Credential = $SafeModePassword
+# ─── Pre-flight checks ───────────────────────────────────────────────────────
+Write-Log "Running pre-flight checks..."
 
-# Determine the installation drive based on availability
-$AdDisk = if (Test-Path 'D:\') { "D:\" } else { "C:\" }
-$AdDbPath = "${AdDisk}ADDS\Database"
-$AdLogPath = "${AdDisk}ADDS\Log"
-$AdSysvolPath = "${AdDisk}ADDS\SYSVOL"
+# Require local administrator
+$currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Log "Script must be run as Administrator." -Level ERROR
+    exit 1
+}
 
-Write-Log "Checking Active Directory Domain Services (ADDS) prerequisites."
-
-# Check if the server is part of a domain
+# Check domain membership (use Get-CimInstance — WMI is deprecated)
 try {
-    $currentDomain = Get-WmiObject Win32_ComputerSystem | Select-Object -ExpandProperty Domain
-    if ($currentDomain -eq $AdDomainName) {
-        Write-Log "The server is already a member of the domain '$AdDomainName'."
-        $isDomainMember = $true
-    } else {
-        Write-Log "The server is not a member of the domain '$AdDomainName'."
-        $isDomainMember = $false
-    }
+    $computerInfo = Get-CimInstance -ClassName Win32_ComputerSystem
+    $isDomainMember = ($computerInfo.Domain -eq $AdDomainName)
+    Write-Log "Current domain membership: $($computerInfo.Domain)"
 } catch {
-    Write-Log "Failed to determine domain membership status. Assuming the server is not a member of any domain."
+    Write-Log "Unable to determine domain membership: $_" -Level WARN
     $isDomainMember = $false
 }
 
-# Check if AD Domain Services role is installed
+# ─── Install AD-Domain-Services role ─────────────────────────────────────────
 $adRole = Get-WindowsFeature -Name 'AD-Domain-Services'
+
 if ($adRole.InstallState -eq 'Installed' -and $isDomainMember) {
-    Write-Log "Active Directory Domain Services (ADDS) role is installed and the server is a member of a domain."
+    Write-Log "ADDS role is already installed and server is a domain member — nothing to do."
 } else {
-    Write-Log "Installing Active Directory Domain Services (ADDS)"
-    Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+    Write-Log "Installing AD-Domain-Services role with management tools..."
+    Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools | Out-Null
+    Write-Log "AD-Domain-Services role installed."
+
     Import-Module ADDSDeployment
+
+    # Determine installation paths (prefer D:\ if available)
+    $AdDisk     = if (Test-Path 'D:\') { 'D:\' } else { 'C:\' }
+    $AdDbPath   = "${AdDisk}ADDS\Database"
+    $AdLogPath  = "${AdDisk}ADDS\Log"
+    $AdSysvolPath = "${AdDisk}ADDS\SYSVOL"
+
+    Write-Log "Promoting server to domain controller for forest: $AdDomainName"
+    Write-Log "  Database : $AdDbPath"
+    Write-Log "  Log      : $AdLogPath"
+    Write-Log "  SYSVOL   : $AdSysvolPath"
 
     Install-ADDSForest `
         -CreateDnsDelegation:$false `
-        -DatabasePath $AdDbPath `
-        -DomainMode "7" `
-        -DomainName $AdDomainName `
-        -DomainNetbiosName $AdNetbiosName `
-        -ForestMode "7" `
+        -DatabasePath        $AdDbPath `
+        -DomainMode          'WinThreshold' `
+        -DomainName          $AdDomainName `
+        -DomainNetbiosName   $AdNetbiosName `
+        -ForestMode          'WinThreshold' `
         -InstallDns:$true `
-        -LogPath $AdLogPath `
+        -LogPath             $AdLogPath `
         -NoRebootOnCompletion:$true `
-        -SysvolPath $AdSysvolPath `
+        -SysvolPath          $AdSysvolPath `
         -Force:$true `
-        -SafeModeAdministratorPassword $Credential
-    Write-Log "Active Directory Domain Services setup has initiated."
+        -SafeModeAdministratorPassword $SafeModePassword
+
+    Write-Log "ADDS forest installation initiated."
 }
 
-# Setting DNS suffix for all active network connections
-Write-Log "Setting the DNS suffix for all active network connections to $AdDomainName"
+# ─── Configure DNS suffix on all active adapters ─────────────────────────────
+Write-Log "Configuring DNS search suffix '$AdDomainName' on active adapters..."
 $activeAdapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
 foreach ($adapter in $activeAdapters) {
     Set-DnsClient -InterfaceIndex $adapter.ifIndex -ConnectionSpecificSuffix $AdDomainName
-    Write-Log "Set DNS suffix for $($adapter.Name) to $AdDomainName."
+    Write-Log "  Adapter '$($adapter.Name)': DNS suffix set to $AdDomainName"
 }
 
-# Configuring the PDC as an authoritative time server
-$ntpKeyPath = "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters"
-$ntpServersValue = $NtpServer
-$configKeyPath = "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config"
-$announceFlagsValue = 5 # PDC should be set to 5 to act as a reliable time source
+# ─── Configure PDC as authoritative NTP source ───────────────────────────────
+Write-Log "Configuring PDC as authoritative NTP time source..."
+$ntpParamsPath  = 'HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters'
+$ntpConfigPath  = 'HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config'
 
-Write-Log "Configuring the PDC as an authoritative time server"
-Set-ItemProperty -Path $ntpKeyPath -Name "NtpServer" -Value $ntpServersValue
-Set-ItemProperty -Path $ntpKeyPath -Name "Type" -Value ntp
-Set-ItemProperty -Path $configKeyPath -Name "AnnounceFlags" -Value $announceFlagsValue
-Set-Service -Name w32time -StartupType Automatic
-Start-Service w32time
+Set-ItemProperty -Path $ntpParamsPath -Name 'NtpServer'      -Value $NtpServer
+Set-ItemProperty -Path $ntpParamsPath -Name 'Type'           -Value 'NTP'
+Set-ItemProperty -Path $ntpConfigPath -Name 'AnnounceFlags'  -Value 5
 
-Write-Log "Active Directory Domain Services setup has completed."
-Write-Log "Rebooting to complete ADDS installation."
-Start-Sleep -Seconds 5
-Restart-Computer
+Set-Service  -Name w32time -StartupType Automatic
+Restart-Service -Name w32time -Force
+Write-Log "W32Time configured. NTP server: $NtpServer"
+
+# ─── Reboot to complete promotion ────────────────────────────────────────────
+Write-Log "ADDS setup complete. Rebooting in 10 seconds to finalise domain controller promotion..."
+Start-Sleep -Seconds 10
+Restart-Computer -Force
