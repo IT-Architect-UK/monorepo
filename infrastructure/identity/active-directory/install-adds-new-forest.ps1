@@ -6,9 +6,9 @@ This script installs Active Directory Domain Services and creates a new Active D
 The script installs the AD Domain Services role, configures DNS settings, sets up the PDC as an authoritative time server, and performs additional configurations for a new AD forest.
 
 .NOTES
-Version: 1.0
-Author: IT Surgery
-Modification Date: 08-03-2024
+Version: 1.1
+Author: IT Architect UK
+Modification Date: 31-05-2026
 
 .PARAMETER AdDomainName
 The desired Active Directory domain name. Default is "adds.private".
@@ -16,17 +16,24 @@ The desired Active Directory domain name. Default is "adds.private".
 .PARAMETER AdNetbiosName
 The NetBIOS name of the domain. Default is "ADDS".
 
-.PARAMETER Password
-The password for the Administrator account. Default is a pre-set complex password.
+.PARAMETER SafeModePassword
+The Directory Services Restore Mode (DSRM) password as a SecureString. This parameter is mandatory.
+Supply it at runtime: -SafeModePassword (Read-Host -AsSecureString "Enter DSRM password")
+
+.PARAMETER NtpServer
+NTP server string used to configure the PDC as an authoritative time source. Defaults to "pool.ntp.org,0x9".
 
 .EXAMPLE
-.\[ScriptName].ps1 -AdDomainName "example.com" -AdNetbiosName "EXAMPLE" -Password "YourComplexPassword!"
+$pwd = Read-Host -AsSecureString "Enter DSRM password"
+.\install-adds-new-forest.ps1 -AdDomainName "corp.example.com" -AdNetbiosName "CORP" -SafeModePassword $pwd
 #>
 
 param(
     [string]$AdDomainName = "adds.private",
     [string]$AdNetbiosName = "ADDS",
-    [string]$AdPassword = "C4ang3M3as@p01!"
+    [Parameter(Mandatory = $true)]
+    [SecureString]$SafeModePassword,
+    [string]$NtpServer = "pool.ntp.org,0x9"
 )
 
 # Function to write output to both console and log file
@@ -44,8 +51,8 @@ if (-not (Test-Path $logDirectory)) {New-Item -ItemType Directory -Path $logDire
 $currentDateTime = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 $logPath = "$logDirectory\ADDS-Forest-Install-$currentDateTime.log"
 
-# Convert the plain text password to a secure string
-$Credential = ConvertTo-SecureString $AdPassword -AsPlainText -Force
+# SafeModePassword is already a SecureString — use it directly
+$Credential = $SafeModePassword
 
 # Determine the installation drive based on availability
 $AdDisk = if (Test-Path 'D:\') { "D:\" } else { "C:\" }
@@ -105,7 +112,7 @@ foreach ($adapter in $activeAdapters) {
 
 # Configuring the PDC as an authoritative time server
 $ntpKeyPath = "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters"
-$ntpServersValue = "pool.ntp.org,0x9" # Modify as necessary
+$ntpServersValue = $NtpServer
 $configKeyPath = "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config"
 $announceFlagsValue = 5 # PDC should be set to 5 to act as a reliable time source
 

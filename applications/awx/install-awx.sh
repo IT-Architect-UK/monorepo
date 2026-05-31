@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
 # === AWX Installation Script ===
 # Purpose: Installs AWX on a Minikube cluster using the AWX Operator.

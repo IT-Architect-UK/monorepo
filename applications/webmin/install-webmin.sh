@@ -1,4 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --- Helpers ---
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
+fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
 
 # Define log file name
 LOG_FILE="/logs/install-webmin-$(date '+%Y%m%d').log"

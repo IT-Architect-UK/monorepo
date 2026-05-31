@@ -1,4 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --- Helpers ---
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
+fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
 
 apt-get update && sudo apt-get upgrade
 

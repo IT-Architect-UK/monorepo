@@ -1,4 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --- Helpers ---
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
+fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
 
 # Purpose: This script automates the installation of the Portainer agent on an Ubuntu system.
 # It installs Docker if not present, pulls the latest Portainer agent image, and runs the agent container.

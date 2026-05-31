@@ -1,4 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --- Helpers ---
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
+fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
 
 # Introduction (within script comments):
 # This script deploys the Portainer Agent on a Docker Swarm cluster, using a user-specified storage path.

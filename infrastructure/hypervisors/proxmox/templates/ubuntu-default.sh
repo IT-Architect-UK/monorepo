@@ -1,4 +1,9 @@
 #!/bin/sh
+set -euo pipefail
+
+# --- Helpers ---
+log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
+fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
 
 if [ x$1 = x"precustomization" ]; then
     echo "Do Precustomization tasks"

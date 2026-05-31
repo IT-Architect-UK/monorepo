@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script installs Ansible AWX on a fresh Ubuntu 24.04 LTS instance using Minikube and the AWX Operator.
 # It assumes a system with at least 8GB RAM and 4 CPUs (adjust Minikube flags if needed).
 # Run as a non-root user with sudo privileges.
 # Note: This uses the Docker driver for Minikube; if on bare metal with KVM support, you can change to --driver=kvm2.
 
-set -e  # Exit on error
+set -euo pipefail  # Exit on error
 
 # Step 1: Update system and install prerequisites
 echo "Updating system and installing prerequisites..."

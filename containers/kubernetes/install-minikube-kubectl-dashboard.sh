@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
 # === Minikube Installation Script ===
 # Purpose: Installs Minikube, kubectl, enables the Minikube dashboard, and sets up auto-restart after reboot.

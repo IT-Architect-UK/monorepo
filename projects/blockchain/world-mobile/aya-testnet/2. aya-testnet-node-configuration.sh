@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Log file location
 LOG_DIR="/logs"
@@ -31,7 +31,7 @@ mkdir -p utils/session_key_tools
 # Create the split_session_key.sh script with the required content
 cat << 'EOF' > utils/session_key_tools/split_session_key.sh
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 if [[ $# -ne 1 ]]; then
     echo "Please provide a session key as parameter to the script!"
     exit 1
