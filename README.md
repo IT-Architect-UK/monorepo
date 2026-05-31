@@ -55,7 +55,7 @@ monorepo/
 
 | Domain | Technologies |
 |---|---|
-| Operating Systems | Ubuntu Linux, Windows Server 2022, AlmaLinux |
+| Operating Systems | **Linux:** Ubuntu 20.04 LTS, Ubuntu 22.04 LTS, Ubuntu 24.04 LTS, Debian 11 (Bullseye), Debian 12 (Bookworm), AlmaLinux 8, AlmaLinux 9 · **Windows Server:** 2016, 2019, 2022, 2025 |
 | Hypervisors | Proxmox VE, VMware ESXi / vCenter |
 | Containers | Docker, Docker Compose, Docker Swarm, Portainer |
 | Orchestration | Kubernetes, Minikube, AWX (Ansible Tower) |
