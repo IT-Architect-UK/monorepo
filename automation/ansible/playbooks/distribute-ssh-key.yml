@@ -1,0 +1,84 @@
+---
+# =============================================================================
+# Playbook: distribute-ssh-key.yml
+#
+# PURPOSE
+#   Copies the Ansible control node's public SSH key to all managed hosts so
+#   that subsequent playbook runs don't require a password.
+#
+# WHEN TO RUN THIS
+#   Run this ONCE per managed host, right after you clone a new server from
+#   your Proxmox/VMware template. After this you never need -k again.
+#
+# PREREQUISITES
+#   • The Ansible control node's SSH key has been generated:
+#       sudo -u ansible bash /opt/ansible/bootstrap-control-node.sh
+#   • You know the password for the default user on the managed hosts
+#     (the -k flag will prompt for it)
+#   • The managed hosts are reachable from this control node
+#
+# USAGE
+#   # Distribute to ALL hosts in your inventory (prompts for SSH password):
+#   cd /opt/ansible
+#   sudo -u ansible ansible-playbook playbooks/distribute-ssh-key.yml -k
+#
+#   # Distribute to a specific group only:
+#   sudo -u ansible ansible-playbook playbooks/distribute-ssh-key.yml \
+#     -k -e "target_hosts=web_servers"
+#
+#   # Specify a different public key path:
+#   sudo -u ansible ansible-playbook playbooks/distribute-ssh-key.yml \
+#     -k -e "pub_key_path=/home/myuser/.ssh/id_ed25519.pub"
+#
+#   # Test connectivity afterwards:
+#   sudo -u ansible ansible all -m ping
+# =============================================================================
+
+- name: Distribute Ansible control node SSH public key to managed hosts
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: false
+
+  vars:
+    # Path to the public key on the CONTROL NODE (not the managed host)
+    pub_key_path: "/home/ansible/.ssh/id_ed25519.pub"
+
+    # The user account on the MANAGED HOST to authorise (must already exist)
+    # This is the user Ansible will SSH in as for future playbook runs.
+    remote_ansible_user: "{{ ansible_user | default('ubuntu') }}"
+
+  tasks:
+
+    - name: Ensure .ssh directory exists on managed host
+      ansible.builtin.file:
+        path: "/home/{{ remote_ansible_user }}/.ssh"
+        state: directory
+        mode: "0700"
+        owner: "{{ remote_ansible_user }}"
+        group: "{{ remote_ansible_user }}"
+
+    - name: Read public key from control node
+      ansible.builtin.set_fact:
+        control_node_pub_key: "{{ lookup('file', pub_key_path) }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Authorise control node public key on managed host
+      ansible.builtin.authorized_key:
+        user: "{{ remote_ansible_user }}"
+        key: "{{ control_node_pub_key }}"
+        state: present
+        comment: "ansible-control-node"
+
+    - name: Verify SSH key authentication works (without password)
+      ansible.builtin.ping:
+      vars:
+        # After adding the key, switch from password to key auth for this test
+        ansible_ssh_pass: ""
+      ignore_errors: true
+      register: ping_result
+
+    - name: Report result
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: SSH key authentication
+          {{ 'SUCCEEDED ✓' if not ping_result.failed else 'FAILED ✗ — check the key was written correctly' }}

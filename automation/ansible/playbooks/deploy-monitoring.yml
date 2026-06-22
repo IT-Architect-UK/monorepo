@@ -1,0 +1,19 @@
+---
+# =============================================================================
+# deploy-monitoring.yml
+# =============================================================================
+# Deploys the node_exporter monitoring agent on Linux servers.
+# node_exporter exposes system metrics (CPU, memory, disk, network) in the
+# Prometheus format, which tools like Grafana can visualise.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy-monitoring.yml
+#
+# =============================================================================
+
+- name: Deploy monitoring agent (node_exporter)
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+
+  roles:
+    - role: monitoring-agent

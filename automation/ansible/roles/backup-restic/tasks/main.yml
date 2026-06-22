@@ -1,0 +1,125 @@
+---
+# =============================================================================
+# roles/backup-restic/tasks/main.yml
+# =============================================================================
+# Installs Restic and configures automated encrypted backups.
+#
+# Restic features:
+#   - End-to-end encryption (all backups are encrypted before leaving the host)
+#   - Deduplication (only changed data is stored — saves space)
+#   - Supports local, SFTP, S3, B2, Azure, GCP backends
+#   - Fast restore with granular file browsing
+#
+# Required variables:
+#   restic_repository - Backup destination (path or URL)
+#   restic_password   - Encryption password (USE ANSIBLE VAULT)
+#   restic_backup_paths - List of directories to back up
+# =============================================================================
+
+- name: Install Restic
+  ansible.builtin.apt:
+    name: restic
+    state: present
+    update_cache: true
+
+- name: Upgrade Restic to latest version
+  # Restic has a built-in self-update mechanism
+  ansible.builtin.command: restic self-update
+  register: restic_update
+  changed_when: "'successfully updated' in restic_update.stdout"
+  ignore_errors: true   # May fail if binary is read-only; apt install above is sufficient
+
+- name: Create Restic configuration directory
+  ansible.builtin.file:
+    path: /etc/restic
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+
+- name: Create Restic password file
+  # IMPORTANT: This file contains your backup encryption password.
+  # Protect it with mode 0600 — only root can read it.
+  # If you lose this password, your backups CANNOT be decrypted.
+  ansible.builtin.copy:
+    dest: /etc/restic/password
+    content: "{{ restic_password }}"
+    mode: "0600"
+    owner: root
+    group: root
+
+- name: Create Restic environment file
+  # Environment variables configure the repository location and credentials
+  ansible.builtin.template:
+    src: restic-env.j2
+    dest: /etc/restic/environment
+    mode: "0600"
+    owner: root
+    group: root
+
+- name: Initialise Restic repository
+  ansible.builtin.command: >
+    restic --password-file /etc/restic/password
+    --repo "{{ restic_repository }}"
+    init
+  environment:
+    RESTIC_REPOSITORY: "{{ restic_repository }}"
+  register: restic_init
+  changed_when: "'created restic repository' in restic_init.stdout"
+  failed_when:
+    - restic_init.rc != 0
+    - "'already initialized' not in restic_init.stderr"
+
+- name: Create backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: /usr/local/bin/restic-backup
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Create systemd service for backup
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/restic-backup.service
+    content: |
+      [Unit]
+      Description=Restic Backup
+      After=network.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/restic-backup
+      StandardOutput=journal
+      StandardError=journal
+    mode: "0644"
+
+- name: Create systemd timer (replaces cron)
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/restic-backup.timer
+    content: |
+      [Unit]
+      Description=Run Restic Backup daily at {{ restic_backup_schedule }}
+
+      [Timer]
+      OnCalendar=*-*-* {{ restic_backup_schedule }}:00
+      Persistent=true   # Run missed backups if host was offline
+
+      [Install]
+      WantedBy=timers.target
+    mode: "0644"
+
+- name: Enable and start backup timer
+  ansible.builtin.service:
+    name: restic-backup.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Run initial backup to verify everything works
+  ansible.builtin.command: /usr/local/bin/restic-backup
+  register: initial_backup
+  changed_when: true
+
+- name: Show backup result
+  ansible.builtin.debug:
+    var: initial_backup.stdout_lines

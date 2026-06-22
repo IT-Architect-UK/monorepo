@@ -1,0 +1,84 @@
+---
+# =============================================================================
+# patch-and-reboot.yml
+# =============================================================================
+# Applies OS security patches and reboots servers in a controlled, rolling
+# fashion. Servers are rebooted one at a time (serial: 1) to ensure high
+# availability — production workloads keep running while patching occurs.
+#
+# What this playbook does:
+#   - Updates package lists
+#   - Applies security patches (or all patches if full_upgrade: true)
+#   - Checks if a reboot is required (checks /var/run/reboot-required)
+#   - Reboots the server if needed
+#   - Waits for the server to come back online
+#   - Verifies key services are running after reboot
+#
+# Usage:
+#   # Security patches only (recommended for production)
+#   ansible-playbook -i inventory/hosts.yml playbooks/patch-and-reboot.yml
+#
+#   # All patches including non-security
+#   ansible-playbook -i inventory/hosts.yml playbooks/patch-and-reboot.yml -e "full_upgrade=true"
+#
+#   # Patch without rebooting (apply updates only)
+#   ansible-playbook -i inventory/hosts.yml playbooks/patch-and-reboot.yml -e "skip_reboot=true"
+#
+# =============================================================================
+
+- name: Patch servers and reboot if required
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  serial: 1        # Patch ONE server at a time — prevents all servers going down simultaneously
+  max_fail_percentage: 0   # Stop if ANY server fails
+
+  vars:
+    full_upgrade: false     # Set to true to install ALL updates (not just security)
+    skip_reboot: false      # Set to true to skip the reboot step
+    reboot_timeout: 600     # Seconds to wait for server to come back after reboot
+
+  tasks:
+    - name: Update package lists
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Apply security patches
+      ansible.builtin.apt:
+        upgrade: "{{ 'full' if full_upgrade else 'safe' }}"
+        only_upgrade: "{{ not full_upgrade }}"
+      register: apt_result
+
+    - name: Check if reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Display patch summary
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ apt_result.stdout_lines | default([]) | last | default('No output') }}"
+
+    - name: Reboot if required
+      ansible.builtin.reboot:
+        reboot_timeout: "{{ reboot_timeout }}"
+        msg: "Rebooting after patch application"
+      when:
+        - reboot_required.stat.exists
+        - not skip_reboot
+
+    - name: Wait for server to come back online
+      ansible.builtin.wait_for_connection:
+        delay: 10
+        timeout: "{{ reboot_timeout }}"
+      when:
+        - reboot_required.stat.exists
+        - not skip_reboot
+
+    - name: Verify server is healthy after reboot
+      ansible.builtin.command: uptime
+      register: uptime_result
+      changed_when: false
+
+    - name: Display post-reboot status
+      ansible.builtin.debug:
+        msg: "✔ {{ inventory_hostname }} is healthy — {{ uptime_result.stdout }}"

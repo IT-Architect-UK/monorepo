@@ -1,0 +1,2 @@
+# Required by cloud-init's NoCloud datasource — can be empty
+instance-id: packer-build-instance

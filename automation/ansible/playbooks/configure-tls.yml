@@ -1,0 +1,33 @@
+---
+# =============================================================================
+# configure-tls.yml
+# =============================================================================
+# Installs TLS certificates using Let's Encrypt (Certbot) and deploys them
+# to Nginx or Apache. Also supports deploying existing certificates.
+#
+# What this playbook does:
+#   - Installs Certbot
+#   - Obtains a Let's Encrypt certificate for the specified domain
+#   - Configures Nginx or Apache with the certificate
+#   - Sets up automatic renewal
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/configure-tls.yml \
+#     -e "domain=example.com email=admin@example.com web_server=nginx"
+#
+# Variables:
+#   domain      - Domain name for the certificate (required)
+#   email       - Email for Let's Encrypt notifications (required)
+#   web_server  - nginx or apache (default: nginx)
+#
+# =============================================================================
+
+- name: Configure TLS with Let's Encrypt
+  hosts: "{{ target_hosts | default('web_servers') }}"
+  become: true
+
+  vars:
+    web_server: nginx
+
+  roles:
+    - role: tls

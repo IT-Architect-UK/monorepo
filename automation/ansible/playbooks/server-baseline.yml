@@ -1,0 +1,55 @@
+---
+# =============================================================================
+# server-baseline.yml
+# =============================================================================
+# Applies a security-hardened baseline configuration to Linux servers.
+#
+# What this playbook does:
+#   - Updates all packages to latest versions
+#   - Configures the hostname
+#   - Hardens SSH (disables root login, enforces key auth, changes default port)
+#   - Configures UFW firewall rules
+#   - Sets up automatic security updates (unattended-upgrades)
+#   - Creates a standard admin user with sudo privileges
+#   - Installs common utilities (curl, git, vim, jq, htop, etc.)
+#   - Configures timezone and NTP synchronisation
+#   - Disables unused services
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/server-baseline.yml
+#   ansible-playbook -i inventory/hosts.yml playbooks/server-baseline.yml --limit web_servers
+#
+# Variables (set in group_vars/all.yml or pass via -e):
+#   See group_vars/all.yml for all configurable variables and their defaults.
+#
+# Cloud equivalents:
+#   AWS    → EC2 User Data script / AWS Systems Manager (SSM) State Manager
+#   Azure  → Custom Script Extension / Azure Automation DSC
+#   GCP    → Startup Script / OS Configuration
+#
+# =============================================================================
+
+- name: Apply server baseline
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true   # Run as root (equivalent to sudo)
+
+  # Import the common role — this is where the actual tasks live
+  # Roles help keep playbooks clean by separating tasks into reusable units
+  roles:
+    - role: common
+
+  # Post-role tasks that run after the role completes
+  post_tasks:
+    - name: Verify SSH is running
+      ansible.builtin.service:
+        name: ssh
+        state: started
+        enabled: true
+
+    - name: Display connection info
+      ansible.builtin.debug:
+        msg: |
+          ✔ Baseline applied to {{ inventory_hostname }}
+          SSH Port : {{ ssh_port | default(22) }}
+          Admin    : {{ admin_user | default('sysadmin') }}
+          Hostname : {{ ansible_hostname }}

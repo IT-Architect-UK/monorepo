@@ -1,0 +1,33 @@
+---
+# =============================================================================
+# setup-backup-restic.yml
+# =============================================================================
+# Installs and configures Restic backup on Linux servers.
+# Restic is a fast, secure, encrypted backup tool that can back up to:
+#   - Local disk
+#   - Remote SSH server
+#   - AWS S3 / compatible storage (Backblaze B2, MinIO, etc.)
+#
+# What this playbook does:
+#   - Installs Restic
+#   - Initialises the backup repository (if not already initialised)
+#   - Creates backup scripts for configured directories
+#   - Sets up a systemd timer (cron equivalent) for scheduled backups
+#   - Configures backup retention policy (how many backups to keep)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/setup-backup-restic.yml
+#
+# Variables (configure in group_vars/all.yml or host_vars/):
+#   restic_backup_paths  - List of directories to back up
+#   restic_repository    - Where to store backups (local path or S3 URL)
+#   restic_password      - Encryption password (use Ansible Vault!)
+#
+# =============================================================================
+
+- name: Set up Restic backup
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+
+  roles:
+    - role: backup-restic

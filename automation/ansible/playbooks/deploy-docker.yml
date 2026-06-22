@@ -1,0 +1,128 @@
+---
+# =============================================================================
+# deploy-docker.yml
+# =============================================================================
+# Installs and configures Docker Engine on Ubuntu/Debian servers.
+#
+# What this playbook does:
+#   - Installs Docker Engine (official Docker repository, not OS repo)
+#   - Installs Docker Compose v2
+#   - Configures the Docker daemon (log rotation, default networking)
+#   - Adds specified users to the docker group
+#   - Starts and enables the Docker service
+#   - Optionally enables Docker Remote API (TLS-secured)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy-docker.yml
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy-docker.yml -e "docker_users=['ubuntu','sysadmin']"
+#
+# =============================================================================
+
+- name: Install Docker Engine
+  hosts: "{{ target_hosts | default('docker_hosts') }}"
+  become: true
+
+  vars:
+    docker_users:
+      - "{{ admin_user | default('sysadmin') }}"
+    docker_log_max_size: "100m"
+    docker_log_max_files: "3"
+
+  tasks:
+    - name: Remove old Docker packages if present
+      ansible.builtin.apt:
+        name:
+          - docker
+          - docker-engine
+          - docker.io
+          - containerd
+          - runc
+        state: absent
+
+    - name: Install Docker prerequisites
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: true
+
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        update_cache: true
+
+    - name: Install Docker Engine and CLI
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Configure Docker daemon
+      # Daemon config controls: log rotation, storage driver, DNS, networking
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "{{ docker_log_max_size }}",
+              "max-file": "{{ docker_log_max_files }}"
+            },
+            "live-restore": true,
+            "storage-driver": "overlay2"
+          }
+        mode: "0644"
+      notify: Restart Docker
+
+    - name: Ensure Docker service is started and enabled
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add users to docker group
+      # Users in the docker group can run docker without sudo
+      # Note: This is convenient but grants root-equivalent privileges
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: docker
+        append: true
+      loop: "{{ docker_users }}"
+
+    - name: Verify Docker is working
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Verify Docker Compose is working
+      ansible.builtin.command: docker compose version
+      register: compose_version
+      changed_when: false
+
+    - name: Display installation summary
+      ansible.builtin.debug:
+        msg:
+          - "✔ Docker installed: {{ docker_version.stdout }}"
+          - "✔ Docker Compose: {{ compose_version.stdout }}"
+          - "✔ Users added to docker group: {{ docker_users | join(', ') }}"
+
+  handlers:
+    - name: Restart Docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted

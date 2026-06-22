@@ -1,0 +1,83 @@
+---
+# =============================================================================
+# group_vars/all.yml — Variables for ALL hosts
+# =============================================================================
+# Variables defined here apply to every host in the inventory.
+# Override them per group in group_vars/<group_name>.yml
+# Override them per host in host_vars/<hostname>.yml
+#
+# SECURITY NOTE:
+# Never store secrets (passwords, API keys, tokens) in plain text here.
+# Use Ansible Vault instead:
+#   ansible-vault encrypt_string 'my-secret-password' --name 'restic_password'
+# Then paste the encrypted block where the value should be.
+# =============================================================================
+
+# ── Admin user ────────────────────────────────────────────────────────────
+admin_user: sysadmin
+admin_groups:
+  - sudo
+  - docker    # Include only if Docker is installed
+
+# ── SSH hardening ─────────────────────────────────────────────────────────
+ssh_port: 22                          # Change to a non-standard port for production
+ssh_permit_root_login: "no"           # Never allow root SSH login
+ssh_password_authentication: "no"     # SSH keys only — passwords are insecure
+ssh_max_auth_tries: 3
+
+# ── Timezone / NTP ────────────────────────────────────────────────────────
+system_timezone: "Europe/London"
+ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+
+# ── UFW Firewall ──────────────────────────────────────────────────────────
+ufw_rules:
+  - { rule: allow, port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
+  - { rule: allow, port: 80,   proto: tcp, comment: "HTTP" }
+  - { rule: allow, port: 443,  proto: tcp, comment: "HTTPS" }
+
+# ── Common packages installed on every server ────────────────────────────
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - nano
+  - htop
+  - jq
+  - unzip
+  - ca-certificates
+  - net-tools
+  - nmap
+  - fail2ban
+
+# ── Automatic security updates ────────────────────────────────────────────
+unattended_upgrades_enabled: true
+unattended_upgrades_auto_reboot: false     # Reboot automatically? Set to true with caution
+unattended_upgrades_auto_reboot_time: "03:00"
+
+# ── Restic backup ─────────────────────────────────────────────────────────
+restic_backup_paths:
+  - /etc
+  - /home
+  - /var/log
+
+# Example: back up to a local path
+restic_repository: "/mnt/backup/restic-repo"
+
+# Example: back up to AWS S3
+# restic_repository: "s3:s3.amazonaws.com/my-backup-bucket/restic"
+# restic_aws_access_key_id: "AKIA..."            # Use Ansible Vault!
+# restic_aws_secret_access_key: !vault |         # Ansible Vault encrypted
+#   $ANSIBLE_VAULT;1.1;AES256
+#   ...
+
+# Encrypt this with: ansible-vault encrypt_string 'yourpassword' --name 'restic_password'
+restic_password: "CHANGE_ME_USE_ANSIBLE_VAULT"
+
+restic_backup_schedule: "02:00"    # Run daily at 2am
+restic_retention:
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 3

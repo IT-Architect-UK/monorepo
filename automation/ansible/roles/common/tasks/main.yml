@@ -1,0 +1,101 @@
+---
+# =============================================================================
+# roles/common/tasks/main.yml
+# =============================================================================
+# Common baseline tasks applied to every managed Linux server.
+# Called by server-baseline.yml
+# =============================================================================
+
+- name: Update package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600   # Only update if cache is older than 1 hour
+  tags: packages
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+  tags: packages
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: safe
+  tags: packages
+
+- name: Set system timezone
+  community.general.timezone:
+    name: "{{ system_timezone }}"
+  tags: timezone
+
+- name: Configure NTP
+  ansible.builtin.template:
+    src: timesyncd.conf.j2
+    dest: /etc/systemd/timesyncd.conf
+    mode: "0644"
+  notify: Restart timesyncd
+  tags: ntp
+
+- name: Create admin user
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    groups: "{{ admin_groups }}"
+    shell: /bin/bash
+    create_home: true
+    state: present
+  tags: users
+
+- name: Harden SSH configuration
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    mode: "0600"
+    validate: /usr/sbin/sshd -t -f %s   # Validate config before applying
+  notify: Restart SSH
+  tags: ssh
+
+- name: Configure UFW firewall — set default deny incoming
+  community.general.ufw:
+    default: deny
+    direction: incoming
+  tags: firewall
+
+- name: Configure UFW firewall — allow defined rules
+  community.general.ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment | default('') }}"
+  loop: "{{ ufw_rules }}"
+  tags: firewall
+
+- name: Enable UFW firewall
+  community.general.ufw:
+    state: enabled
+  tags: firewall
+
+- name: Configure unattended security upgrades
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+  when: unattended_upgrades_enabled
+  tags: security
+
+- name: Configure fail2ban (brute-force protection)
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      bantime  = 3600
+      findtime = 600
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+      port    = {{ ssh_port }}
+    mode: "0644"
+  notify: Restart fail2ban
+  tags: security
+
+# ── Handlers ─────────────────────────────────────────────────────────────
+# Handlers only run when notified — and only once, even if notified multiple times

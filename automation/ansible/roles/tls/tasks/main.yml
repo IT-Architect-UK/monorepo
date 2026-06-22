@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# roles/tls/tasks/main.yml
+# =============================================================================
+# Installs Certbot and obtains a Let's Encrypt TLS certificate.
+# Supports Nginx and Apache web servers.
+#
+# Required variables (set in group_vars or pass via -e):
+#   domain     - Domain name to obtain certificate for (e.g. example.com)
+#   email      - Email for Let's Encrypt expiry notifications
+#   web_server - 'nginx' or 'apache' (default: nginx)
+# =============================================================================
+
+- name: Install Certbot and web server plugin
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - "python3-certbot-{{ web_server }}"
+    state: present
+    update_cache: true
+  tags: tls
+
+- name: Obtain Let's Encrypt certificate
+  # This command gets a certificate AND automatically configures the web server
+  # --non-interactive means no prompts (needed for automation)
+  # --agree-tos means we agree to Let's Encrypt Terms of Service
+  ansible.builtin.command: >
+    certbot --{{ web_server }}
+    --non-interactive
+    --agree-tos
+    --email {{ email }}
+    -d {{ domain }}
+    {% if domain_aliases is defined %}
+    {% for alias in domain_aliases %}-d {{ alias }} {% endfor %}
+    {% endif %}
+  args:
+    creates: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"   # Skip if cert already exists
+  notify: "Reload {{ web_server }}"
+  tags: tls
+
+- name: Verify certificate was obtained
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+  register: cert_file
+
+- name: Display certificate info
+  ansible.builtin.command: "certbot certificates"
+  register: cert_info
+  changed_when: false
+  when: cert_file.stat.exists
+
+- name: Show certificate details
+  ansible.builtin.debug:
+    var: cert_info.stdout_lines
+  when: cert_file.stat.exists
+
+- name: Ensure Certbot renewal timer is enabled (auto-renewal)
+  # systemd timer replaces the old cron job approach
+  # Certbot auto-renews certificates 30 days before expiry
+  ansible.builtin.service:
+    name: certbot.timer
+    state: started
+    enabled: true
+  tags: tls

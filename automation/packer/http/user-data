@@ -1,0 +1,59 @@
+#cloud-config
+# =============================================================================
+# Ubuntu Autoinstall Configuration
+# =============================================================================
+# This file is served by Packer's built-in HTTP server during the build.
+# The Ubuntu installer downloads it and uses it for unattended installation.
+#
+# This replaces the interactive Ubuntu Server installer — no keyboard input
+# needed. This is the equivalent of a Windows Unattend.xml for Ubuntu.
+# =============================================================================
+autoinstall:
+  version: 1
+
+  # Locale and keyboard
+  locale: en_GB.UTF-8
+  keyboard:
+    layout: gb
+
+  # Network: use DHCP on all interfaces (Packer handles the rest)
+  network:
+    version: 2
+    ethernets:
+      any:
+        match:
+          name: "en*"
+        dhcp4: true
+
+  # Disk layout: single root partition on the first disk
+  storage:
+    layout:
+      name: direct
+
+  # Create the Packer build user
+  # This user is temporary — used only for Packer SSH access during the build
+  # The cleanup script and cloud-init will handle the final user on first boot
+  identity:
+    hostname: ubuntu-packer
+    username: packer
+    # Generate with: openssl passwd -6 "packer-temp-password"
+    password: "$6$rounds=4096$yoursalt$hashedpassword"
+
+  # SSH: allow password auth during the build (Packer needs this)
+  # Will be hardened by provision.sh after installation
+  ssh:
+    install-server: true
+    allow-pw: true
+
+  # Packages to install during OS install (minimal — provision.sh handles the rest)
+  packages:
+    - qemu-guest-agent
+    - cloud-init
+
+  # Run these commands after installation, before first reboot
+  late-commands:
+    # Allow packer user to sudo without password (needed for provisioners)
+    - echo 'packer ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/packer
+    - chmod 440 /target/etc/sudoers.d/packer
+    # Enable qemu-guest-agent so Packer can detect VM IP
+    - curtin in-target --target=/target -- systemctl enable qemu-guest-agent
