@@ -30,13 +30,13 @@ variable "image_description" {
 # ── OS settings ─────────────────────────────────────────────────────────────
 variable "ubuntu_iso_url" {
   type        = string
-  default     = "https://releases.ubuntu.com/24.04/ubuntu-24.04.2-live-server-amd64.iso"
+  default     = "https://releases.ubuntu.com/24.04/ubuntu-24.04.4-live-server-amd64.iso"
   description = "URL to download the Ubuntu ISO (used by Proxmox and VMware builders)"
 }
 
 variable "ubuntu_iso_checksum" {
   type        = string
-  default     = "sha256:d6dab0c3c8f3e8e5e5a4b8d3e5e5a4b8d3e5e5a4b8d3e5e5a4b8d3e5e5a4b8d3"
+  default     = "sha256:e907d92eeec9df64163a7e454cbc8d7755e8ddc7ed42f99dbc80c40f1a138433"
   description = "ISO checksum — always verify from https://releases.ubuntu.com/24.04/SHA256SUMS"
 }
 
