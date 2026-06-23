@@ -100,7 +100,7 @@ source "proxmox-iso" "ansible-server" {
     efi_type          = "4m"
     pre_enrolled_keys = true
   }
-  boot_command = ["c", "bootnext"]  # EFI boot order override; real boot_command below
+  # boot_command below handles EFI boot order via GRUB command line
   bios         = "ovmf"
 
   # ── Autoinstall (Ubuntu unattended install) ──────────────────────────────────
