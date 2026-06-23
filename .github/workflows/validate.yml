@@ -96,53 +96,62 @@ jobs:
           version: "latest"
 
       - name: Validate all Packer templates
-        # Each template is validated in its own isolated temp directory.
-        # This is necessary because Packer HCL merges ALL .pkr.hcl files in a
-        # directory together — if we run 'packer init .' with all templates
-        # present, locals defined in each file (timestamp, image_name) clash.
-        # Isolating one template + variables.pkr.hcl per validation run avoids
-        # this and matches how the templates are actually used (one at a time).
+        # Strategy: validate each ubuntu-*.pkr.hcl in isolation by temporarily
+        # renaming all other ubuntu-*.pkr.hcl files so Packer only sees one at
+        # a time. This avoids "Duplicate local definition" errors that occur
+        # when Packer merges all HCL files in the directory together, while
+        # keeping relative paths (../../ansible/playbooks/) intact.
         working-directory: automation/packer
+        env:
+          # Proxmox and vSphere plugins reject empty-string passwords at
+          # validate time — supply dummy non-empty values.
+          PKR_VAR_proxmox_url:      "https://192.168.1.1:8006/api2/json"
+          PKR_VAR_proxmox_node:     "pve"
+          PKR_VAR_proxmox_username: "root@pam"
+          PKR_VAR_proxmox_password: "dummy"
+          PKR_VAR_vsphere_server:   "vcenter.example.com"
+          PKR_VAR_vsphere_username: "administrator@vsphere.local"
+          PKR_VAR_vsphere_password: "dummy"
+          PKR_VAR_azure_subscription_id: "00000000-0000-0000-0000-000000000000"
+          PKR_VAR_azure_client_id:       "00000000-0000-0000-0000-000000000000"
+          PKR_VAR_azure_client_secret:   "dummy"
+          PKR_VAR_azure_tenant_id:       "00000000-0000-0000-0000-000000000000"
         run: |
           FAIL=0
-          PLUGIN_CACHE=$(mktemp -d)
-          export PACKER_PLUGIN_PATH="$PLUGIN_CACHE"
 
           for template in ubuntu-*.pkr.hcl; do
             echo ""
             echo "── Validating $template ──"
 
-            # Copy this template + shared files into an isolated directory
-            TDIR=$(mktemp -d)
-            cp variables.pkr.hcl  "$TDIR/"
-            cp "$template"        "$TDIR/"
-            cp -r environments    "$TDIR/"
-            [ -d http ] && cp -r http "$TDIR/"
+            # Hide every other ubuntu-*.pkr.hcl so packer sees only this one
+            for other in ubuntu-*.pkr.hcl; do
+              [ "$other" != "$template" ] && mv "$other" "$other.skip"
+            done
 
-            # Init installs the plugin(s) needed by this template.
-            # PACKER_PLUGIN_PATH is shared so each plugin is only downloaded once.
-            if ! packer init "$TDIR" 2>/tmp/packer_err; then
+            # Init installs the plugin(s) declared in this template's
+            # required_plugins block (cached in ~/.config/packer across runs)
+            if ! packer init . 2>/tmp/packer_err; then
               echo "  ✘  $template (init failed)"
               cat /tmp/packer_err
               FAIL=$((FAIL + 1))
-              rm -rf "$TDIR"
-              continue
-            fi
-
-            if packer validate \
-                 -var-file="$TDIR/environments/homelab.pkrvars.hcl" \
-                 "$TDIR" 2>/tmp/packer_err; then
-              echo "  ✔  $template"
             else
-              echo "  ✘  $template"
-              cat /tmp/packer_err
-              FAIL=$((FAIL + 1))
+              if packer validate \
+                   -var-file="environments/homelab.pkrvars.hcl" \
+                   . 2>/tmp/packer_err; then
+                echo "  ✔  $template"
+              else
+                echo "  ✘  $template"
+                cat /tmp/packer_err
+                FAIL=$((FAIL + 1))
+              fi
             fi
 
-            rm -rf "$TDIR"
+            # Restore all hidden templates before the next iteration
+            for bak in ubuntu-*.pkr.hcl.skip; do
+              [ -f "$bak" ] && mv "$bak" "${bak%.skip}"
+            done
           done
 
-          rm -rf "$PLUGIN_CACHE"
           echo ""
           echo "Packer templates failed: $FAIL"
           exit $FAIL
