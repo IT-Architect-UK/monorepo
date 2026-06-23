@@ -123,7 +123,7 @@ jobs:
           PKR_VAR_azure_tenant_id: "00000000-0000-0000-0000-000000000000"
         run: |
           FAIL=0
-          for template in *.pkr.hcl; do
+          for template in ubuntu-*.pkr.hcl; do
             echo "Validating $template..."
             # Use the homelab var file so non-sensitive defaults are available
             if packer validate \

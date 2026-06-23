@@ -125,4 +125,3 @@ echo "Customisation Complete"
 
 reboot
 
-fi
