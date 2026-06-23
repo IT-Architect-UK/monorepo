@@ -155,7 +155,7 @@ build {
   # 3. Copy this repo's Ansible content into the image at /opt/ansible/
   #    Engineers clone once; the control node always ships with the latest playbooks.
   provisioner "file" {
-    source      = "../../ansible/"      # relative to this .pkr.hcl file
+    source      = "../ansible/"      # relative to this .pkr.hcl file
     destination = "/opt/ansible/"
   }
 
@@ -163,7 +163,7 @@ build {
   #    This validates that Ansible works and applies the same baseline as
   #    every other server — we eat our own cooking.
   provisioner "ansible" {
-    playbook_file   = "../../ansible/playbooks/server-baseline.yml"
+    playbook_file   = "../ansible/playbooks/server-baseline.yml"
     extra_arguments = [
       "--connection=local",
       "--limit=localhost",

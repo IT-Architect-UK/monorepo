@@ -64,7 +64,7 @@ source "googlecompute" "ubuntu-2404" {
   # Using a family reference always picks the latest image automatically
   # This is the GCP equivalent of using most_recent = true in the AWS builder
   source_image_family  = "ubuntu-2404-lts-amd64"
-  source_image_project_id = "ubuntu-os-cloud"    # Canonical's GCP project
+  source_image_project_id = ["ubuntu-os-cloud"]    # Canonical's GCP project
 
   # ── SSH ────────────────────────────────────────────────────────────────────
   communicator = "ssh"
@@ -108,7 +108,7 @@ build {
   }
 
   provisioner "ansible" {
-    playbook_file = "../../ansible/playbooks/server-baseline.yml"
+    playbook_file = "../ansible/playbooks/server-baseline.yml"
     user          = "packer"
     extra_arguments = [
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",

@@ -151,7 +151,7 @@ build {
   # Step 2: Ansible provisioner — applies our server-baseline role
   # Requires Ansible installed on the machine running Packer (not the build VM)
   provisioner "ansible" {
-    playbook_file = "../../ansible/playbooks/server-baseline.yml"
+    playbook_file = "../ansible/playbooks/server-baseline.yml"
     user          = var.ssh_username
     extra_arguments = [
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
