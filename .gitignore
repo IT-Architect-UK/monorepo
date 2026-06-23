@@ -9,10 +9,9 @@
 
 # Packer variable files with real values (keep .example files)
 *.pkrvars.hcl
+# environments/ var files are safe to commit (no passwords — those go in PKR_VAR_ env vars)
+!environments/*.pkrvars.hcl
 !*.pkrvars.hcl.example
-environments/homelab.pkrvars.hcl
-environments/production.pkrvars.hcl
-environments/ansible-server.pkrvars.hcl
 
 # SSH private keys (just in case)
 *.pem
