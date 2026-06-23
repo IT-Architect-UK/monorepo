@@ -116,6 +116,7 @@ jobs:
           PKR_VAR_azure_client_id:       "00000000-0000-0000-0000-000000000000"
           PKR_VAR_azure_client_secret:   "dummy"
           PKR_VAR_azure_tenant_id:       "00000000-0000-0000-0000-000000000000"
+          PKR_VAR_gcp_project_id:        "dummy-project-000000"
         run: |
           FAIL=0
 
