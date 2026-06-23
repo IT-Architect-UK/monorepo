@@ -236,3 +236,35 @@ variable "gcp_machine_type" {
   default     = "e2-micro"
   description = "GCP machine type for the build VM"
 }
+
+# ── Windows settings ──────────────────────────────────────────────────────────
+variable "win_iso_file" {
+  type        = string
+  default     = "local:iso/windows-server-2025.iso"
+  description = "Path to the Windows Server 2025 ISO already uploaded to Proxmox storage (format: pool:iso/filename.iso). Download the evaluation ISO from https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2025"
+}
+
+variable "virtio_iso_file" {
+  type        = string
+  default     = "local:iso/virtio-win.iso"
+  description = "Path to the virtio-win drivers ISO on Proxmox storage. Download from https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso"
+}
+
+variable "winrm_username" {
+  type        = string
+  default     = "packer"
+  description = "Windows user Packer connects as via WinRM. Must match the account created in autounattend.xml."
+}
+
+variable "winrm_password" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "WinRM password. Set via PKR_VAR_winrm_password env var. Must match the password in autounattend.xml."
+}
+
+variable "win_vm_id" {
+  type        = number
+  default     = 9003
+  description = "Proxmox VM ID for the Windows Server 2025 template"
+}

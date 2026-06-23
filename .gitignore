@@ -11,6 +11,7 @@
 *.pkrvars.hcl
 # environments/ var files are safe to commit (no passwords — those go in PKR_VAR_ env vars)
 !environments/*.pkrvars.hcl
+!**/environments/*.pkrvars.hcl
 !*.pkrvars.hcl.example
 
 # SSH private keys (just in case)

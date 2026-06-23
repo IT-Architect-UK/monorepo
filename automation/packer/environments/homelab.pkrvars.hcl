@@ -32,3 +32,10 @@ vm_disk_gb   = 20
 
 # ── Image name ────────────────────────────────────────────────────────────────
 image_name = "ubuntu-2404-homelab"
+
+# ── Windows Server 2025 ───────────────────────────────────────────────────────
+# Pre-upload these ISOs to Proxmox storage before running win2025-proxmox.pkr.hcl
+# Eval ISO:    https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2025
+# virtio-win:  https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso
+win_iso_file    = "NFS-10GB-PROXMOX-1:iso/windows-server-2025.iso"
+virtio_iso_file = "NFS-10GB-PROXMOX-1:iso/virtio-win.iso"

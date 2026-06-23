@@ -1,0 +1,204 @@
+# =============================================================================
+# provision-windows.ps1 — Windows Server 2025 golden image provisioning
+# =============================================================================
+# Run by Packer via the powershell provisioner after WinRM is available.
+# Applies baseline hardening, enables RDP, installs the QEMU Guest Agent
+# (Proxmox only — safely skipped on VMware), and configures OS settings.
+#
+# This script is idempotent — safe to run multiple times.
+# =============================================================================
+
+$ErrorActionPreference = 'Stop'
+
+function Write-Step { param([string]$msg) Write-Host "`n── $msg ──" -ForegroundColor Cyan }
+function Write-OK   { param([string]$msg) Write-Host "  ✔  $msg" -ForegroundColor Green }
+function Write-Warn { param([string]$msg) Write-Host "  ⚠  $msg" -ForegroundColor Yellow }
+
+# ── 1. OS baseline ────────────────────────────────────────────────────────────
+Write-Step "OS baseline settings"
+
+# Timezone
+Set-TimeZone -Id "UTC"
+Write-OK "Timezone set to UTC"
+
+# Set culture to en-GB
+Set-Culture en-GB
+Write-OK "Culture set to en-GB"
+
+# Disable Automatic Updates (templates should not update themselves at clone time)
+$auPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
+New-Item -Path $auPath -Force | Out-Null
+Set-ItemProperty -Path $auPath -Name "NoAutoUpdate" -Value 1 -Type DWord
+Set-ItemProperty -Path $auPath -Name "AUOptions"     -Value 1 -Type DWord
+Write-OK "Automatic updates disabled (re-enable after deploying from template)"
+
+# Disable Windows Search indexing (reduces I/O on template disk)
+Set-Service -Name WSearch -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service  -Name WSearch -ErrorAction SilentlyContinue
+Write-OK "Windows Search indexing disabled"
+
+# Set power plan to High Performance
+powercfg /setactive SCHEME_MIN | Out-Null
+Write-OK "Power plan set to High Performance"
+
+# ── 2. Enable RDP ─────────────────────────────────────────────────────────────
+Write-Step "Enable Remote Desktop"
+
+Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
+                 -Name "fDenyTSConnections" -Value 0 -Type DWord
+Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" `
+                 -Name "UserAuthentication" -Value 0 -Type DWord    # Allow without NLA for lab use
+
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
+Write-OK "RDP enabled (NLA disabled for lab compatibility)"
+
+# ── 3. WinRM hardening for post-build use ─────────────────────────────────────
+Write-Step "Configure WinRM for production use"
+
+# The autounattend.xml set up basic WinRM; here we tighten it slightly
+# WinRM stays enabled so admins can manage remotely — it's re-secured below
+winrm set winrm/config/service '@{AllowUnencrypted="false"}' | Out-Null
+winrm set winrm/config/service/auth '@{Basic="false"}' | Out-Null
+winrm set winrm/config/service/auth '@{Negotiate="true"}' | Out-Null
+Write-OK "WinRM re-secured (Negotiate auth, encryption required)"
+
+# ── 4. Firewall — baseline rules ─────────────────────────────────────────────
+Write-Step "Firewall baseline"
+
+# Re-enable the firewall (autounattend.xml disabled it; we turn it back on
+# here so provisioners run inside a known-good firewall state)
+netsh advfirewall set allprofiles state on | Out-Null
+
+# Block inbound by default on all profiles
+Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block  | Out-Null
+Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultOutboundAction Allow | Out-Null
+
+# Allow RDP
+New-NetFirewallRule -DisplayName "RDP-TCP-In" -Direction Inbound `
+                    -Protocol TCP -LocalPort 3389 -Action Allow `
+                    -ErrorAction SilentlyContinue | Out-Null
+
+# Allow WinRM (HTTPS — 5986 recommended for production)
+New-NetFirewallRule -DisplayName "WinRM-HTTPS-In" -Direction Inbound `
+                    -Protocol TCP -LocalPort 5986 -Action Allow `
+                    -ErrorAction SilentlyContinue | Out-Null
+
+# Allow WinRM HTTP during Packer build (cleanup-windows.ps1 removes this rule)
+New-NetFirewallRule -DisplayName "WinRM-HTTP-Packer" -Direction Inbound `
+                    -Protocol TCP -LocalPort 5985 -Action Allow `
+                    -ErrorAction SilentlyContinue | Out-Null
+
+# Allow ICMP (ping) — useful in a lab
+New-NetFirewallRule -DisplayName "ICMP-In" -Direction Inbound `
+                    -Protocol ICMPv4 -Action Allow `
+                    -ErrorAction SilentlyContinue | Out-Null
+
+Write-OK "Firewall: block-inbound-by-default, RDP/WinRM/ICMP allowed"
+
+# ── 5. QEMU Guest Agent (Proxmox only) ───────────────────────────────────────
+Write-Step "QEMU Guest Agent (Proxmox)"
+
+# Search all CD-ROM drives for the virtio-win guest agent installer.
+# On VMware this loop finds nothing and exits cleanly.
+$agentInstalled = $false
+foreach ($vol in (Get-Volume | Where-Object DriveType -eq 'CD-ROM' | Where-Object DriveLetter -ne $null)) {
+    $candidates = @(
+        "$($vol.DriveLetter):\guest-agent\qemu-ga-x86_64.msi",
+        "$($vol.DriveLetter):\virtio-win-guest-tools.exe"
+    )
+    foreach ($path in $candidates) {
+        if (Test-Path $path) {
+            Write-Host "  Found: $path"
+            if ($path -like "*.msi") {
+                Start-Process msiexec.exe -Wait -ArgumentList "/i `"$path`" /qn /norestart"
+            } else {
+                Start-Process $path -Wait -ArgumentList "/install /quiet /norestart"
+            }
+            $agentInstalled = $true
+            Write-OK "QEMU Guest Agent installed from $path"
+            break
+        }
+    }
+    if ($agentInstalled) { break }
+}
+
+if (-not $agentInstalled) {
+    Write-Warn "QEMU Guest Agent not found — skipping (expected on VMware)"
+}
+
+# ── 6. Windows Features ───────────────────────────────────────────────────────
+Write-Step "Windows Features"
+
+# Enable OpenSSH Server (useful for Ansible management later)
+Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 -ErrorAction SilentlyContinue | Out-Null
+Set-Service -Name sshd -StartupType Automatic -ErrorAction SilentlyContinue
+Start-Service -Name sshd -ErrorAction SilentlyContinue
+
+# Allow SSH through firewall
+New-NetFirewallRule -DisplayName "SSH-In" -Direction Inbound `
+                    -Protocol TCP -LocalPort 22 -Action Allow `
+                    -ErrorAction SilentlyContinue | Out-Null
+
+Write-OK "OpenSSH Server installed and enabled"
+
+# ── 7. Disable unnecessary services ──────────────────────────────────────────
+Write-Step "Disable unnecessary services"
+
+$disableServices = @(
+    'TabletInputService',   # Tablet PC Input
+    'PrintSpooler',         # Remove if not a print server
+    'Fax',                  # Fax service
+    'XblAuthManager',       # Xbox Live
+    'XblGameSave',          # Xbox Game Save
+    'XboxNetApiSvc',        # Xbox Networking
+    'lfsvc'                 # Geolocation
+)
+
+foreach ($svc in $disableServices) {
+    $s = Get-Service -Name $svc -ErrorAction SilentlyContinue
+    if ($s) {
+        Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue
+        Set-Service  -Name $svc -StartupType Disabled -ErrorAction SilentlyContinue
+        Write-OK "Disabled: $svc"
+    }
+}
+
+# ── 8. Registry hardening ─────────────────────────────────────────────────────
+Write-Step "Registry hardening"
+
+# Disable SMBv1 (legacy, insecure)
+Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force -ErrorAction SilentlyContinue
+Write-OK "SMBv1 disabled"
+
+# Disable LLMNR
+$llmnrPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient"
+New-Item -Path $llmnrPath -Force | Out-Null
+Set-ItemProperty -Path $llmnrPath -Name "EnableMulticast" -Value 0 -Type DWord
+Write-OK "LLMNR disabled"
+
+# Disable NetBIOS over TCP/IP (set via registry)
+$adapters = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces\*"
+foreach ($adapter in $adapters) {
+    Set-ItemProperty -Path $adapter.PSPath -Name "NetbiosOptions" -Value 2 -Type DWord -ErrorAction SilentlyContinue
+}
+Write-OK "NetBIOS over TCP/IP disabled on all adapters"
+
+# Disable Windows Script Host (reduces attack surface)
+# Uncomment if you don't need VBScript/JScript:
+# Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows Script Host\Settings" -Name "Enabled" -Value 0 -Type DWord
+
+# ── 9. Windows Update — download but don't auto-install ──────────────────────
+Write-Step "Windows Update settings"
+
+# Template images should be updated at build time, not when cloned.
+# To update during build, uncomment the block below (adds ~30-60 min):
+#
+# Install-Module -Name PSWindowsUpdate -Force -SkipPublisherCheck
+# Import-Module PSWindowsUpdate
+# Get-WindowsUpdate -AcceptAll -Install -AutoReboot
+# Write-OK "Windows Updates applied"
+
+Write-Warn "Windows Update auto-install skipped — apply updates manually after first boot or uncomment the block in this script"
+
+# ── Done ──────────────────────────────────────────────────────────────────────
+Write-Host "`n✔  provision-windows.ps1 complete" -ForegroundColor Green

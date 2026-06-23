@@ -4,7 +4,7 @@
 # Runs three checks automatically:
 #   1. bash -n  — Shell script syntax (all .sh files)
 #   2. ansible-playbook --syntax-check  — Ansible playbooks
-#   3. packer validate  — Packer HCL templates
+#   3. packer validate  — Packer HCL templates (Ubuntu + Windows)
 #
 # These checks catch typos and syntax errors before they reach your lab.
 # No credentials are needed — syntax checks don't connect to anything.
@@ -96,15 +96,19 @@ jobs:
           version: "latest"
 
       - name: Validate all Packer templates
-        # Strategy: validate each ubuntu-*.pkr.hcl in isolation by temporarily
-        # renaming all other ubuntu-*.pkr.hcl files so Packer only sees one at
-        # a time. This avoids "Duplicate local definition" errors that occur
-        # when Packer merges all HCL files in the directory together, while
-        # keeping relative paths (../../ansible/playbooks/) intact.
+        # Strategy: validate each template in isolation by temporarily renaming
+        # all OTHER templates (.pkr.hcl → .pkr.hcl.skip) so Packer sees only
+        # one template at a time when it runs "packer validate .".
+        #
+        # This avoids "Duplicate local definition" errors: every template
+        # declares the same locals { timestamp, image_name } which Packer would
+        # flag as duplicates if it merged all files in the directory at once.
+        #
+        # variables.pkr.hcl is never renamed — it stays visible to all builds.
         working-directory: automation/packer
         env:
-          # Proxmox and vSphere plugins reject empty-string passwords at
-          # validate time — supply dummy non-empty values.
+          # ── Proxmox / VMware / cloud dummy values ──────────────────────────
+          # Plugins reject empty-string passwords at validate time.
           PKR_VAR_proxmox_url:      "https://192.168.1.1:8006/api2/json"
           PKR_VAR_proxmox_node:     "pve"
           PKR_VAR_proxmox_username: "root@pam"
@@ -117,20 +121,28 @@ jobs:
           PKR_VAR_azure_client_secret:   "dummy"
           PKR_VAR_azure_tenant_id:       "00000000-0000-0000-0000-000000000000"
           PKR_VAR_gcp_project_id:        "dummy-project-000000"
+          # ── Windows-specific dummy values ──────────────────────────────────
+          PKR_VAR_winrm_password: "dummy"
         run: |
           FAIL=0
 
-          for template in ubuntu-*.pkr.hcl; do
+          # Collect all templates to validate
+          # ubuntu-*.pkr.hcl  — Linux templates (proxmox, vmware, aws, azure, gcp)
+          # win2025-*.pkr.hcl — Windows Server 2025 templates
+          shopt -s nullglob
+          ALL_TEMPLATES=( ubuntu-*.pkr.hcl win2025-*.pkr.hcl )
+          shopt -u nullglob
+
+          for template in "${ALL_TEMPLATES[@]}"; do
             echo ""
             echo "── Validating $template ──"
 
-            # Hide every other ubuntu-*.pkr.hcl so packer sees only this one
-            for other in ubuntu-*.pkr.hcl; do
+            # Hide every other template so Packer sees only this one + variables.pkr.hcl
+            for other in "${ALL_TEMPLATES[@]}"; do
               [ "$other" != "$template" ] && mv "$other" "$other.skip"
             done
 
-            # Init installs the plugin(s) declared in this template's
-            # required_plugins block (cached in ~/.config/packer across runs)
+            # packer init downloads the plugin(s) declared in this template
             if ! packer init . 2>/tmp/packer_err; then
               echo "  ✘  $template (init failed)"
               cat /tmp/packer_err
@@ -148,7 +160,7 @@ jobs:
             fi
 
             # Restore all hidden templates before the next iteration
-            for bak in ubuntu-*.pkr.hcl.skip; do
+            for bak in *.pkr.hcl.skip; do
               [ -f "$bak" ] && mv "$bak" "${bak%.skip}"
             done
           done
