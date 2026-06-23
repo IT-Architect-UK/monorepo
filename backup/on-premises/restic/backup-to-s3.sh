@@ -41,6 +41,11 @@ warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
 error()   { echo -e "${RED}[✘] ERROR:${NC} $*" >&2; exit 1; }
 section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
+# ── Load defaults from .env if present ───────────────────────────────────────
+ENV_FILE="$(dirname "$0")/.env"
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE" && log "Loaded defaults from .env"
+
+
 BUCKET=""; REGION="us-east-1"; ENDPOINT=""; ACCESS_KEY=""; SECRET_KEY=""; PASSWORD=""
 PATHS="/etc /home"; SCHEDULE="02:30"
 KEEP_DAILY=7; KEEP_WEEKLY=4; KEEP_MONTHLY=3

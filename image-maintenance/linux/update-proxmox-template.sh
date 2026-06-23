@@ -49,7 +49,12 @@ section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
 [[ $EUID -ne 0 ]] && error "Run as root on the Proxmox host"
 
-TEMPLATE_ID=""; SSH_KEY=""; SSH_USER="ubuntu"; WAIT_SECONDS=60
+# ── Load defaults from .env if present ───────────────────────────────────────
+ENV_FILE="$(dirname "$0")/../../infrastructure/hypervisors/proxmox/.env"
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE" && log "Loaded defaults from .env"
+
+TEMPLATE_ID=""; SSH_USER="ubuntu"; WAIT_SECONDS=60
+SSH_KEY="${DEFAULT_SSH_PRIVATE_KEY:-}"
 
 while [[ $# -gt 0 ]]; do
     case $1 in

@@ -1,0 +1,140 @@
+# =============================================================================
+# validate.yml — Syntax validation for every push and pull request
+# =============================================================================
+# Runs three checks automatically:
+#   1. bash -n  — Shell script syntax (all .sh files)
+#   2. ansible-playbook --syntax-check  — Ansible playbooks
+#   3. packer validate  — Packer HCL templates
+#
+# These checks catch typos and syntax errors before they reach your lab.
+# No credentials are needed — syntax checks don't connect to anything.
+# =============================================================================
+
+name: Validate
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Shell script syntax check (bash -n)
+  # ---------------------------------------------------------------------------
+  bash-syntax:
+    name: Shell script syntax (bash -n)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check all .sh files
+        run: |
+          echo "Checking shell scripts..."
+          FAIL=0
+          while IFS= read -r f; do
+            if bash -n "$f" 2>/tmp/bash_err; then
+              echo "  ✔  $f"
+            else
+              echo "  ✘  $f"
+              cat /tmp/bash_err
+              FAIL=$((FAIL + 1))
+            fi
+          done < <(find . -name "*.sh" -not -path "./.git/*" | sort)
+          echo ""
+          echo "Failed: $FAIL"
+          exit $FAIL
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Ansible syntax check
+  # ---------------------------------------------------------------------------
+  ansible-syntax:
+    name: Ansible playbook syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ansible
+          ansible --version
+
+      - name: Check all playbooks
+        run: |
+          REPO="$(pwd)"
+          FAIL=0
+          while IFS= read -r f; do
+            if ANSIBLE_ROLES_PATH="$REPO/automation/ansible/roles" \
+               ansible-playbook --syntax-check "$f" 2>/tmp/ans_err; then
+              echo "  ✔  $f"
+            else
+              echo "  ✘  $f"
+              cat /tmp/ans_err
+              FAIL=$((FAIL + 1))
+            fi
+          done < <(find automation/ansible/playbooks -name "*.yml" | sort)
+          echo ""
+          echo "Failed: $FAIL"
+          exit $FAIL
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Packer validate
+  # ---------------------------------------------------------------------------
+  packer-validate:
+    name: Packer template validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: "latest"
+
+      - name: Packer init (download plugins)
+        working-directory: automation/packer
+        run: packer init .
+
+      - name: Validate all Packer templates
+        working-directory: automation/packer
+        env:
+          # Dummy values so packer validate doesn't error on missing required vars.
+          # Real credentials are never needed for syntax validation.
+          PKR_VAR_proxmox_url: "https://192.168.1.1:8006/api2/json"
+          PKR_VAR_proxmox_node: "pve"
+          PKR_VAR_proxmox_username: "root@pam"
+          PKR_VAR_proxmox_password: "dummy"
+          PKR_VAR_proxmox_storage_pool: "local-lvm"
+          PKR_VAR_proxmox_iso_storage: "local"
+          PKR_VAR_vsphere_server: "vcenter.example.com"
+          PKR_VAR_vsphere_username: "administrator@vsphere.local"
+          PKR_VAR_vsphere_password: "dummy"
+          PKR_VAR_vsphere_datacenter: "Datacenter"
+          PKR_VAR_vsphere_cluster: "Cluster"
+          PKR_VAR_vsphere_datastore: "datastore1"
+          PKR_VAR_vsphere_network: "VM Network"
+          PKR_VAR_azure_subscription_id: "00000000-0000-0000-0000-000000000000"
+          PKR_VAR_azure_client_id: "00000000-0000-0000-0000-000000000000"
+          PKR_VAR_azure_client_secret: "dummy"
+          PKR_VAR_azure_tenant_id: "00000000-0000-0000-0000-000000000000"
+        run: |
+          FAIL=0
+          for template in *.pkr.hcl; do
+            echo "Validating $template..."
+            # Use the homelab var file so non-sensitive defaults are available
+            if packer validate \
+                -var-file="environments/homelab.pkrvars.hcl" \
+                "$template" 2>/tmp/packer_err; then
+              echo "  ✔  $template"
+            else
+              echo "  ✘  $template"
+              cat /tmp/packer_err
+              FAIL=$((FAIL + 1))
+            fi
+          done
+          echo "Failed: $FAIL"
+          exit $FAIL

@@ -64,14 +64,19 @@ warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
 error()   { echo -e "${RED}[✘] ERROR:${NC} $*" >&2; exit 1; }
 section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
+# ── Load defaults from .env if present ───────────────────────────────────────
+ENV_FILE="$(dirname "$0")/../.env"
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE" && log "Loaded defaults from .env"
+
+
 # ── Default values ───────────────────────────────────────────────────────────
 VMID=200
 VM_NAME="win-server-2025"
-MEMORY=4096
-CORES=2
-DISK_SIZE=60
-STORAGE="local-lvm"
-BRIDGE="vmbr0"
+MEMORY="${DEFAULT_MEMORY_MB:-4096}"
+CORES="${DEFAULT_CORES:-2}"
+DISK_SIZE="${DEFAULT_DISK_GB:-60}"
+STORAGE="${PROXMOX_STORAGE:-local-lvm}"
+BRIDGE="${PROXMOX_BRIDGE:-vmbr0}"
 WIN_ISO=""
 VIRTIO_ISO=""
 

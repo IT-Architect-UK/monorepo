@@ -59,8 +59,13 @@ warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
 error()   { echo -e "${RED}[✘] ERROR:${NC} $*" >&2; exit 1; }
 section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
-CTID=300; CT_NAME="ubuntu-lxc"; MEMORY=512; CORES=1
-DISK_SIZE=8; STORAGE="local-lvm"; BRIDGE="vmbr0"
+
+# ── Load defaults from .env if present ───────────────────────────────────────
+ENV_FILE="$(dirname "$0")/../.env"
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE" && log "Loaded defaults from .env"
+
+CTID=300; CT_NAME="ubuntu-lxc"; MEMORY="${DEFAULT_MEMORY_MB:-512}"; CORES="${DEFAULT_CORES:-1}"
+DISK_SIZE="${DEFAULT_DISK_GB:-8}"; STORAGE="${PROXMOX_STORAGE:-local-lvm}"; BRIDGE="${PROXMOX_BRIDGE:-vmbr0}"
 CT_PASSWORD=""; UNPRIVILEGED=1
 
 while [[ $# -gt 0 ]]; do

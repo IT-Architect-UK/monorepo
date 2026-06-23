@@ -42,6 +42,11 @@ warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
 error()   { echo -e "${RED}[✘] ERROR:${NC} $*" >&2; exit 1; }
 section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
+# ── Load defaults from .env if present ───────────────────────────────────────
+ENV_FILE="$(dirname "$0")/../.env"
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE" && log "Loaded defaults from .env"
+
+
 VAULT=""; CERT_NAME=""; SUBJECT=""; IMPORT=false; CERT_FILE=""; KEY_FILE=""
 VALIDITY_MONTHS=12
 

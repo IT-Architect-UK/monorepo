@@ -59,8 +59,15 @@ warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
 error()   { echo -e "${RED}[✘] ERROR:${NC} $*" >&2; exit 1; }
 section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
-TEMPLATE_ID=""; NEW_VMID=""; VM_NAME=""; STORAGE=""
-MEMORY=""; CORES=""; SSH_KEY_PATH=""; IP_CONFIG="ip=dhcp"; GATEWAY=""
+# ── Load defaults from .env if present ───────────────────────────────────────
+ENV_FILE="$(dirname "$0")/../.env"
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE" && log "Loaded defaults from .env"
+
+TEMPLATE_ID=""; NEW_VMID=""; VM_NAME=""
+STORAGE="${PROXMOX_STORAGE:-}"
+MEMORY=""; CORES=""
+SSH_KEY_PATH="${DEFAULT_SSH_PUBLIC_KEY:-}"
+IP_CONFIG="ip=dhcp"; GATEWAY=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -120,4 +127,4 @@ echo ""
 echo "Wait ~30 seconds for cloud-init, then connect:"
 [[ "$IP_CONFIG" == "ip=dhcp" ]] && \
   echo "  Find IP in Proxmox UI → VM $NEW_VMID → Summary" || \
-  echo -e "  ${CYAN}ssh sysadmin@$(echo $IP_CONFIG | grep -oP '[\d.]+(?=/)' || echo '<ip>')${NC}"
+  echo -e "  ${CYAN}ssh sysadmin@$(echo "$IP_CONFIG" | grep -oP '[\d.]+(?=/)' || echo '<ip>')${NC}"

@@ -42,7 +42,12 @@ warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
 error()   { echo -e "${RED}[✘] ERROR:${NC} $*" >&2; exit 1; }
 section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
-REGION="eu-west-2"; INSTANCE_TYPE="t3.micro"; AMI_NAME="ubuntu-2404-golden"
+# ── Load defaults from .env if present ───────────────────────────────────────
+ENV_FILE="$(dirname "$0")/.env"
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE" && log "Loaded defaults from .env"
+
+
+REGION="${AWS_DEFAULT_REGION:-eu-west-2}"; INSTANCE_TYPE="t3.micro"; AMI_NAME="ubuntu-2404-golden"
 SUBNET_ID=""; KEY_NAME=""; SG_ID=""
 
 while [[ $# -gt 0 ]]; do

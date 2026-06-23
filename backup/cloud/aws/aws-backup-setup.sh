@@ -40,7 +40,12 @@ warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
 error()   { echo -e "${RED}[✘] ERROR:${NC} $*" >&2; exit 1; }
 section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
-REGION="eu-west-2"; VAULT_NAME="default-backup-vault"
+# ── Load defaults from .env if present ───────────────────────────────────────
+ENV_FILE="$(dirname "$0")/.env"
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE" && log "Loaded defaults from .env"
+
+
+REGION="${AWS_DEFAULT_REGION:-eu-west-2}"; VAULT_NAME="default-backup-vault"
 PLAN_NAME="daily-backup-plan"; TAG_KEY="Backup"; TAG_VALUE="true"
 
 while [[ $# -gt 0 ]]; do

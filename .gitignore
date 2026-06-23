@@ -1,0 +1,67 @@
+# =============================================================================
+# .gitignore — IT-Architect-UK/monorepo
+# =============================================================================
+
+# ── Credentials & Secrets (NEVER commit these) ────────────────────────────────
+.env
+*.env
+!*.env.example        # Keep the example templates
+
+# Packer variable files with real values (keep .example files)
+*.pkrvars.hcl
+!*.pkrvars.hcl.example
+environments/homelab.pkrvars.hcl
+environments/production.pkrvars.hcl
+environments/ansible-server.pkrvars.hcl
+
+# SSH private keys (just in case)
+*.pem
+id_rsa
+id_ed25519
+id_ecdsa
+!*.pub                # Public keys are fine to commit
+
+# Cloud provider credential files
+.aws/credentials
+.azure/
+gcloud-service-account*.json
+
+# Ansible Vault password files
+.vault_pass
+.vault_password
+vault_password_file
+
+# ── Packer build outputs ──────────────────────────────────────────────────────
+packer-manifest*.json
+packer-build*.log
+packer_cache/
+*.box
+
+# ── OS & Editor noise ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/settings.json
+*.code-workspace
+
+# ── Terraform (future use) ────────────────────────────────────────────────────
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
