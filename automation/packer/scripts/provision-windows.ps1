@@ -200,5 +200,80 @@ Write-Step "Windows Update settings"
 
 Write-Warn "Windows Update auto-install skipped — apply updates manually after first boot or uncomment the block in this script"
 
+# ── 10. Monorepo sync ────────────────────────────────────────────────────────
+Write-Step "Monorepo sync scheduled task"
+
+# Create C:\Scripts\ and write the sync script into the image
+$scriptsDir = "C:\Scripts"
+if (-not (Test-Path $scriptsDir)) {
+    New-Item -ItemType Directory -Path $scriptsDir -Force | Out-Null
+}
+
+# The sync script is baked in verbatim so it's available before git is installed
+$syncScript = @'
+$RepoUrl = "https://github.com/IT-Architect-UK/monorepo.git"
+$RepoDir = "C:\Monorepo"
+$LogDir  = "C:\Logs\MonorepoSync"
+$LogFile = Join-Path $LogDir "monorepo-sync-$(Get-Date -Format 'yyyy-MM-dd').log"
+if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
+function Write-Log { param([string]$m,[string]$l="INFO") { $e="[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$l]  $m"; Write-Host $e; Add-Content -Path $LogFile -Value $e } }
+Write-Log "Monorepo sync starting on $env:COMPUTERNAME"
+$gitCmd = Get-Command git -ErrorAction SilentlyContinue
+if (-not $gitCmd) { Write-Log "git not found — skipping." "WARN"; exit 0 }
+try { $null = Invoke-WebRequest -Uri "https://github.com" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop }
+catch { Write-Log "GitHub not reachable — skipping." "WARN"; exit 0 }
+$gitDir = Join-Path $RepoDir ".git"
+if (Test-Path $gitDir) {
+    $out = & git -C $RepoDir pull --ff-only 2>&1
+    if ($LASTEXITCODE -eq 0) { Write-Log "Pull complete. HEAD: $(& git -C $RepoDir rev-parse --short HEAD)" }
+    else { Remove-Item -Path $RepoDir -Recurse -Force -ErrorAction SilentlyContinue; & git clone --quiet $RepoUrl $RepoDir 2>&1 | Out-Null; Write-Log "Reclone complete." }
+} else {
+    if (-not (Test-Path $RepoDir)) { New-Item -ItemType Directory -Path $RepoDir -Force | Out-Null }
+    & git clone --quiet $RepoUrl $RepoDir 2>&1 | Out-Null
+    Write-Log "Clone complete. HEAD: $(& git -C $RepoDir rev-parse --short HEAD 2>&1)"
+}
+Write-Log "Sync finished. Scripts at: $RepoDir"
+'@
+
+$syncScriptPath = Join-Path $scriptsDir "Sync-Monorepo.ps1"
+Set-Content -Path $syncScriptPath -Value $syncScript -Encoding UTF8
+Write-OK "Sync-Monorepo.ps1 written to $syncScriptPath"
+
+# Register scheduled task — runs as SYSTEM, no password required
+$taskName   = "MonorepoSync"
+$psExe      = "powershell.exe"
+$psArgs     = "-NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$syncScriptPath`""
+
+$action     = New-ScheduledTaskAction -Execute $psExe -Argument $psArgs
+$trigBoot   = New-ScheduledTaskTrigger -AtStartup
+$trigBoot.Delay = "PT1M"          # 1-minute delay for network stack to be ready
+$trigDaily  = New-ScheduledTaskTrigger -Daily -At "01:00"
+$principal  = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+$settings   = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 15) `
+                                            -StartWhenAvailable $true `
+                                            -MultipleInstances IgnoreNew
+
+# Remove existing task if present (idempotent)
+Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+
+Register-ScheduledTask `
+    -TaskName   $taskName `
+    -Action     $action `
+    -Trigger    @($trigBoot, $trigDaily) `
+    -Principal  $principal `
+    -Settings   $settings `
+    -Description "Clones/pulls the IT-Architect monorepo to C:\Monorepo. Scripts available at C:\Monorepo\infrastructure\" | Out-Null
+
+Write-OK "Scheduled task '$taskName' registered (AtStartup +1min, daily 01:00, SYSTEM)"
+
+# Initial clone best-effort — git may not be in PATH yet if Chocolatey step is pending
+Write-Host "  Running initial monorepo clone (best-effort) ..." -ForegroundColor Gray
+try {
+    & powershell.exe -NonInteractive -ExecutionPolicy Bypass -File $syncScriptPath
+    Write-OK "Initial clone complete. Repo available at C:\Monorepo"
+} catch {
+    Write-Warn "Initial clone skipped — will run on first boot (git may not be installed yet)"
+}
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 Write-Host "`n✔  provision-windows.ps1 complete" -ForegroundColor Green

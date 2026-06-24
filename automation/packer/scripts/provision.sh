@@ -195,6 +195,28 @@ section "11 — Services"
 systemctl enable fail2ban
 log "fail2ban enabled at boot (SSH brute-force protection via iptables)"
 
+# ── 12. Monorepo sync ─────────────────────────────────────────────────────────
+section "12 — Monorepo sync"
+# Install the sync script permanently so cron and admins can call it directly
+cp /tmp/sync-monorepo.sh /usr/local/bin/sync-monorepo.sh
+chmod +x /usr/local/bin/sync-monorepo.sh
+log "sync-monorepo.sh installed to /usr/local/bin/"
+
+# Cron job — @reboot (30s delay for network) and daily at 01:00
+cat > /etc/cron.d/monorepo-sync << 'CRONEOF'
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Sync IT-Architect monorepo — pulls latest scripts to /opt/monorepo/
+@reboot root sleep 30 && /usr/local/bin/sync-monorepo.sh >> /var/log/monorepo-sync.log 2>&1
+0 1 * * * root /usr/local/bin/sync-monorepo.sh >> /var/log/monorepo-sync.log 2>&1
+CRONEOF
+chmod 644 /etc/cron.d/monorepo-sync
+log "Cron jobs created: @reboot + daily 01:00 → /usr/local/bin/sync-monorepo.sh"
+
+# Initial clone during Packer build (best-effort — doesn't fail the build)
+log "Running initial monorepo clone ..."
+/usr/local/bin/sync-monorepo.sh || warn "Initial clone failed — will retry on first boot"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 section "Provisioning Complete"
 log "OS version : $(lsb_release -d | cut -f2)"

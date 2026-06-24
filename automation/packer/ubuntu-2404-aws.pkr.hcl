@@ -132,6 +132,7 @@ build {
       "${path.root}/../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
       "${path.root}/../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
       "${path.root}/../../infrastructure/networking/firewall/setup-iptables.sh",
+      "${path.root}/../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
     ]
     destination = "/tmp/"
   }
