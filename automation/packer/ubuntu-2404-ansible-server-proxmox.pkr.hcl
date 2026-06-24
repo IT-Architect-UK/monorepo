@@ -140,10 +140,25 @@ build {
   sources = ["source.proxmox-iso.ansible-server"]
 
   # 1. Base OS hardening (same as every other image: UFW, fail2ban, SSH hardening)
+  # Upload helper scripts used by provision.sh
+  provisioner "file" {
+    sources = [
+      "${path.root}/../../infrastructure/servers/linux/configuration/apply-branding.sh",
+      "${path.root}/../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
+      "${path.root}/../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
+      "${path.root}/../../infrastructure/networking/firewall/setup-iptables.sh",
+    ]
+    destination = "/tmp/"
+  }
+
   provisioner "shell" {
     script          = "scripts/provision.sh"
     execute_command = "sudo bash {{.Path}}"
-    pause_before    = "10s"   # Wait for autoinstall reboot to complete
+    pause_before    = "10s"
+    environment_vars = [
+      "HYPERVISOR=proxmox",
+      "COMPANY_NAME=${var.vm_company_name}",
+    ]
   }
 
   # 2. Install Ansible + dependencies (Ansible-server–specific)

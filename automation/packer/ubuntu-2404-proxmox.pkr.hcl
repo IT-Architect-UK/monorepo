@@ -143,9 +143,24 @@ build {
   sources = ["source.proxmox-iso.ubuntu-2404"]
 
   # Step 1: Shell provisioner — applies OS updates, tools, hardening
+  # Upload helper scripts used by provision.sh
+  provisioner "file" {
+    sources = [
+      "${path.root}/../../infrastructure/servers/linux/configuration/apply-branding.sh",
+      "${path.root}/../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
+      "${path.root}/../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
+      "${path.root}/../../infrastructure/networking/firewall/setup-iptables.sh",
+    ]
+    destination = "/tmp/"
+  }
+
   provisioner "shell" {
     script          = "scripts/provision.sh"
     execute_command = "sudo bash '{{ .Path }}'"
+    environment_vars = [
+      "HYPERVISOR=proxmox",
+      "COMPANY_NAME=${var.vm_company_name}",
+    ]
   }
 
   # Step 2: Ansible provisioner — applies our server-baseline role

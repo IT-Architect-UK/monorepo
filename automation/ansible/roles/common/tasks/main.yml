@@ -2,14 +2,14 @@
 # =============================================================================
 # roles/common/tasks/main.yml
 # =============================================================================
-# Common baseline tasks applied to every managed Linux server.
+# Baseline tasks applied to every managed Linux server.
 # Called by server-baseline.yml
 # =============================================================================
 
 - name: Update package cache
   ansible.builtin.apt:
     update_cache: true
-    cache_valid_time: 3600   # Only update if cache is older than 1 hour
+    cache_valid_time: 3600
   tags: packages
 
 - name: Install common packages
@@ -50,52 +50,57 @@
     src: sshd_config.j2
     dest: /etc/ssh/sshd_config
     mode: "0600"
-    validate: /usr/sbin/sshd -t -f %s   # Validate config before applying
+    validate: /usr/sbin/sshd -t -f %s
   notify: Restart SSH
   tags: ssh
 
-- name: Configure UFW firewall — set default deny incoming
-  community.general.ufw:
-    default: deny
-    direction: incoming
+# ── Firewall — iptables ───────────────────────────────────────────────────────
+# Uses setup-iptables.sh from infrastructure/networking/firewall/ which applies
+# a default-drop INPUT policy and allows all RFC-1918 private subnet traffic.
+# Managed via Webmin post-deployment for role-specific rule additions.
+
+- name: Copy iptables setup script to target
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../infrastructure/networking/firewall/setup-iptables.sh"
+    dest: /tmp/setup-iptables.sh
+    mode: "0755"
   tags: firewall
 
-- name: Configure UFW firewall — allow defined rules
-  community.general.ufw:
-    rule: "{{ item.rule }}"
-    port: "{{ item.port }}"
-    proto: "{{ item.proto }}"
-    comment: "{{ item.comment | default('') }}"
-  loop: "{{ ufw_rules }}"
+- name: Apply iptables baseline ruleset
+  ansible.builtin.command: /tmp/setup-iptables.sh
+  args:
+    creates: /etc/iptables/rules.v4
   tags: firewall
 
-- name: Enable UFW firewall
-  community.general.ufw:
-    state: enabled
+- name: Remove iptables setup script
+  ansible.builtin.file:
+    path: /tmp/setup-iptables.sh
+    state: absent
   tags: firewall
 
-- name: Configure unattended security upgrades
-  ansible.builtin.apt:
-    name: unattended-upgrades
-    state: present
-  when: unattended_upgrades_enabled
-  tags: security
-
-- name: Configure fail2ban (brute-force protection)
+# ── fail2ban ──────────────────────────────────────────────────────────────────
+- name: Configure fail2ban (SSH brute-force protection)
   ansible.builtin.copy:
     dest: /etc/fail2ban/jail.local
     content: |
       [DEFAULT]
-      bantime  = 3600
-      findtime = 600
-      maxretry = 5
+      bantime  = {{ fail2ban_bantime | default(3600) }}
+      findtime = {{ fail2ban_findtime | default(600) }}
+      maxretry = {{ fail2ban_maxretry | default(5) }}
 
       [sshd]
       enabled = true
-      port    = {{ ssh_port }}
+      port    = {{ ssh_port | default(22) }}
     mode: "0644"
   notify: Restart fail2ban
   tags: security
 
-# ── Handlers ─────────────────────────────────────────────────────────────
-# Handlers only run when notified — and only once, even if notified multiple times
+- name: Enable and start fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+  tags: security
+
+# ── Handlers ─────────────────────────────────────────────────────────────────
+# Handlers only run when notified, and only once even if notified multiple times

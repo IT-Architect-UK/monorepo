@@ -125,9 +125,24 @@ build {
   name    = "ubuntu-2404-aws"
   sources = ["source.amazon-ebs.ubuntu-2404"]
 
+  # Upload helper scripts used by provision.sh
+  provisioner "file" {
+    sources = [
+      "${path.root}/../../infrastructure/servers/linux/configuration/apply-branding.sh",
+      "${path.root}/../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
+      "${path.root}/../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
+      "${path.root}/../../infrastructure/networking/firewall/setup-iptables.sh",
+    ]
+    destination = "/tmp/"
+  }
+
   provisioner "shell" {
     script          = "scripts/provision.sh"
     execute_command = "sudo bash '{{ .Path }}'"
+    environment_vars = [
+      "HYPERVISOR=aws",
+      "COMPANY_NAME=${var.vm_company_name}",
+    ]
   }
 
   provisioner "ansible" {

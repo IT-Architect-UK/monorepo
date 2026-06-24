@@ -268,3 +268,10 @@ variable "win_vm_id" {
   default     = 9003
   description = "Proxmox VM ID for the Windows Server 2025 template"
 }
+
+# ── Branding ──────────────────────────────────────────────────────────────────
+variable "vm_company_name" {
+  type        = string
+  default     = "IT-Architect"
+  description = "Organisation name used in server branding — MOTD, login banner, and shell prompt. Override in your .pkrvars.hcl or via the PKR_VAR_vm_company_name environment variable."
+}

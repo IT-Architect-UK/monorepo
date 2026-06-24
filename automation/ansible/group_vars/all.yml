@@ -1,0 +1,61 @@
+---
+# =============================================================================
+# group_vars/all.yml
+# =============================================================================
+# Default variables applied to ALL hosts managed by these playbooks.
+# Override per host in host_vars/<hostname>.yml or per group in
+# group_vars/<group>.yml.
+#
+# To override a variable for a specific run:
+#   ansible-playbook ... -e "admin_user=myuser ssh_port=2222"
+# =============================================================================
+
+# ── Admin user ────────────────────────────────────────────────────────────────
+admin_user: sysadmin
+admin_groups:
+  - sudo
+
+# ── SSH ───────────────────────────────────────────────────────────────────────
+ssh_port: 22
+
+# ── Timezone ──────────────────────────────────────────────────────────────────
+# Set to a valid tz database name (e.g. Europe/London, America/New_York).
+# The Packer build auto-detects timezone via IP geolocation; this variable
+# is used when Ansible applies the baseline to already-deployed servers.
+system_timezone: UTC
+
+# ── Common packages ───────────────────────────────────────────────────────────
+# Installed on every managed server by the common role.
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - nano
+  - jq
+  - unzip
+  - htop
+  - net-tools
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - apt-transport-https
+  - python3
+  - python3-pip
+  - iptables
+  - iptables-persistent
+  - netfilter-persistent
+  - fail2ban
+  - cloud-guest-utils
+  - lvm2
+
+# ── Automatic security updates ────────────────────────────────────────────────
+# Disabled by default — patch deliberately using patch-and-reboot.yml.
+# Set to true if you want unattended security updates on a server.
+unattended_upgrades_enabled: false
+
+# ── fail2ban ─────────────────────────────────────────────────────────────────
+# SSH brute-force protection. Integrates with iptables automatically.
+fail2ban_bantime: 3600    # Ban duration in seconds (1 hour)
+fail2ban_findtime: 600    # Window to count failures (10 minutes)
+fail2ban_maxretry: 5      # Failed attempts before ban
