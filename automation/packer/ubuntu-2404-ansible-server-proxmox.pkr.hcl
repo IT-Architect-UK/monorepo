@@ -167,14 +167,24 @@ build {
     execute_command = "sudo bash {{.Path}}"
   }
 
-  # 3. Copy this repo's Ansible content into the image at /opt/ansible/
+  # 3. Install Semaphore UI — lightweight web front-end for Ansible
+  #    Access on port 80 (nginx reverse proxy → Semaphore on 127.0.0.1:3000)
+  provisioner "shell" {
+    script          = "scripts/provision-semaphore.sh"
+    execute_command = "sudo bash {{.Path}}"
+    environment_vars = [
+      "SEMAPHORE_ADMIN_PASS=${var.semaphore_admin_password}",
+    ]
+  }
+
+  # 4. Copy this repo's Ansible content into the image at /opt/ansible/
   #    Engineers clone once; the control node always ships with the latest playbooks.
   provisioner "file" {
     source      = "../ansible/"      # relative to this .pkr.hcl file
     destination = "/opt/ansible/"
   }
 
-  # 4. Run server-baseline playbook LOCALLY (control node configuring itself)
+  # 5. Run server-baseline playbook LOCALLY (control node configuring itself)
   #    This validates that Ansible works and applies the same baseline as
   #    every other server — we eat our own cooking.
   provisioner "ansible" {
@@ -186,13 +196,13 @@ build {
     ]
   }
 
-  # 5. Image sealing — removes SSH host keys, cloud-init cache, machine-id etc.
+  # 6. Image sealing — removes SSH host keys, cloud-init cache, machine-id etc.
   provisioner "shell" {
     script          = "scripts/cleanup.sh"
     execute_command = "sudo bash {{.Path}}"
   }
 
-  # 6. Write a manifest so CI can track which image was produced and when
+  # 7. Write a manifest so CI can track which image was produced and when
   post-processor "manifest" {
     output     = "packer-manifest-ansible-server.json"
     strip_path = true

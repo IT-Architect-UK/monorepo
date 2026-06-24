@@ -275,3 +275,11 @@ variable "vm_company_name" {
   default     = "IT-Architect"
   description = "Organisation name used in server branding — MOTD, login banner, and shell prompt. Override in your .pkrvars.hcl or via the PKR_VAR_vm_company_name environment variable."
 }
+
+# ── Semaphore UI ──────────────────────────────────────────────────────────────
+variable "semaphore_admin_password" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Initial Semaphore UI admin password. Set via PKR_VAR_semaphore_admin_password. Change immediately after first login."
+}
