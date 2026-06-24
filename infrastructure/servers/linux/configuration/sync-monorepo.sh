@@ -2,18 +2,18 @@
 # =============================================================================
 # sync-monorepo.sh
 # =============================================================================
-# Clones or pulls the latest IT-Architect monorepo to /opt/monorepo.
+# Clones or pulls the latest IT-Architect monorepo to /git/monorepo.
 #
 # Installed to /usr/local/bin/sync-monorepo.sh by provision.sh.
 # Triggered automatically:
 #   • On every boot  (waits 30s for network)
 #   • Daily at 01:00 (via /etc/cron.d/monorepo-sync)
 #
-# After the sync, all repo scripts are available under /opt/monorepo/:
-#   /opt/monorepo/infrastructure/servers/linux/configuration/
-#   /opt/monorepo/infrastructure/servers/windows/os/
-#   /opt/monorepo/infrastructure/networking/firewall/
-#   /opt/monorepo/automation/ansible/
+# After the sync, all repo scripts are available under /git/monorepo/:
+#   /git/monorepo/infrastructure/servers/linux/configuration/
+#   /git/monorepo/infrastructure/servers/windows/os/
+#   /git/monorepo/infrastructure/networking/firewall/
+#   /git/monorepo/automation/ansible/
 #   etc.
 #
 # Failure handling:
@@ -25,7 +25,7 @@
 # =============================================================================
 
 REPO_URL="https://github.com/IT-Architect-UK/monorepo.git"
-REPO_DIR="/opt/monorepo"
+REPO_DIR="/git/monorepo"
 LOG_FILE="/var/log/monorepo-sync.log"
 TIMESTAMP="$(date '+%Y-%m-%d %H:%M:%S')"
 

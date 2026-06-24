@@ -212,7 +212,7 @@ if (-not (Test-Path $scriptsDir)) {
 # The sync script is baked in verbatim so it's available before git is installed
 $syncScript = @'
 $RepoUrl = "https://github.com/IT-Architect-UK/monorepo.git"
-$RepoDir = "C:\Monorepo"
+$RepoDir = "C:\Git\Monorepo"
 $LogDir  = "C:\Logs\MonorepoSync"
 $LogFile = Join-Path $LogDir "monorepo-sync-$(Get-Date -Format 'yyyy-MM-dd').log"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
@@ -262,7 +262,7 @@ Register-ScheduledTask `
     -Trigger    @($trigBoot, $trigDaily) `
     -Principal  $principal `
     -Settings   $settings `
-    -Description "Clones/pulls the IT-Architect monorepo to C:\Monorepo. Scripts available at C:\Monorepo\infrastructure\" | Out-Null
+    -Description "Clones/pulls the IT-Architect monorepo to C:\Git\Monorepo. Scripts available at C:\Git\Monorepo\infrastructure\" | Out-Null
 
 Write-OK "Scheduled task '$taskName' registered (AtStartup +1min, daily 01:00, SYSTEM)"
 
@@ -270,7 +270,7 @@ Write-OK "Scheduled task '$taskName' registered (AtStartup +1min, daily 01:00, S
 Write-Host "  Running initial monorepo clone (best-effort) ..." -ForegroundColor Gray
 try {
     & powershell.exe -NonInteractive -ExecutionPolicy Bypass -File $syncScriptPath
-    Write-OK "Initial clone complete. Repo available at C:\Monorepo"
+    Write-OK "Initial clone complete. Repo available at C:\Git\Monorepo"
 } catch {
     Write-Warn "Initial clone skipped — will run on first boot (git may not be installed yet)"
 }

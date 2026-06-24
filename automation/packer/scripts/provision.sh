@@ -206,7 +206,7 @@ log "sync-monorepo.sh installed to /usr/local/bin/"
 cat > /etc/cron.d/monorepo-sync << 'CRONEOF'
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# Sync IT-Architect monorepo — pulls latest scripts to /opt/monorepo/
+# Sync IT-Architect monorepo — pulls latest scripts to /git/monorepo/
 @reboot root sleep 30 && /usr/local/bin/sync-monorepo.sh >> /var/log/monorepo-sync.log 2>&1
 0 1 * * * root /usr/local/bin/sync-monorepo.sh >> /var/log/monorepo-sync.log 2>&1
 CRONEOF

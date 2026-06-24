@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Clones or pulls the latest IT-Architect monorepo to C:\Monorepo.
+    Clones or pulls the latest IT-Architect monorepo to C:\Git\Monorepo.
 
 .DESCRIPTION
     Registered as a Windows Scheduled Task by provision-windows.ps1 during the
@@ -8,11 +8,11 @@
       • On every system startup  (1-minute delay to allow network)
       • Daily at 01:00
 
-    After the sync, all repo scripts are available under C:\Monorepo\:
-      C:\Monorepo\infrastructure\servers\windows\os\
-      C:\Monorepo\infrastructure\servers\windows\packages\
-      C:\Monorepo\infrastructure\networking\firewall\
-      C:\Monorepo\automation\ansible\
+    After the sync, all repo scripts are available under C:\Git\Monorepo\:
+      C:\Git\Monorepo\infrastructure\servers\windows\os\
+      C:\Git\Monorepo\infrastructure\servers\windows\packages\
+      C:\Git\Monorepo\infrastructure\networking\firewall\
+      C:\Git\Monorepo\automation\ansible\
       etc.
 
     Failure handling:
@@ -28,7 +28,7 @@
 #>
 
 $RepoUrl = "https://github.com/IT-Architect-UK/monorepo.git"
-$RepoDir = "C:\Monorepo"
+$RepoDir = "C:\Git\Monorepo"
 $LogDir  = "C:\Logs\MonorepoSync"
 $LogFile = Join-Path $LogDir "monorepo-sync-$(Get-Date -Format 'yyyy-MM-dd').log"
 
