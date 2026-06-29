@@ -117,8 +117,15 @@ ok "AWS CLI $(aws --version 2>&1) installed"
 log "[8/11] Installing Azure CLI"
 curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+# Microsoft's azure-cli apt repo lags behind new Ubuntu releases.
+# Fall back to 'noble' (24.04) packages for any unsupported codename.
+_AZ_DISTRO=$(lsb_release -cs)
+case "${_AZ_DISTRO}" in
+    focal|jammy|noble) : ;;          # officially supported
+    *)                 _AZ_DISTRO="noble" ;;   # e.g. resolute (26.04) — use noble packages
+esac
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
-    https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main" \
+    https://packages.microsoft.com/repos/azure-cli/ ${_AZ_DISTRO} main" \
     > /etc/apt/sources.list.d/azure-cli.list
 apt-get update -qq
 apt-get install -y azure-cli
