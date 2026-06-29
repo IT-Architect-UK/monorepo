@@ -66,7 +66,7 @@ log "Log file: ${LOG_FILE}"
 if [[ -n "${SSH_PORT_OVERRIDE}" ]]; then
     SSH_PORT="${SSH_PORT_OVERRIDE}"
 else
-    SSH_PORT=$(grep -E "^Port " /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' | head -1)
+    SSH_PORT=$(grep -E "^Port " /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' | head -1 || true)
     SSH_PORT="${SSH_PORT:-22}"
 fi
 log "SSH port: ${SSH_PORT}"
