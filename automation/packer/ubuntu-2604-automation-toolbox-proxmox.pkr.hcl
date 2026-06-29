@@ -24,10 +24,6 @@ packer {
       version = ">= 1.1.8"
       source  = "github.com/hashicorp/proxmox"
     }
-    ansible = {
-      version = ">= 1.1.1"
-      source  = "github.com/hashicorp/ansible"
-    }
   }
 }
 
@@ -151,9 +147,11 @@ source "proxmox-iso" "automation-toolbox" {
   template_name        = local.image_name
   template_description = "Ubuntu 26.04 Automation Toolbox | Built ${local.timestamp} by Packer | Tools: Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
 
-  iso_file         = var.ubuntu_iso_file
-  iso_storage_pool = var.proxmox_iso_storage
-  unmount_iso      = true
+  boot_iso {
+    iso_file         = var.ubuntu_iso_file
+    iso_storage_pool = var.proxmox_iso_storage
+    unmount          = true
+  }
 
   cores           = var.vm_cpu_count
   memory          = var.vm_memory_mb
@@ -242,13 +240,12 @@ build {
     destination = "/opt/toolbox/ansible/"
   }
 
-  provisioner "ansible" {
-    playbook_file   = "../ansible/playbooks/server-baseline.yml"
-    extra_arguments = [
-      "--connection=local",
-      "--limit=localhost",
-      "-e", "ansible_python_interpreter=/usr/bin/python3"
+  # Run server-baseline playbook inside the VM (Ansible is installed by provision-automation-toolbox.sh)
+  provisioner "shell" {
+    inline = [
+      "cd /opt/toolbox/ansible && ansible-playbook playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"
     ]
+    execute_command = "sudo bash -c '{{.Path}}'"
   }
 
   provisioner "shell" {
