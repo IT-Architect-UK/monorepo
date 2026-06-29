@@ -2,32 +2,19 @@
 # Packer Template: Ubuntu 26.04 Automation Toolbox — Proxmox
 #
 # PURPOSE
-#   Builds a Proxmox VM template that is ready to use as a centralised
-#   automation management host. On first boot the VM has:
-#     • Ansible        — configuration management & orchestration
-#     • Packer         — VM image building (can build MORE images from this host)
-#     • Terraform      — infrastructure as code
-#     • AWS CLI v2     — Amazon Web Services management
-#     • Azure CLI      — Microsoft Azure management
-#     • kubectl        — Kubernetes cluster management
-#     • Helm           — Kubernetes package manager
-#     • GitHub CLI     — repository and PR management from the CLI
-#     • Python 3       — with boto3, azure-identity, google-cloud libraries
-#     • Docker CE      — container build and run
-#     • jq / yq        — JSON and YAML processing
+#   Builds a Proxmox VM template ready to use as a centralised automation
+#   management host. On first boot the VM has:
+#     • Ansible, Packer, Terraform, AWS CLI v2, Azure CLI
+#     • kubectl, Helm, GitHub CLI, Docker CE
+#     • Python 3 with boto3, azure-identity, google-cloud
+#     • jq, yq
 #
-# USAGE
-#   packer init .
+# USAGE (single-file — self-contained, no variables.pkr.hcl needed)
+#   packer init ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
 #   packer build \
 #     -var-file="environments/homelab.pkrvars.hcl" \
 #     -var-file="environments/automation-toolbox.pkrvars.hcl" \
 #     ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
-#
-# WHAT HAPPENS NEXT
-#   1. Packer creates a Proxmox template called "automation-toolbox-<timestamp>"
-#   2. Clone the template to create your management VM
-#   3. SSH in and run: sudo bash /opt/toolbox/bootstrap.sh
-#   4. Use this VM to run Packer builds, Terraform plans, and Ansible playbooks
 ###############################################################################
 
 packer {
@@ -44,40 +31,134 @@ packer {
   }
 }
 
-# ─── Local values ─────────────────────────────────────────────────────────────
-locals {
-  timestamp  = formatdate("YYYYMMDD-HHmm", timestamp())
-  image_name = "automation-toolbox-${local.timestamp}"
+# ─── Variables (self-contained — not loaded from variables.pkr.hcl) ──────────
+
+variable "image_name" {
+  type    = string
+  default = "automation-toolbox"
 }
 
-# ─── Source: Proxmox ISO ──────────────────────────────────────────────────────
+variable "image_description" {
+  type    = string
+  default = "Ubuntu 26.04 LTS Automation Toolbox — built with Packer"
+}
+
+variable "ubuntu_iso_file" {
+  type    = string
+  default = ""
+}
+
+variable "ubuntu_iso_url" {
+  type    = string
+  default = "https://releases.ubuntu.com/resolute/ubuntu-26.04-live-server-amd64.iso"
+}
+
+variable "ubuntu_iso_checksum" {
+  type    = string
+  default = "sha256:e907d92eeec9df64163a7e454cbc8d7755e8ddc7ed42f99dbc80c40f1a138433"
+}
+
+variable "ssh_username" {
+  type    = string
+  default = "packer"
+}
+
+variable "ssh_password" {
+  type      = string
+  default   = "packer-temp-password"
+  sensitive = true
+}
+
+variable "vm_cpu_count" {
+  type    = number
+  default = 4
+}
+
+variable "vm_memory_mb" {
+  type    = number
+  default = 4096
+}
+
+variable "vm_disk_gb" {
+  type    = number
+  default = 60
+}
+
+variable "proxmox_url" {
+  type    = string
+  default = "https://192.168.1.10:8006/api2/json"
+}
+
+variable "proxmox_username" {
+  type    = string
+  default = "root@pam"
+}
+
+variable "proxmox_password" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "proxmox_node" {
+  type    = string
+  default = "pve"
+}
+
+variable "proxmox_storage_pool" {
+  type    = string
+  default = "local-lvm"
+}
+
+variable "proxmox_iso_storage" {
+  type    = string
+  default = "local"
+}
+
+variable "proxmox_vm_id" {
+  type    = number
+  default = 9002
+}
+
+variable "vm_company_name" {
+  type    = string
+  default = "IT-Architect"
+}
+
+variable "semaphore_admin_password" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+# ─── Locals ───────────────────────────────────────────────────────────────────
+locals {
+  timestamp  = formatdate("YYYYMMDD-HHmm", timestamp())
+  image_name = "${var.image_name}-${local.timestamp}"
+}
+
+# ─── Source ───────────────────────────────────────────────────────────────────
 source "proxmox-iso" "automation-toolbox" {
 
-  # ── Proxmox connection ──────────────────────────────────────────────────────
   proxmox_url              = var.proxmox_url
   username                 = var.proxmox_username
   password                 = var.proxmox_password
   insecure_skip_tls_verify = true
   node                     = var.proxmox_node
 
-  # ── VM identity ─────────────────────────────────────────────────────────────
   vm_id                = var.proxmox_vm_id
   vm_name              = local.image_name
   template_name        = local.image_name
   template_description = "Ubuntu 26.04 Automation Toolbox | Built ${local.timestamp} by Packer | Tools: Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
 
-  # ── ISO source ──────────────────────────────────────────────────────────────
-  # Pre-uploaded ISO on Proxmox storage (set ubuntu_iso_file in homelab.pkrvars.hcl)
   iso_file         = var.ubuntu_iso_file
   iso_storage_pool = var.proxmox_iso_storage
   unmount_iso      = true
 
-  # ── VM hardware ─────────────────────────────────────────────────────────────
-  # Toolbox: 4 vCPU / 4 GB RAM — runs Packer builds and Terraform plans locally
-  cores          = var.vm_cpu_count
-  memory         = var.vm_memory_mb
-  os             = "l26"
-  qemu_agent     = true
+  cores           = var.vm_cpu_count
+  memory          = var.vm_memory_mb
+  os              = "l26"
+  qemu_agent      = true
   scsi_controller = "virtio-scsi-single"
 
   disks {
@@ -93,7 +174,6 @@ source "proxmox-iso" "automation-toolbox" {
     firewall = false
   }
 
-  # ── EFI / BIOS ──────────────────────────────────────────────────────────────
   efi_config {
     efi_storage_pool  = var.proxmox_storage_pool
     efi_type          = "4m"
@@ -101,8 +181,6 @@ source "proxmox-iso" "automation-toolbox" {
   }
   bios = "ovmf"
 
-  # ── Autoinstall (Ubuntu unattended install) ──────────────────────────────────
-  # user-data and meta-data attached as CD-ROM — no HTTP server required.
   additional_iso_files {
     cd_files         = ["./http/user-data", "./http/meta-data"]
     cd_label         = "cidata"
@@ -121,11 +199,10 @@ source "proxmox-iso" "automation-toolbox" {
   ]
   boot_wait = "5s"
 
-  # ── SSH (Packer communicator) ────────────────────────────────────────────────
   communicator           = "ssh"
   ssh_username           = var.ssh_username
   ssh_password           = var.ssh_password
-  ssh_timeout            = "45m"    # Extra time — lots of packages to install
+  ssh_timeout            = "45m"
   ssh_handshake_attempts = 50
 }
 
@@ -134,8 +211,6 @@ build {
   name    = "automation-toolbox"
   sources = ["source.proxmox-iso.automation-toolbox"]
 
-  # 1. Base OS hardening (UFW, fail2ban, SSH hardening — same as every image)
-  # Upload helper scripts used by provision.sh
   provisioner "file" {
     sources = [
       "${path.root}/../../infrastructure/servers/linux/configuration/apply-branding.sh",
@@ -157,19 +232,16 @@ build {
     ]
   }
 
-  # 2. Install all automation tools
   provisioner "shell" {
     script          = "scripts/provision-automation-toolbox.sh"
     execute_command = "sudo bash {{.Path}}"
   }
 
-  # 3. Copy this repo's Ansible content into the image
   provisioner "file" {
     source      = "../ansible/"
     destination = "/opt/toolbox/ansible/"
   }
 
-  # 4. Run server-baseline playbook locally to validate Ansible works
   provisioner "ansible" {
     playbook_file   = "../ansible/playbooks/server-baseline.yml"
     extra_arguments = [
@@ -179,13 +251,11 @@ build {
     ]
   }
 
-  # 5. Seal the image (removes SSH host keys, machine-id, cloud-init cache)
   provisioner "shell" {
     script          = "scripts/cleanup.sh"
     execute_command = "sudo bash {{.Path}}"
   }
 
-  # 6. Write a manifest so CI can track what was produced and when
   post-processor "manifest" {
     output     = "packer-manifest-automation-toolbox.json"
     strip_path = true
