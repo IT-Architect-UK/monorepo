@@ -4,21 +4,20 @@
 #
 # PURPOSE
 #   Installs a comprehensive set of automation and infrastructure tools on an
-#   Ubuntu 24.04 management host. Run by Packer after provision.sh has already
+#   Ubuntu management host. Run by Packer after provision.sh has already
 #   hardened the base OS.
 #
 # TOOLS INSTALLED
-#   • Ansible        — configuration management
-#   • Packer         — VM / cloud image building
-#   • Terraform      — infrastructure as code
-#   • AWS CLI v2     — Amazon Web Services
-#   • Azure CLI      — Microsoft Azure
-#   • kubectl        — Kubernetes management
-#   • Helm           — Kubernetes package manager
-#   • GitHub CLI     — Git / PR / release management
-#   • Docker CE      — container build and run
-#   • Python 3       — with boto3, azure-identity, google-cloud libraries
-#   • jq / yq        — JSON and YAML processing
+#   • Ansible          — configuration management
+#   • Packer           — VM / cloud image building
+#   • Terraform        — infrastructure as code
+#   • AWS CLI v2       — Amazon Web Services
+#   • Azure CLI        — Microsoft Azure
+#   • Google Cloud CLI — Google Cloud Platform
+#   • kubectl          — Kubernetes management
+#   • Helm             — Kubernetes package manager
+#   • GitHub CLI       — Git / PR / release management
+#   • jq / yq          — JSON and YAML processing
 #   • git / curl / unzip / gnupg — common utilities
 #
 # USAGE
@@ -37,7 +36,7 @@ ok()  { echo "  ✓ $*"; }
 log "Automation Toolbox Provisioner — $(date)"
 
 # ─── 1. System prerequisites ──────────────────────────────────────────────────
-log "[1/11] System prerequisites"
+log "[1/12] System prerequisites"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y --no-install-recommends \
@@ -63,7 +62,7 @@ apt-get install -y --no-install-recommends \
 ok "System packages installed"
 
 # ─── 2. Install yq (YAML processor) ──────────────────────────────────────────
-log "[2/11] Installing yq"
+log "[2/12] Installing yq"
 YQ_VERSION="v4.44.1"
 wget -qO /usr/local/bin/yq \
     "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
@@ -71,7 +70,7 @@ chmod +x /usr/local/bin/yq
 ok "yq $(yq --version) installed"
 
 # ─── 3. HashiCorp APT repo (Packer + Terraform) ──────────────────────────────
-log "[3/11] Adding HashiCorp APT repository"
+log "[3/12] Adding HashiCorp APT repository"
 wget -qO- https://apt.releases.hashicorp.com/gpg \
     | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
@@ -81,17 +80,17 @@ apt-get update -qq
 ok "HashiCorp repo added"
 
 # ─── 4. Install Packer ────────────────────────────────────────────────────────
-log "[4/11] Installing Packer"
+log "[4/12] Installing Packer"
 apt-get install -y packer
 ok "Packer $(packer --version) installed"
 
 # ─── 5. Install Terraform ─────────────────────────────────────────────────────
-log "[5/11] Installing Terraform"
+log "[5/12] Installing Terraform"
 apt-get install -y terraform
 ok "Terraform $(terraform --version | head -1) installed"
 
 # ─── 6. Install Ansible ───────────────────────────────────────────────────────
-log "[6/11] Installing Ansible"
+log "[6/12] Installing Ansible"
 add-apt-repository --yes --update ppa:ansible/ansible
 apt-get install -y ansible
 # Install useful Galaxy collections system-wide
@@ -104,7 +103,7 @@ ansible-galaxy collection install \
 ok "$(ansible --version | head -1) installed"
 
 # ─── 7. Install AWS CLI v2 ────────────────────────────────────────────────────
-log "[7/11] Installing AWS CLI v2"
+log "[7/12] Installing AWS CLI v2"
 AWSCLI_TMP=$(mktemp -d)
 curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
     -o "${AWSCLI_TMP}/awscliv2.zip"
@@ -114,18 +113,38 @@ rm -rf "${AWSCLI_TMP}"
 ok "AWS CLI $(aws --version 2>&1) installed"
 
 # ─── 8. Install Azure CLI ─────────────────────────────────────────────────────
-log "[8/11] Installing Azure CLI"
+log "[8/12] Installing Azure CLI"
 curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+# Microsoft's apt repo doesn't always have a release for the latest Ubuntu
+# codename; fall back to noble (24.04) for any unsupported codename.
+_AZ_DISTRO=$(lsb_release -cs)
+case "${_AZ_DISTRO}" in
+    focal|jammy|noble) : ;;
+    *)                 _AZ_DISTRO="noble" ;;
+esac
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
-    https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main" \
+    https://packages.microsoft.com/repos/azure-cli/ ${_AZ_DISTRO} main" \
     > /etc/apt/sources.list.d/azure-cli.list
 apt-get update -qq
 apt-get install -y azure-cli
 ok "Azure CLI $(az --version 2>&1 | head -1) installed"
 
-# ─── 9. Install kubectl + Helm ────────────────────────────────────────────────
-log "[9/11] Installing kubectl and Helm"
+# ─── 9. Install Google Cloud CLI ──────────────────────────────────────────────
+log "[9/12] Installing Google Cloud CLI"
+curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+    | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+# Google Cloud uses a fixed suite name (cloud-sdk main) so it works on any
+# Ubuntu codename including resolute.
+echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] \
+    https://packages.cloud.google.com/apt cloud-sdk main" \
+    > /etc/apt/sources.list.d/google-cloud-sdk.list
+apt-get update -qq
+apt-get install -y google-cloud-cli
+ok "Google Cloud CLI $(gcloud --version 2>&1 | head -1) installed"
+
+# ─── 10. Install kubectl + Helm ───────────────────────────────────────────────
+log "[10/12] Installing kubectl and Helm"
 
 # kubectl — latest stable
 KUBECTL_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
@@ -138,8 +157,8 @@ ok "kubectl ${KUBECTL_VERSION} installed"
 curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 ok "Helm $(helm version --short) installed"
 
-# ─── 10. Install GitHub CLI ───────────────────────────────────────────────────
-log "[10/11] Installing GitHub CLI"
+# ─── 11. Install GitHub CLI ───────────────────────────────────────────────────
+log "[11/12] Installing GitHub CLI"
 curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     -o /usr/share/keyrings/githubcli-archive-keyring.gpg
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
@@ -149,8 +168,8 @@ apt-get update -qq
 apt-get install -y gh
 ok "GitHub CLI $(gh --version | head -1) installed"
 
-# ─── 11. Create toolbox user + workspace ──────────────────────────────────────
-log "[11/11] Creating '${TOOLBOX_USER}' user and workspace"
+# ─── 12. Create toolbox user + workspace ──────────────────────────────────────
+log "[12/12] Creating '${TOOLBOX_USER}' user and workspace"
 
 if ! id "${TOOLBOX_USER}" &>/dev/null; then
     useradd \
@@ -217,6 +236,7 @@ echo "   Packer    : $(packer --version)"
 echo "   Terraform : $(terraform --version | head -1)"
 echo "   AWS CLI   : $(aws --version 2>&1)"
 echo "   Azure CLI : $(az --version 2>&1 | head -1)"
+echo "   GCP CLI   : $(gcloud --version 2>&1 | head -1)"
 echo "   kubectl   : $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
 echo "   Helm      : $(helm version --short)"
 echo "   GitHub CLI: $(gh --version | head -1)"
@@ -243,8 +263,9 @@ echo " Next steps:"
 echo "  1. Clone your monorepo:  cd /opt/toolbox && git clone https://github.com/IT-Architect-UK/monorepo.git"
 echo "  2. Authenticate AWS:     aws configure"
 echo "  3. Authenticate Azure:   az login"
-echo "  4. Authenticate GitHub:  gh auth login"
-echo "  5. Run a packer build:   cd /opt/toolbox/monorepo/automation/packer && packer build ..."
+echo "  4. Authenticate GCP:     gcloud auth login"
+echo "  5. Authenticate GitHub:  gh auth login"
+echo "  6. Run a packer build:   cd /opt/toolbox/monorepo/automation/packer && packer build ..."
 echo ""
 BOOTSTRAP_EOF
 
@@ -262,6 +283,7 @@ echo "  Packer    : $(packer --version)"
 echo "  Terraform : $(terraform --version | head -1)"
 echo "  AWS CLI   : $(aws --version 2>&1)"
 echo "  Azure CLI : $(az --version 2>&1 | head -1)"
+echo "  GCP CLI   : $(gcloud --version 2>&1 | head -1)"
 echo "  kubectl   : $(kubectl version --client 2>&1 | head -1)"
 echo "  Helm      : $(helm version --short)"
 echo "  GitHub CLI: $(gh --version | head -1)"
