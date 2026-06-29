@@ -97,6 +97,10 @@ case "${HYPERVISOR}" in
         ;;
 esac
 
+# ── Strip CRLF from uploaded helper scripts ──────────────────────────────────
+# Windows git (autocrlf=true) checks out .sh files with CRLF; strip before executing.
+sed -i 's/\r$//' /tmp/*.sh 2>/dev/null || true
+
 # ── 4. Branding ───────────────────────────────────────────────────────────────
 section "4 — Server Branding"
 [[ -f /tmp/apply-branding.sh ]] || fail "apply-branding.sh not found in /tmp/ — check Packer file provisioner"
