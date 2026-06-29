@@ -10,7 +10,7 @@
 # =============================================================================
 
 # ── Proxmox ──────────────────────────────────────────────────────────────────
-proxmox_url          = "https://posvmpws01.skint.private:8006/api2/json"
+proxmox_url          = "https://192.168.4.150:8006/api2/json"
 proxmox_node         = "POSVMPWS01"
 proxmox_username     = "root@pam"
 proxmox_storage_pool = "NFS-10GB-PROXMOX-1"
