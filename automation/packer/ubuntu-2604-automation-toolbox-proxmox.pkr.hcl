@@ -205,7 +205,7 @@ source "proxmox-iso" "automation-toolbox" {
   communicator           = "ssh"
   ssh_username           = var.ssh_username
   ssh_password           = var.ssh_password
-  ssh_timeout            = "45m"
+  ssh_timeout            = "90m"
   ssh_handshake_attempts = 50
 }
 
