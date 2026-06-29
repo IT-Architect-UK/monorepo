@@ -111,6 +111,12 @@ variable "proxmox_iso_storage" {
   default = "local"
 }
 
+variable "cidata_iso_file" {
+  type        = string
+  default     = "NFS-10GB-PROXMOX-1:iso/ubuntu-2604-cidata.iso"
+  description = "Path to the pre-built cloud-init cidata ISO on Proxmox storage"
+}
+
 variable "proxmox_vm_id" {
   type    = number
   default = 9002
@@ -180,10 +186,8 @@ source "proxmox-iso" "automation-toolbox" {
   bios = "ovmf"
 
   additional_iso_files {
-    cd_files         = ["./http/user-data", "./http/meta-data"]
-    cd_label         = "cidata"
-    iso_storage_pool = var.proxmox_iso_storage
-    unmount          = true
+    iso_file = var.cidata_iso_file
+    unmount  = true
   }
 
   boot_command = [
