@@ -123,7 +123,7 @@ jobs:
           PKR_VAR_gcp_project_id:        "dummy-project-000000"
           # ── Windows-specific dummy values ──────────────────────────────────
           PKR_VAR_winrm_password: "dummy"
-          PKR_VAR_ubuntu_iso_file: "local:iso/ubuntu-24.04-live-server-amd64.iso"
+          PKR_VAR_ubuntu_iso_file: "local:iso/ubuntu-26.04-live-server-amd64.iso"
           PKR_VAR_semaphore_admin_password: "dummy"
         run: |
           FAIL=0

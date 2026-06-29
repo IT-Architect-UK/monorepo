@@ -1,7 +1,7 @@
 # =============================================================================
-# ubuntu-2404-vmware.pkr.hcl
+# ubuntu-2604-vmware.pkr.hcl
 # =============================================================================
-# Builds an Ubuntu 24.04 LTS template on VMware vSphere using Packer.
+# Builds an Ubuntu 26.04 LTS template on VMware vSphere using Packer.
 #
 # Uses the vsphere-iso builder, which connects to vCenter via its API —
 # no need for SSH access to the ESXi host itself.
@@ -11,12 +11,12 @@
 #   export PKR_VAR_vsphere_password="..."
 #
 # Build:
-#   packer build ubuntu-2404-vmware.pkr.hcl
+#   packer build ubuntu-2604-vmware.pkr.hcl
 #
 # Build for a specific environment:
 #   packer build \
 #     -var-file="environments/homelab.pkrvars.hcl" \
-#     ubuntu-2404-vmware.pkr.hcl
+#     ubuntu-2604-vmware.pkr.hcl
 #
 # Author  : IT-Architect-UK
 # Repo    : https://github.com/IT-Architect-UK/monorepo
@@ -43,7 +43,7 @@ locals {
 }
 
 # ── Source: vSphere ISO Builder ───────────────────────────────────────────────
-source "vsphere-iso" "ubuntu-2404" {
+source "vsphere-iso" "ubuntu-2604" {
   # ── vCenter connection ──────────────────────────────────────────────────
   vcenter_server      = var.vsphere_server
   username            = var.vsphere_username
@@ -116,8 +116,8 @@ source "vsphere-iso" "ubuntu-2404" {
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 build {
-  name    = "ubuntu-2404-vmware"
-  sources = ["source.vsphere-iso.ubuntu-2404"]
+  name    = "ubuntu-2604-vmware"
+  sources = ["source.vsphere-iso.ubuntu-2604"]
 
   # Upload helper scripts used by provision.sh
   provisioner "file" {

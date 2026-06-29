@@ -6,14 +6,14 @@
 #   packer build \
 #     -var-file="environments/homelab.pkrvars.hcl" \
 #     -var-file="environments/ansible-server.pkrvars.hcl" \
-#     ubuntu-2404-ansible-server-proxmox.pkr.hcl
+#     ubuntu-2604-ansible-server-proxmox.pkr.hcl
 #
 # These values OVERRIDE the ones in homelab/production var files.
 # =============================================================================
 
 # Give the image a recognisable name (timestamp is appended automatically)
 image_name        = "ansible-server"
-image_description = "Ubuntu 24.04 Ansible Control Node — built by Packer"
+image_description = "Ubuntu 26.04 Ansible Control Node — built by Packer"
 
 # Ansible control nodes don't need much RAM. 2 GB is comfortable for up to
 # ~50 managed hosts running playbooks in parallel (forks = 10).

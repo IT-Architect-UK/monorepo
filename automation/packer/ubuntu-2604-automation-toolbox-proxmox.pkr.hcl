@@ -1,5 +1,5 @@
 ###############################################################################
-# Packer Template: Ubuntu 24.04 Automation Toolbox — Proxmox
+# Packer Template: Ubuntu 26.04 Automation Toolbox — Proxmox
 #
 # PURPOSE
 #   Builds a Proxmox VM template that is ready to use as a centralised
@@ -21,7 +21,7 @@
 #   packer build \
 #     -var-file="environments/homelab.pkrvars.hcl" \
 #     -var-file="environments/automation-toolbox.pkrvars.hcl" \
-#     ubuntu-2404-automation-toolbox-proxmox.pkr.hcl
+#     ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
 #
 # WHAT HAPPENS NEXT
 #   1. Packer creates a Proxmox template called "automation-toolbox-<timestamp>"
@@ -64,7 +64,7 @@ source "proxmox-iso" "automation-toolbox" {
   vm_id                = var.proxmox_vm_id
   vm_name              = local.image_name
   template_name        = local.image_name
-  template_description = "Ubuntu 24.04 Automation Toolbox | Built ${local.timestamp} by Packer | Tools: Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
+  template_description = "Ubuntu 26.04 Automation Toolbox | Built ${local.timestamp} by Packer | Tools: Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
 
   # ── ISO source ──────────────────────────────────────────────────────────────
   # Pre-uploaded ISO on Proxmox storage (set ubuntu_iso_file in homelab.pkrvars.hcl)

@@ -1,11 +1,11 @@
 # =============================================================================
-# ubuntu-2404-azure.pkr.hcl
+# ubuntu-2604-azure.pkr.hcl
 # =============================================================================
-# Builds a golden Azure Managed Image from the latest Ubuntu 24.04 LTS.
+# Builds a golden Azure Managed Image from the latest Ubuntu 26.04 LTS.
 #
 # How the azure-arm builder works:
 #   1. Packer creates a temporary resource group
-#   2. Launches a build VM from the Canonical Ubuntu 24.04 marketplace image
+#   2. Launches a build VM from the Canonical Ubuntu 26.04 marketplace image
 #   3. Runs provisioners (shell + Ansible) over SSH
 #   4. Runs waagent -deprovision (Azure's equivalent of Sysprep for Linux)
 #   5. Deallocates and generalises the VM
@@ -18,7 +18,7 @@
 #   export PKR_VAR_azure_subscription_id="your-sub-id"
 #
 # Build:
-#   packer build ubuntu-2404-azure.pkr.hcl
+#   packer build ubuntu-2604-azure.pkr.hcl
 #
 # Author  : IT-Architect-UK
 # Repo    : https://github.com/IT-Architect-UK/monorepo
@@ -45,7 +45,7 @@ locals {
 }
 
 # ── Source: Azure ARM Builder ─────────────────────────────────────────────────
-source "azure-arm" "ubuntu-2404" {
+source "azure-arm" "ubuntu-2604" {
   # ── Authentication ────────────────────────────────────────────────────────
   # Packer supports several auth methods (picks up Azure CLI session automatically)
   # For CI/CD, set: ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_TENANT_ID env vars
@@ -55,7 +55,7 @@ source "azure-arm" "ubuntu-2404" {
   vm_size   = var.azure_vm_size
   location  = var.azure_location
 
-  # Base image: latest Ubuntu 24.04 LTS from Canonical
+  # Base image: latest Ubuntu 26.04 LTS from Canonical
   # image_sku is "server" (no Desktop environment)
   image_publisher = "Canonical"
   image_offer     = "ubuntu-24_04-lts"
@@ -79,7 +79,7 @@ source "azure-arm" "ubuntu-2404" {
   azure_tags = {
     BuildDate  = formatdate("YYYY-MM-DD", timestamp())
     BuildTool  = "Packer"
-    OS         = "Ubuntu-24.04-LTS"
+    OS         = "Ubuntu-26.04-LTS"
     Purpose    = "GoldenImage"
     Repository = "https://github.com/IT-Architect-UK/monorepo"
   }
@@ -87,8 +87,8 @@ source "azure-arm" "ubuntu-2404" {
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 build {
-  name    = "ubuntu-2404-azure"
-  sources = ["source.azure-arm.ubuntu-2404"]
+  name    = "ubuntu-2604-azure"
+  sources = ["source.azure-arm.ubuntu-2604"]
 
   # Upload helper scripts used by provision.sh
   provisioner "file" {

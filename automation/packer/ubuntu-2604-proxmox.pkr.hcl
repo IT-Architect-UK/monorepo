@@ -1,10 +1,10 @@
 # =============================================================================
-# ubuntu-2404-proxmox.pkr.hcl
+# ubuntu-2604-proxmox.pkr.hcl
 # =============================================================================
-# Builds an Ubuntu 24.04 LTS template on Proxmox VE using Packer.
+# Builds an Ubuntu 26.04 LTS template on Proxmox VE using Packer.
 #
 # What Packer does here:
-#   1. Downloads the Ubuntu 24.04 ISO (or uses a cached copy)
+#   1. Downloads the Ubuntu 26.04 ISO (or uses a cached copy)
 #   2. Creates a temporary VM on Proxmox using the proxmox-iso builder
 #   3. Boots the VM and feeds a cloud-init autoinstall configuration
 #      via a virtual CD-ROM (this replaces the manual installation wizard)
@@ -23,14 +23,14 @@
 #   export PKR_VAR_proxmox_password="..." ← set credentials via env var
 #
 # Build:
-#   packer build ubuntu-2404-proxmox.pkr.hcl
+#   packer build ubuntu-2604-proxmox.pkr.hcl
 #
 # Build with variable overrides:
 #   packer build \
 #     -var "proxmox_url=https://192.168.1.10:8006/api2/json" \
 #     -var "proxmox_node=pve" \
 #     -var "proxmox_vm_id=9001" \
-#     ubuntu-2404-proxmox.pkr.hcl
+#     ubuntu-2604-proxmox.pkr.hcl
 #
 # Author  : IT-Architect-UK
 # Repo    : https://github.com/IT-Architect-UK/monorepo
@@ -55,7 +55,7 @@ packer {
 # Variables are declared in variables.pkr.hcl — override them here or at build time
 
 locals {
-  # Build a versioned image name: e.g. "ubuntu-2404-golden-20240315"
+  # Build a versioned image name: e.g. "ubuntu-2604-golden-20240315"
   timestamp  = formatdate("YYYYMMDD-HHmm", timestamp())
   image_name = "${var.image_name}-${local.timestamp}"
 }
@@ -63,7 +63,7 @@ locals {
 # ── Source: Proxmox ISO Builder ───────────────────────────────────────────────
 # This builder downloads an ISO, creates a VM, runs the installer automatically,
 # then hands off to provisioners.
-source "proxmox-iso" "ubuntu-2404" {
+source "proxmox-iso" "ubuntu-2604" {
   # ── Proxmox connection ──────────────────────────────────────────────────
   proxmox_url              = var.proxmox_url
   username                 = var.proxmox_username
@@ -99,7 +99,7 @@ source "proxmox-iso" "ubuntu-2404" {
     bridge = "vmbr0"
   }
 
-  # EFI disk enables UEFI boot — recommended for Ubuntu 24.04
+  # EFI disk enables UEFI boot — recommended for Ubuntu 26.04
   efi_config {
     efi_storage_pool  = var.proxmox_storage_pool
     efi_type          = "4m"
@@ -144,8 +144,8 @@ source "proxmox-iso" "ubuntu-2404" {
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 build {
-  name    = "ubuntu-2404-proxmox"
-  sources = ["source.proxmox-iso.ubuntu-2404"]
+  name    = "ubuntu-2604-proxmox"
+  sources = ["source.proxmox-iso.ubuntu-2604"]
 
   # Step 1: Shell provisioner — applies OS updates, tools, hardening
   # Upload helper scripts used by provision.sh

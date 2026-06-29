@@ -3,15 +3,15 @@
 # =============================================================================
 # Variables are defined here and referenced in each platform template.
 # Override any variable at build time:
-#   packer build -var "ssh_username=myuser" ubuntu-2404-aws.pkr.hcl
+#   packer build -var "ssh_username=myuser" ubuntu-2604-aws.pkr.hcl
 # Or create a .pkrvars.hcl file:
-#   packer build -var-file="my.pkrvars.hcl" ubuntu-2404-aws.pkr.hcl
+#   packer build -var-file="my.pkrvars.hcl" ubuntu-2604-aws.pkr.hcl
 # =============================================================================
 
 # ── Image metadata ──────────────────────────────────────────────────────────
 variable "image_name" {
   type        = string
-  default     = "ubuntu-2404-golden"
+  default     = "ubuntu-2604-golden"
   description = "Base name for the output image/template"
 }
 
@@ -23,7 +23,7 @@ variable "image_version" {
 
 variable "image_description" {
   type        = string
-  default     = "Ubuntu 24.04 LTS golden image — built with Packer"
+  default     = "Ubuntu 26.04 LTS golden image — built with Packer"
   description = "Description embedded in the image metadata"
 }
 
@@ -31,19 +31,19 @@ variable "image_description" {
 variable "ubuntu_iso_file" {
   type        = string
   default     = ""
-  description = "Path to a pre-uploaded Ubuntu ISO on Proxmox storage (e.g. NFS-10GB-PROXMOX-1:iso/ubuntu-24.04.2-live-server-amd64.iso). Set this in homelab.pkrvars.hcl and Packer will use the existing ISO instead of downloading one."
+  description = "Path to a pre-uploaded Ubuntu ISO on Proxmox storage (e.g. NFS-10GB-PROXMOX-1:iso/ubuntu-26.04-live-server-amd64.iso). Set this in homelab.pkrvars.hcl and Packer will use the existing ISO instead of downloading one."
 }
 
 variable "ubuntu_iso_url" {
   type        = string
-  default     = "https://releases.ubuntu.com/24.04/ubuntu-24.04.4-live-server-amd64.iso"
+  default     = "https://releases.ubuntu.com/resolute/ubuntu-26.04-live-server-amd64.iso"
   description = "URL to download the Ubuntu ISO (used by Proxmox and VMware builders)"
 }
 
 variable "ubuntu_iso_checksum" {
   type        = string
   default     = "sha256:e907d92eeec9df64163a7e454cbc8d7755e8ddc7ed42f99dbc80c40f1a138433"
-  description = "ISO checksum — always verify from https://releases.ubuntu.com/24.04/SHA256SUMS"
+  description = "ISO checksum — always verify from https://releases.ubuntu.com/26.04/SHA256SUMS"
 }
 
 # ── SSH access for provisioning ─────────────────────────────────────────────

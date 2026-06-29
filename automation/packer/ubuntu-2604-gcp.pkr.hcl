@@ -1,10 +1,10 @@
 # =============================================================================
-# ubuntu-2404-gcp.pkr.hcl
+# ubuntu-2604-gcp.pkr.hcl
 # =============================================================================
-# Builds a golden GCP custom image from the latest Ubuntu 24.04 LTS.
+# Builds a golden GCP custom image from the latest Ubuntu 26.04 LTS.
 #
 # How the googlecompute builder works:
-#   1. Packer finds the latest Ubuntu 24.04 image in the ubuntu-os-cloud project
+#   1. Packer finds the latest Ubuntu 26.04 image in the ubuntu-os-cloud project
 #   2. Creates a temporary GCE VM from it
 #   3. Runs provisioners (shell + Ansible) over SSH
 #   4. Stops the instance
@@ -17,10 +17,10 @@
 #   OR set GOOGLE_APPLICATION_CREDENTIALS to a service account JSON key
 #
 # Build:
-#   packer build ubuntu-2404-gcp.pkr.hcl
+#   packer build ubuntu-2604-gcp.pkr.hcl
 #
 # Build for a specific project:
-#   packer build -var "gcp_project_id=my-project" ubuntu-2404-gcp.pkr.hcl
+#   packer build -var "gcp_project_id=my-project" ubuntu-2604-gcp.pkr.hcl
 #
 # Author  : IT-Architect-UK
 # Repo    : https://github.com/IT-Architect-UK/monorepo
@@ -47,7 +47,7 @@ locals {
 }
 
 # ── Source: Google Compute Builder ───────────────────────────────────────────
-source "googlecompute" "ubuntu-2404" {
+source "googlecompute" "ubuntu-2604" {
   # ── GCP project and zone ──────────────────────────────────────────────────
   project_id = var.gcp_project_id
   zone       = var.gcp_zone
@@ -60,10 +60,10 @@ source "googlecompute" "ubuntu-2404" {
   disk_type = "pd-balanced"
 
   # ── Source image ──────────────────────────────────────────────────────────
-  # Ubuntu 24.04 LTS from Google's managed image family
+  # Ubuntu 26.04 LTS from Google's managed image family
   # Using a family reference always picks the latest image automatically
   # This is the GCP equivalent of using most_recent = true in the AWS builder
-  source_image_family  = "ubuntu-2404-lts-amd64"
+  source_image_family  = "ubuntu-2604-lts-amd64"
   source_image_project_id = ["ubuntu-os-cloud"]    # Canonical's GCP project
 
   # ── SSH ────────────────────────────────────────────────────────────────────
@@ -80,8 +80,8 @@ source "googlecompute" "ubuntu-2404" {
   image_description = "${var.image_description} | Built: ${local.timestamp}"
 
   # Image family: allows "latest image in family" lookups
-  # VMs launched with --image-family=golden-ubuntu-2404 always get the newest image
-  image_family = "golden-ubuntu-2404"
+  # VMs launched with --image-family=golden-ubuntu-2604 always get the newest image
+  image_family = "golden-ubuntu-2604"
 
   image_labels = {
     build-date  = formatdate("YYYY-MM-DD", timestamp())
@@ -99,8 +99,8 @@ source "googlecompute" "ubuntu-2404" {
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 build {
-  name    = "ubuntu-2404-gcp"
-  sources = ["source.googlecompute.ubuntu-2404"]
+  name    = "ubuntu-2604-gcp"
+  sources = ["source.googlecompute.ubuntu-2604"]
 
   # Upload helper scripts used by provision.sh
   provisioner "file" {

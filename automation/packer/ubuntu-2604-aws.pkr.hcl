@@ -1,10 +1,10 @@
 # =============================================================================
-# ubuntu-2404-aws.pkr.hcl
+# ubuntu-2604-aws.pkr.hcl
 # =============================================================================
-# Builds a golden AWS AMI from the latest official Ubuntu 24.04 LTS image.
+# Builds a golden AWS AMI from the latest official Ubuntu 26.04 LTS image.
 #
 # How the amazon-ebs builder works:
-#   1. Packer finds the latest Ubuntu 24.04 AMI published by Canonical
+#   1. Packer finds the latest Ubuntu 26.04 AMI published by Canonical
 #   2. Launches a temporary EC2 instance from it
 #   3. Runs provisioners (shell + Ansible) over SSH
 #   4. Stops the instance and creates an AMI (EBS snapshot)
@@ -18,10 +18,10 @@
 #   aws configure  (or set AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY env vars)
 #
 # Build:
-#   packer build ubuntu-2404-aws.pkr.hcl
+#   packer build ubuntu-2604-aws.pkr.hcl
 #
 # Build for a specific region:
-#   packer build -var "aws_region=us-east-1" ubuntu-2404-aws.pkr.hcl
+#   packer build -var "aws_region=us-east-1" ubuntu-2604-aws.pkr.hcl
 #
 # Copy AMI to multiple regions after build using the ami-copy post-processor.
 #
@@ -50,7 +50,7 @@ locals {
 }
 
 # ── Source: Amazon EBS Builder ────────────────────────────────────────────────
-source "amazon-ebs" "ubuntu-2404" {
+source "amazon-ebs" "ubuntu-2604" {
   # ── Region and instance ───────────────────────────────────────────────────
   region        = var.aws_region
   instance_type = var.aws_instance_type
@@ -66,13 +66,13 @@ source "amazon-ebs" "ubuntu-2404" {
     }
   }
 
-  # ── Find the latest official Ubuntu 24.04 AMI ─────────────────────────────
+  # ── Find the latest official Ubuntu 26.04 AMI ─────────────────────────────
   # Canonical's AWS account ID: 099720109477
-  # We use a filter to always get the newest Ubuntu 24.04 image automatically
+  # We use a filter to always get the newest Ubuntu 26.04 image automatically
   # This means the build is always based on the most recently published base image
   source_ami_filter {
     filters = {
-      name                = "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
+      name                = "ubuntu/images/hvm-ssd-gp3/ubuntu-resolute-26.04-amd64-server-*"
       root-device-type    = "ebs"
       virtualization-type = "hvm"
       state               = "available"
@@ -108,7 +108,7 @@ source "amazon-ebs" "ubuntu-2404" {
     Name        = local.image_name
     BuildDate   = formatdate("YYYY-MM-DD", timestamp())
     BuildTool   = "Packer"
-    OS          = "Ubuntu-24.04-LTS"
+    OS          = "Ubuntu-26.04-LTS"
     Purpose     = "GoldenImage"
     Repository  = "https://github.com/IT-Architect-UK/monorepo"
   }
@@ -122,8 +122,8 @@ source "amazon-ebs" "ubuntu-2404" {
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 build {
-  name    = "ubuntu-2404-aws"
-  sources = ["source.amazon-ebs.ubuntu-2404"]
+  name    = "ubuntu-2604-aws"
+  sources = ["source.amazon-ebs.ubuntu-2604"]
 
   # Upload helper scripts used by provision.sh
   provisioner "file" {

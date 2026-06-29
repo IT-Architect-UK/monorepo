@@ -7,7 +7,7 @@
 #   packer build \
 #     -var-file="environments/homelab.pkrvars.hcl" \
 #     -var-file="environments/automation-toolbox.pkrvars.hcl" \
-#     ubuntu-2404-automation-toolbox-proxmox.pkr.hcl
+#     ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
 #
 # Sensitive values must be set as environment variables:
 #   export PKR_VAR_proxmox_password="your-root-password"
@@ -15,7 +15,7 @@
 # =============================================================================
 
 image_name        = "automation-toolbox"
-image_description = "Ubuntu 24.04 Automation Toolbox — Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
+image_description = "Ubuntu 26.04 Automation Toolbox — Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
 
 # More resources than a standard VM — this host runs Packer builds and
 # Terraform plans which are CPU/memory intensive

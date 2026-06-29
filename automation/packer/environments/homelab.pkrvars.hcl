@@ -21,7 +21,7 @@ proxmox_vm_id        = 106
 # Run on Proxmox host to list available ISOs:
 #   pvesm list NFS-10GB-PROXMOX-1 --content iso
 # Then set the path below (format: storage_pool:iso/filename.iso)
-ubuntu_iso_file = "NFS-10GB-PROXMOX-1:iso/ubuntu-24.04-live-server-amd64.iso"
+ubuntu_iso_file = "NFS-10GB-PROXMOX-1:iso/ubuntu-26.04-live-server-amd64.iso"
 
 # ── VMware (fill in when ready to test VMware) ───────────────────────────────
 vsphere_server     = "192.168.1.20"
@@ -37,7 +37,7 @@ vm_memory_mb = 2048
 vm_disk_gb   = 20
 
 # ── Image name ────────────────────────────────────────────────────────────────
-image_name = "ubuntu-2404-homelab"
+image_name = "ubuntu-2604-homelab"
 
 # ── Windows Server 2025 ───────────────────────────────────────────────────────
 # Pre-upload these ISOs to Proxmox storage before running win2025-proxmox.pkr.hcl

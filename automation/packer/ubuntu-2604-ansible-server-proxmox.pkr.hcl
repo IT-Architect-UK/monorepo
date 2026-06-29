@@ -1,5 +1,5 @@
 ###############################################################################
-# Packer Template: Ubuntu 24.04 Ansible Control Node — Proxmox
+# Packer Template: Ubuntu 26.04 Ansible Control Node — Proxmox
 #
 # PURPOSE
 #   Builds a Proxmox VM template that is ready to use as an Ansible control
@@ -14,11 +14,11 @@
 #   packer init .
 #   packer validate -var-file="environments/homelab.pkrvars.hcl" \
 #                   -var-file="environments/ansible-server.pkrvars.hcl" \
-#                   ubuntu-2404-ansible-server-proxmox.pkr.hcl
+#                   ubuntu-2604-ansible-server-proxmox.pkr.hcl
 #
 #   packer build  -var-file="environments/homelab.pkrvars.hcl" \
 #                 -var-file="environments/ansible-server.pkrvars.hcl" \
-#                 ubuntu-2404-ansible-server-proxmox.pkr.hcl
+#                 ubuntu-2604-ansible-server-proxmox.pkr.hcl
 #
 # WHAT HAPPENS NEXT
 #   1. Packer creates a Proxmox template called "ansible-server-<timestamp>"
@@ -65,7 +65,7 @@ source "proxmox-iso" "ansible-server" {
   vm_id                = var.proxmox_vm_id
   vm_name              = local.image_name
   template_name        = local.image_name
-  template_description = "Ubuntu 24.04 Ansible Control Node | Built ${local.timestamp} by Packer"
+  template_description = "Ubuntu 26.04 Ansible Control Node | Built ${local.timestamp} by Packer"
 
   # ── ISO source ──────────────────────────────────────────────────────────────
   # Pre-uploaded ISO on Proxmox storage (set ubuntu_iso_file in homelab.pkrvars.hcl)
