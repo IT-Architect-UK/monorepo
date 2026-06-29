@@ -260,4 +260,6 @@ build {
 
   post-processor "manifest" {
     output     = "packer-manifest-automation-toolbox.json"
-    strip_p
+    strip_path = true
+  }
+}
