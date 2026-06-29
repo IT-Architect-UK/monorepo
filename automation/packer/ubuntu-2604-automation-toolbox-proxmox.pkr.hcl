@@ -173,9 +173,10 @@ source "proxmox-iso" "automation-toolbox" {
   }
 
   network_adapters {
-    bridge   = "vmbr0"
+    bridge   = "VLANs"
     model    = "virtio"
     firewall = false
+    vlan_tag = "4"
   }
 
   efi_config {
@@ -259,6 +260,4 @@ build {
 
   post-processor "manifest" {
     output     = "packer-manifest-automation-toolbox.json"
-    strip_path = true
-  }
-}
+    strip_p
