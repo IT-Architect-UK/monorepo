@@ -240,6 +240,11 @@ build {
     execute_command = "sudo bash {{.Path}}"
   }
 
+  provisioner "shell" {
+    inline          = ["mkdir -p /opt/toolbox/ansible && chown packer:packer /opt/toolbox/ansible"]
+    execute_command = "sudo bash -c '{{.Path}}'"
+  }
+
   provisioner "file" {
     source      = "../ansible/"
     destination = "/opt/toolbox/ansible/"
@@ -254,12 +259,4 @@ build {
   }
 
   provisioner "shell" {
-    script          = "scripts/cleanup.sh"
-    execute_command = "sudo bash {{.Path}}"
-  }
-
-  post-processor "manifest" {
-    output     = "packer-manifest-automation-toolbox.json"
-    strip_path = true
-  }
-}
+    script          = "scripts/
