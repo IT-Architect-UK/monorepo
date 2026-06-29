@@ -28,6 +28,12 @@ variable "image_description" {
 }
 
 # ── OS settings ─────────────────────────────────────────────────────────────
+variable "ubuntu_iso_file" {
+  type        = string
+  default     = ""
+  description = "Path to a pre-uploaded Ubuntu ISO on Proxmox storage (e.g. NFS-10GB-PROXMOX-1:iso/ubuntu-24.04.2-live-server-amd64.iso). Set this in homelab.pkrvars.hcl and Packer will use the existing ISO instead of downloading one."
+}
+
 variable "ubuntu_iso_url" {
   type        = string
   default     = "https://releases.ubuntu.com/24.04/ubuntu-24.04.4-live-server-amd64.iso"

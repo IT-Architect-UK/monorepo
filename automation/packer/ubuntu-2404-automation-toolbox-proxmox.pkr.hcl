@@ -67,8 +67,8 @@ source "proxmox-iso" "automation-toolbox" {
   template_description = "Ubuntu 24.04 Automation Toolbox | Built ${local.timestamp} by Packer | Tools: Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
 
   # ── ISO source ──────────────────────────────────────────────────────────────
-  iso_url          = var.ubuntu_iso_url
-  iso_checksum     = var.ubuntu_iso_checksum
+  # Pre-uploaded ISO on Proxmox storage (set ubuntu_iso_file in homelab.pkrvars.hcl)
+  iso_file         = var.ubuntu_iso_file
   iso_storage_pool = var.proxmox_iso_storage
   unmount_iso      = true
 
@@ -102,15 +102,18 @@ source "proxmox-iso" "automation-toolbox" {
   bios = "ovmf"
 
   # ── Autoinstall (Ubuntu unattended install) ──────────────────────────────────
-  http_directory    = "http"
-  http_bind_address = "0.0.0.0"
-  http_port_min     = 8802
-  http_port_max     = 8802
+  # user-data and meta-data attached as CD-ROM — no HTTP server required.
+  additional_iso_files {
+    cd_files         = ["./http/user-data", "./http/meta-data"]
+    cd_label         = "cidata"
+    iso_storage_pool = var.proxmox_iso_storage
+    unmount          = true
+  }
 
   boot_command = [
     "<wait3>",
     "c<wait>",
-    "linux /casper/vmlinuz --- autoinstall ds=nocloud-net;seedfrom=http://{{ .HTTPIP }}:{{ .HTTPPort }}/<wait>",
+    "linux /casper/vmlinuz --- autoinstall ds=nocloud<wait>",
     "<enter><wait>",
     "initrd /casper/initrd<wait>",
     "<enter><wait>",

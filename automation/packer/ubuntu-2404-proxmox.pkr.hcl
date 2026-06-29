@@ -76,8 +76,9 @@ source "proxmox-iso" "ubuntu-2404" {
   vm_name = local.image_name
 
   # The ISO to boot from
-  iso_url          = var.ubuntu_iso_url
-  iso_checksum     = var.ubuntu_iso_checksum
+  # Pre-uploaded ISO on Proxmox storage (set ubuntu_iso_file in homelab.pkrvars.hcl)
+  # Run: pvesm list NFS-10GB-PROXMOX-1 --content iso
+  iso_file         = var.ubuntu_iso_file
   iso_storage_pool = var.proxmox_iso_storage
 
   # ── Hardware ─────────────────────────────────────────────────────────────
@@ -107,16 +108,20 @@ source "proxmox-iso" "ubuntu-2404" {
 
   # ── Boot and autoinstall ─────────────────────────────────────────────────
   # Packer serves the http/ directory on a temporary HTTP server.
-  # The boot_command types into the VM's console to tell the Ubuntu installer
-  # to fetch its configuration from that HTTP server automatically.
-  http_directory = "http"
+  # autoinstall user-data and meta-data are attached as a CD-ROM (cidata label)
+  # The Ubuntu installer finds them automatically via cloud-init nocloud datasource.
+  # No HTTP server needed — Packer can run from any machine with Proxmox API access.
+  additional_iso_files {
+    cd_files         = ["./http/user-data", "./http/meta-data"]
+    cd_label         = "cidata"
+    iso_storage_pool = var.proxmox_iso_storage
+    unmount          = true
+  }
 
   boot_wait = "5s"
   boot_command = [
-    "c",                                                            # Enter GRUB command line
-    "linux /casper/vmlinuz ",                                       # Kernel
-    "autoinstall ",                                                 # Enable unattended install
-    "ds='nocloud-net;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/' ",   # cloud-init server URL
+    "c",
+    "linux /casper/vmlinuz autoinstall ds=nocloud ",
     "--- <enter>",
     "initrd /casper/initrd <enter>",
     "boot <enter>"

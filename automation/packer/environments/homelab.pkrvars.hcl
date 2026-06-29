@@ -17,6 +17,12 @@ proxmox_storage_pool = "NFS-10GB-PROXMOX-1"
 proxmox_iso_storage  = "NFS-10GB-PROXMOX-1"
 proxmox_vm_id        = 106
 
+# ── Ubuntu ISO (pre-uploaded to Proxmox) ──────────────────────────────────────
+# Run on Proxmox host to list available ISOs:
+#   pvesm list NFS-10GB-PROXMOX-1 --content iso
+# Then set the path below (format: storage_pool:iso/filename.iso)
+ubuntu_iso_file = "NFS-10GB-PROXMOX-1:iso/ubuntu-24.04-live-server-amd64.iso"
+
 # ── VMware (fill in when ready to test VMware) ───────────────────────────────
 vsphere_server     = "192.168.1.20"
 vsphere_datacenter = "HomeLab"
