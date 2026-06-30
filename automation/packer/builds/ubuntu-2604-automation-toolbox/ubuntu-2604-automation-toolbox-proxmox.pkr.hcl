@@ -116,11 +116,11 @@ build {
 
   provisioner "file" {
     sources = [
-      "${path.root}/../../infrastructure/servers/linux/configuration/apply-branding.sh",
-      "${path.root}/../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
-      "${path.root}/../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
-      "${path.root}/../../infrastructure/networking/firewall/setup-iptables.sh",
-      "${path.root}/../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/setup-iptables.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
     ]
     destination = "/tmp/"
   }
@@ -146,7 +146,7 @@ build {
   }
 
   provisioner "file" {
-    source      = "../../../ansible/"
+    source      = "${path.root}/../../../ansible/"
     destination = "/opt/toolbox/ansible/"
   }
 

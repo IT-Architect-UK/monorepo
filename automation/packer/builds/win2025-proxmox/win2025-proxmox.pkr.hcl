@@ -117,7 +117,7 @@ source "proxmox-iso" "win2025" {
   # The Windows installer automatically searches attached drives for
   # autounattend.xml at the drive root — no boot_command typing needed.
   additional_iso_files {
-    cd_files         = ["../../http/win2025-proxmox/autounattend.xml"]
+    cd_files         = ["${path.root}/../../http/win2025-proxmox/autounattend.xml"]
     iso_storage_pool = var.proxmox_iso_storage
     cd_label = "autounattend"
     unmount  = false

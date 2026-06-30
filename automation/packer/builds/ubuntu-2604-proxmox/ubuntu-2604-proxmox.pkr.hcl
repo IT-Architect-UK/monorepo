@@ -112,7 +112,7 @@ source "proxmox-iso" "ubuntu-2604" {
   # The Ubuntu installer finds them automatically via cloud-init nocloud datasource.
   # No HTTP server needed — Packer can run from any machine with Proxmox API access.
   additional_iso_files {
-    cd_files         = ["../../http/user-data", "../../http/meta-data"]
+    cd_files         = ["${path.root}/../../http/user-data", "${path.root}/../../http/meta-data"]
     cd_label         = "cidata"
     iso_storage_pool = var.proxmox_iso_storage
     unmount          = true
@@ -151,11 +151,11 @@ build {
   # Upload helper scripts used by provision.sh
   provisioner "file" {
     sources = [
-      "${path.root}/../../infrastructure/servers/linux/configuration/apply-branding.sh",
-      "${path.root}/../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
-      "${path.root}/../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
-      "${path.root}/../../infrastructure/networking/firewall/setup-iptables.sh",
-      "${path.root}/../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/setup-iptables.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
     ]
     destination = "/tmp/"
   }
@@ -172,7 +172,7 @@ build {
   # Step 2: Ansible provisioner — applies our server-baseline role
   # Requires Ansible installed on the machine running Packer (not the build VM)
   provisioner "ansible" {
-    playbook_file = "../../../ansible/playbooks/server-baseline.yml"
+    playbook_file   = "${path.root}/../../../ansible/playbooks/server-baseline.yml"
     user          = var.ssh_username
     extra_arguments = [
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",

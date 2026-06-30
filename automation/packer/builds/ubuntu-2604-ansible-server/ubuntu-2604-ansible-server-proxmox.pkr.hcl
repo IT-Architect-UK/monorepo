@@ -106,7 +106,7 @@ source "proxmox-iso" "ansible-server" {
   # ── Autoinstall (Ubuntu unattended install) ──────────────────────────────────
   # user-data and meta-data attached as CD-ROM — no HTTP server required.
   additional_iso_files {
-    cd_files         = ["../../http/user-data", "../../http/meta-data"]
+    cd_files         = ["${path.root}/../../http/user-data", "${path.root}/../../http/meta-data"]
     cd_label         = "cidata"
     iso_storage_pool = var.proxmox_iso_storage
     unmount          = true
@@ -144,11 +144,11 @@ build {
   # Upload helper scripts used by provision.sh
   provisioner "file" {
     sources = [
-      "${path.root}/../../infrastructure/servers/linux/configuration/apply-branding.sh",
-      "${path.root}/../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
-      "${path.root}/../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
-      "${path.root}/../../infrastructure/networking/firewall/setup-iptables.sh",
-      "${path.root}/../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/setup-iptables.sh",
+      "${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
     ]
     destination = "/tmp/"
   }
@@ -182,7 +182,7 @@ build {
   # 4. Copy this repo's Ansible content into the image at /opt/ansible/
   #    Engineers clone once; the control node always ships with the latest playbooks.
   provisioner "file" {
-    source      = "../../../ansible/"      # relative to this .pkr.hcl file
+    source      = "${path.root}/../../../ansible/"      # relative to this .pkr.hcl file
     destination = "/opt/ansible/"
   }
 
@@ -190,7 +190,7 @@ build {
   #    This validates that Ansible works and applies the same baseline as
   #    every other server — we eat our own cooking.
   provisioner "ansible" {
-    playbook_file   = "../../../ansible/playbooks/server-baseline.yml"
+    playbook_file   = "${path.root}/../../../ansible/playbooks/server-baseline.yml"
     extra_arguments = [
       "--connection=local",
       "--limit=localhost",
