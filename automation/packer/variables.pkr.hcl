@@ -289,3 +289,10 @@ variable "semaphore_admin_password" {
   sensitive   = true
   description = "Initial Semaphore UI admin password. Set via PKR_VAR_semaphore_admin_password. Change immediately after first login."
 }
+
+# ── Proxmox cidata ISO (automation-toolbox) ───────────────────────────────────
+variable "cidata_iso_file" {
+  type        = string
+  default     = "NFS-10GB-PROXMOX-1:iso/ubuntu-2604-cidata.iso"
+  description = "Path to the pre-built cloud-init cidata ISO on Proxmox storage (format: pool:iso/filename.iso). Used by the automation-toolbox template. Build with scripts/build-cidata-iso.sh and upload to Proxmox before running the build."
+}

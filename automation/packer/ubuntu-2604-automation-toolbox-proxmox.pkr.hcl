@@ -9,12 +9,20 @@
 #     • Python 3 with boto3, azure-identity, google-cloud
 #     • jq, yq
 #
-# USAGE (single-file — self-contained, no variables.pkr.hcl needed)
-#   packer init ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
+# USAGE
+#   packer init .
+#   export PKR_VAR_proxmox_password="your-root-password"
+#   export PKR_VAR_ssh_password="your-chosen-packer-user-password"
+#   export PKR_VAR_semaphore_admin_password="your-semaphore-password"
 #   packer build \
 #     -var-file="environments/homelab.pkrvars.hcl" \
 #     -var-file="environments/automation-toolbox.pkrvars.hcl" \
 #     ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
+#
+# VARIABLES
+#   All variables are defined in variables.pkr.hcl.
+#   cidata_iso_file is the only variable specific to this template —
+#   it points to the pre-built cloud-init ISO on Proxmox storage.
 ###############################################################################
 
 packer {
@@ -27,110 +35,13 @@ packer {
   }
 }
 
-# ─── Variables (self-contained — not loaded from variables.pkr.hcl) ──────────
-
-variable "image_name" {
-  type    = string
-  default = "POSLXPDEPLOY01"
-}
-
-variable "image_description" {
-  type    = string
-  default = "Ubuntu 26.04 LTS Automation Toolbox — built with Packer"
-}
-
-variable "ubuntu_iso_file" {
-  type    = string
-  default = ""
-}
-
-variable "ubuntu_iso_url" {
-  type    = string
-  default = "https://releases.ubuntu.com/resolute/ubuntu-26.04-live-server-amd64.iso"
-}
-
-variable "ubuntu_iso_checksum" {
-  type    = string
-  default = "sha256:e907d92eeec9df64163a7e454cbc8d7755e8ddc7ed42f99dbc80c40f1a138433"
-}
-
-variable "ssh_username" {
-  type    = string
-  default = "packer"
-}
-
-variable "ssh_password" {
-  type      = string
-  default   = "packer-temp-password"
-  sensitive = true
-}
-
-variable "vm_cpu_count" {
-  type    = number
-  default = 4
-}
-
-variable "vm_memory_mb" {
-  type    = number
-  default = 4096
-}
-
-variable "vm_disk_gb" {
-  type    = number
-  default = 60
-}
-
-variable "proxmox_url" {
-  type    = string
-  default = "https://192.168.1.10:8006/api2/json"
-}
-
-variable "proxmox_username" {
-  type    = string
-  default = "root@pam"
-}
-
-variable "proxmox_password" {
-  type      = string
-  default   = ""
-  sensitive = true
-}
-
-variable "proxmox_node" {
-  type    = string
-  default = "pve"
-}
-
-variable "proxmox_storage_pool" {
-  type    = string
-  default = "local-lvm"
-}
-
-variable "proxmox_iso_storage" {
-  type    = string
-  default = "local"
-}
+# ─── Template-specific variable ───────────────────────────────────────────────
+# All other variables come from variables.pkr.hcl (shared across all templates).
 
 variable "cidata_iso_file" {
   type        = string
   default     = "NFS-10GB-PROXMOX-1:iso/ubuntu-2604-cidata.iso"
-  description = "Path to the pre-built cloud-init cidata ISO on Proxmox storage"
-}
-
-variable "proxmox_vm_id" {
-  type    = number
-  default = 9002
-}
-
-variable "vm_company_name" {
-  type    = string
-  default = "IT-Architect"
-}
-
-variable "semaphore_admin_password" {
-  type      = string
-  default   = ""
-  sensitive = true
+  description = "Path to the pre-built cloud-init cidata ISO on Proxmox storage (format: pool:iso/filename.iso). Build with scripts/build-cidata-iso.sh and upload to Proxmox before running this template."
 }
 
 # ─── Locals ───────────────────────────────────────────────────────────────────
@@ -250,7 +161,6 @@ build {
     destination = "/opt/toolbox/ansible/"
   }
 
-  # Run server-baseline playbook inside the VM (Ansible is installed by provision-automation-toolbox.sh)
   provisioner "shell" {
     inline = [
       "cd /opt/toolbox/ansible && ansible-playbook playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"

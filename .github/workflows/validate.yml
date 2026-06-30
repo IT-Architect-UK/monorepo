@@ -125,6 +125,7 @@ jobs:
           PKR_VAR_winrm_password: "dummy"
           PKR_VAR_ubuntu_iso_file: "local:iso/ubuntu-26.04-live-server-amd64.iso"
           PKR_VAR_semaphore_admin_password: "dummy"
+          PKR_VAR_cidata_iso_file: "local:iso/ubuntu-2604-cidata.iso"
         run: |
           FAIL=0
 
