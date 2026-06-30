@@ -1,0 +1,17 @@
+# =============================================================================
+# build-automation-toolbox.vars.ps1  — LOCAL CREDENTIALS FILE
+# =============================================================================
+# Copy this file to:  build-automation-toolbox.vars.ps1
+# Then fill in your values. That file is gitignored and will never be committed.
+#
+# cp build-automation-toolbox.vars.ps1.example build-automation-toolbox.vars.ps1
+# =============================================================================
+
+# Proxmox root password (or a dedicated API user password)
+$ProxmoxPassword        = "your-proxmox-root-password"
+
+# Temporary SSH user password — used only during the Packer build, then discarded
+$PackerSshPassword      = "your-packer-temp-password"
+
+# Semaphore UI initial admin password — change immediately after first login
+$SemaphoreAdminPassword = "your-semaphore-admin-password"

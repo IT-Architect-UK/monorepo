@@ -3,6 +3,9 @@
 # =============================================================================
 
 # ── Credentials & Secrets (NEVER commit these) ────────────────────────────────
+# Local PowerShell credential files (use *.vars.ps1.example for templates)
+*.vars.ps1
+!*.vars.ps1.example
 .env
 *.env
 !*.env.example        # Keep the example templates
