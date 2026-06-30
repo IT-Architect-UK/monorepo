@@ -259,4 +259,12 @@ build {
   }
 
   provisioner "shell" {
-    script          = "scripts/
+    script          = "scripts/cleanup.sh"
+    execute_command = "sudo bash {{.Path}}"
+  }
+
+  post-processor "manifest" {
+    output     = "packer-manifest-automation-toolbox.json"
+    strip_path = true
+  }
+}
