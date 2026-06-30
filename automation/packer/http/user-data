@@ -11,6 +11,10 @@
 autoinstall:
   version: 1
 
+  # Do not install updates during autoinstall — keeps install fast and deterministic.
+  # provision.sh handles apt-get update/upgrade after Packer connects via SSH.
+  updates: no
+
   # Locale and keyboard
   locale: en_GB.UTF-8
   keyboard:
@@ -45,10 +49,10 @@ autoinstall:
     install-server: true
     allow-pw: true
 
-  # Packages to install during OS install (minimal — provision.sh handles the rest)
+  # Packages to install during OS install (absolute minimum — provision.sh handles the rest)
+  # cloud-init is in the Ubuntu 26.04 base — no need to explicitly install it
   packages:
     - qemu-guest-agent
-    - cloud-init
 
   # Run these commands after installation, before first reboot
   late-commands:

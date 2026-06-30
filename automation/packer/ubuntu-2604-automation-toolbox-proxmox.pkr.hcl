@@ -194,7 +194,7 @@ source "proxmox-iso" "automation-toolbox" {
   boot_command = [
     "<wait3>",
     "c<wait>",
-    "linux /casper/vmlinuz --- autoinstall ds=nocloud<wait>",
+    "linux /casper/vmlinuz nomodeset --- autoinstall ds=nocloud<wait>",
     "<enter><wait>",
     "initrd /casper/initrd<wait>",
     "<enter><wait>",
