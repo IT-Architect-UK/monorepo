@@ -126,7 +126,7 @@ build {
   }
 
   provisioner "shell" {
-    script          = "scripts/provision.sh"
+    script          = "../../scripts/provision.sh"
     execute_command = "sudo bash {{.Path}}"
     pause_before    = "10s"
     environment_vars = [
@@ -136,7 +136,7 @@ build {
   }
 
   provisioner "shell" {
-    script          = "scripts/provision-automation-toolbox.sh"
+    script          = "../../scripts/provision-automation-toolbox.sh"
     execute_command = "sudo bash {{.Path}}"
   }
 
@@ -146,7 +146,7 @@ build {
   }
 
   provisioner "file" {
-    source      = "../ansible/"
+    source      = "../../../ansible/"
     destination = "/opt/toolbox/ansible/"
   }
 
@@ -158,7 +158,7 @@ build {
   }
 
   provisioner "shell" {
-    script          = "scripts/cleanup.sh"
+    script          = "../../scripts/cleanup.sh"
     execute_command = "sudo bash {{.Path}}"
   }
 

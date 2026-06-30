@@ -103,7 +103,7 @@ build {
   }
 
   provisioner "shell" {
-    script          = "scripts/provision.sh"
+    script          = "../../scripts/provision.sh"
     execute_command = "sudo bash '{{ .Path }}'"
     environment_vars = [
       "HYPERVISOR=azure",
@@ -112,7 +112,7 @@ build {
   }
 
   provisioner "ansible" {
-    playbook_file = "../ansible/playbooks/server-baseline.yml"
+    playbook_file = "../../../ansible/playbooks/server-baseline.yml"
     user          = "packer"
     extra_arguments = [
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
@@ -121,7 +121,7 @@ build {
   }
 
   provisioner "shell" {
-    script          = "scripts/cleanup.sh"
+    script          = "../../scripts/cleanup.sh"
     execute_command = "sudo bash '{{ .Path }}'"
   }
 

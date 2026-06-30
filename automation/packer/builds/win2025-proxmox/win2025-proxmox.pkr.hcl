@@ -117,7 +117,7 @@ source "proxmox-iso" "win2025" {
   # The Windows installer automatically searches attached drives for
   # autounattend.xml at the drive root — no boot_command typing needed.
   additional_iso_files {
-    cd_files         = ["./http/win2025-proxmox/autounattend.xml"]
+    cd_files         = ["../../http/win2025-proxmox/autounattend.xml"]
     iso_storage_pool = var.proxmox_iso_storage
     cd_label = "autounattend"
     unmount  = false
@@ -162,13 +162,13 @@ build {
 
   # Step 1: Baseline hardening, RDP, QEMU Guest Agent, OpenSSH
   provisioner "powershell" {
-    script = "scripts/provision-windows.ps1"
+    script = "../../scripts/provision-windows.ps1"
   }
 
   # Step 2: Seal the image — clears logs/temp, removes build account, runs sysprep
   # Sysprep shuts down the VM; Packer detects the disconnect and converts to template
   provisioner "powershell" {
-    script = "scripts/cleanup-windows.ps1"
+    script = "../../scripts/cleanup-windows.ps1"
   }
 
   # Record what was built

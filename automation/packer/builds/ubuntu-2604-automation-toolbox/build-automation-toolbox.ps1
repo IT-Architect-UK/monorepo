@@ -2,6 +2,8 @@
 # build-automation-toolbox.ps1
 # Packer build script for ubuntu-2604-automation-toolbox
 #
+# LOCATION: automation/packer/builds/ubuntu-2604-automation-toolbox/
+#
 # RECOMMENDED SETUP — avoids interactive prompts on every run:
 #   Set these Windows user environment variables once in PowerShell, then
 #   open a new terminal. They persist permanently and are never stored in
@@ -14,7 +16,7 @@
 #   If any variable is missing the script will prompt you to enter it.
 #   Prompted values are used for this session only — not saved anywhere.
 #
-# USAGE (from automation/packer in a PowerShell terminal):
+# USAGE (from this folder in a PowerShell terminal):
 #   .\build-automation-toolbox.ps1           # Full build
 #   .\build-automation-toolbox.ps1 -DryRun   # Validate only, no build
 #   .\build-automation-toolbox.ps1 -Verbose  # Full Packer debug output
@@ -28,12 +30,12 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$PackerDir  = $PSScriptRoot                               # automation/packer/
-$TemplateDir = Join-Path $PackerDir "ubuntu-2604-automation-toolbox"
-$RepoRoot   = Resolve-Path "$PackerDir\..\.."
-$VarFiles   = @(
-    "../environments/homelab.pkrvars.hcl",
-    "../environments/automation-toolbox.pkrvars.hcl"
+# Script lives inside the template dir — all paths are relative to here
+$TemplateDir = $PSScriptRoot
+$RepoRoot    = Resolve-Path "$TemplateDir\..\..\.."
+$VarFiles    = @(
+    "../../environments/homelab.pkrvars.hcl",
+    "../../environments/automation-toolbox.pkrvars.hcl"
 )
 
 function Write-Step($msg) {
@@ -44,15 +46,10 @@ function Write-OK($msg)   { Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))
 function Write-Fail($msg) { Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))] FAIL $msg" -ForegroundColor Red }
 
 function Resolve-RequiredVar {
-    param(
-        [string]$VarName,
-        [string]$Description
-    )
+    param([string]$VarName, [string]$Description)
 
     $value = [System.Environment]::GetEnvironmentVariable($VarName)
-    if (-not [string]::IsNullOrWhiteSpace($value)) {
-        return $value
-    }
+    if (-not [string]::IsNullOrWhiteSpace($value)) { return $value }
 
     Write-Host ""
     Write-Host "  $VarName is not set." -ForegroundColor Yellow
@@ -63,9 +60,7 @@ function Resolve-RequiredVar {
     $secure = Read-Host "  Enter value now (input hidden)" -AsSecureString
     $plain  = [System.Net.NetworkCredential]::new("", $secure).Password
 
-    if ([string]::IsNullOrWhiteSpace($plain)) {
-        throw "No value entered for $VarName — aborting."
-    }
+    if ([string]::IsNullOrWhiteSpace($plain)) { throw "No value entered for $VarName — aborting." }
     return $plain
 }
 
@@ -80,7 +75,6 @@ Write-Host "============================================================" -Foreg
 
 # ── Resolve credentials ───────────────────────────────────────────────────────
 Write-Step "Resolving credentials..."
-
 try {
     $proxmoxPassword        = Resolve-RequiredVar "PKR_VAR_proxmox_password"         "Proxmox root or API user password"
     $packerSshPassword      = Resolve-RequiredVar "PKR_VAR_ssh_password"             "Temporary SSH password used during the Packer build"
@@ -89,7 +83,6 @@ try {
     Write-Fail $_.Exception.Message
     exit 1
 }
-
 Write-OK "Credentials ready"
 
 $env:PKR_VAR_proxmox_password         = $proxmoxPassword
@@ -108,7 +101,7 @@ try {
 # ── Step 2: Packer logging ────────────────────────────────────────────────────
 if ($Verbose) { $env:PACKER_LOG = "1" } else { Remove-Item Env:\PACKER_LOG -ErrorAction SilentlyContinue }
 
-# ── Steps 3–5: Init, Validate, Build ─────────────────────────────────────────
+# ── Steps 3–5: Init, Validate, Build (run from inside the template dir) ───────
 Push-Location $TemplateDir
 try {
     Write-Step "Running packer init..."
@@ -142,8 +135,8 @@ try {
     Write-Fail $_.Exception.Message
     exit 1
 } finally {
-    Remove-Item Env:\PKR_VAR_proxmox_password         -ErrorAction SilentlyContinue
-    Remove-Item Env:\PKR_VAR_ssh_password             -ErrorAction SilentlyContinue
+    Remove-Item Env:\PKR_VAR_proxmox_password          -ErrorAction SilentlyContinue
+    Remove-Item Env:\PKR_VAR_ssh_password              -ErrorAction SilentlyContinue
     Remove-Item Env:\PKR_VAR_semaphore_admin_password  -ErrorAction SilentlyContinue
     Remove-Item Env:\PACKER_LOG                        -ErrorAction SilentlyContinue
     Pop-Location

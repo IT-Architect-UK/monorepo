@@ -112,7 +112,7 @@ source "proxmox-iso" "ubuntu-2604" {
   # The Ubuntu installer finds them automatically via cloud-init nocloud datasource.
   # No HTTP server needed — Packer can run from any machine with Proxmox API access.
   additional_iso_files {
-    cd_files         = ["./http/user-data", "./http/meta-data"]
+    cd_files         = ["../../http/user-data", "../../http/meta-data"]
     cd_label         = "cidata"
     iso_storage_pool = var.proxmox_iso_storage
     unmount          = true
@@ -161,7 +161,7 @@ build {
   }
 
   provisioner "shell" {
-    script          = "scripts/provision.sh"
+    script          = "../../scripts/provision.sh"
     execute_command = "sudo bash '{{ .Path }}'"
     environment_vars = [
       "HYPERVISOR=proxmox",
@@ -172,7 +172,7 @@ build {
   # Step 2: Ansible provisioner — applies our server-baseline role
   # Requires Ansible installed on the machine running Packer (not the build VM)
   provisioner "ansible" {
-    playbook_file = "../ansible/playbooks/server-baseline.yml"
+    playbook_file = "../../../ansible/playbooks/server-baseline.yml"
     user          = var.ssh_username
     extra_arguments = [
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
@@ -184,7 +184,7 @@ build {
   # Step 3: Cleanup — seal the image (remove machine-unique data)
   # This MUST be the last provisioner
   provisioner "shell" {
-    script          = "scripts/cleanup.sh"
+    script          = "../../scripts/cleanup.sh"
     execute_command = "sudo bash '{{ .Path }}'"
   }
 
