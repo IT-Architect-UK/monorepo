@@ -30,7 +30,7 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = $PSScriptRoot
 $RepoRoot  = Resolve-Path "$ScriptDir\..\.."
-$Only      = "proxmox-iso.automation-toolbox"
+$Files     = @("variables.pkr.hcl", "ubuntu-2604-automation-toolbox-proxmox.pkr.hcl")
 $VarFiles  = @(
     "environments/homelab.pkrvars.hcl",
     "environments/automation-toolbox.pkrvars.hcl"
@@ -113,13 +113,13 @@ if ($Verbose) { $env:PACKER_LOG = "1" } else { Remove-Item Env:\PACKER_LOG -Erro
 Push-Location $ScriptDir
 try {
     Write-Step "Running packer init..."
-    packer init .
+    packer init @Files
     if ($LASTEXITCODE -ne 0) { throw "packer init failed" }
     Write-OK "Plugins ready"
 
     Write-Step "Validating template..."
     $varArgs = $VarFiles | ForEach-Object { "-var-file=$_" }
-    packer validate -only="$Only" @varArgs .
+    packer validate @varArgs @Files
     if ($LASTEXITCODE -ne 0) { throw "packer validate failed" }
     Write-OK "Template valid"
 
@@ -131,7 +131,7 @@ try {
         Write-Host "  Tip: watch progress in the Proxmox console." -ForegroundColor DarkGray
         Write-Host ""
 
-        packer build -only="$Only" @varArgs .
+        packer build @varArgs @Files
         if ($LASTEXITCODE -ne 0) { throw "packer build failed" }
 
         Write-OK "Build complete — template is ready in Proxmox."
