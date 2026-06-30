@@ -20,9 +20,7 @@
 #     ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
 #
 # VARIABLES
-#   All variables are defined in variables.pkr.hcl.
-#   cidata_iso_file is the only variable specific to this template —
-#   it points to the pre-built cloud-init ISO on Proxmox storage.
+#   All variables are defined in variables.pkr.hcl (including cidata_iso_file).
 ###############################################################################
 
 packer {
@@ -33,15 +31,6 @@ packer {
       source  = "github.com/hashicorp/proxmox"
     }
   }
-}
-
-# ─── Template-specific variable ───────────────────────────────────────────────
-# All other variables come from variables.pkr.hcl (shared across all templates).
-
-variable "cidata_iso_file" {
-  type        = string
-  default     = "NFS-10GB-PROXMOX-1:iso/ubuntu-2604-cidata.iso"
-  description = "Path to the pre-built cloud-init cidata ISO on Proxmox storage (format: pool:iso/filename.iso). Build with scripts/build-cidata-iso.sh and upload to Proxmox before running this template."
 }
 
 # ─── Locals ───────────────────────────────────────────────────────────────────
