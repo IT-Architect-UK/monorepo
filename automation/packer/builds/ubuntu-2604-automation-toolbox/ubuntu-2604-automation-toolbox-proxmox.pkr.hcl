@@ -116,17 +116,17 @@ build {
 
   provisioner "file" {
     sources = [
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/setup-iptables.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh"),
+      abspath("${path.root}/../../../../infrastructure/networking/firewall/setup-iptables.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh"),
     ]
     destination = "/tmp/"
   }
 
   provisioner "shell" {
-    script          = "../../scripts/provision.sh"
+    script          = abspath("${path.root}/../../scripts/provision.sh")
     execute_command = "sudo bash {{.Path}}"
     pause_before    = "10s"
     environment_vars = [
@@ -136,7 +136,7 @@ build {
   }
 
   provisioner "shell" {
-    script          = "../../scripts/provision-automation-toolbox.sh"
+    script          = abspath("${path.root}/../../scripts/provision-automation-toolbox.sh")
     execute_command = "sudo bash {{.Path}}"
   }
 
@@ -146,7 +146,7 @@ build {
   }
 
   provisioner "file" {
-    source      = "${path.root}/../../../ansible/"
+    source      = abspath("${path.root}/../../../ansible/")
     destination = "/opt/toolbox/ansible/"
   }
 
@@ -158,7 +158,7 @@ build {
   }
 
   provisioner "shell" {
-    script          = "../../scripts/cleanup.sh"
+    script          = abspath("${path.root}/../../scripts/cleanup.sh")
     execute_command = "sudo bash {{.Path}}"
   }
 

@@ -112,7 +112,7 @@ source "proxmox-iso" "ubuntu-2604" {
   # The Ubuntu installer finds them automatically via cloud-init nocloud datasource.
   # No HTTP server needed — Packer can run from any machine with Proxmox API access.
   additional_iso_files {
-    cd_files         = ["${path.root}/../../http/user-data", "${path.root}/../../http/meta-data"]
+    cd_files         = [abspath("${path.root}/../../http/user-data"), abspath("${path.root}/../../http/meta-data")]
     cd_label         = "cidata"
     iso_storage_pool = var.proxmox_iso_storage
     unmount          = true
@@ -151,17 +151,17 @@ build {
   # Upload helper scripts used by provision.sh
   provisioner "file" {
     sources = [
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/setup-iptables.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh"),
+      abspath("${path.root}/../../../../infrastructure/networking/firewall/setup-iptables.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh"),
     ]
     destination = "/tmp/"
   }
 
   provisioner "shell" {
-    script          = "../../scripts/provision.sh"
+    script          = abspath("${path.root}/../../scripts/provision.sh")
     execute_command = "sudo bash '{{ .Path }}'"
     environment_vars = [
       "HYPERVISOR=proxmox",
@@ -172,7 +172,7 @@ build {
   # Step 2: Ansible provisioner — applies our server-baseline role
   # Requires Ansible installed on the machine running Packer (not the build VM)
   provisioner "ansible" {
-    playbook_file   = "${path.root}/../../../ansible/playbooks/server-baseline.yml"
+    playbook_file   = abspath("${path.root}/../../../ansible/playbooks/server-baseline.yml")
     user          = var.ssh_username
     extra_arguments = [
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
@@ -184,7 +184,7 @@ build {
   # Step 3: Cleanup — seal the image (remove machine-unique data)
   # This MUST be the last provisioner
   provisioner "shell" {
-    script          = "../../scripts/cleanup.sh"
+    script          = abspath("${path.root}/../../scripts/cleanup.sh")
     execute_command = "sudo bash '{{ .Path }}'"
   }
 

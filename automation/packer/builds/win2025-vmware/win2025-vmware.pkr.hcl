@@ -99,7 +99,7 @@ source "vsphere-iso" "win2025" {
   # ── autounattend.xml delivery via virtual CD ──────────────────────────────
   # Packer creates a virtual CD-ROM from the listed files.
   # Windows installer automatically searches attached drives for autounattend.xml.
-  cd_files = ["../../http/win2025-vmware/autounattend.xml"]
+  cd_files = [abspath("${path.root}/../../http/win2025-vmware/autounattend.xml")]
   cd_label = "autounattend"
 
   # ── Boot settings ────────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ build {
   #   b) Let vCenter install via VMware Tools upgrade policy
   #   c) Download from https://packages.vmware.com/tools/releases/latest/
   provisioner "powershell" {
-    script = "../../scripts/provision-windows.ps1"
+    script = abspath("${path.root}/../../scripts/provision-windows.ps1")
   }
 
   # Step 2: Install VMware Tools (downloaded from VMware's public CDN)
@@ -151,7 +151,7 @@ build {
 
   # Step 3: Seal — clear logs/temp, remove build account, sysprep + shutdown
   provisioner "powershell" {
-    script = "../../scripts/cleanup-windows.ps1"
+    script = abspath("${path.root}/../../scripts/cleanup-windows.ps1")
   }
 
   post-processor "manifest" {

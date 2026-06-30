@@ -106,7 +106,7 @@ source "proxmox-iso" "ansible-server" {
   # ── Autoinstall (Ubuntu unattended install) ──────────────────────────────────
   # user-data and meta-data attached as CD-ROM — no HTTP server required.
   additional_iso_files {
-    cd_files         = ["${path.root}/../../http/user-data", "${path.root}/../../http/meta-data"]
+    cd_files         = [abspath("${path.root}/../../http/user-data"), abspath("${path.root}/../../http/meta-data")]
     cd_label         = "cidata"
     iso_storage_pool = var.proxmox_iso_storage
     unmount          = true
@@ -144,17 +144,17 @@ build {
   # Upload helper scripts used by provision.sh
   provisioner "file" {
     sources = [
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/setup-iptables.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh"),
+      abspath("${path.root}/../../../../infrastructure/networking/firewall/setup-iptables.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh"),
     ]
     destination = "/tmp/"
   }
 
   provisioner "shell" {
-    script          = "../../scripts/provision.sh"
+    script          = abspath("${path.root}/../../scripts/provision.sh")
     execute_command = "sudo bash {{.Path}}"
     pause_before    = "10s"
     environment_vars = [
@@ -165,14 +165,14 @@ build {
 
   # 2. Install Ansible + dependencies (Ansible-server–specific)
   provisioner "shell" {
-    script          = "../../scripts/provision-ansible-server.sh"
+    script          = abspath("${path.root}/../../scripts/provision-ansible-server.sh")
     execute_command = "sudo bash {{.Path}}"
   }
 
   # 3. Install Semaphore UI — lightweight web front-end for Ansible
   #    Access on port 80 (nginx reverse proxy → Semaphore on 127.0.0.1:3000)
   provisioner "shell" {
-    script          = "../../scripts/provision-semaphore.sh"
+    script          = abspath("${path.root}/../../scripts/provision-semaphore.sh")
     execute_command = "sudo bash {{.Path}}"
     environment_vars = [
       "SEMAPHORE_ADMIN_PASS=${var.semaphore_admin_password}",
@@ -182,7 +182,7 @@ build {
   # 4. Copy this repo's Ansible content into the image at /opt/ansible/
   #    Engineers clone once; the control node always ships with the latest playbooks.
   provisioner "file" {
-    source      = "${path.root}/../../../ansible/"      # relative to this .pkr.hcl file
+    source      = abspath("${path.root}/../../../ansible/")      # relative to this .pkr.hcl file
     destination = "/opt/ansible/"
   }
 
@@ -190,7 +190,7 @@ build {
   #    This validates that Ansible works and applies the same baseline as
   #    every other server — we eat our own cooking.
   provisioner "ansible" {
-    playbook_file   = "${path.root}/../../../ansible/playbooks/server-baseline.yml"
+    playbook_file   = abspath("${path.root}/../../../ansible/playbooks/server-baseline.yml")
     extra_arguments = [
       "--connection=local",
       "--limit=localhost",
@@ -200,7 +200,7 @@ build {
 
   # 6. Image sealing — removes SSH host keys, cloud-init cache, machine-id etc.
   provisioner "shell" {
-    script          = "../../scripts/cleanup.sh"
+    script          = abspath("${path.root}/../../scripts/cleanup.sh")
     execute_command = "sudo bash {{.Path}}"
   }
 

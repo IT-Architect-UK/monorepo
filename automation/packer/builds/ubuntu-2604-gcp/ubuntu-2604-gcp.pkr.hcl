@@ -105,17 +105,17 @@ build {
   # Upload helper scripts used by provision.sh
   provisioner "file" {
     sources = [
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/setup-iptables.sh",
-      "${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh",
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/disable-cloud-init.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/disable-ipv6.sh"),
+      abspath("${path.root}/../../../../infrastructure/networking/firewall/setup-iptables.sh"),
+      abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/sync-monorepo.sh"),
     ]
     destination = "/tmp/"
   }
 
   provisioner "shell" {
-    script          = "../../scripts/provision.sh"
+    script          = abspath("${path.root}/../../scripts/provision.sh")
     execute_command = "sudo bash '{{ .Path }}'"
     environment_vars = [
       "HYPERVISOR=gcp",
@@ -124,7 +124,7 @@ build {
   }
 
   provisioner "ansible" {
-    playbook_file   = "${path.root}/../../../ansible/playbooks/server-baseline.yml"
+    playbook_file   = abspath("${path.root}/../../../ansible/playbooks/server-baseline.yml")
     user          = "packer"
     extra_arguments = [
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
@@ -133,7 +133,7 @@ build {
   }
 
   provisioner "shell" {
-    script          = "../../scripts/cleanup.sh"
+    script          = abspath("${path.root}/../../scripts/cleanup.sh")
     execute_command = "sudo bash '{{ .Path }}'"
   }
 
