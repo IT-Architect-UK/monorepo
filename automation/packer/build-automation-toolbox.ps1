@@ -1,6 +1,6 @@
 # =============================================================================
 # build-automation-toolbox.ps1
-# Packer build script for ubuntu-2604-automation-toolbox-proxmox
+# Packer build script for ubuntu-2604-automation-toolbox
 #
 # RECOMMENDED SETUP — avoids interactive prompts on every run:
 #   Set these Windows user environment variables once in PowerShell, then
@@ -28,12 +28,12 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$ScriptDir = $PSScriptRoot
-$RepoRoot  = Resolve-Path "$ScriptDir\..\.."
-$Files     = @("variables.pkr.hcl", "ubuntu-2604-automation-toolbox-proxmox.pkr.hcl")
-$VarFiles  = @(
-    "environments/homelab.pkrvars.hcl",
-    "environments/automation-toolbox.pkrvars.hcl"
+$PackerDir  = $PSScriptRoot                               # automation/packer/
+$TemplateDir = Join-Path $PackerDir "ubuntu-2604-automation-toolbox"
+$RepoRoot   = Resolve-Path "$PackerDir\..\.."
+$VarFiles   = @(
+    "../environments/homelab.pkrvars.hcl",
+    "../environments/automation-toolbox.pkrvars.hcl"
 )
 
 function Write-Step($msg) {
@@ -78,7 +78,7 @@ if ($Verbose) { Write-Host "  MODE: Verbose Packer logging"   -ForegroundColor M
 Write-Host "  Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 
-# ── Resolve credentials (env var or interactive prompt) ───────────────────────
+# ── Resolve credentials ───────────────────────────────────────────────────────
 Write-Step "Resolving credentials..."
 
 try {
@@ -92,7 +92,6 @@ try {
 
 Write-OK "Credentials ready"
 
-# Export to session env vars so Packer can read them (PKR_VAR_* convention)
 $env:PKR_VAR_proxmox_password         = $proxmoxPassword
 $env:PKR_VAR_ssh_password             = $packerSshPassword
 $env:PKR_VAR_semaphore_admin_password = $semaphoreAdminPassword
@@ -110,16 +109,16 @@ try {
 if ($Verbose) { $env:PACKER_LOG = "1" } else { Remove-Item Env:\PACKER_LOG -ErrorAction SilentlyContinue }
 
 # ── Steps 3–5: Init, Validate, Build ─────────────────────────────────────────
-Push-Location $ScriptDir
+Push-Location $TemplateDir
 try {
     Write-Step "Running packer init..."
-    packer init @Files
+    packer init .
     if ($LASTEXITCODE -ne 0) { throw "packer init failed" }
     Write-OK "Plugins ready"
 
     Write-Step "Validating template..."
     $varArgs = $VarFiles | ForEach-Object { "-var-file=$_" }
-    packer validate @varArgs @Files
+    packer validate @varArgs .
     if ($LASTEXITCODE -ne 0) { throw "packer validate failed" }
     Write-OK "Template valid"
 
@@ -131,19 +130,18 @@ try {
         Write-Host "  Tip: watch progress in the Proxmox console." -ForegroundColor DarkGray
         Write-Host ""
 
-        packer build @varArgs @Files
+        packer build @varArgs .
         if ($LASTEXITCODE -ne 0) { throw "packer build failed" }
 
         Write-OK "Build complete — template is ready in Proxmox."
         if (Test-Path "packer-manifest-automation-toolbox.json") {
-            Write-Host "  Manifest: $ScriptDir\packer-manifest-automation-toolbox.json" -ForegroundColor DarkGray
+            Write-Host "  Manifest: $TemplateDir\packer-manifest-automation-toolbox.json" -ForegroundColor DarkGray
         }
     }
 } catch {
     Write-Fail $_.Exception.Message
     exit 1
 } finally {
-    # Always scrub credentials from the session on exit
     Remove-Item Env:\PKR_VAR_proxmox_password         -ErrorAction SilentlyContinue
     Remove-Item Env:\PKR_VAR_ssh_password             -ErrorAction SilentlyContinue
     Remove-Item Env:\PKR_VAR_semaphore_admin_password  -ErrorAction SilentlyContinue

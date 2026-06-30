@@ -4,10 +4,10 @@
 # Runs three checks automatically:
 #   1. bash -n  — Shell script syntax (all .sh files)
 #   2. ansible-playbook --syntax-check  — Ansible playbooks
-#   3. packer validate  — Packer HCL templates (Ubuntu + Windows)
+#   3. packer validate  — Each template in its own subdirectory
 #
-# These checks catch typos and syntax errors before they reach your lab.
-# No credentials are needed — syntax checks don't connect to anything.
+# Templates live in automation/packer/<template-name>/ — one directory per
+# template — so Packer reads only that template's files. No hide/show hacks.
 # =============================================================================
 
 name: Validate
@@ -81,7 +81,7 @@ jobs:
           exit $FAIL
 
   # ---------------------------------------------------------------------------
-  # Job 3: Packer validate
+  # Job 3: Packer validate — one subdirectory per template
   # ---------------------------------------------------------------------------
   packer-validate:
     name: Packer template validation
@@ -96,76 +96,61 @@ jobs:
           version: "latest"
 
       - name: Validate all Packer templates
-        # Strategy: validate each template in isolation by temporarily renaming
-        # all OTHER templates (.pkr.hcl → .pkr.hcl.skip) so Packer sees only
-        # one template at a time when it runs "packer validate .".
-        #
-        # This avoids "Duplicate local definition" errors: every template
-        # declares the same locals { timestamp, image_name } which Packer would
-        # flag as duplicates if it merged all files in the directory at once.
-        #
-        # variables.pkr.hcl is never renamed — it stays visible to all builds.
         working-directory: automation/packer
         env:
-          # ── Proxmox / VMware / cloud dummy values ──────────────────────────
-          # Plugins reject empty-string passwords at validate time.
-          PKR_VAR_proxmox_url:      "https://192.168.1.1:8006/api2/json"
-          PKR_VAR_proxmox_node:     "pve"
-          PKR_VAR_proxmox_username: "root@pam"
-          PKR_VAR_proxmox_password: "dummy"
-          PKR_VAR_vsphere_server:   "vcenter.example.com"
-          PKR_VAR_vsphere_username: "administrator@vsphere.local"
-          PKR_VAR_vsphere_password: "dummy"
-          PKR_VAR_azure_subscription_id: "00000000-0000-0000-0000-000000000000"
-          PKR_VAR_azure_client_id:       "00000000-0000-0000-0000-000000000000"
-          PKR_VAR_azure_client_secret:   "dummy"
-          PKR_VAR_azure_tenant_id:       "00000000-0000-0000-0000-000000000000"
-          PKR_VAR_gcp_project_id:        "dummy-project-000000"
-          # ── Windows-specific dummy values ──────────────────────────────────
-          PKR_VAR_winrm_password: "dummy"
-          PKR_VAR_ubuntu_iso_file: "local:iso/ubuntu-26.04-live-server-amd64.iso"
-          PKR_VAR_semaphore_admin_password: "dummy"
-          PKR_VAR_cidata_iso_file: "local:iso/ubuntu-2604-cidata.iso"
+          PKR_VAR_proxmox_url:               "https://192.168.1.1:8006/api2/json"
+          PKR_VAR_proxmox_node:              "pve"
+          PKR_VAR_proxmox_username:          "root@pam"
+          PKR_VAR_proxmox_password:          "dummy"
+          PKR_VAR_vsphere_server:            "vcenter.example.com"
+          PKR_VAR_vsphere_username:          "administrator@vsphere.local"
+          PKR_VAR_vsphere_password:          "dummy"
+          PKR_VAR_azure_subscription_id:     "00000000-0000-0000-0000-000000000000"
+          PKR_VAR_gcp_project_id:            "dummy-project-000000"
+          PKR_VAR_winrm_password:            "dummy"
+          PKR_VAR_ubuntu_iso_file:           "local:iso/ubuntu-26.04-live-server-amd64.iso"
+          PKR_VAR_semaphore_admin_password:  "dummy"
+          PKR_VAR_cidata_iso_file:           "local:iso/ubuntu-2604-cidata.iso"
+          PKR_VAR_ssh_password:              "dummy"
         run: |
           FAIL=0
 
-          # Collect all templates to validate
-          # ubuntu-*.pkr.hcl  — Linux templates (proxmox, vmware, aws, azure, gcp)
-          # win2025-*.pkr.hcl — Windows Server 2025 templates
-          shopt -s nullglob
-          ALL_TEMPLATES=( ubuntu-*.pkr.hcl win2025-*.pkr.hcl )
-          shopt -u nullglob
+          # Each template lives in its own subdirectory
+          TEMPLATE_DIRS=(
+            ubuntu-2604-automation-toolbox
+            ubuntu-2604-ansible-server
+            ubuntu-2604-proxmox
+            ubuntu-2604-vmware
+            ubuntu-2604-aws
+            ubuntu-2604-azure
+            ubuntu-2604-gcp
+            win2025-proxmox
+            win2025-vmware
+          )
 
-          for template in "${ALL_TEMPLATES[@]}"; do
+          for dir in "${TEMPLATE_DIRS[@]}"; do
             echo ""
-            echo "── Validating $template ──"
+            echo "── Validating $dir ──"
 
-            # Hide every other template so Packer sees only this one + variables.pkr.hcl
-            for other in "${ALL_TEMPLATES[@]}"; do
-              [ "$other" != "$template" ] && mv "$other" "$other.skip"
-            done
+            pushd "$dir" > /dev/null
 
-            # packer init downloads the plugin(s) declared in this template
             if ! packer init . 2>/tmp/packer_err; then
-              echo "  ✘  $template (init failed)"
+              echo "  ✘  $dir (init failed)"
               cat /tmp/packer_err
               FAIL=$((FAIL + 1))
             else
               if packer validate \
-                   -var-file="environments/homelab.pkrvars.hcl" \
+                   -var-file="../environments/homelab.pkrvars.hcl" \
                    . 2>/tmp/packer_err; then
-                echo "  ✔  $template"
+                echo "  ✔  $dir"
               else
-                echo "  ✘  $template"
+                echo "  ✘  $dir"
                 cat /tmp/packer_err
                 FAIL=$((FAIL + 1))
               fi
             fi
 
-            # Restore all hidden templates before the next iteration
-            for bak in *.pkr.hcl.skip; do
-              [ -f "$bak" ] && mv "$bak" "${bak%.skip}"
-            done
+            popd > /dev/null
           done
 
           echo ""
