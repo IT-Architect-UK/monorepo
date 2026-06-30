@@ -249,24 +249,26 @@ packer build \
 
 ## Running the Build (Windows PowerShell)
 
-A PowerShell build script is included for running Packer on Windows without typing credentials each time.
+A PowerShell build script is included — `build-automation-toolbox.ps1` — that handles git sync, validation, and the Packer build with timestamped console output.
 
-### 1. Create your local credentials file
+### 1. Set credentials as Windows environment variables (one-time setup)
 
-```powershell
-cd D:\GitHub\monorepo\automation\packer
-Copy-Item build-automation-toolbox.vars.ps1.example build-automation-toolbox.vars.ps1
-```
-
-Open `build-automation-toolbox.vars.ps1` and fill in your three passwords:
+Credentials are stored as persistent Windows user environment variables — they survive reboots, never touch a file, and are never committed to GitHub. Run these once in PowerShell:
 
 ```powershell
-$ProxmoxPassword        = "your-proxmox-root-password"
-$PackerSshPassword      = "your-packer-temp-password"
-$SemaphoreAdminPassword = "your-semaphore-admin-password"
+[System.Environment]::SetEnvironmentVariable("PKR_VAR_proxmox_password",         "your-proxmox-root-password",  "User")
+[System.Environment]::SetEnvironmentVariable("PKR_VAR_ssh_password",             "your-packer-temp-password",   "User")
+[System.Environment]::SetEnvironmentVariable("PKR_VAR_semaphore_admin_password", "your-semaphore-admin-password","User")
 ```
 
-This file is listed in `.gitignore` — it will never be committed to GitHub.
+Then **open a new PowerShell terminal** for the variables to take effect.
+
+To verify they are set:
+```powershell
+[System.Environment]::GetEnvironmentVariable("PKR_VAR_proxmox_password", "User")
+```
+
+To update a value later, simply run the `SetEnvironmentVariable` command again with the new value.
 
 ### 2. Allow PowerShell scripts to run (one-time)
 
@@ -277,7 +279,9 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ### 3. Run the script
 
 ```powershell
-# Validate only — no build, confirms template and credentials are correct
+cd D:\GitHub\monorepo\automation\packer
+
+# Validate only — confirms template and credentials are correct, no build
 .\build-automation-toolbox.ps1 -DryRun
 
 # Full build (~20-40 minutes)
@@ -287,7 +291,14 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 .\build-automation-toolbox.ps1 -Verbose
 ```
 
-The script automatically runs `git pull` before building, sets credentials as session-only environment variables (never written to disk), and clears them on exit. Watch build progress in the Proxmox console.
+The script will:
+1. Check all required environment variables are set — exits with clear instructions if any are missing
+2. Run `git pull` to sync the latest changes from GitHub
+3. Run `packer init` to download plugins if needed
+4. Validate the template
+5. Run the full build (unless `-DryRun`)
+
+Watch progress in the Proxmox console while the build runs. The template will appear in Proxmox automatically when complete.
 
 ---
 

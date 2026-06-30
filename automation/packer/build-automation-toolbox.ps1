@@ -2,13 +2,16 @@
 # build-automation-toolbox.ps1
 # Packer build script for ubuntu-2604-automation-toolbox-proxmox
 #
-# CREDENTIALS
-#   Copy build-automation-toolbox.vars.ps1.example to
-#       build-automation-toolbox.vars.ps1
-#   and fill in your passwords. That file is gitignored — it never leaves
-#   your machine.
+# PREREQUISITES
+#   Set these Windows user environment variables once before running.
+#   They persist across sessions and are never stored in any file.
+#   See README.md — "Running the Build" for full instructions.
 #
-# USAGE (from the automation/packer directory in a PowerShell terminal):
+#     [System.Environment]::SetEnvironmentVariable("PKR_VAR_proxmox_password",        "your-value", "User")
+#     [System.Environment]::SetEnvironmentVariable("PKR_VAR_ssh_password",            "your-value", "User")
+#     [System.Environment]::SetEnvironmentVariable("PKR_VAR_semaphore_admin_password","your-value", "User")
+#
+# USAGE (from automation/packer in a PowerShell terminal):
 #   .\build-automation-toolbox.ps1           # Full build
 #   .\build-automation-toolbox.ps1 -DryRun   # Validate only, no build
 #   .\build-automation-toolbox.ps1 -Verbose  # Full Packer debug output
@@ -22,11 +25,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$ScriptDir  = $PSScriptRoot
-$RepoRoot   = Resolve-Path "$ScriptDir\..\.."
-$VarsFile   = "$ScriptDir\build-automation-toolbox.vars.ps1"
-$Template   = "ubuntu-2604-automation-toolbox-proxmox.pkr.hcl"
-$VarFiles   = @(
+$ScriptDir = $PSScriptRoot
+$RepoRoot  = Resolve-Path "$ScriptDir\..\.."
+$Template  = "ubuntu-2604-automation-toolbox-proxmox.pkr.hcl"
+$VarFiles  = @(
     "environments/homelab.pkrvars.hcl",
     "environments/automation-toolbox.pkrvars.hcl"
 )
@@ -47,18 +49,42 @@ if ($Verbose) { Write-Host "  MODE: Verbose Packer logging"   -ForegroundColor M
 Write-Host "  Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 
-# ── Load credentials ──────────────────────────────────────────────────────────
-Write-Step "Loading credentials from vars file..."
-if (-not (Test-Path $VarsFile)) {
-    Write-Fail "Credentials file not found: $VarsFile"
+# ── Check required environment variables ─────────────────────────────────────
+Write-Step "Checking required environment variables..."
+
+$required = @{
+    "PKR_VAR_proxmox_password"         = "Your Proxmox root (or API user) password"
+    "PKR_VAR_ssh_password"             = "Temporary SSH password used during the Packer build"
+    "PKR_VAR_semaphore_admin_password" = "Semaphore UI initial admin password"
+}
+
+$missing = @()
+foreach ($var in $required.Keys) {
+    if (-not (Test-Path "Env:\$var") -or [string]::IsNullOrWhiteSpace((Get-Item "Env:\$var").Value)) {
+        $missing += $var
+    }
+}
+
+if ($missing.Count -gt 0) {
+    Write-Fail "The following environment variables are not set:`n"
+    foreach ($var in $missing) {
+        Write-Host "  $var" -ForegroundColor Red
+        Write-Host "    $($required[$var])" -ForegroundColor DarkGray
+    }
     Write-Host ""
-    Write-Host "  Create it by copying the example:" -ForegroundColor Yellow
-    Write-Host "  Copy-Item build-automation-toolbox.vars.ps1.example build-automation-toolbox.vars.ps1" -ForegroundColor Yellow
-    Write-Host "  Then fill in your passwords." -ForegroundColor Yellow
+    Write-Host "  Set them as persistent Windows user variables (run once in PowerShell):" -ForegroundColor Yellow
+    Write-Host ""
+    foreach ($var in $missing) {
+        Write-Host "  [System.Environment]::SetEnvironmentVariable(`"$var`", `"your-value`", `"User`")" -ForegroundColor Yellow
+    }
+    Write-Host ""
+    Write-Host "  Then open a new PowerShell terminal and run this script again." -ForegroundColor Yellow
+    Write-Host "  See README.md — 'Running the Build' for full instructions." -ForegroundColor DarkGray
+    Write-Host ""
     exit 1
 }
-. $VarsFile
-Write-OK "Credentials loaded (local file, not committed to GitHub)"
+
+Write-OK "All required variables are set"
 
 # ── Step 1: Git pull ──────────────────────────────────────────────────────────
 Write-Step "Syncing monorepo from GitHub..."
@@ -69,13 +95,8 @@ try {
     Write-OK "Repo up to date"
 } finally { Pop-Location }
 
-# ── Step 2: Set credentials as session env vars ───────────────────────────────
-Write-Step "Setting Packer environment variables (session only)..."
-$env:PKR_VAR_proxmox_password         = $ProxmoxPassword
-$env:PKR_VAR_ssh_password             = $PackerSshPassword
-$env:PKR_VAR_semaphore_admin_password = $SemaphoreAdminPassword
+# ── Step 2: Packer logging ────────────────────────────────────────────────────
 if ($Verbose) { $env:PACKER_LOG = "1" } else { Remove-Item Env:\PACKER_LOG -ErrorAction SilentlyContinue }
-Write-OK "Done"
 
 # ── Step 3–5: Init, Validate, Build ───────────────────────────────────────────
 Push-Location $ScriptDir
@@ -93,7 +114,7 @@ try {
 
     if ($DryRun) {
         Write-Host ""
-        Write-Host "  DryRun — skipping build." -ForegroundColor Magenta
+        Write-Host "  DryRun complete — skipping build." -ForegroundColor Magenta
     } else {
         Write-Step "Starting build (20–40 min)..."
         Write-Host "  Tip: watch progress in the Proxmox console." -ForegroundColor DarkGray
@@ -104,18 +125,14 @@ try {
 
         Write-OK "Build complete — template is ready in Proxmox."
         if (Test-Path "packer-manifest-automation-toolbox.json") {
-            Write-Host "  Manifest written to: $ScriptDir\packer-manifest-automation-toolbox.json" -ForegroundColor DarkGray
+            Write-Host "  Manifest: $ScriptDir\packer-manifest-automation-toolbox.json" -ForegroundColor DarkGray
         }
     }
 } catch {
     Write-Fail $_.Exception.Message
     exit 1
 } finally {
-    # Always clear credentials from the session
-    Remove-Item Env:\PKR_VAR_proxmox_password         -ErrorAction SilentlyContinue
-    Remove-Item Env:\PKR_VAR_ssh_password             -ErrorAction SilentlyContinue
-    Remove-Item Env:\PKR_VAR_semaphore_admin_password  -ErrorAction SilentlyContinue
-    Remove-Item Env:\PACKER_LOG                        -ErrorAction SilentlyContinue
+    Remove-Item Env:\PACKER_LOG -ErrorAction SilentlyContinue
     Pop-Location
 }
 
