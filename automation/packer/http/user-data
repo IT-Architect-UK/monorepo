@@ -34,7 +34,7 @@ autoinstall:
   # This user is temporary — used only for Packer SSH access during the build
   # The cleanup script and cloud-init will handle the final user on first boot
   identity:
-    hostname: ubuntu-packer
+    hostname: POSLXPDEPLOY01
     username: packer
     # Generate with: openssl passwd -6 "packer-temp-password"
     password: "$6$packerbuild2025$0A8/fOcbU9CpziJBh8SqVY6z/pvZ3q00wwJVlx4mfbfJZ/pDFO/Z9d1cu6rS7WfewJ2g797jhkiKu4CIT8YtS."

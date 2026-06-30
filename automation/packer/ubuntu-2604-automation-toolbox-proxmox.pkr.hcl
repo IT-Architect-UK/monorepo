@@ -31,7 +31,7 @@ packer {
 
 variable "image_name" {
   type    = string
-  default = "automation-toolbox"
+  default = "POSLXPDEPLOY01"
 }
 
 variable "image_description" {
@@ -241,7 +241,7 @@ build {
   }
 
   provisioner "shell" {
-    inline          = ["mkdir -p /opt/toolbox/ansible && chown packer:packer /opt/toolbox/ansible"]
+    inline          = ["chown -R packer:packer /opt/toolbox"]
     execute_command = "sudo bash -c '{{.Path}}'"
   }
 
