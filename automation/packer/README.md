@@ -247,6 +247,50 @@ packer build \
   win2025-proxmox.pkr.hcl
 ```
 
+## Running the Build (Windows PowerShell)
+
+A PowerShell build script is included for running Packer on Windows without typing credentials each time.
+
+### 1. Create your local credentials file
+
+```powershell
+cd D:\GitHub\monorepo\automation\packer
+Copy-Item build-automation-toolbox.vars.ps1.example build-automation-toolbox.vars.ps1
+```
+
+Open `build-automation-toolbox.vars.ps1` and fill in your three passwords:
+
+```powershell
+$ProxmoxPassword        = "your-proxmox-root-password"
+$PackerSshPassword      = "your-packer-temp-password"
+$SemaphoreAdminPassword = "your-semaphore-admin-password"
+```
+
+This file is listed in `.gitignore` — it will never be committed to GitHub.
+
+### 2. Allow PowerShell scripts to run (one-time)
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+### 3. Run the script
+
+```powershell
+# Validate only — no build, confirms template and credentials are correct
+.\build-automation-toolbox.ps1 -DryRun
+
+# Full build (~20-40 minutes)
+.\build-automation-toolbox.ps1
+
+# Full build with verbose Packer debug output
+.\build-automation-toolbox.ps1 -Verbose
+```
+
+The script automatically runs `git pull` before building, sets credentials as session-only environment variables (never written to disk), and clears them on exit. Watch build progress in the Proxmox console.
+
+---
+
 ## CI/CD Validation
 
 Every push to this repo runs `packer validate` against all templates automatically via GitHub Actions. The badge at the top of this file shows current status.
