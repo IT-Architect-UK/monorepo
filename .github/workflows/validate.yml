@@ -109,7 +109,6 @@ jobs:
           PKR_VAR_azure_subscription_id:     "00000000-0000-0000-0000-000000000000"
           PKR_VAR_gcp_project_id:            "dummy-project-000000"
           PKR_VAR_winrm_password:            "dummy"
-          PKR_VAR_ubuntu_iso_file:           "local:iso/ubuntu-26.04-live-server-amd64.iso"
           PKR_VAR_semaphore_admin_password:  "dummy"
           PKR_VAR_cidata_iso_file:           "local:iso/ubuntu-2604-cidata.iso"
           PKR_VAR_ssh_password:              "dummy"
