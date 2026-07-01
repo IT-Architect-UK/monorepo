@@ -15,7 +15,8 @@ Everything here is written to be used in real environments, not just demonstrate
 | **VM Image Building** | Packer · Proxmox · VMware vSphere · AWS AMI · Azure Managed Image · GCP Image |
 | **Configuration Management** | Ansible · Roles · Playbooks · Inventory |
 | **Hypervisor Automation** | Proxmox VE · VMware ESXi/vCenter · LXC containers |
-| **Cloud Infrastructure** | AWS · Azure · GCP · multi-cloud parity scripts |
+| **Cloud Infrastructure** | AWS (fully built out) · Azure & GCP (identity, monitoring, image maintenance) |
+| **Containers** | Docker · Docker Swarm · Kubernetes bootstrap · Portainer |
 | **Security & PKI** | TLS/SSL · Let's Encrypt · OpenSSL CA · HashiCorp Vault · Compliance reporting |
 | **Monitoring** | Prometheus · Grafana · Zabbix · Uptime Kuma · CloudWatch · Azure Monitor · GCP Ops |
 | **Backup & Recovery** | Restic · Veeam · AWS Backup |
@@ -38,32 +39,41 @@ monorepo/
 │   │   ├── playbooks/            # server-baseline, TLS, monitoring, backup, Docker, SSH keys
 │   │   ├── roles/                # common, tls, monitoring-agent, backup-restic
 │   │   └── inventory/            # hosts.yml + group_vars
-│   ├── packer/                   # Golden image pipelines
-│   │   ├── ubuntu-2404-proxmox.pkr.hcl        # Ubuntu 24.04 → Proxmox template
-│   │   ├── ubuntu-2404-vmware.pkr.hcl         # Ubuntu 24.04 → vSphere template
-│   │   ├── ubuntu-2404-aws.pkr.hcl            # Ubuntu 24.04 → AWS AMI
-│   │   ├── ubuntu-2404-azure.pkr.hcl          # Ubuntu 24.04 → Azure managed image
-│   │   ├── ubuntu-2404-gcp.pkr.hcl            # Ubuntu 24.04 → GCP image
-│   │   ├── ubuntu-2404-automation-toolbox-proxmox.pkr.hcl # All-in-one toolbox VM
-│   │   ├── win2025-proxmox.pkr.hcl            # Windows Server 2025 → Proxmox template
-│   │   ├── win2025-vmware.pkr.hcl             # Windows Server 2025 → vSphere template
-│   │   ├── scripts/              # Shell + PowerShell provisioners
-│   │   ├── http/                 # cloud-init user-data + Windows autounattend.xml
-│   │   └── environments/         # Per-environment var files (homelab, production)
+│   ├── packer/                   # Golden image pipelines — one subdirectory per template
+│   │   ├── builds/
+│   │   │   ├── ubuntu-2604-automation-toolbox/  # Ansible+Packer+Terraform+Docker all-in-one VM
+│   │   │   ├── ubuntu-2604-proxmox/             # Generic Ubuntu 26.04 → Proxmox
+│   │   │   ├── ubuntu-2604-vmware/              # Generic Ubuntu 26.04 → vSphere
+│   │   │   ├── ubuntu-2604-aws/                 # Ubuntu 26.04 → AWS AMI
+│   │   │   ├── ubuntu-2604-azure/               # Ubuntu 26.04 → Azure Managed Image
+│   │   │   ├── ubuntu-2604-gcp/                 # Ubuntu 26.04 → GCP Custom Image
+│   │   │   ├── win2025-proxmox/                 # Windows Server 2025 → Proxmox
+│   │   │   └── win2025-vmware/                  # Windows Server 2025 → vSphere
+│   │   ├── environments/         # Var files shared across more than one template
+│   │   ├── scripts/              # Shell + PowerShell provisioners (shared)
+│   │   └── http/                 # cloud-init user-data + Windows autounattend.xml
 │   └── python/                   # Azure inventory, infrastructure health checks, Prometheus queries
 │
 ├── infrastructure/
 │   ├── hypervisors/
 │   │   ├── proxmox/              # VM + LXC deployment scripts
 │   │   └── vmware/               # vSphere templates and provisioning scripts
+│   ├── identity/                 # Active Directory forest, OUs, groups, GPO baselines
 │   ├── servers/
 │   │   ├── linux/configuration/  # Baseline hardening, users, TLS, branding, IPv6
-│   │   └── windows/              # PowerShell: local admin, rename, update, disk setup
-│   ├── networking/               # iptables firewall rules, NTP configuration
+│   │   └── windows/               # PowerShell: local admin, rename, update, disk setup
+│   ├── networking/               # iptables firewall rules, DNS, NTP configuration
 │   └── storage/                  # Disk extension, NFS mounts (Linux + Windows)
 │
 ├── cloud/
-│   └── aws/                      # Account baseline, EC2 inventory, VPC deployment, CloudWatch
+│   ├── aws/                      # Account baseline, EC2 inventory, VPC deployment, CloudWatch
+│   ├── azure/                    # Identity migration tooling (on-prem → cloud-only)
+│   └── gcp/                      # Scaffolded — account/compute/networking structure in place
+│
+├── containers/
+│   ├── docker/                   # Install + Docker Swarm cluster setup
+│   ├── kubernetes/               # Master/worker/management node bootstrap, Minikube
+│   └── portainer/                # Portainer server + agent install
 │
 ├── security/
 │   ├── tls/                      # Let's Encrypt (Certbot), NGINX/IIS deployment, AWS ACM, Azure KV, GCP CM
@@ -74,7 +84,7 @@ monorepo/
 ├── monitoring/
 │   ├── prometheus-grafana/       # Full stack install (bare metal + Docker), node exporter
 │   ├── zabbix/                   # Agent install for Ubuntu and Windows
-│   ├── uptime-kuma/              # Docker-based uptime monitoring
+│   ├── uptime-kuma/               # Docker-based uptime monitoring
 │   └── cloud/                    # CloudWatch, Azure Monitor, GCP Ops agents
 │
 ├── backup/
@@ -82,9 +92,11 @@ monorepo/
 │   ├── on-premises/veeam-agent/  # Veeam Agent for Linux
 │   └── cloud/aws/                # AWS Backup configuration
 │
+├── image-maintenance/            # Golden image refresh: AWS AMI, Azure/GCP images, Proxmox templates, sysprep
 ├── applications/                 # AWX, Bacula, Webmin, WordPress deployment scripts
-├── image-maintenance/            # Template patching and golden image refresh automation
-└── projects/blockchain/          # Cardano, COTI, World Mobile node deployment
+├── projects/blockchain/          # Cardano, COTI, World Mobile node deployment
+├── scripts/ & utilities/         # Standalone helper scripts (repo sync, RDS certs, etc.)
+└── CONFIGURATION.md              # Full credentials/setup guide for every platform above
 ```
 
 ---
@@ -93,21 +105,26 @@ monorepo/
 
 ### Packer Golden Image Pipeline
 
-A complete multi-platform image factory. One set of Ansible playbooks and shell provisioners, eight build targets:
+A complete multi-platform image factory. One set of Ansible playbooks and shell provisioners, eight build targets — each template lives in its own self-contained `builds/<template>/` directory:
 
 ```bash
-# Build a hardened Ubuntu 24.04 template on Proxmox
+cd automation/packer/builds/ubuntu-2604-proxmox
+
+# Build a hardened Ubuntu 26.04 template on Proxmox
+packer init .
+export PKR_VAR_proxmox_password="your-password"
 packer build \
-  -var-file="environments/homelab.pkrvars.hcl" \
-  ubuntu-2404-proxmox.pkr.hcl
+  -var-file="../../environments/homelab.pkrvars.hcl" \
+  .
 
 # Build a Windows Server 2025 template on Proxmox
+cd ../win2025-proxmox
 export PKR_VAR_proxmox_password="..."
 export PKR_VAR_winrm_password="..."
 packer build \
-  -var-file="environments/homelab.pkrvars.hcl" \
-  -var-file="environments/win2025.pkrvars.hcl" \
-  win2025-proxmox.pkr.hcl
+  -var-file="../../environments/homelab.pkrvars.hcl" \
+  -var-file="../../environments/win2025.pkrvars.hcl" \
+  .
 ```
 
 Every template:
@@ -135,10 +152,10 @@ Every push triggers three validation jobs in parallel:
 ```
 ✔ Shell script syntax    (bash -n on all .sh files)
 ✔ Ansible syntax         (ansible-playbook --syntax-check on all playbooks)
-✔ Packer validate        (all 9 templates validated in isolation)
+✔ Packer validate        (all 8 templates validated independently)
 ```
 
-Templates are validated one at a time using a rename-in-place strategy to avoid HCL merge conflicts — a non-obvious problem with multi-template Packer directories that this repo solves cleanly.
+Each template lives in its own subdirectory (`automation/packer/builds/<template>/`), so `packer init`/`packer validate` run against a single, isolated `.pkr.hcl` file per template — no shared-directory HCL merge conflicts to work around.
 
 ---
 
@@ -161,20 +178,22 @@ cd monorepo
 
 ```bash
 cd automation/ansible
-cp inventory/hosts.yml.example inventory/hosts.yml   # edit with your hosts
+nano inventory/hosts.yml   # edit with your hosts (already a working example — replace the IPs)
 ansible-playbook playbooks/server-baseline.yml -i inventory/hosts.yml
 ```
 
 ### Build a VM template
 
 ```bash
-cd automation/packer
-packer init ubuntu-2404-proxmox.pkr.hcl
+cd automation/packer/builds/ubuntu-2604-proxmox
+packer init .
 export PKR_VAR_proxmox_password="your-password"
 packer build \
-  -var-file="environments/homelab.pkrvars.hcl" \
-  ubuntu-2404-proxmox.pkr.hcl
+  -var-file="../../environments/homelab.pkrvars.hcl" \
+  .
 ```
+
+Full credential setup for every platform (Proxmox, VMware, AWS, Azure, GCP, GitHub Actions) is in [`CONFIGURATION.md`](CONFIGURATION.md).
 
 ---
 
@@ -182,9 +201,9 @@ packer build \
 
 **Real, not demo.** Scripts are written to production standards — error handling, idempotency, and comments that explain *why*, not just *what*.
 
-**Multi-platform parity.** Where a task applies to AWS, Azure, and GCP, there are equivalent scripts for all three. On-premises and cloud are treated as equal targets.
+**Multi-platform parity where it matters.** AWS is the most fully built-out cloud target; Azure and GCP have identity, monitoring, and image-maintenance tooling with the same structure ready to extend. On-premises and cloud are treated as equal targets, not cloud-first with on-prem as an afterthought.
 
-**CI-gated.** No untested code on main. The GitHub Actions workflow validates every shell script, Ansible playbook, and Packer template on every push.
+**CI-gated.** No untested code on main. The GitHub Actions workflow validates every shell script, every Ansible playbook, and every Packer template on every push.
 
 **Separation of secrets.** Credentials are never committed. Sensitive values use environment variables (`PKR_VAR_*`, `.env` files excluded by `.gitignore`) with `.env.example` files showing required keys.
 

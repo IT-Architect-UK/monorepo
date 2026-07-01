@@ -26,7 +26,7 @@ Scripts in this repo never hardcode credentials. Instead they read from:
 
 ## How the `.env` File Pattern Works
 
-Every script directory has a `.env.example` file. Copy it to `.env` and fill in your values:
+Several script directories include a `.env.example` file showing the expected variables — copy it to `.env` and fill in your values:
 
 ```bash
 cd infrastructure/hypervisors/proxmox
@@ -201,17 +201,18 @@ nano environments/homelab.pkrvars.hcl
 ### Step 5 — Validate (no changes made)
 
 ```bash
+cd builds/ubuntu-2604-proxmox
 packer validate \
-  -var-file="environments/homelab.pkrvars.hcl" \
-  ubuntu-2404-proxmox.pkr.hcl
+  -var-file="../../environments/homelab.pkrvars.hcl" \
+  .
 ```
 
 ### Step 6 — Build
 
 ```bash
 packer build \
-  -var-file="environments/homelab.pkrvars.hcl" \
-  ubuntu-2404-proxmox.pkr.hcl
+  -var-file="../../environments/homelab.pkrvars.hcl" \
+  .
 ```
 
 ### Required variables (non-sensitive — go in `.pkrvars.hcl`)
@@ -222,7 +223,7 @@ packer build \
 | `proxmox_node` | `hostname` on Proxmox host | `pve` |
 | `proxmox_storage_pool` | `pvesm status` | `local-lvm` |
 | `proxmox_iso_storage` | Proxmox UI → Storage | `local` |
-| `ubuntu_iso_url` | Proxmox UI → local → ISO Images → right-click → path | `local:iso/ubuntu-24.04-live-server-amd64.iso` |
+| `ubuntu_iso_file` | Proxmox UI → local → ISO Images → right-click → path | `local:iso/ubuntu-26.04-live-server-amd64.iso` |
 | `vsphere_server` | vCenter hostname | `vcenter.homelab.local` |
 | `vsphere_datacenter` | vCenter UI → Hosts and Clusters | `Datacenter` |
 | `aws_region` | Your preferred AWS region | `eu-west-2` |
@@ -475,11 +476,10 @@ Add these secrets based on which platforms you use:
 
 ### Step 2 — GitHub Actions workflows
 
-Pre-built workflow files are in `.github/workflows/`:
-- `validate.yml` — runs syntax checks on every push/PR
-- `packer-build-aws.yml` — monthly automated AMI build
-- `packer-build-azure.yml` — monthly Azure image build
-- `packer-build-gcp.yml` — monthly GCP image build
+Currently, `.github/workflows/` contains one workflow:
+- `validate.yml` — runs shell syntax, Ansible syntax, and Packer validate on every push/PR
+
+Scheduled build workflows (e.g. a monthly automated AMI/image rebuild) are not yet implemented — the secrets below are what you'd need to configure if you add one.
 
 ---
 
