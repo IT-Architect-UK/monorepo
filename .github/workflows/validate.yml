@@ -134,14 +134,20 @@ jobs:
 
             pushd "$dir" > /dev/null
 
+            # Include any template-local var-file too (e.g. automation-toolbox.pkrvars.hcl)
+            # so CI validates the same var-file combination the real build uses --
+            # not just the shared homelab.pkrvars.hcl on its own.
+            VAR_ARGS=(-var-file="../../environments/homelab.pkrvars.hcl")
+            for local_vars in ./*.pkrvars.hcl; do
+              [ -f "$local_vars" ] && VAR_ARGS+=(-var-file="$local_vars")
+            done
+
             if ! packer init . 2>/tmp/packer_err; then
               echo "  ✘  $dir (init failed)"
               cat /tmp/packer_err
               FAIL=$((FAIL + 1))
             else
-              if packer validate \
-                   -var-file="../../environments/homelab.pkrvars.hcl" \
-                   . 2>/tmp/packer_err; then
+              if packer validate "${VAR_ARGS[@]}" . 2>/tmp/packer_err; then
                 echo "  ✔  $dir"
               else
                 echo "  ✘  $dir"
