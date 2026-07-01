@@ -11,9 +11,11 @@
 autoinstall:
   version: 1
 
-  # Do not install updates during autoinstall — keeps install fast and deterministic.
-  # provision.sh handles apt-get update/upgrade after Packer connects via SSH.
-  updates: no
+  # "security" is the minimum this key supports (valid values: security | all --
+  # there is no way to fully disable install-time updates here). Keeps the
+  # install-time update set small; provision.sh handles the full
+  # apt-get update/upgrade after Packer connects via SSH.
+  updates: security
 
   # Locale and keyboard
   locale: en_GB.UTF-8
