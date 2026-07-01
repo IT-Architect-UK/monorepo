@@ -20,7 +20,7 @@ foreach ($user in $users) {
     }
     catch {
         # Output error message
-        Write-Error "Failed to convert $user: $_"
+        Write-Error "Failed to convert ${user}: $_"
     }
 }
 
