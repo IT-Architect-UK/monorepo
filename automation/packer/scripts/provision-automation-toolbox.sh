@@ -37,7 +37,7 @@ ok()  { echo "  ✓ $*"; }
 log "Automation Toolbox Provisioner — $(date)"
 
 # ─── 1. System prerequisites ──────────────────────────────────────────────────
-log "[1/13] System prerequisites"
+log "[1/14] System prerequisites"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y --no-install-recommends \
@@ -63,7 +63,7 @@ apt-get install -y --no-install-recommends \
 ok "System packages installed"
 
 # ─── 2. Install yq (YAML processor) ──────────────────────────────────────────
-log "[2/13] Installing yq"
+log "[2/14] Installing yq"
 YQ_VERSION="v4.44.1"
 wget -qO /usr/local/bin/yq \
     "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
@@ -71,7 +71,7 @@ chmod +x /usr/local/bin/yq
 ok "yq $(yq --version) installed"
 
 # ─── 3. HashiCorp APT repo (Packer + Terraform) ──────────────────────────────
-log "[3/13] Adding HashiCorp APT repository"
+log "[3/14] Adding HashiCorp APT repository"
 wget -qO- https://apt.releases.hashicorp.com/gpg \
     | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
@@ -81,17 +81,17 @@ apt-get update -qq
 ok "HashiCorp repo added"
 
 # ─── 4. Install Packer ────────────────────────────────────────────────────────
-log "[4/13] Installing Packer"
+log "[4/14] Installing Packer"
 apt-get install -y packer
 ok "Packer $(packer --version) installed"
 
 # ─── 5. Install Terraform ─────────────────────────────────────────────────────
-log "[5/13] Installing Terraform"
+log "[5/14] Installing Terraform"
 apt-get install -y terraform
 ok "Terraform $(terraform --version | head -1) installed"
 
 # ─── 6. Install Ansible ───────────────────────────────────────────────────────
-log "[6/13] Installing Ansible"
+log "[6/14] Installing Ansible"
 add-apt-repository --yes --update ppa:ansible/ansible
 apt-get install -y ansible
 # Install useful Galaxy collections system-wide
@@ -104,7 +104,7 @@ ansible-galaxy collection install \
 ok "$(ansible --version | head -1) installed"
 
 # ─── 7. Install AWS CLI v2 ────────────────────────────────────────────────────
-log "[7/13] Installing AWS CLI v2"
+log "[7/14] Installing AWS CLI v2"
 AWSCLI_TMP=$(mktemp -d)
 curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
     -o "${AWSCLI_TMP}/awscliv2.zip"
@@ -114,7 +114,7 @@ rm -rf "${AWSCLI_TMP}"
 ok "AWS CLI $(aws --version 2>&1) installed"
 
 # ─── 8. Install Azure CLI ─────────────────────────────────────────────────────
-log "[8/13] Installing Azure CLI"
+log "[8/14] Installing Azure CLI"
 curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
 # Microsoft's apt repo doesn't always have a release for the latest Ubuntu
@@ -132,7 +132,7 @@ apt-get install -y azure-cli
 ok "Azure CLI $(az --version 2>&1 | head -1) installed"
 
 # ─── 9. Install Google Cloud CLI ──────────────────────────────────────────────
-log "[9/13] Installing Google Cloud CLI"
+log "[9/14] Installing Google Cloud CLI"
 curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
     | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
 # Google Cloud uses a fixed suite name (cloud-sdk main) so it works on any
@@ -145,7 +145,7 @@ apt-get install -y google-cloud-cli
 ok "Google Cloud CLI $(gcloud --version 2>&1 | head -1) installed"
 
 # ─── 10. Install kubectl + Helm ───────────────────────────────────────────────
-log "[10/13] Installing kubectl and Helm"
+log "[10/14] Installing kubectl and Helm"
 
 # kubectl — latest stable
 KUBECTL_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
@@ -159,7 +159,7 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 ok "Helm $(helm version --short) installed"
 
 # ─── 11. Install GitHub CLI ───────────────────────────────────────────────────
-log "[11/13] Installing GitHub CLI"
+log "[11/14] Installing GitHub CLI"
 curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     -o /usr/share/keyrings/githubcli-archive-keyring.gpg
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
@@ -170,7 +170,7 @@ apt-get install -y gh
 ok "GitHub CLI $(gh --version | head -1) installed"
 
 # ─── 12. Install Docker CE ────────────────────────────────────────────────────
-log "[12/13] Installing Docker CE"
+log "[12/14] Installing Docker CE"
 
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -194,7 +194,7 @@ systemctl start docker || true
 ok "Docker $(docker --version) installed"
 
 # ─── 13. Create toolbox user + workspace ──────────────────────────────────────
-log "[13/13] Creating '${TOOLBOX_USER}' user and workspace"
+log "[13/14] Creating '${TOOLBOX_USER}' user and workspace"
 
 if ! id "${TOOLBOX_USER}" &>/dev/null; then
     useradd \
@@ -230,18 +230,6 @@ Host 10.* 172.16.* 172.17.* 172.18.* 172.19.* 172.20.* 172.21.* 172.22.* 172.23.
     UserKnownHostsFile     /dev/null
     ForwardAgent           yes
 SSH_EOF
-
-# Authorized key — SSH password auth is disabled by provision.sh, so this is
-# the only way to actually log in as this user once the build is sealed.
-TOOLBOX_SSH_PUBLIC_KEY="${TOOLBOX_SSH_PUBLIC_KEY:-}"
-if [[ -n "${TOOLBOX_SSH_PUBLIC_KEY}" ]]; then
-    echo "${TOOLBOX_SSH_PUBLIC_KEY}" > "${TOOLBOX_SSH_DIR}/authorized_keys"
-    chmod 600 "${TOOLBOX_SSH_DIR}/authorized_keys"
-    ok "SSH public key installed for '${TOOLBOX_USER}'"
-else
-    log "No TOOLBOX_SSH_PUBLIC_KEY provided — '${TOOLBOX_USER}' will have no SSH access"
-fi
-
 chmod 700 "${TOOLBOX_SSH_DIR}"
 chmod 600 "${TOOLBOX_SSH_DIR}/config"
 chown -R "${TOOLBOX_USER}:${TOOLBOX_USER}" "${TOOLBOX_SSH_DIR}"
@@ -253,6 +241,48 @@ mkdir -p \
     "${TOOLBOX_HOME}/terraform" \
     "${TOOLBOX_HOME}/logs"
 chown -R "${TOOLBOX_USER}:${TOOLBOX_USER}" "${TOOLBOX_HOME}"
+
+# ─── 14. Create personal admin login ──────────────────────────────────────────
+log "[14/14] Creating personal admin login"
+
+ADMIN_USERNAME="${ADMIN_USERNAME:-}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
+ADMIN_SSH_PUBLIC_KEY="${ADMIN_SSH_PUBLIC_KEY:-}"
+
+if [[ -n "${ADMIN_USERNAME}" ]]; then
+    if ! id "${ADMIN_USERNAME}" &>/dev/null; then
+        useradd \
+            --shell /bin/bash \
+            --create-home \
+            --comment "Personal admin login" \
+            "${ADMIN_USERNAME}"
+        ok "User '${ADMIN_USERNAME}' created"
+    fi
+
+    usermod -aG sudo "${ADMIN_USERNAME}"
+    ok "Added '${ADMIN_USERNAME}' to 'sudo' group (password required)"
+
+    if [[ -n "${ADMIN_PASSWORD}" ]]; then
+        echo "${ADMIN_USERNAME}:${ADMIN_PASSWORD}" | chpasswd
+        ok "Password set for '${ADMIN_USERNAME}'"
+    else
+        log "No ADMIN_PASSWORD provided — '${ADMIN_USERNAME}' has no password set"
+    fi
+
+    if [[ -n "${ADMIN_SSH_PUBLIC_KEY}" ]]; then
+        ADMIN_SSH_DIR="/home/${ADMIN_USERNAME}/.ssh"
+        mkdir -p "${ADMIN_SSH_DIR}"
+        echo "${ADMIN_SSH_PUBLIC_KEY}" > "${ADMIN_SSH_DIR}/authorized_keys"
+        chmod 700 "${ADMIN_SSH_DIR}"
+        chmod 600 "${ADMIN_SSH_DIR}/authorized_keys"
+        chown -R "${ADMIN_USERNAME}:${ADMIN_USERNAME}" "${ADMIN_SSH_DIR}"
+        ok "SSH public key installed for '${ADMIN_USERNAME}'"
+    else
+        log "No ADMIN_SSH_PUBLIC_KEY provided — '${ADMIN_USERNAME}' has no SSH key configured"
+    fi
+else
+    log "No ADMIN_USERNAME provided — skipping personal admin login creation"
+fi
 
 # Bootstrap script — run once after first VM boot
 cat > "${TOOLBOX_HOME}/bootstrap.sh" << 'BOOTSTRAP_EOF'

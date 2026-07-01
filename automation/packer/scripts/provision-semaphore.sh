@@ -71,8 +71,15 @@ log "Semaphore version: ${SEMAPHORE_VERSION}"
 section "2 — Install Semaphore"
 DEB_URL="https://github.com/semaphoreui/semaphore/releases/download/v${SEMAPHORE_VERSION}/semaphore_${SEMAPHORE_VERSION}_linux_amd64.deb"
 log "Downloading from: ${DEB_URL}"
-curl -sL --max-time 60 "${DEB_URL}" -o /tmp/semaphore.deb \
-    || fail "Failed to download Semaphore deb"
+# -f: treat HTTP errors as failures instead of silently saving an error page
+# as if it were the .deb. --retry: survive transient network blips. 300s
+# timeout: a 60s cap was too tight for this asset size over some links and
+# was truncating the download (dpkg then failed with a cryptic archive error).
+curl -fsSL --retry 3 --retry-delay 5 --max-time 300 "${DEB_URL}" -o /tmp/semaphore.deb \
+    || fail "Failed to download Semaphore deb from ${DEB_URL}"
+
+[[ -s /tmp/semaphore.deb ]] \
+    || fail "Downloaded semaphore.deb is empty (0 bytes) — check network connectivity to github.com"
 
 dpkg -i /tmp/semaphore.deb || fail "Failed to install Semaphore deb"
 rm -f /tmp/semaphore.deb

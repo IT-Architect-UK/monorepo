@@ -1,6 +1,6 @@
 # =============================================================================
-# build-automation-toolbox.ps1
-# Packer build script for ubuntu-2604-automation-toolbox
+# build-automation-toolbox-proxmox.ps1
+# Packer build script for ubuntu-2604-automation-toolbox (Proxmox only)
 #
 # LOCATION: automation/packer/builds/ubuntu-2604-automation-toolbox/
 #
@@ -11,8 +11,9 @@
 #
 #     [System.Environment]::SetEnvironmentVariable("PKR_VAR_proxmox_password",         "your-value", "User")
 #     [System.Environment]::SetEnvironmentVariable("PKR_VAR_semaphore_admin_password", "your-value", "User")
+#     [System.Environment]::SetEnvironmentVariable("PKR_VAR_admin_password",           "your-value", "User")
 #
-#   If either variable is missing the script will prompt you to enter it.
+#   If any of these is missing the script will prompt you to enter it.
 #   Prompted values are used for this session only — not saved anywhere.
 #
 #   PKR_VAR_ssh_password is NOT prompted for — it's a temporary, build-only
@@ -22,9 +23,9 @@
 #   different password.
 #
 # USAGE (from this folder in a PowerShell terminal):
-#   .\build-automation-toolbox.ps1           # Full build
-#   .\build-automation-toolbox.ps1 -DryRun   # Validate only, no build
-#   .\build-automation-toolbox.ps1 -Verbose  # Full Packer debug output
+#   .\build-automation-toolbox-proxmox.ps1           # Full build
+#   .\build-automation-toolbox-proxmox.ps1 -DryRun   # Validate only, no build
+#   .\build-automation-toolbox-proxmox.ps1 -Verbose  # Full Packer debug output
 # =============================================================================
 
 param(
@@ -83,6 +84,7 @@ Write-Step "Resolving credentials..."
 try {
     $proxmoxPassword        = Resolve-RequiredVar "PKR_VAR_proxmox_password"         "Proxmox root or API user password"
     $semaphoreAdminPassword = Resolve-RequiredVar "PKR_VAR_semaphore_admin_password" "Semaphore UI initial admin password"
+    $adminPassword          = Resolve-RequiredVar "PKR_VAR_admin_password"           "Password for your personal admin login on the built VM"
 } catch {
     Write-Fail $_.Exception.Message
     exit 1
@@ -91,6 +93,7 @@ Write-OK "Credentials ready"
 
 $env:PKR_VAR_proxmox_password         = $proxmoxPassword
 $env:PKR_VAR_semaphore_admin_password = $semaphoreAdminPassword
+$env:PKR_VAR_admin_password           = $adminPassword
 # PKR_VAR_ssh_password is intentionally left alone here — if it's already set
 # in the environment it will still be picked up by Packer; otherwise Packer
 # uses its own default ("packer-temp-password") from variables.pkr.hcl.
@@ -144,6 +147,7 @@ try {
     Remove-Item Env:\PKR_VAR_proxmox_password          -ErrorAction SilentlyContinue
     Remove-Item Env:\PKR_VAR_ssh_password              -ErrorAction SilentlyContinue
     Remove-Item Env:\PKR_VAR_semaphore_admin_password  -ErrorAction SilentlyContinue
+    Remove-Item Env:\PKR_VAR_admin_password            -ErrorAction SilentlyContinue
     Remove-Item Env:\PACKER_LOG                        -ErrorAction SilentlyContinue
     Pop-Location
 }

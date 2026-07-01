@@ -140,7 +140,9 @@ build {
     script          = abspath("${path.root}/../../scripts/provision-automation-toolbox.sh")
     execute_command = "sudo bash {{.Path}}"
     environment_vars = [
-      "TOOLBOX_SSH_PUBLIC_KEY=${var.toolbox_ssh_public_key}",
+      "ADMIN_USERNAME=${var.admin_username}",
+      "ADMIN_PASSWORD=${var.admin_password}",
+      "ADMIN_SSH_PUBLIC_KEY=${var.admin_ssh_public_key}",
     ]
   }
 

@@ -116,7 +116,7 @@ section "5 — Disable cloud-init"
 [[ -f /tmp/disable-cloud-init.sh ]] || fail "disable-cloud-init.sh not found in /tmp/ — check Packer file provisioner"
 chmod +x /tmp/disable-cloud-init.sh
 /tmp/disable-cloud-init.sh
-log "cloud-init disabled (prevents networking issues on VMware and re-runs on clones)"
+log "cloud-init disabled (prevents unwanted reconfiguration on every future clone)"
 
 # ── 6. Disable IPv6 ───────────────────────────────────────────────────────────
 section "6 — Disable IPv6"

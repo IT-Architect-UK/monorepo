@@ -100,11 +100,38 @@ variable "semaphore_admin_password" {
   sensitive = true
 }
 
-variable "toolbox_ssh_public_key" {
-  # Public key — not a secret, safe to set in a committed .pkrvars.hcl file.
-  # Installed to /home/toolbox/.ssh/authorized_keys so you can actually SSH
-  # into the finished template as the 'toolbox' user (SSH password auth is
-  # disabled by provision.sh, and 'toolbox' has no password of its own).
+variable "admin_username" {
+  # Personal login account, separate from the 'toolbox' service account.
+  # Gets standard 'sudo' group membership (password required), a real
+  # password, and the SSH key below. Not a secret — safe to commit.
   type    = string
   default = ""
 }
+
+variable "admin_password" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "admin_ssh_public_key" {
+  # Public key — not a secret, safe to set in a committed .pkrvars.hcl file.
+  # Installed to /home/<admin_username>/.ssh/authorized_keys. This is the
+  # only account this key is installed for; 'toolbox' has no SSH key.
+  type    = string
+  default = ""
+}
+
+# ─── Unused elsewhere ──────────────────────────────────────────────────────────
+# environments/homelab.pkrvars.hcl is a shared file covering every hypervisor
+# (Proxmox, VMware, Windows) by design. This template is Proxmox+Ubuntu only,
+# so it doesn't use these — declared here purely so packer validate/build
+# stop warning "was set but was not declared as an input variable" for them.
+variable "vsphere_server"     { type = string; default = null }
+variable "vsphere_datacenter" { type = string; default = null }
+variable "vsphere_cluster"    { type = string; default = null }
+variable "vsphere_datastore"  { type = string; default = null }
+variable "vsphere_network"    { type = string; default = null }
+variable "vsphere_folder"     { type = string; default = null }
+variable "win_iso_file"       { type = string; default = null }
+variable "virtio_iso_file"    { type = string; default = null }

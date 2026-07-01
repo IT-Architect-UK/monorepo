@@ -38,11 +38,15 @@ Run once in PowerShell — survives reboots, never written to disk or GitHub:
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable("PKR_VAR_proxmox_password",         "your-proxmox-root-password",  "User")
-[System.Environment]::SetEnvironmentVariable("PKR_VAR_ssh_password",             "your-chosen-ssh-password",    "User")
 [System.Environment]::SetEnvironmentVariable("PKR_VAR_semaphore_admin_password", "your-semaphore-password",     "User")
+[System.Environment]::SetEnvironmentVariable("PKR_VAR_admin_password",           "your-admin-login-password",   "User")
 ```
 
 Open a **new** PowerShell terminal after setting these. If you skip this step the build script will prompt for each value at runtime (input is hidden).
+
+Note: `PKR_VAR_ssh_password` is not needed — it's a temporary, build-only
+credential pinned to `variables.pkr.hcl`'s default and unrelated to any
+login you'll actually use afterward.
 
 ### 2. Upload the Ubuntu 26.04 ISO to Proxmox
 
@@ -92,13 +96,13 @@ Open a PowerShell terminal and run from this directory:
 cd D:\GitHub\monorepo\automation\packer\builds\ubuntu-2604-automation-toolbox
 
 # Validate only (fast — no VM created)
-.\build-automation-toolbox.ps1 -DryRun
+.\build-automation-toolbox-proxmox.ps1 -DryRun
 
 # Full build (~20–40 minutes)
-.\build-automation-toolbox.ps1
+.\build-automation-toolbox-proxmox.ps1
 
 # Full build with verbose Packer output (useful for debugging)
-.\build-automation-toolbox.ps1 -Verbose
+.\build-automation-toolbox-proxmox.ps1 -Verbose
 ```
 
 The script will:
@@ -193,10 +197,15 @@ vm_disk_gb    = 100
 ## After the Build
 
 1. In Proxmox, right-click the template → **Clone** → Full Clone
-2. Start the clone and SSH in:
+2. Start the clone and SSH in as your personal admin login
+   (`admin_username` in `../../environments/automation-toolbox.pkrvars.hcl`,
+   authenticated via `admin_ssh_public_key` or the `admin_password` you set):
    ```bash
-   ssh packer@<vm-ip>   # or your configured user
+   ssh it-admin@<vm-ip>
    ```
+   The `packer` build user and `toolbox` service account both have SSH
+   password auth disabled and no key configured — they are not meant for
+   interactive login.
 3. Verify tools:
    ```bash
    ansible --version
