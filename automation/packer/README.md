@@ -7,7 +7,7 @@
 ```
 automation/packer/
 ├── builds/                          # One subdirectory per template
-│   ├── ubuntu-2604-automation-toolbox/   # Ansible, Packer, Terraform, Docker, etc.
+│   ├── ubuntu-2404-automation-toolbox/   # Ansible, Packer, Terraform, Docker, etc.
 │   ├── ubuntu-2604-proxmox/              # Generic Ubuntu 26.04 — Proxmox
 │   ├── ubuntu-2604-vmware/               # Generic Ubuntu 26.04 — VMware vSphere
 │   ├── ubuntu-2604-aws/                  # Ubuntu 26.04 — AWS AMI
@@ -34,7 +34,7 @@ automation/packer/
 Each `builds/<template>/` directory is self-contained — it has its own `variables.pkr.hcl` and can be validated or built independently:
 
 ```bash
-cd automation/packer/builds/ubuntu-2604-automation-toolbox
+cd automation/packer/builds/ubuntu-2404-automation-toolbox
 packer init .
 packer validate -var-file="../../environments/homelab.pkrvars.hcl" .
 packer build   -var-file="../../environments/homelab.pkrvars.hcl" .
@@ -44,7 +44,7 @@ packer build   -var-file="../../environments/homelab.pkrvars.hcl" .
 
 | Template | Platform | Output | README |
 |----------|----------|--------|--------|
-| `ubuntu-2604-automation-toolbox` | Proxmox | VM Template (ID 9002) | [README](builds/ubuntu-2604-automation-toolbox/README.md) |
+| `ubuntu-2404-automation-toolbox` | Proxmox | VM Template (ID 9002) | [README](builds/ubuntu-2404-automation-toolbox/README.md) |
 | `ubuntu-2604-proxmox` | Proxmox | VM Template | — |
 | `ubuntu-2604-vmware` | VMware vSphere | vSphere Template | — |
 | `ubuntu-2604-aws` | AWS | AMI | — |

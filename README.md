@@ -41,7 +41,7 @@ monorepo/
 │   │   └── inventory/            # hosts.yml + group_vars
 │   ├── packer/                   # Golden image pipelines — one subdirectory per template
 │   │   ├── builds/
-│   │   │   ├── ubuntu-2604-automation-toolbox/  # Ansible+Packer+Terraform+Docker all-in-one VM
+│   │   │   ├── ubuntu-2404-automation-toolbox/  # Ansible+Packer+Terraform+Docker all-in-one VM
 │   │   │   ├── ubuntu-2604-proxmox/             # Generic Ubuntu 26.04 → Proxmox
 │   │   │   ├── ubuntu-2604-vmware/              # Generic Ubuntu 26.04 → vSphere
 │   │   │   ├── ubuntu-2604-aws/                 # Ubuntu 26.04 → AWS AMI

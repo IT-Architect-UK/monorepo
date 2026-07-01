@@ -117,15 +117,13 @@ ok "AWS CLI $(aws --version 2>&1) installed"
 log "[8/14] Installing Azure CLI"
 curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
-# Microsoft's apt repo doesn't always have a release for the latest Ubuntu
-# codename; fall back to noble (24.04) for any unsupported codename.
-_AZ_DISTRO=$(lsb_release -cs)
-case "${_AZ_DISTRO}" in
-    focal|jammy|noble) : ;;
-    *)                 _AZ_DISTRO="noble" ;;
-esac
+# This image is permanently pinned to Ubuntu 24.04 LTS ('noble') -- see
+# automation-toolbox.pkrvars.hcl -- specifically because Microsoft's Azure
+# CLI apt repo doesn't yet publish a release for 26.04's codename. Hardcoded
+# rather than detected via lsb_release, since detection would silently mask
+# the day this script is ever pointed at a different base image.
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] \
-    https://packages.microsoft.com/repos/azure-cli/ ${_AZ_DISTRO} main" \
+    https://packages.microsoft.com/repos/azure-cli/ noble main" \
     > /etc/apt/sources.list.d/azure-cli.list
 apt-get update -qq
 apt-get install -y azure-cli
@@ -176,16 +174,12 @@ install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
 
-# Fall back to the newest codename Docker's repo actually publishes if this
-# Ubuntu release isn't there yet (same pattern used for the Azure CLI repo below).
-_DOCKER_CODENAME=$(lsb_release -cs)
-case "${_DOCKER_CODENAME}" in
-    focal|jammy|noble) : ;;
-    *)                  _DOCKER_CODENAME="noble" ;;
-esac
-
+# Same reasoning as the Azure CLI step above: this image is permanently
+# pinned to 24.04 ('noble'), and Docker's apt repo doesn't yet publish a
+# release for 26.04's codename either, so the codename is hardcoded rather
+# than detected.
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
-    https://download.docker.com/linux/ubuntu ${_DOCKER_CODENAME} stable" \
+    https://download.docker.com/linux/ubuntu noble stable" \
     > /etc/apt/sources.list.d/docker.list
 apt-get update -qq
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin

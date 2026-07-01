@@ -1,4 +1,4 @@
-# Ubuntu 26.04 Automation Toolbox — Proxmox
+# Ubuntu 24.04 Automation Toolbox — Proxmox
 
 Builds a Proxmox VM template pre-loaded with every tool needed to run infrastructure automation from a single host.
 
@@ -25,7 +25,7 @@ The resulting Proxmox template (default VM ID: **9002**, name: **POSLXPDEPLOY01*
 |-------------|--------|
 | Packer ≥ 1.10.0 | [Download](https://developer.hashicorp.com/packer/downloads) — must be on your PATH |
 | Proxmox VE | API accessible from your build machine (LAN or VPN) |
-| Ubuntu 26.04 ISO | Pre-uploaded to Proxmox storage |
+| Ubuntu 24.04 ISO | Pre-uploaded to Proxmox storage |
 | cidata ISO | Built from `http/user-data` + `http/meta-data` — see below |
 
 ---
@@ -48,16 +48,19 @@ Note: `PKR_VAR_ssh_password` is not needed — it's a temporary, build-only
 credential pinned to `variables.pkr.hcl`'s default and unrelated to any
 login you'll actually use afterward.
 
-### 2. Upload the Ubuntu 26.04 ISO to Proxmox
+### 2. Upload the Ubuntu 24.04 ISO to Proxmox
 
 Download from [ubuntu.com/download/server](https://ubuntu.com/download/server) and upload via the Proxmox web UI:
 
 - **Datacenter → Storage → NFS-10GB-PROXMOX-1 → ISO Images → Upload**
 
-The expected path is set in `../../environments/homelab.pkrvars.hcl`:
+This template is pinned to Ubuntu 24.04 LTS (not the 26.04 used by the
+other templates in this repo), so the ISO path is set locally in
+`automation-toolbox.pkrvars.hcl`, overriding the 26.04 default in the shared
+`../../environments/homelab.pkrvars.hcl`:
 
 ```hcl
-ubuntu_iso_file = "NFS-10GB-PROXMOX-1:iso/ubuntu-26.04-live-server-amd64.iso"
+ubuntu_iso_file = "NFS-10GB-PROXMOX-1:iso/ubuntu-24.04-live-server-amd64.iso"
 ```
 
 ### 3. Build and upload the cidata ISO (autoinstall)
@@ -72,15 +75,15 @@ apt-get install -y dosfstools mtools
 
 # Build the ISO from the cloud-init files in this repo
 cd automation/packer/http
-mkdosfs -n CIDATA -C ubuntu-2604-cidata.iso 8192
-mcopy -oi ubuntu-2604-cidata.iso user-data meta-data ::
+mkdosfs -n CIDATA -C ubuntu-2404-cidata.iso 8192
+mcopy -oi ubuntu-2404-cidata.iso user-data meta-data ::
 ```
 
-Upload `ubuntu-2604-cidata.iso` to Proxmox storage (same location as the Ubuntu ISO). The expected path is set in `variables.pkr.hcl`:
+Upload `ubuntu-2404-cidata.iso` to Proxmox storage (same location as the Ubuntu ISO). The expected path is set in `variables.pkr.hcl`:
 
 ```hcl
 variable "cidata_iso_file" {
-  default = "NFS-10GB-PROXMOX-1:iso/ubuntu-2604-cidata.iso"
+  default = "NFS-10GB-PROXMOX-1:iso/ubuntu-2404-cidata.iso"
 }
 ```
 
@@ -93,7 +96,7 @@ variable "cidata_iso_file" {
 Open a PowerShell terminal and run from this directory:
 
 ```powershell
-cd D:\GitHub\monorepo\automation\packer\builds\ubuntu-2604-automation-toolbox
+cd D:\GitHub\monorepo\automation\packer\builds\ubuntu-2404-automation-toolbox
 
 # Validate only (fast — no VM created)
 .\build-automation-toolbox-proxmox.ps1 -DryRun
@@ -120,7 +123,7 @@ export PKR_VAR_proxmox_password="your-root-password"
 export PKR_VAR_ssh_password="your-packer-user-password"
 export PKR_VAR_semaphore_admin_password="your-semaphore-password"
 
-cd automation/packer/builds/ubuntu-2604-automation-toolbox
+cd automation/packer/builds/ubuntu-2404-automation-toolbox
 
 packer init .
 
@@ -143,7 +146,7 @@ packer build \
 packer build .
       │
       ├─ [1] Create VM in Proxmox (ID 9002)
-      ├─ [2] Attach Ubuntu 26.04 ISO + cidata ISO
+      ├─ [2] Attach Ubuntu 24.04 ISO + cidata ISO
       ├─ [3] Boot VM — autoinstall reads cidata, installs Ubuntu unattended
       ├─ [4] Wait for SSH (up to 90 min — install + first boot)
       │

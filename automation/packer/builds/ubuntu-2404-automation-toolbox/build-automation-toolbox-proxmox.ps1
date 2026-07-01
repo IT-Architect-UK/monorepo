@@ -1,8 +1,8 @@
 # =============================================================================
 # build-automation-toolbox-proxmox.ps1
-# Packer build script for ubuntu-2604-automation-toolbox (Proxmox only)
+# Packer build script for ubuntu-2404-automation-toolbox (Proxmox only)
 #
-# LOCATION: automation/packer/builds/ubuntu-2604-automation-toolbox/
+# LOCATION: automation/packer/builds/ubuntu-2404-automation-toolbox/
 #
 # RECOMMENDED SETUP — avoids interactive prompts on every run:
 #   Set these Windows user environment variables once in PowerShell, then
@@ -122,7 +122,7 @@ function Get-PkrVarValue {
 # ── Banner ────────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Yellow
-Write-Host "  Packer Build — Ubuntu 26.04 Automation Toolbox (Proxmox)" -ForegroundColor Yellow
+Write-Host "  Packer Build — Ubuntu 24.04 Automation Toolbox (Proxmox)" -ForegroundColor Yellow
 if ($DryRun)  { Write-Host "  MODE: Validate only (no build)" -ForegroundColor Magenta }
 if ($Verbose) { Write-Host "  MODE: Verbose Packer logging"   -ForegroundColor Magenta }
 Write-Host "  Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Yellow
@@ -131,7 +131,7 @@ Write-Host "============================================================" -Foreg
 
 Add-Content -Path $LogFile -Value @(
     "============================================================"
-    "  Packer Build — Ubuntu 26.04 Automation Toolbox (Proxmox)"
+    "  Packer Build — Ubuntu 24.04 Automation Toolbox (Proxmox)"
     "  Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
     "============================================================"
 )

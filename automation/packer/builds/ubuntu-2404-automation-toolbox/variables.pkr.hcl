@@ -1,14 +1,14 @@
-# Variables for ubuntu-2604-automation-toolbox-proxmox template
+# Variables for ubuntu-2404-automation-toolbox-proxmox template
 # Full variable reference: ../environments/README.md
 
 variable "image_name" {
   type    = string
-  default = "ubuntu-2604-automation-toolbox"
+  default = "ubuntu-2404-automation-toolbox"
 }
 
 variable "image_description" {
   type    = string
-  default = "Ubuntu 26.04 Automation Toolbox — Ansible, Packer, Terraform, Docker, and more"
+  default = "Ubuntu 24.04 Automation Toolbox — Ansible, Packer, Terraform, Docker, and more"
 }
 
 variable "ubuntu_iso_file" {
@@ -18,7 +18,7 @@ variable "ubuntu_iso_file" {
 
 variable "cidata_iso_file" {
   type    = string
-  default = "NFS-10GB-PROXMOX-1:iso/ubuntu-2604-cidata.iso"
+  default = "NFS-10GB-PROXMOX-1:iso/ubuntu-2404-cidata.iso"
 }
 
 variable "ssh_username" {

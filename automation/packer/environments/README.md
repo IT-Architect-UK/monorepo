@@ -12,12 +12,12 @@ packer build \
 
 # Two var files — base environment + template-specific overrides
 # Template-specific override files live alongside their template, not here
-# (e.g. builds/ubuntu-2604-automation-toolbox/automation-toolbox.pkrvars.hcl)
+# (e.g. builds/ubuntu-2404-automation-toolbox/automation-toolbox.pkrvars.hcl)
 # -- only files shared across more than one template belong in this directory.
 packer build \
   -var-file="environments/homelab.pkrvars.hcl" \
-  -var-file="builds/ubuntu-2604-automation-toolbox/automation-toolbox.pkrvars.hcl" \
-  ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
+  -var-file="builds/ubuntu-2404-automation-toolbox/automation-toolbox.pkrvars.hcl" \
+  ubuntu-2404-automation-toolbox-proxmox.pkr.hcl
 ```
 
 When two files are supplied, later values override earlier ones. Put your environment (Proxmox URL, storage names) in the first file, and template-specific overrides (VM size, image name) in the second.
@@ -27,7 +27,7 @@ When two files are supplied, later values override earlier ones. Put your enviro
 Only files shared across more than one template live here. A template-specific
 override file (used by exactly one template) lives in that template's own
 `builds/<template-name>/` directory instead — e.g.
-`builds/ubuntu-2604-automation-toolbox/automation-toolbox.pkrvars.hcl`.
+`builds/ubuntu-2404-automation-toolbox/automation-toolbox.pkrvars.hcl`.
 
 | File | Purpose |
 |---|---|
