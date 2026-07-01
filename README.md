@@ -44,7 +44,6 @@ monorepo/
 │   │   ├── ubuntu-2404-aws.pkr.hcl            # Ubuntu 24.04 → AWS AMI
 │   │   ├── ubuntu-2404-azure.pkr.hcl          # Ubuntu 24.04 → Azure managed image
 │   │   ├── ubuntu-2404-gcp.pkr.hcl            # Ubuntu 24.04 → GCP image
-│   │   ├── ubuntu-2404-ansible-server-proxmox.pkr.hcl   # Ansible control node
 │   │   ├── ubuntu-2404-automation-toolbox-proxmox.pkr.hcl # All-in-one toolbox VM
 │   │   ├── win2025-proxmox.pkr.hcl            # Windows Server 2025 → Proxmox template
 │   │   ├── win2025-vmware.pkr.hcl             # Windows Server 2025 → vSphere template

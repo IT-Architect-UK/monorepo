@@ -118,7 +118,6 @@ jobs:
           # Each template lives in its own subdirectory
           TEMPLATE_DIRS=(
             builds/ubuntu-2604-automation-toolbox
-            builds/ubuntu-2604-ansible-server
             builds/ubuntu-2604-proxmox
             builds/ubuntu-2604-vmware
             builds/ubuntu-2604-aws

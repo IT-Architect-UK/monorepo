@@ -8,7 +8,6 @@
 automation/packer/
 ├── builds/                          # One subdirectory per template
 │   ├── ubuntu-2604-automation-toolbox/   # Ansible, Packer, Terraform, Docker, etc.
-│   ├── ubuntu-2604-ansible-server/       # Dedicated Ansible control node
 │   ├── ubuntu-2604-proxmox/              # Generic Ubuntu 26.04 — Proxmox
 │   ├── ubuntu-2604-vmware/               # Generic Ubuntu 26.04 — VMware vSphere
 │   ├── ubuntu-2604-aws/                  # Ubuntu 26.04 — AWS AMI
@@ -16,14 +15,12 @@ automation/packer/
 │   ├── ubuntu-2604-gcp/                  # Ubuntu 26.04 — GCP Custom Image
 │   ├── win2025-proxmox/                  # Windows Server 2025 — Proxmox
 │   └── win2025-vmware/                   # Windows Server 2025 — VMware vSphere
-├── environments/                    # Shared variable files (referenced by all builds)
+├── environments/                    # Variable files shared across more than one template
 │   ├── homelab.pkrvars.hcl          # Proxmox host, storage, network settings
-│   ├── automation-toolbox.pkrvars.hcl
 │   └── README.md                    # Full variable reference
 ├── scripts/                         # Provisioner shell scripts (shared)
 │   ├── provision.sh                 # Base OS setup, tools, hardening
 │   ├── provision-automation-toolbox.sh
-│   ├── provision-ansible-server.sh
 │   ├── provision-semaphore.sh
 │   ├── cleanup.sh
 │   └── ...
@@ -48,7 +45,6 @@ packer build   -var-file="../../environments/homelab.pkrvars.hcl" .
 | Template | Platform | Output | README |
 |----------|----------|--------|--------|
 | `ubuntu-2604-automation-toolbox` | Proxmox | VM Template (ID 9002) | [README](builds/ubuntu-2604-automation-toolbox/README.md) |
-| `ubuntu-2604-ansible-server` | Proxmox | VM Template | [ANSIBLE-SERVER.md](ANSIBLE-SERVER.md) |
 | `ubuntu-2604-proxmox` | Proxmox | VM Template | — |
 | `ubuntu-2604-vmware` | VMware vSphere | vSphere Template | — |
 | `ubuntu-2604-aws` | AWS | AMI | — |

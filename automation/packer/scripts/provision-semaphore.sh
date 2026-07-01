@@ -3,8 +3,8 @@
 # provision-semaphore.sh
 # =============================================================================
 # Installs Semaphore UI — a lightweight web front-end for running Ansible
-# playbooks. Called by Packer after provision-ansible-server.sh has already
-# installed Ansible and set up the ansible service account.
+# playbooks. Called by Packer after Ansible has already been installed
+# (provision-automation-toolbox.sh) on the target VM.
 #
 # What this script installs:
 #   • Semaphore (latest release, installed via .deb)

@@ -27,8 +27,7 @@ When two files are supplied, later values override earlier ones. Put your enviro
 Only files shared across more than one template live here. A template-specific
 override file (used by exactly one template) lives in that template's own
 `builds/<template-name>/` directory instead — e.g.
-`builds/ubuntu-2604-automation-toolbox/automation-toolbox.pkrvars.hcl` or
-`builds/ubuntu-2604-ansible-server/ansible-server.pkrvars.hcl`.
+`builds/ubuntu-2604-automation-toolbox/automation-toolbox.pkrvars.hcl`.
 
 | File | Purpose |
 |---|---|
@@ -134,6 +133,6 @@ All variables are defined in `../variables.pkr.hcl`. Sensitive values (passwords
 export PKR_VAR_proxmox_password="..."
 export PKR_VAR_ssh_password="..."
 
-# For automation-toolbox / ansible-server
+# For automation-toolbox (Semaphore UI)
 export PKR_VAR_semaphore_admin_password="..."
 ```
