@@ -5,7 +5,7 @@
 #
 #   packer build \
 #     -var-file="environments/homelab.pkrvars.hcl" \
-#     -var-file="environments/ansible-server.pkrvars.hcl" \
+#     -var-file="ansible-server.pkrvars.hcl" \
 #     ubuntu-2604-ansible-server-proxmox.pkr.hcl
 #
 # These values OVERRIDE the ones in homelab/production var files.

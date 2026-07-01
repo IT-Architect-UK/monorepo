@@ -51,7 +51,7 @@ $TemplateDir = $PSScriptRoot
 $RepoRoot    = Resolve-Path "$TemplateDir\..\..\.."
 $VarFiles    = @(
     "../../environments/homelab.pkrvars.hcl",
-    "../../environments/automation-toolbox.pkrvars.hcl"
+    "automation-toolbox.pkrvars.hcl"
 )
 
 # Every run gets its own timestamped log — mirrors everything shown on
@@ -140,7 +140,7 @@ Add-Content -Path $LogFile -Value @(
 Write-Step "Resolving credentials..."
 
 $AdminUsername = Get-PkrVarValue `
-    -FilePath "$TemplateDir\..\..\environments\automation-toolbox.pkrvars.hcl" `
+    -FilePath "$TemplateDir\automation-toolbox.pkrvars.hcl" `
     -VarName  "admin_username" `
     -Default  "the admin account"
 

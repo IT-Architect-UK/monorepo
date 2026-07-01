@@ -97,7 +97,7 @@ This checks for syntax errors and confirms all variables are set. Nothing is bui
 ```bash
 packer validate \
   -var-file="environments/homelab.pkrvars.hcl" \
-  -var-file="environments/ansible-server.pkrvars.hcl" \
+  -var-file="builds/ubuntu-2604-ansible-server/ansible-server.pkrvars.hcl" \
   ubuntu-2404-ansible-server-proxmox.pkr.hcl
 ```
 
@@ -123,7 +123,7 @@ This takes about 10–15 minutes. Packer will:
 ```bash
 PACKER_LOG=1 packer build \
   -var-file="environments/homelab.pkrvars.hcl" \
-  -var-file="environments/ansible-server.pkrvars.hcl" \
+  -var-file="builds/ubuntu-2604-ansible-server/ansible-server.pkrvars.hcl" \
   ubuntu-2404-ansible-server-proxmox.pkr.hcl 2>&1 | tee packer-build.log
 ```
 

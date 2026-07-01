@@ -1,12 +1,12 @@
 # =============================================================================
-# environments/automation-toolbox.pkrvars.hcl
+# builds/ubuntu-2604-automation-toolbox/automation-toolbox.pkrvars.hcl
 # =============================================================================
 # Variable overrides specific to the Automation Toolbox image.
 # Use alongside homelab.pkrvars.hcl:
 #
 #   packer build \
 #     -var-file="environments/homelab.pkrvars.hcl" \
-#     -var-file="environments/automation-toolbox.pkrvars.hcl" \
+#     -var-file="automation-toolbox.pkrvars.hcl" \
 #     ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
 #
 # Sensitive values must be set as environment variables:

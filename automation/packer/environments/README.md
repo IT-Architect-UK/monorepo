@@ -11,9 +11,12 @@ packer build \
   ubuntu-2604-proxmox.pkr.hcl
 
 # Two var files — base environment + template-specific overrides
+# Template-specific override files live alongside their template, not here
+# (e.g. builds/ubuntu-2604-automation-toolbox/automation-toolbox.pkrvars.hcl)
+# -- only files shared across more than one template belong in this directory.
 packer build \
   -var-file="environments/homelab.pkrvars.hcl" \
-  -var-file="environments/automation-toolbox.pkrvars.hcl" \
+  -var-file="builds/ubuntu-2604-automation-toolbox/automation-toolbox.pkrvars.hcl" \
   ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
 ```
 
@@ -21,12 +24,16 @@ When two files are supplied, later values override earlier ones. Put your enviro
 
 ## Files in This Directory
 
+Only files shared across more than one template live here. A template-specific
+override file (used by exactly one template) lives in that template's own
+`builds/<template-name>/` directory instead — e.g.
+`builds/ubuntu-2604-automation-toolbox/automation-toolbox.pkrvars.hcl` or
+`builds/ubuntu-2604-ansible-server/ansible-server.pkrvars.hcl`.
+
 | File | Purpose |
 |---|---|
 | `homelab.pkrvars.hcl` | Home lab environment — Proxmox/VMware addresses, storage pools, ISO paths |
-| `automation-toolbox.pkrvars.hcl` | Overrides for the automation toolbox image (larger VM, extra tools) |
-| `ansible-server.pkrvars.hcl` | Overrides for the Ansible control node image |
-| `win2025.pkrvars.hcl` | Windows Server 2025 specific values |
+| `win2025.pkrvars.hcl` | Windows Server 2025 specific values — shared by win2025-proxmox and win2025-vmware |
 | `production.pkrvars.hcl` | Production environment values |
 
 ## Setting Up Your Own Environment

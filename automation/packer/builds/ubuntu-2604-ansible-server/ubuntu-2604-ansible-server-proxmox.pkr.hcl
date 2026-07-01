@@ -13,11 +13,11 @@
 # USAGE
 #   packer init .
 #   packer validate -var-file="environments/homelab.pkrvars.hcl" \
-#                   -var-file="environments/ansible-server.pkrvars.hcl" \
+#                   -var-file="ansible-server.pkrvars.hcl" \
 #                   ubuntu-2604-ansible-server-proxmox.pkr.hcl
 #
 #   packer build  -var-file="environments/homelab.pkrvars.hcl" \
-#                 -var-file="environments/ansible-server.pkrvars.hcl" \
+#                 -var-file="ansible-server.pkrvars.hcl" \
 #                 ubuntu-2604-ansible-server-proxmox.pkr.hcl
 #
 # WHAT HAPPENS NEXT
@@ -49,7 +49,7 @@ locals {
 
 # ─── Variables (merge with environments/*.pkrvars.hcl) ────────────────────────
 # All variables are declared in variables.pkr.hcl.
-# Ansible-server–specific overrides live in environments/ansible-server.pkrvars.hcl.
+# Ansible-server–specific overrides live in ansible-server.pkrvars.hcl (same directory).
 
 # ─── Source: Proxmox ISO ──────────────────────────────────────────────────────
 source "proxmox-iso" "ansible-server" {

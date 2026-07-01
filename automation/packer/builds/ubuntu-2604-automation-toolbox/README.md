@@ -126,12 +126,12 @@ packer init .
 
 packer validate \
   -var-file="../../environments/homelab.pkrvars.hcl" \
-  -var-file="../../environments/automation-toolbox.pkrvars.hcl" \
+  -var-file="automation-toolbox.pkrvars.hcl" \
   .
 
 packer build \
   -var-file="../../environments/homelab.pkrvars.hcl" \
-  -var-file="../../environments/automation-toolbox.pkrvars.hcl" \
+  -var-file="automation-toolbox.pkrvars.hcl" \
   .
 ```
 
@@ -198,7 +198,7 @@ vm_disk_gb    = 100
 
 1. In Proxmox, right-click the template → **Clone** → Full Clone
 2. Start the clone and SSH in as your personal admin login
-   (`admin_username` in `../../environments/automation-toolbox.pkrvars.hcl`,
+   (`admin_username` in `automation-toolbox.pkrvars.hcl`,
    authenticated via `admin_ssh_public_key` or the `admin_password` you set):
    ```bash
    ssh it-admin@<vm-ip>

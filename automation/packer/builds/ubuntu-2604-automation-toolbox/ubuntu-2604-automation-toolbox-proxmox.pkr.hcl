@@ -17,7 +17,7 @@
 #   export PKR_VAR_semaphore_admin_password="your-semaphore-password"
 #   packer build \
 #     -var-file="environments/homelab.pkrvars.hcl" \
-#     -var-file="environments/automation-toolbox.pkrvars.hcl" \
+#     -var-file="automation-toolbox.pkrvars.hcl" \
 #     ubuntu-2604-automation-toolbox-proxmox.pkr.hcl
 #
 # VARIABLES
