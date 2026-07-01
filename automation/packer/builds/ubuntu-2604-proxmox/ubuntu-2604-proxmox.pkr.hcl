@@ -95,8 +95,9 @@ source "proxmox-iso" "ubuntu-2604" {
   }
 
   network_adapters {
-    model  = "virtio"
-    bridge = "vmbr0"
+    model    = "virtio"
+    bridge   = var.proxmox_network_bridge
+    vlan_tag = var.proxmox_vlan_tag
   }
 
   # EFI disk enables UEFI boot — recommended for Ubuntu 26.04

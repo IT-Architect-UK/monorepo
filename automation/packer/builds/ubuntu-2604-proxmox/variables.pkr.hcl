@@ -81,3 +81,58 @@ variable "vm_company_name" {
   type    = string
   default = "IT-Architect"
 }
+
+variable "proxmox_network_bridge" {
+  type    = string
+  default = "VLANs"
+}
+
+variable "proxmox_vlan_tag" {
+  type    = string
+  default = "4"
+}
+
+# ─── Unused elsewhere ──────────────────────────────────────────────────────────
+# environments/homelab.pkrvars.hcl is a shared file covering every hypervisor
+# (Proxmox, VMware, Windows) by design. This template is Proxmox+Ubuntu only,
+# so it doesn't use these — declared here purely so packer validate/build
+# stop warning "was set but was not declared as an input variable" for them.
+variable "vsphere_server" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_datacenter" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_cluster" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_datastore" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_network" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_folder" {
+  type    = string
+  default = null
+}
+
+variable "win_iso_file" {
+  type    = string
+  default = null
+}
+
+variable "virtio_iso_file" {
+  type    = string
+  default = null
+}
