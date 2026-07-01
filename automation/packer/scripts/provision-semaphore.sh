@@ -116,6 +116,7 @@ mkdir -p \
 
 chown -R "${SEMAPHORE_USER}:${SEMAPHORE_USER}" \
     "${SEMAPHORE_DATA_DIR}" \
+    "${SEMAPHORE_CONFIG_DIR}" \
     "${SEMAPHORE_LOG_DIR}"
 chmod 750 "${SEMAPHORE_CONFIG_DIR}"
 log "Directories created"

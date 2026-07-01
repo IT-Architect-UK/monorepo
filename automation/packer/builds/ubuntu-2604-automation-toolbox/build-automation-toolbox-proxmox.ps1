@@ -38,6 +38,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Git, Packer, and our own provisioning scripts all emit UTF-8 (box-drawing
+# characters, checkmarks, em-dashes). Without this, piping their output
+# through the pipeline below (needed to also write it to the log file)
+# gets decoded using the console's legacy OEM codepage instead of UTF-8,
+# turning every non-ASCII character into mojibake on screen and in the log.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding            = [System.Text.Encoding]::UTF8
+
 # Script lives inside the template dir — all paths are relative to here
 $TemplateDir = $PSScriptRoot
 $RepoRoot    = Resolve-Path "$TemplateDir\..\..\.."
