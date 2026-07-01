@@ -127,11 +127,42 @@ variable "admin_ssh_public_key" {
 # (Proxmox, VMware, Windows) by design. This template is Proxmox+Ubuntu only,
 # so it doesn't use these — declared here purely so packer validate/build
 # stop warning "was set but was not declared as an input variable" for them.
-variable "vsphere_server"     { type = string; default = null }
-variable "vsphere_datacenter" { type = string; default = null }
-variable "vsphere_cluster"    { type = string; default = null }
-variable "vsphere_datastore"  { type = string; default = null }
-variable "vsphere_network"    { type = string; default = null }
-variable "vsphere_folder"     { type = string; default = null }
-variable "win_iso_file"       { type = string; default = null }
-variable "virtio_iso_file"    { type = string; default = null }
+variable "vsphere_server" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_datacenter" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_cluster" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_datastore" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_network" {
+  type    = string
+  default = null
+}
+
+variable "vsphere_folder" {
+  type    = string
+  default = null
+}
+
+variable "win_iso_file" {
+  type    = string
+  default = null
+}
+
+variable "virtio_iso_file" {
+  type    = string
+  default = null
+}
