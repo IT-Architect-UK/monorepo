@@ -25,7 +25,7 @@ The build produces a Proxmox template (default VM ID: **9002**, name: **POSLXPDE
 |-------------|--------|
 | Packer ≥ 1.10.0 | [Download](https://developer.hashicorp.com/packer/downloads) — must be on your PATH |
 | Proxmox VE | API accessible from your build machine (LAN or VPN) |
-| cidata ISO | Built from `http/user-data` + `http/meta-data` — see below |
+| cidata ISO | Pre-built in `cidata/` — see below |
 
 ---
 
@@ -62,23 +62,16 @@ ubuntu_iso_checksum = "file:https://releases.ubuntu.com/noble/SHA256SUMS"
 The exact filename includes the point release and needs a one-line bump the
 rare times Canonical retires an old one; the checksum URL never changes.
 
-### 3. Build and upload the cidata ISO (autoinstall)
+### 3. Upload the cidata ISO (autoinstall)
 
 The template uses Ubuntu autoinstall via a NoCloud cidata ISO — this replaces the HTTP server approach and works reliably with Proxmox.
 
-On a Linux machine or the Proxmox host:
+`cidata/ubuntu-2404-cidata.iso` is pre-built and committed to this repo — no
+local build tools needed. See [`cidata/README.md`](cidata/README.md) for
+what it contains and how to rebuild it if `http/user-data` or `http/meta-data`
+ever changes.
 
-```bash
-# Install tools if needed
-apt-get install -y dosfstools mtools
-
-# Build the ISO from the cloud-init files in this repo
-cd automation/packer/http
-mkdosfs -n CIDATA -C ubuntu-2404-cidata.iso 8192
-mcopy -oi ubuntu-2404-cidata.iso user-data meta-data ::
-```
-
-Upload `ubuntu-2404-cidata.iso` to the Proxmox storage pool configured in `proxmox_iso_storage`. The expected path is set in `variables.pkr.hcl`:
+Upload `cidata/ubuntu-2404-cidata.iso` to the Proxmox storage pool configured in `proxmox_iso_storage`. The expected path is set in `variables.pkr.hcl`:
 
 ```hcl
 variable "cidata_iso_file" {
@@ -231,7 +224,7 @@ Ensure Packer ≥ 1.10.0 is installed and has internet access to download the Pr
 The build host (or Proxmox itself, since `iso_download_pve = true`) needs internet access to `releases.ubuntu.com`. Check `ubuntu_iso_url` in `automation-toolbox.pkrvars.hcl` is still current -- Canonical periodically retires old point-release files.
 
 **`cidata_iso_file` not found**
-Upload the cidata ISO to Proxmox before running the build. The path must match `cidata_iso_file` in `variables.pkr.hcl`.
+Upload `cidata/ubuntu-2404-cidata.iso` (pre-built, already in this repo) to Proxmox before running the build. The path must match `cidata_iso_file` in `variables.pkr.hcl`.
 
 **Duplicate variable errors**
 Each build directory has its own `variables.pkr.hcl`. Do not run `packer build .` from the `builds/` parent directory — always run from inside the specific template folder.

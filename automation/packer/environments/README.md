@@ -68,7 +68,7 @@ All variables are defined in `../variables.pkr.hcl`. Sensitive values (passwords
 | `proxmox_storage_pool` | `local-lvm` | Where the template disk is stored |
 | `proxmox_iso_storage` | `local` | Where ISO files are stored |
 | `ubuntu_iso_file` | _(empty)_ | Pre-uploaded Ubuntu ISO path (e.g. `NFS:iso/ubuntu-26.04-live-server-amd64.iso`) |
-| `cidata_iso_file` | `NFS-10GB-PROXMOX-1:iso/ubuntu-2604-cidata.iso` | Pre-built cloud-init cidata ISO path |
+| `cidata_iso_file` | `NFS-10GB-PROXMOX-1:iso/ubuntu-2404-cidata.iso` | Pre-built cloud-init cidata ISO path — used only by `ubuntu-2404-automation-toolbox`; the `ubuntu-2604-*` templates generate their own cidata CD from `http/user-data`+`meta-data` at build time via `additional_iso_files.cd_files`, no pre-uploaded ISO needed |
 | `win_iso_file` | `local:iso/windows-server-2025.iso` | Windows Server 2025 ISO path |
 | `virtio_iso_file` | `local:iso/virtio-win.iso` | virtio-win drivers ISO path |
 
