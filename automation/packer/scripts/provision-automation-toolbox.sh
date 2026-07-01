@@ -17,6 +17,7 @@
 #   • kubectl          — Kubernetes management
 #   • Helm             — Kubernetes package manager
 #   • GitHub CLI       — Git / PR / release management
+#   • Docker CE        — containers (docker-ce, buildx, compose plugin)
 #   • jq / yq          — JSON and YAML processing
 #   • git / curl / unzip / gnupg — common utilities
 #
@@ -36,7 +37,7 @@ ok()  { echo "  ✓ $*"; }
 log "Automation Toolbox Provisioner — $(date)"
 
 # ─── 1. System prerequisites ──────────────────────────────────────────────────
-log "[1/12] System prerequisites"
+log "[1/13] System prerequisites"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y --no-install-recommends \
@@ -62,7 +63,7 @@ apt-get install -y --no-install-recommends \
 ok "System packages installed"
 
 # ─── 2. Install yq (YAML processor) ──────────────────────────────────────────
-log "[2/12] Installing yq"
+log "[2/13] Installing yq"
 YQ_VERSION="v4.44.1"
 wget -qO /usr/local/bin/yq \
     "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
@@ -70,7 +71,7 @@ chmod +x /usr/local/bin/yq
 ok "yq $(yq --version) installed"
 
 # ─── 3. HashiCorp APT repo (Packer + Terraform) ──────────────────────────────
-log "[3/12] Adding HashiCorp APT repository"
+log "[3/13] Adding HashiCorp APT repository"
 wget -qO- https://apt.releases.hashicorp.com/gpg \
     | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
@@ -80,17 +81,17 @@ apt-get update -qq
 ok "HashiCorp repo added"
 
 # ─── 4. Install Packer ────────────────────────────────────────────────────────
-log "[4/12] Installing Packer"
+log "[4/13] Installing Packer"
 apt-get install -y packer
 ok "Packer $(packer --version) installed"
 
 # ─── 5. Install Terraform ─────────────────────────────────────────────────────
-log "[5/12] Installing Terraform"
+log "[5/13] Installing Terraform"
 apt-get install -y terraform
 ok "Terraform $(terraform --version | head -1) installed"
 
 # ─── 6. Install Ansible ───────────────────────────────────────────────────────
-log "[6/12] Installing Ansible"
+log "[6/13] Installing Ansible"
 add-apt-repository --yes --update ppa:ansible/ansible
 apt-get install -y ansible
 # Install useful Galaxy collections system-wide
@@ -103,7 +104,7 @@ ansible-galaxy collection install \
 ok "$(ansible --version | head -1) installed"
 
 # ─── 7. Install AWS CLI v2 ────────────────────────────────────────────────────
-log "[7/12] Installing AWS CLI v2"
+log "[7/13] Installing AWS CLI v2"
 AWSCLI_TMP=$(mktemp -d)
 curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
     -o "${AWSCLI_TMP}/awscliv2.zip"
@@ -113,7 +114,7 @@ rm -rf "${AWSCLI_TMP}"
 ok "AWS CLI $(aws --version 2>&1) installed"
 
 # ─── 8. Install Azure CLI ─────────────────────────────────────────────────────
-log "[8/12] Installing Azure CLI"
+log "[8/13] Installing Azure CLI"
 curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
 # Microsoft's apt repo doesn't always have a release for the latest Ubuntu
@@ -131,7 +132,7 @@ apt-get install -y azure-cli
 ok "Azure CLI $(az --version 2>&1 | head -1) installed"
 
 # ─── 9. Install Google Cloud CLI ──────────────────────────────────────────────
-log "[9/12] Installing Google Cloud CLI"
+log "[9/13] Installing Google Cloud CLI"
 curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
     | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
 # Google Cloud uses a fixed suite name (cloud-sdk main) so it works on any
@@ -144,7 +145,7 @@ apt-get install -y google-cloud-cli
 ok "Google Cloud CLI $(gcloud --version 2>&1 | head -1) installed"
 
 # ─── 10. Install kubectl + Helm ───────────────────────────────────────────────
-log "[10/12] Installing kubectl and Helm"
+log "[10/13] Installing kubectl and Helm"
 
 # kubectl — latest stable
 KUBECTL_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
@@ -158,7 +159,7 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 ok "Helm $(helm version --short) installed"
 
 # ─── 11. Install GitHub CLI ───────────────────────────────────────────────────
-log "[11/12] Installing GitHub CLI"
+log "[11/13] Installing GitHub CLI"
 curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     -o /usr/share/keyrings/githubcli-archive-keyring.gpg
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
@@ -168,8 +169,32 @@ apt-get update -qq
 apt-get install -y gh
 ok "GitHub CLI $(gh --version | head -1) installed"
 
-# ─── 12. Create toolbox user + workspace ──────────────────────────────────────
-log "[12/12] Creating '${TOOLBOX_USER}' user and workspace"
+# ─── 12. Install Docker CE ────────────────────────────────────────────────────
+log "[12/13] Installing Docker CE"
+
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+
+# Fall back to the newest codename Docker's repo actually publishes if this
+# Ubuntu release isn't there yet (same pattern used for the Azure CLI repo below).
+_DOCKER_CODENAME=$(lsb_release -cs)
+case "${_DOCKER_CODENAME}" in
+    focal|jammy|noble) : ;;
+    *)                  _DOCKER_CODENAME="noble" ;;
+esac
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+    https://download.docker.com/linux/ubuntu ${_DOCKER_CODENAME} stable" \
+    > /etc/apt/sources.list.d/docker.list
+apt-get update -qq
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+systemctl enable docker
+systemctl start docker || true
+ok "Docker $(docker --version) installed"
+
+# ─── 13. Create toolbox user + workspace ──────────────────────────────────────
+log "[13/13] Creating '${TOOLBOX_USER}' user and workspace"
 
 if ! id "${TOOLBOX_USER}" &>/dev/null; then
     useradd \
@@ -184,6 +209,9 @@ fi
 echo "${TOOLBOX_USER} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${TOOLBOX_USER}"
 chmod 0440 "/etc/sudoers.d/${TOOLBOX_USER}"
 ok "Passwordless sudo configured"
+
+usermod -aG docker "${TOOLBOX_USER}"
+ok "Added '${TOOLBOX_USER}' to 'docker' group"
 
 # SSH config — agent forwarding for private network hosts
 TOOLBOX_SSH_DIR="/home/${TOOLBOX_USER}/.ssh"
@@ -240,6 +268,7 @@ echo "   GCP CLI   : $(gcloud --version 2>&1 | head -1)"
 echo "   kubectl   : $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
 echo "   Helm      : $(helm version --short)"
 echo "   GitHub CLI: $(gh --version | head -1)"
+echo "   Docker    : $(docker --version)"
 echo ""
 
 # Generate SSH key for the toolbox user
@@ -288,6 +317,7 @@ echo "  GCP CLI   : $(gcloud --version 2>&1 | head -1)"
 echo "  kubectl   : $(kubectl version --client 2>&1 | head -1)"
 echo "  Helm      : $(helm version --short)"
 echo "  GitHub CLI: $(gh --version | head -1)"
+echo "  Docker    : $(docker --version)"
 echo "  yq        : $(yq --version)"
 echo ""
 echo "  After first boot, run:"

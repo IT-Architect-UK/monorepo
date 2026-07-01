@@ -47,9 +47,9 @@ SCRIPTS_TO_RUN=(
     "configuration/apply-branding.sh"
     "configuration/disable-cloud-init.sh"
     "configuration/disable-ipv6.sh"
-    "configuration/dns-default-gateway.sh"
-    "configuration/setup-iptables.sh"
-    "configuration/extend-disks.sh"
+    "../../networking/dns/dns-default-gateway.sh"
+    "../../networking/firewall/setup-iptables.sh"
+    "../../storage/linux/extend-disks.sh"
 )
 
 for script in "${SCRIPTS_TO_RUN[@]}"; do

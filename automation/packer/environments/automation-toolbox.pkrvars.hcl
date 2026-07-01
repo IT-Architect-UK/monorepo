@@ -15,13 +15,13 @@
 # =============================================================================
 
 image_name        = "POSLXPDEPLOY01"
-image_description = "Ubuntu 26.04 Automation Toolbox — Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
+image_description = "Ubuntu 26.04 Automation Toolbox — Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI, Semaphore"
 
-# More resources than a standard VM — this host runs Packer builds and
-# Terraform plans which are CPU/memory intensive
-vm_cpu_count = 4
-vm_memory_mb = 4096
-vm_disk_gb   = 60    # Tools + Docker images + Terraform state need space
+# More resources than a standard VM — this host runs Packer builds,
+# Terraform plans, Docker containers, and the Semaphore web UI concurrently.
+vm_cpu_count = 6
+vm_memory_mb = 8192
+vm_disk_gb   = 80    # Tools + Docker images + Terraform state + Semaphore data
 
 # Dedicated VM ID — change if 9002 is already in use in your Proxmox cluster
 proxmox_vm_id = 9002

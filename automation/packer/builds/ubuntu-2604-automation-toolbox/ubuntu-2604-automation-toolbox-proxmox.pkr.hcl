@@ -6,6 +6,7 @@
 #   management host. On first boot the VM has:
 #     • Ansible, Packer, Terraform, AWS CLI v2, Azure CLI
 #     • kubectl, Helm, GitHub CLI, Docker CE
+#     • Semaphore (Ansible web UI, http://<vm-ip>/ via nginx on port 80)
 #     • Python 3 with boto3, azure-identity, google-cloud
 #     • jq, yq
 #
@@ -138,6 +139,14 @@ build {
   provisioner "shell" {
     script          = abspath("${path.root}/../../scripts/provision-automation-toolbox.sh")
     execute_command = "sudo bash {{.Path}}"
+  }
+
+  provisioner "shell" {
+    script          = abspath("${path.root}/../../scripts/provision-semaphore.sh")
+    execute_command = "sudo bash {{.Path}}"
+    environment_vars = [
+      "SEMAPHORE_ADMIN_PASS=${var.semaphore_admin_password}",
+    ]
   }
 
   provisioner "shell" {
