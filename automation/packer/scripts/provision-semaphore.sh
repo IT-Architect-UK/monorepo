@@ -69,7 +69,7 @@ log "Semaphore version: ${SEMAPHORE_VERSION}"
 
 # ── 2. Download and install Semaphore deb ────────────────────────────────────
 section "2 — Install Semaphore"
-DEB_URL="https://github.com/semaphoreui/semaphore/releases/download/v${SEMAPHORE_VERSION}/semaphore_${SEMAPHORE_VERSION}_linux_amd64.deb"
+DEB_URL="https://github.com/semaphoreui/semaphore/releases/download/v${SEMAPHORE_VERSION}/semaphore_community_${SEMAPHORE_VERSION}_linux_amd64.deb"
 log "Downloading from: ${DEB_URL}"
 # -f: treat HTTP errors as failures instead of silently saving an error page
 # as if it were the .deb. --retry: survive transient network blips. 300s
