@@ -19,8 +19,8 @@
 #   1. Open http://<server-ip>/ in a browser
 #   2. Log in: admin / <SEMAPHORE_ADMIN_PASS>
 #   3. Add a new Project → point it at your GitHub repo
-#   4. Add an SSH Key (the ansible user's private key)
-#   5. Create an Inventory pointing at /opt/ansible/inventory/hosts.yml
+#   4. Add an SSH Key (the toolbox user's private key)
+#   5. Create an Inventory pointing at /opt/toolbox/ansible/inventory/hosts.yml
 #   6. Run playbooks from the web UI
 #
 # Author  : IT-Architect-UK
@@ -276,6 +276,6 @@ echo ""
 log "Post-boot setup:"
 log "  1. Open http://<server-ip>/ and log in"
 log "  2. Add Project → git repo URL (https://github.com/IT-Architect-UK/monorepo)"
-log "  3. Add SSH Key → paste /home/ansible/.ssh/id_ed25519 private key"
-log "  4. Add Inventory → /opt/ansible/inventory/hosts.yml"
+log "  3. Add SSH Key → paste /home/toolbox/.ssh/id_ed25519 private key"
+log "  4. Add Inventory → /opt/toolbox/ansible/inventory/hosts.yml"
 log "  5. Create Tasks → select playbook, inventory, SSH key and run"

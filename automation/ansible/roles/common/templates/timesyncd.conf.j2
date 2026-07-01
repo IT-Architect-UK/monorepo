@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+# =============================================================================
+# /etc/systemd/timesyncd.conf
+# =============================================================================
+# Managed by the 'common' Ansible role (roles/common/tasks/main.yml).
+# See timesyncd.conf(5) for the full option reference.
+# =============================================================================
+
+[Time]
+NTP={{ ntp_servers | default(['0.pool.ntp.org', '1.pool.ntp.org', '2.pool.ntp.org', '3.pool.ntp.org']) | join(' ') }}
+FallbackNTP=ntp.ubuntu.com

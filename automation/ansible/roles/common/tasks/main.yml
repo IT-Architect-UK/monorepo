@@ -102,5 +102,5 @@
     enabled: true
   tags: security
 
-# ── Handlers ─────────────────────────────────────────────────────────────────
-# Handlers only run when notified, and only once even if notified multiple times
+# Handlers (Restart SSH / Restart timesyncd / Restart fail2ban) live in
+# roles/common/handlers/main.yml -- Ansible loads that automatically.
