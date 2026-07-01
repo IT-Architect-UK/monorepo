@@ -13,7 +13,9 @@
 #     [System.Environment]::SetEnvironmentVariable("PKR_VAR_semaphore_admin_password", "your-value", "User")
 #     [System.Environment]::SetEnvironmentVariable("PKR_VAR_admin_password",           "your-value", "User")
 #
-#   If any of these is missing the script will prompt you to enter it.
+#   If proxmox/semaphore is missing the script will prompt you to enter it
+#   (required). The admin login password prompt is OPTIONAL — press Enter
+#   to skip it and the account will just have no password (SSH key only).
 #   Prompted values are used for this session only — not saved anywhere.
 #
 #   PKR_VAR_ssh_password is NOT prompted for — it's a temporary, build-only
@@ -52,22 +54,48 @@ function Write-OK($msg)   { Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))
 function Write-Fail($msg) { Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))] FAIL $msg" -ForegroundColor Red }
 
 function Resolve-RequiredVar {
-    param([string]$VarName, [string]$Description)
+    param([string]$VarName, [string]$Prompt)
 
     $value = [System.Environment]::GetEnvironmentVariable($VarName)
     if (-not [string]::IsNullOrWhiteSpace($value)) { return $value }
 
     Write-Host ""
-    Write-Host "  $VarName is not set." -ForegroundColor Yellow
-    Write-Host "  ($Description)" -ForegroundColor DarkGray
-    Write-Host "  To avoid this prompt in future, set it permanently:" -ForegroundColor DarkGray
-    Write-Host "    [System.Environment]::SetEnvironmentVariable(`"$VarName`", `"your-value`", `"User`")" -ForegroundColor DarkGray
+    Write-Host "  $Prompt" -ForegroundColor Yellow
+    Write-Host "  (to skip this prompt next time, set $VarName as a permanent env var)" -ForegroundColor DarkGray
 
-    $secure = Read-Host "  Enter value now (input hidden)" -AsSecureString
+    $secure = Read-Host "  Enter value (input hidden)" -AsSecureString
     $plain  = [System.Net.NetworkCredential]::new("", $secure).Password
 
-    if ([string]::IsNullOrWhiteSpace($plain)) { throw "No value entered for $VarName — aborting." }
+    if ([string]::IsNullOrWhiteSpace($plain)) { throw "No value entered — aborting. ($Prompt)" }
     return $plain
+}
+
+function Resolve-OptionalVar {
+    param([string]$VarName, [string]$Prompt)
+
+    $value = [System.Environment]::GetEnvironmentVariable($VarName)
+    if (-not [string]::IsNullOrWhiteSpace($value)) { return $value }
+
+    Write-Host ""
+    Write-Host "  $Prompt" -ForegroundColor Yellow
+    Write-Host "  (optional — press Enter to skip; set $VarName as a permanent env var to skip this prompt)" -ForegroundColor DarkGray
+
+    $secure = Read-Host "  Enter value, or press Enter to skip (input hidden)" -AsSecureString
+    return [System.Net.NetworkCredential]::new("", $secure).Password
+}
+
+function Get-PkrVarValue {
+    # Reads a plain (non-secret) string value out of a .pkrvars.hcl file,
+    # e.g. admin_username = "it-admin". Used only for friendlier prompt text
+    # -- never for anything sensitive.
+    param([string]$FilePath, [string]$VarName, [string]$Default)
+
+    if (-not (Test-Path $FilePath)) { return $Default }
+    $match = Select-String -Path $FilePath -Pattern "^\s*$VarName\s*=\s*`"([^`"]*)`"" | Select-Object -First 1
+    if ($match -and $match.Matches[0].Groups[1].Success -and $match.Matches[0].Groups[1].Value) {
+        return $match.Matches[0].Groups[1].Value
+    }
+    return $Default
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -81,10 +109,16 @@ Write-Host "============================================================" -Foreg
 
 # ── Resolve credentials ───────────────────────────────────────────────────────
 Write-Step "Resolving credentials..."
+
+$AdminUsername = Get-PkrVarValue `
+    -FilePath "$TemplateDir\..\..\environments\automation-toolbox.pkrvars.hcl" `
+    -VarName  "admin_username" `
+    -Default  "the admin account"
+
 try {
-    $proxmoxPassword        = Resolve-RequiredVar "PKR_VAR_proxmox_password"         "Proxmox root or API user password"
-    $semaphoreAdminPassword = Resolve-RequiredVar "PKR_VAR_semaphore_admin_password" "Semaphore UI initial admin password"
-    $adminPassword          = Resolve-RequiredVar "PKR_VAR_admin_password"           "Password for your personal admin login on the built VM"
+    $proxmoxPassword        = Resolve-RequiredVar "PKR_VAR_proxmox_password"         "What's the password for your Proxmox host (root or API user)?"
+    $semaphoreAdminPassword = Resolve-RequiredVar "PKR_VAR_semaphore_admin_password" "Choose a password for the Semaphore web UI's admin login (you'll use this to log in after the build)."
+    $adminPassword          = Resolve-OptionalVar "PKR_VAR_admin_password"           "Choose a password for the '$AdminUsername' login on the built VM. You can also just use your SSH key and leave this blank."
 } catch {
     Write-Fail $_.Exception.Message
     exit 1
@@ -93,7 +127,11 @@ Write-OK "Credentials ready"
 
 $env:PKR_VAR_proxmox_password         = $proxmoxPassword
 $env:PKR_VAR_semaphore_admin_password = $semaphoreAdminPassword
-$env:PKR_VAR_admin_password           = $adminPassword
+if (-not [string]::IsNullOrWhiteSpace($adminPassword)) {
+    $env:PKR_VAR_admin_password = $adminPassword
+} else {
+    Write-Host "  Skipping admin password — '$AdminUsername' will be SSH-key-only." -ForegroundColor DarkGray
+}
 # PKR_VAR_ssh_password is intentionally left alone here — if it's already set
 # in the environment it will still be picked up by Packer; otherwise Packer
 # uses its own default ("packer-temp-password") from variables.pkr.hcl.
