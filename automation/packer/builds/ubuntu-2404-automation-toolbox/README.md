@@ -1,6 +1,6 @@
 # Ubuntu 24.04 Automation Toolbox — Proxmox
 
-Builds a Proxmox VM template pre-loaded with every tool needed to run infrastructure automation from a single host.
+Builds the primary automation host for the lab -- pre-loaded with every tool needed to run infrastructure automation. Not a golden image: this is deployed once and used as the standing server everything else gets deployed from.
 
 ## What Gets Installed
 
@@ -15,7 +15,7 @@ Builds a Proxmox VM template pre-loaded with every tool needed to run infrastruc
 | Utilities | jq, yq, curl, wget, unzip |
 | Automation UI | Semaphore (web UI for Ansible playbooks) |
 
-The resulting Proxmox template (default VM ID: **9002**, name: **POSLXPDEPLOY01**) is ready to clone and use immediately.
+The build produces a Proxmox template (default VM ID: **9002**, name: **POSLXPDEPLOY01**) as its output artifact -- clone it once to stand up the real toolbox server (see "After the Build" below).
 
 ---
 
@@ -25,7 +25,6 @@ The resulting Proxmox template (default VM ID: **9002**, name: **POSLXPDEPLOY01*
 |-------------|--------|
 | Packer ≥ 1.10.0 | [Download](https://developer.hashicorp.com/packer/downloads) — must be on your PATH |
 | Proxmox VE | API accessible from your build machine (LAN or VPN) |
-| Ubuntu 24.04 ISO | Pre-uploaded to Proxmox storage |
 | cidata ISO | Built from `http/user-data` + `http/meta-data` — see below |
 
 ---
@@ -48,20 +47,20 @@ Note: `PKR_VAR_ssh_password` is not needed — it's a temporary, build-only
 credential pinned to `variables.pkr.hcl`'s default and unrelated to any
 login you'll actually use afterward.
 
-### 2. Upload the Ubuntu 24.04 ISO to Proxmox
+### 2. Nothing to do for the Ubuntu ISO
 
-Download from [ubuntu.com/download/server](https://ubuntu.com/download/server) and upload via the Proxmox web UI:
-
-- **Datacenter → Storage → NFS-10GB-PROXMOX-1 → ISO Images → Upload**
-
-This template is pinned to Ubuntu 24.04 LTS (not the 26.04 used by the
-other templates in this repo), so the ISO path is set locally in
-`automation-toolbox.pkrvars.hcl`, overriding the 26.04 default in the shared
-`../../environments/homelab.pkrvars.hcl`:
+Packer downloads and checksum-verifies the Ubuntu 24.04 ISO directly from
+Canonical at build time -- no manual download or upload required. This host
+is pinned to 24.04 LTS (not the 26.04 used by the golden image templates in
+this repo), set in `automation-toolbox.pkrvars.hcl`:
 
 ```hcl
-ubuntu_iso_file = "NFS-10GB-PROXMOX-1:iso/ubuntu-24.04-live-server-amd64.iso"
+ubuntu_iso_url      = "https://releases.ubuntu.com/noble/ubuntu-24.04.4-live-server-amd64.iso"
+ubuntu_iso_checksum = "file:https://releases.ubuntu.com/noble/SHA256SUMS"
 ```
+
+The exact filename includes the point release and needs a one-line bump the
+rare times Canonical retires an old one; the checksum URL never changes.
 
 ### 3. Build and upload the cidata ISO (autoinstall)
 
@@ -79,7 +78,7 @@ mkdosfs -n CIDATA -C ubuntu-2404-cidata.iso 8192
 mcopy -oi ubuntu-2404-cidata.iso user-data meta-data ::
 ```
 
-Upload `ubuntu-2404-cidata.iso` to Proxmox storage (same location as the Ubuntu ISO). The expected path is set in `variables.pkr.hcl`:
+Upload `ubuntu-2404-cidata.iso` to the Proxmox storage pool configured in `proxmox_iso_storage`. The expected path is set in `variables.pkr.hcl`:
 
 ```hcl
 variable "cidata_iso_file" {
@@ -146,7 +145,7 @@ packer build \
 packer build .
       │
       ├─ [1] Create VM in Proxmox (ID 9002)
-      ├─ [2] Attach Ubuntu 24.04 ISO + cidata ISO
+      ├─ [2] Download + checksum-verify Ubuntu 24.04 ISO from Canonical, attach + cidata ISO
       ├─ [3] Boot VM — autoinstall reads cidata, installs Ubuntu unattended
       ├─ [4] Wait for SSH (up to 90 min — install + first boot)
       │
@@ -182,8 +181,8 @@ All overridable settings are in `../../environments/`:
 
 | File | Purpose |
 |------|---------|
-| `homelab.pkrvars.hcl` | Proxmox host, storage pool, ISO paths, VM sizing |
-| `automation-toolbox.pkrvars.hcl` | Image name, CPU/RAM/disk overrides, VM ID |
+| `homelab.pkrvars.hcl` | Proxmox host, storage pool, VM sizing |
+| `automation-toolbox.pkrvars.hcl` | Image name, Ubuntu ISO url/checksum, CPU/RAM/disk overrides, VM ID |
 
 To use a different VM ID or image name, edit `automation-toolbox.pkrvars.hcl`:
 
@@ -227,6 +226,9 @@ The autoinstall + first boot can take 20–30 min. The template allows 90 min. C
 
 **`packer init` fails**
 Ensure Packer ≥ 1.10.0 is installed and has internet access to download the Proxmox plugin from GitHub.
+
+**Ubuntu ISO download fails or times out**
+The build host (or Proxmox itself, since `iso_download_pve = true`) needs internet access to `releases.ubuntu.com`. Check `ubuntu_iso_url` in `automation-toolbox.pkrvars.hcl` is still current -- Canonical periodically retires old point-release files.
 
 **`cidata_iso_file` not found**
 Upload the cidata ISO to Proxmox before running the build. The path must match `cidata_iso_file` in `variables.pkr.hcl`.

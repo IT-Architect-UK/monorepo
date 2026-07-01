@@ -11,7 +11,16 @@ variable "image_description" {
   default = "Ubuntu 24.04 Automation Toolbox — Ansible, Packer, Terraform, Docker, and more"
 }
 
-variable "ubuntu_iso_file" {
+# Packer downloads and checksum-verifies this ISO directly from Canonical --
+# no manual download/upload to Proxmox storage required. Bump the filename
+# when Canonical retires this point release; the checksum URL below never
+# needs to change.
+variable "ubuntu_iso_url" {
+  type    = string
+  default = ""
+}
+
+variable "ubuntu_iso_checksum" {
   type    = string
   default = ""
 }

@@ -17,14 +17,18 @@
 image_name        = "POSLXPDEPLOY01"
 image_description = "Ubuntu 24.04 Automation Toolbox — Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI, Semaphore"
 
-# This template is permanently pinned to Ubuntu 24.04 LTS, not the 26.04 used
-# by the other templates in this repo -- chosen for stability, since 24.04
-# ('noble') already has full upstream package-repo support everywhere this
-# image needs it (Azure CLI, Docker, HashiCorp), whereas 26.04 support is
-# still rolling out across those vendors as of mid-2026. Overriding here
-# rather than in the shared homelab.pkrvars.hcl, which stays on 26.04 for
-# the other templates.
-ubuntu_iso_file = "NFS-10GB-PROXMOX-1:iso/ubuntu-24.04-live-server-amd64.iso"
+# This host is permanently pinned to Ubuntu 24.04 LTS, not the 26.04 used by
+# the golden image templates in this repo -- chosen for stability, since
+# 24.04 ('noble') already has full upstream package-repo support everywhere
+# this image needs it (Azure CLI, Docker, HashiCorp), whereas 26.04 support
+# is still rolling out across those vendors as of mid-2026.
+#
+# Packer downloads and checksum-verifies this ISO directly from Canonical --
+# no manual download/upload to Proxmox storage needed. The exact filename
+# includes the point release and needs bumping the rare times Canonical
+# retires an old one; the checksum URL is stable and never needs to change.
+ubuntu_iso_url      = "https://releases.ubuntu.com/noble/ubuntu-24.04.4-live-server-amd64.iso"
+ubuntu_iso_checksum = "file:https://releases.ubuntu.com/noble/SHA256SUMS"
 
 # More resources than a standard VM — this host runs Packer builds,
 # Terraform plans, Docker containers, and the Semaphore web UI concurrently.

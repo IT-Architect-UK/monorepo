@@ -55,8 +55,10 @@ source "proxmox-iso" "automation-toolbox" {
   template_description = "Ubuntu 24.04 Automation Toolbox | Built ${local.timestamp} by Packer | Tools: Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
 
   boot_iso {
-    iso_file         = var.ubuntu_iso_file
+    iso_url          = var.ubuntu_iso_url
+    iso_checksum     = var.ubuntu_iso_checksum
     iso_storage_pool = var.proxmox_iso_storage
+    iso_download_pve = true
     unmount          = true
   }
 
