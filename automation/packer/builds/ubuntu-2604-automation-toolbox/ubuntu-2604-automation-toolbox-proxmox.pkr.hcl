@@ -142,7 +142,7 @@ build {
 
   provisioner "shell" {
     inline          = ["chown -R packer:packer /opt/toolbox"]
-    execute_command = "sudo bash -c '{{.Path}}'"
+    execute_command = "sudo bash {{.Path}}"
   }
 
   provisioner "file" {
@@ -154,7 +154,7 @@ build {
     inline = [
       "cd /opt/toolbox/ansible && ansible-playbook playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"
     ]
-    execute_command = "sudo bash -c '{{.Path}}'"
+    execute_command = "sudo bash {{.Path}}"
   }
 
   provisioner "shell" {
