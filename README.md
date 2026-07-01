@@ -147,12 +147,13 @@ Covers: system updates · SSH hardening · fail2ban · unattended-upgrades · NT
 
 ### GitHub Actions CI
 
-Every push triggers three validation jobs in parallel:
+Every push triggers four validation jobs in parallel:
 
 ```
 ✔ Shell script syntax    (bash -n on all .sh files)
 ✔ Ansible syntax         (ansible-playbook --syntax-check on all playbooks)
 ✔ Packer validate        (all 8 templates validated independently)
+✔ PowerShell syntax      (parser-based check on all .ps1 files)
 ```
 
 Each template lives in its own subdirectory (`automation/packer/builds/<template>/`), so `packer init`/`packer validate` run against a single, isolated `.pkr.hcl` file per template — no shared-directory HCL merge conflicts to work around.

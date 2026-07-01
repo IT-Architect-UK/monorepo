@@ -1,10 +1,11 @@
 # =============================================================================
 # validate.yml — Syntax validation for every push and pull request
 # =============================================================================
-# Runs three checks automatically:
+# Runs four checks automatically:
 #   1. bash -n  — Shell script syntax (all .sh files)
 #   2. ansible-playbook --syntax-check  — Ansible playbooks
 #   3. packer validate  — Each template in its own subdirectory
+#   4. PowerShell parser — Syntax-only check (all .ps1 files)
 #
 # Templates live in automation/packer/<template-name>/ — one directory per
 # template — so Packer reads only that template's files. No hide/show hacks.
@@ -155,3 +156,49 @@ jobs:
           echo ""
           echo "Packer templates failed: $FAIL"
           exit $FAIL
+
+  # ---------------------------------------------------------------------------
+  # Job 4: PowerShell syntax check (parser-based, mirrors bash -n)
+  # ---------------------------------------------------------------------------
+  # ubuntu-latest ships PowerShell Core (pwsh) preinstalled, so no setup step
+  # is needed. This parses each script without executing it -- it catches
+  # genuine syntax errors only, the same scope as the bash -n job above. It
+  # is not a linter: style/best-practice checking (PSScriptAnalyzer) is a
+  # deliberate future addition, not bundled in here.
+  # ---------------------------------------------------------------------------
+  powershell-syntax:
+    name: PowerShell script syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check all .ps1 files
+        shell: pwsh
+        run: |
+          Write-Host "Checking PowerShell scripts..."
+          $fail = 0
+          $files = Get-ChildItem -Path . -Filter *.ps1 -Recurse -File |
+                   Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' } |
+                   Sort-Object FullName
+
+          foreach ($f in $files) {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              $f.FullName, [ref]$tokens, [ref]$parseErrors)
+
+            if ($parseErrors.Count -gt 0) {
+              Write-Host "  x  $($f.FullName)"
+              foreach ($e in $parseErrors) {
+                Write-Host "       $e"
+              }
+              $fail++
+            } else {
+              Write-Host "  OK $($f.FullName)"
+            }
+          }
+
+          Write-Host ""
+          Write-Host "Failed: $fail"
+          if ($fail -gt 0) { exit $fail }
