@@ -181,6 +181,15 @@ variable "win_iso_file" {
   default = null
 }
 
+variable "ubuntu_iso_file" {
+  # Superseded here by ubuntu_iso_url/ubuntu_iso_checksum (Packer fetches
+  # and verifies the ISO itself -- see above). Still declared as unused
+  # because homelab.pkrvars.hcl sets it for the ubuntu-2604-* templates,
+  # which still use the pre-uploaded-ISO pattern.
+  type    = string
+  default = null
+}
+
 variable "virtio_iso_file" {
   type    = string
   default = null
