@@ -125,7 +125,7 @@ log "Directories created"
 section "5 — Write config"
 COOKIE_HASH=$(openssl rand -hex 32)
 COOKIE_ENC=$(openssl rand -hex 16)
-ACCESS_KEY_ENC=$(openssl rand -base64 32 | tr -d '\n=')
+ACCESS_KEY_ENC=$(openssl rand -base64 32 | tr -d '\n')
 
 cat > "${SEMAPHORE_CONFIG}" << EOF
 {
