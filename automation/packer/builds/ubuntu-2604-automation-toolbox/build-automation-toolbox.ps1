@@ -10,11 +10,16 @@
 #   any file or committed to GitHub.
 #
 #     [System.Environment]::SetEnvironmentVariable("PKR_VAR_proxmox_password",         "your-value", "User")
-#     [System.Environment]::SetEnvironmentVariable("PKR_VAR_ssh_password",             "your-value", "User")
 #     [System.Environment]::SetEnvironmentVariable("PKR_VAR_semaphore_admin_password", "your-value", "User")
 #
-#   If any variable is missing the script will prompt you to enter it.
+#   If either variable is missing the script will prompt you to enter it.
 #   Prompted values are used for this session only — not saved anywhere.
+#
+#   PKR_VAR_ssh_password is NOT prompted for — it's a temporary, build-only
+#   credential pinned to the password baked into http/user-data (default:
+#   "packer-temp-password"), and Packer falls back to that default on its
+#   own. Only set this env var if you've regenerated the cidata ISO with a
+#   different password.
 #
 # USAGE (from this folder in a PowerShell terminal):
 #   .\build-automation-toolbox.ps1           # Full build
@@ -77,7 +82,6 @@ Write-Host "============================================================" -Foreg
 Write-Step "Resolving credentials..."
 try {
     $proxmoxPassword        = Resolve-RequiredVar "PKR_VAR_proxmox_password"         "Proxmox root or API user password"
-    $packerSshPassword      = Resolve-RequiredVar "PKR_VAR_ssh_password"             "Temporary SSH password used during the Packer build"
     $semaphoreAdminPassword = Resolve-RequiredVar "PKR_VAR_semaphore_admin_password" "Semaphore UI initial admin password"
 } catch {
     Write-Fail $_.Exception.Message
@@ -86,8 +90,10 @@ try {
 Write-OK "Credentials ready"
 
 $env:PKR_VAR_proxmox_password         = $proxmoxPassword
-$env:PKR_VAR_ssh_password             = $packerSshPassword
 $env:PKR_VAR_semaphore_admin_password = $semaphoreAdminPassword
+# PKR_VAR_ssh_password is intentionally left alone here — if it's already set
+# in the environment it will still be picked up by Packer; otherwise Packer
+# uses its own default ("packer-temp-password") from variables.pkr.hcl.
 
 # ── Step 1: Git pull ──────────────────────────────────────────────────────────
 Write-Step "Syncing monorepo from GitHub..."

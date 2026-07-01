@@ -230,6 +230,18 @@ Host 10.* 172.16.* 172.17.* 172.18.* 172.19.* 172.20.* 172.21.* 172.22.* 172.23.
     UserKnownHostsFile     /dev/null
     ForwardAgent           yes
 SSH_EOF
+
+# Authorized key — SSH password auth is disabled by provision.sh, so this is
+# the only way to actually log in as this user once the build is sealed.
+TOOLBOX_SSH_PUBLIC_KEY="${TOOLBOX_SSH_PUBLIC_KEY:-}"
+if [[ -n "${TOOLBOX_SSH_PUBLIC_KEY}" ]]; then
+    echo "${TOOLBOX_SSH_PUBLIC_KEY}" > "${TOOLBOX_SSH_DIR}/authorized_keys"
+    chmod 600 "${TOOLBOX_SSH_DIR}/authorized_keys"
+    ok "SSH public key installed for '${TOOLBOX_USER}'"
+else
+    log "No TOOLBOX_SSH_PUBLIC_KEY provided — '${TOOLBOX_USER}' will have no SSH access"
+fi
+
 chmod 700 "${TOOLBOX_SSH_DIR}"
 chmod 600 "${TOOLBOX_SSH_DIR}/config"
 chown -R "${TOOLBOX_USER}:${TOOLBOX_USER}" "${TOOLBOX_SSH_DIR}"

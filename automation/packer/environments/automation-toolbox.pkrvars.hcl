@@ -25,3 +25,7 @@ vm_disk_gb   = 80    # Tools + Docker images + Terraform state + Semaphore data
 
 # Dedicated VM ID — change if 9002 is already in use in your Proxmox cluster
 proxmox_vm_id = 9002
+
+# Public key for the 'toolbox' user — SSH password auth is disabled by
+# provision.sh, so this is the only way in once the build completes.
+toolbox_ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKolhAjPEYFfBGs2mz9fJAi9EfBYDbY5uuqH9TQLce9M"

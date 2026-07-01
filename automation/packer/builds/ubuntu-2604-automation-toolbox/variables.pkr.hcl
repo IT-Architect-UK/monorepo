@@ -27,8 +27,14 @@ variable "ssh_username" {
 }
 
 variable "ssh_password" {
+  # Must match the password hash baked into http/user-data for the 'packer'
+  # user (default: "packer-temp-password"). This is a temporary, build-only
+  # credential — SSH password auth is disabled before the image is sealed —
+  # so there's no security reason to require re-entering it every run. If you
+  # regenerate the cidata ISO with a different password, update this default
+  # (or override via PKR_VAR_ssh_password) to match.
   type      = string
-  default   = ""
+  default   = "packer-temp-password"
   sensitive = true
 }
 
@@ -92,4 +98,13 @@ variable "semaphore_admin_password" {
   type      = string
   default   = ""
   sensitive = true
+}
+
+variable "toolbox_ssh_public_key" {
+  # Public key — not a secret, safe to set in a committed .pkrvars.hcl file.
+  # Installed to /home/toolbox/.ssh/authorized_keys so you can actually SSH
+  # into the finished template as the 'toolbox' user (SSH password auth is
+  # disabled by provision.sh, and 'toolbox' has no password of its own).
+  type    = string
+  default = ""
 }
