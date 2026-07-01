@@ -46,12 +46,25 @@ $VarFiles    = @(
     "../../environments/automation-toolbox.pkrvars.hcl"
 )
 
+# Every run gets its own timestamped log — mirrors everything shown on
+# screen (git pull, packer init/validate/build). Folder is gitignored.
+$LogDir  = Join-Path $TemplateDir "logs"
+New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+$LogFile = Join-Path $LogDir "build-automation-toolbox-$(Get-Date -Format 'ddMMyyyy-HH-mm').log"
+
 function Write-Step($msg) {
     Write-Host ""
     Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))] >>> $msg" -ForegroundColor Cyan
+    Add-Content -Path $LogFile -Value @("", "[$([datetime]::Now.ToString('HH:mm:ss'))] >>> $msg")
 }
-function Write-OK($msg)   { Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))]  OK  $msg" -ForegroundColor Green }
-function Write-Fail($msg) { Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))] FAIL $msg" -ForegroundColor Red }
+function Write-OK($msg) {
+    Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))]  OK  $msg" -ForegroundColor Green
+    Add-Content -Path $LogFile -Value "[$([datetime]::Now.ToString('HH:mm:ss'))]  OK  $msg"
+}
+function Write-Fail($msg) {
+    Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))] FAIL $msg" -ForegroundColor Red
+    Add-Content -Path $LogFile -Value "[$([datetime]::Now.ToString('HH:mm:ss'))] FAIL $msg"
+}
 
 function Resolve-RequiredVar {
     param([string]$VarName, [string]$Prompt)
@@ -105,7 +118,15 @@ Write-Host "  Packer Build — Ubuntu 26.04 Automation Toolbox (Proxmox)" -Foreg
 if ($DryRun)  { Write-Host "  MODE: Validate only (no build)" -ForegroundColor Magenta }
 if ($Verbose) { Write-Host "  MODE: Verbose Packer logging"   -ForegroundColor Magenta }
 Write-Host "  Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Yellow
+Write-Host "  Log file: $LogFile" -ForegroundColor DarkGray
 Write-Host "============================================================" -ForegroundColor Yellow
+
+Add-Content -Path $LogFile -Value @(
+    "============================================================"
+    "  Packer Build — Ubuntu 26.04 Automation Toolbox (Proxmox)"
+    "  Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    "============================================================"
+)
 
 # ── Resolve credentials ───────────────────────────────────────────────────────
 Write-Step "Resolving credentials..."
@@ -140,25 +161,28 @@ if (-not [string]::IsNullOrWhiteSpace($adminPassword)) {
 Write-Step "Syncing monorepo from GitHub..."
 Push-Location $RepoRoot
 try {
-    git pull origin main 2>&1 | ForEach-Object { Write-Host "  $_" }
+    git pull origin main 2>&1 | Tee-Object -FilePath $LogFile -Append | ForEach-Object { Write-Host "  $_" }
     if ($LASTEXITCODE -ne 0) { throw "git pull failed" }
     Write-OK "Repo up to date"
 } finally { Pop-Location }
 
 # ── Step 2: Packer logging ────────────────────────────────────────────────────
 if ($Verbose) { $env:PACKER_LOG = "1" } else { Remove-Item Env:\PACKER_LOG -ErrorAction SilentlyContinue }
+# Strips ANSI colour codes from Packer's own output so the log file stays
+# plain text instead of filling with escape-sequence garbage.
+$env:PACKER_NO_COLOR = "1"
 
 # ── Steps 3–5: Init, Validate, Build (run from inside the template dir) ───────
 Push-Location $TemplateDir
 try {
     Write-Step "Running packer init..."
-    packer init .
+    packer init . 2>&1 | Tee-Object -FilePath $LogFile -Append | ForEach-Object { Write-Host $_ }
     if ($LASTEXITCODE -ne 0) { throw "packer init failed" }
     Write-OK "Plugins ready"
 
     Write-Step "Validating template..."
     $varArgs = $VarFiles | ForEach-Object { "-var-file=$_" }
-    packer validate @varArgs .
+    packer validate @varArgs . 2>&1 | Tee-Object -FilePath $LogFile -Append | ForEach-Object { Write-Host $_ }
     if ($LASTEXITCODE -ne 0) { throw "packer validate failed" }
     Write-OK "Template valid"
 
@@ -170,7 +194,7 @@ try {
         Write-Host "  Tip: watch progress in the Proxmox console." -ForegroundColor DarkGray
         Write-Host ""
 
-        packer build @varArgs .
+        packer build @varArgs . 2>&1 | Tee-Object -FilePath $LogFile -Append | ForEach-Object { Write-Host $_ }
         if ($LASTEXITCODE -ne 0) { throw "packer build failed" }
 
         Write-OK "Build complete — template is ready in Proxmox."
@@ -187,11 +211,18 @@ try {
     Remove-Item Env:\PKR_VAR_semaphore_admin_password  -ErrorAction SilentlyContinue
     Remove-Item Env:\PKR_VAR_admin_password            -ErrorAction SilentlyContinue
     Remove-Item Env:\PACKER_LOG                        -ErrorAction SilentlyContinue
+    Remove-Item Env:\PACKER_NO_COLOR                   -ErrorAction SilentlyContinue
     Pop-Location
 }
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host "  Finished: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Yellow
+Write-Host "  Log file: $LogFile" -ForegroundColor DarkGray
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
+Add-Content -Path $LogFile -Value @(
+    "============================================================"
+    "  Finished: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    "============================================================"
+)

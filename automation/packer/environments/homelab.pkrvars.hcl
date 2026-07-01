@@ -10,12 +10,14 @@
 # =============================================================================
 
 # ── Proxmox ──────────────────────────────────────────────────────────────────
-proxmox_url          = "https://192.168.4.150:8006/api2/json"
-proxmox_node         = "POSVMPWS01"
-proxmox_username     = "root@pam"
-proxmox_storage_pool = "NFS-10GB-PROXMOX-1"
-proxmox_iso_storage  = "NFS-10GB-PROXMOX-1"
-proxmox_vm_id        = 106
+proxmox_url             = "https://192.168.4.150:8006/api2/json"
+proxmox_node            = "POSVMPWS01"
+proxmox_username        = "root@pam"
+proxmox_storage_pool    = "NFS-10GB-PROXMOX-1"
+proxmox_iso_storage     = "NFS-10GB-PROXMOX-1"
+proxmox_vm_id           = 106
+proxmox_network_bridge  = "VLANs"
+proxmox_vlan_tag        = "4"
 
 # ── Ubuntu ISO (pre-uploaded to Proxmox) ──────────────────────────────────────
 # Run on Proxmox host to list available ISOs:

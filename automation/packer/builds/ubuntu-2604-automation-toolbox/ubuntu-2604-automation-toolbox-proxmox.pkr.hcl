@@ -74,10 +74,10 @@ source "proxmox-iso" "automation-toolbox" {
   }
 
   network_adapters {
-    bridge   = "VLANs"
+    bridge   = var.proxmox_network_bridge
     model    = "virtio"
     firewall = false
-    vlan_tag = "4"
+    vlan_tag = var.proxmox_vlan_tag
   }
 
   efi_config {
@@ -155,7 +155,7 @@ build {
   }
 
   provisioner "shell" {
-    inline          = ["chown -R packer:packer /opt/toolbox"]
+    inline          = ["chown -R ${var.ssh_username}:${var.ssh_username} /opt/toolbox"]
     execute_command = "sudo bash {{.Path}}"
   }
 

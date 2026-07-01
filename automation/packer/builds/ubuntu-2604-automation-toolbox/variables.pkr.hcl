@@ -84,6 +84,16 @@ variable "proxmox_iso_storage" {
   default = "local"
 }
 
+variable "proxmox_network_bridge" {
+  type    = string
+  default = "VLANs"
+}
+
+variable "proxmox_vlan_tag" {
+  type    = string
+  default = "4"
+}
+
 variable "proxmox_vm_id" {
   type    = number
   default = 9002
