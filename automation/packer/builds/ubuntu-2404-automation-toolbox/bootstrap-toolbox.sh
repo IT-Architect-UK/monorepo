@@ -271,6 +271,28 @@ else
 fi
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
+# ─── 7. Firewall lockdown ────────────────────────────────────────────────────
+echo ""
+log "Firewall: the build baseline allows all private-subnet traffic. You can"
+log "lock this server down so that ONLY a management subnet may reach it"
+log "(SSH 22, Semaphore 80, Homepage 3002, Webmin 10000, ICMP)."
+warn "Run this from the Proxmox console or from a host INSIDE that subnet —"
+warn "an SSH session from anywhere else will be cut off when rules apply."
+read -r -p "Management subnet to allow, e.g. 192.168.4.0/24 (Enter = skip, keep baseline): " MGMT_SUBNET
+if [[ -n "${MGMT_SUBNET}" ]]; then
+    REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+    FW_SCRIPT="${REPO_ROOT}/infrastructure/networking/firewall/setup-iptables.sh"
+    [[ -f "${FW_SCRIPT}" ]] || FW_SCRIPT="/git/monorepo/infrastructure/networking/firewall/setup-iptables.sh"
+    if [[ -f "${FW_SCRIPT}" ]]; then
+        chmod +x "${FW_SCRIPT}"
+        MGMT_SUBNETS="${MGMT_SUBNET}" ALLOWED_TCP_PORTS="22,80,3002,10000" "${FW_SCRIPT}"             && log "Firewall locked down to ${MGMT_SUBNET}"             || warn "Firewall script reported an error — check its log; baseline rules may still apply."
+    else
+        warn "setup-iptables.sh not found in the repo checkout — firewall unchanged."
+    fi
+else
+    log "Firewall unchanged (baseline rules still in effect)."
+fi
+
 mkdir -p /opt/toolbox && touch /opt/toolbox/.bootstrapped
 IP=$(hostname -I | awk '{print $1}')
 echo ""

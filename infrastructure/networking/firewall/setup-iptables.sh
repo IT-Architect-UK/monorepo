@@ -2,7 +2,27 @@
 # =============================================================================
 # IPTables Baseline Firewall — Ubuntu
 # Applies a defence-in-depth iptables ruleset suitable for infrastructure
-# servers. Allows SSH, ICMP, and all traffic from RFC-1918 private subnets.
+# servers. Two modes:
+#
+#   Default mode (no env vars): allows SSH from anywhere, ICMP and ALL
+#   traffic from RFC-1918 private subnets. Suitable as a first-boot baseline.
+#
+#   Strict mode (MGMT_SUBNETS set): allows ONLY the listed TCP ports and
+#   ICMP, ONLY from the listed subnets. Everything else is dropped —
+#   including other private/RFC-1918 addresses.
+#
+# Environment variables:
+#   MGMT_SUBNETS       Comma-separated CIDRs allowed in (e.g. "192.168.4.0/24")
+#                      Setting this switches the script to strict mode.
+#   ALLOWED_TCP_PORTS  Comma-separated TCP ports to allow from MGMT_SUBNETS
+#                      (default: the SSH port only)
+#
+# Example (Deployment Toolbox):
+#   sudo MGMT_SUBNETS="192.168.4.0/24" ALLOWED_TCP_PORTS="22,80,3002,10000" \
+#        ./setup-iptables.sh
+#
+# WARNING: in strict mode, run this from the console or from a host INSIDE
+# MGMT_SUBNETS — an SSH session from outside it will be cut off.
 # Drops all other inbound traffic. Saves rules persistently via
 # iptables-persistent.
 #
@@ -71,8 +91,10 @@ else
 fi
 log "SSH port: ${SSH_PORT}"
 
-# ─── Private subnets ─────────────────────────────────────────────────────────
+# ─── Subnet / port configuration ─────────────────────────────────────────────
 PRIVATE_SUBNETS=("10.0.0.0/8" "172.16.0.0/12" "192.168.0.0/16")
+MGMT_SUBNETS="${MGMT_SUBNETS:-}"
+ALLOWED_TCP_PORTS="${ALLOWED_TCP_PORTS:-}"
 
 # ─── Flush existing rules and reset policies ─────────────────────────────────
 log "Flushing existing iptables rules..."
@@ -98,22 +120,39 @@ iptables -A OUTPUT -o lo -j ACCEPT
 log "Allowing established and related inbound connections..."
 iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
-# ─── Private subnet access ───────────────────────────────────────────────────
-log "Allowing all inbound traffic from private subnets..."
-for subnet in "${PRIVATE_SUBNETS[@]}"; do
-    iptables -A INPUT -s "${subnet}" -j ACCEPT
-    log "  Allowed: ${subnet}"
-done
+if [[ -n "${MGMT_SUBNETS}" ]]; then
+    # ─── STRICT MODE: named subnets and ports only ───────────────────────────
+    PORTS="${ALLOWED_TCP_PORTS:-${SSH_PORT}}"
+    log "STRICT mode: allowing TCP port(s) ${PORTS} and ICMP from ${MGMT_SUBNETS} only"
+    IFS=',' read -ra SUBNET_LIST <<< "${MGMT_SUBNETS}"
+    IFS=',' read -ra PORT_LIST   <<< "${PORTS}"
+    for subnet in "${SUBNET_LIST[@]}"; do
+        subnet="$(echo "${subnet}" | xargs)"
+        for port in "${PORT_LIST[@]}"; do
+            port="$(echo "${port}" | xargs)"
+            iptables -A INPUT -s "${subnet}" -p tcp --dport "${port}" -j ACCEPT
+            log "  Allowed: tcp/${port} from ${subnet}"
+        done
+        iptables -A INPUT -s "${subnet}" -p icmp -j ACCEPT
+        log "  Allowed: icmp from ${subnet}"
+    done
+    log "All other inbound traffic (including other private subnets) is DROPPED."
+else
+    # ─── DEFAULT MODE: baseline for freshly built servers ────────────────────
+    log "Allowing all inbound traffic from private subnets..."
+    for subnet in "${PRIVATE_SUBNETS[@]}"; do
+        iptables -A INPUT -s "${subnet}" -j ACCEPT
+        log "  Allowed: ${subnet}"
+    done
 
-# ─── SSH ─────────────────────────────────────────────────────────────────────
-log "Allowing SSH on port ${SSH_PORT}..."
-iptables -A INPUT -p tcp --dport "${SSH_PORT}" -j ACCEPT
+    log "Allowing SSH on port ${SSH_PORT}..."
+    iptables -A INPUT -p tcp --dport "${SSH_PORT}" -j ACCEPT
 
-# ─── ICMP (ping) from private subnets ───────────────────────────────────────
-log "Allowing ICMP from private subnets..."
-for subnet in "${PRIVATE_SUBNETS[@]}"; do
-    iptables -A INPUT -s "${subnet}" -p icmp -j ACCEPT
-done
+    log "Allowing ICMP from private subnets..."
+    for subnet in "${PRIVATE_SUBNETS[@]}"; do
+        iptables -A INPUT -s "${subnet}" -p icmp -j ACCEPT
+    done
+fi
 
 # ─── Install iptables-persistent ─────────────────────────────────────────────
 log "Installing iptables-persistent for rule persistence across reboots..."

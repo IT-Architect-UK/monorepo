@@ -198,9 +198,10 @@ vm_disk_gb    = 100
    ```bash
    ssh it-admin@<vm-ip>
    ```
-   The `packer` build user and `toolbox` service account both have SSH
-   password auth disabled and no key configured — they are not meant for
-   interactive login.
+   SSH access policy: `it-admin` accepts the SSH key from the pkrvars file
+   **and** the password set at build time (`PKR_VAR_admin_password`). All
+   other accounts (`root`, `packer`, `toolbox`) are key-only or no-login —
+   they are not meant for interactive use.
 3. Verify tools:
    ```bash
    ansible --version
@@ -216,6 +217,8 @@ vm_disk_gb    = 100
    You'll be prompted for the Semaphore admin password and your Proxmox API
    details (an API token is recommended — the script header explains how to
    create one). Credentials are stored encrypted in Semaphore, never on disk.
+   Finally it offers to lock the firewall down to your management subnet —
+   after that, only that subnet can reach SSH and the web UIs.
 5. Open `http://<vm-ip>/`, log in as `admin`, and provision your first VM:
    **Task Templates → Provision VM (Proxmox) → Run** — fill in the survey
    (VM name + which template to clone) and watch the task output.

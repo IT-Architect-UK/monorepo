@@ -268,6 +268,20 @@ if [[ -n "${ADMIN_USERNAME}" ]]; then
         log "No ADMIN_PASSWORD provided — '${ADMIN_USERNAME}' has no password set"
     fi
 
+    if [[ -n "${ADMIN_PASSWORD}" ]]; then
+        # provision.sh disables SSH password auth globally (key-only). Carve
+        # out an exception for the personal admin account ONLY — every other
+        # account (root, packer, toolbox) stays key-only.
+        cat >> /etc/ssh/sshd_config <<SSHD_EOF
+
+# Allow password login for the personal admin account only (build-time policy)
+Match User ${ADMIN_USERNAME}
+    PasswordAuthentication yes
+SSHD_EOF
+        systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
+        ok "SSH password login enabled for '${ADMIN_USERNAME}' only (all other accounts remain key-only)"
+    fi
+
     if [[ -n "${ADMIN_SSH_PUBLIC_KEY}" ]]; then
         ADMIN_SSH_DIR="/home/${ADMIN_USERNAME}/.ssh"
         mkdir -p "${ADMIN_SSH_DIR}"

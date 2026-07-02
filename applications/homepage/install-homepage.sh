@@ -17,7 +17,7 @@
 #   sudo ./install-homepage.sh
 #
 # Author:            Darren Pilkington
-# Version:           1.1
+# Version:           1.2
 # Date:              02-07-2026
 # =============================================================================
 
@@ -45,6 +45,10 @@ ENV_FILE="/opt/homepage/.env.homepage"
 CONTAINER_NAME="homepage"
 IMAGE="ghcr.io/gethomepage/homepage:latest"
 HOST_PORT="3002"
+# Homepage refuses requests whose Host header isn't listed here (mandatory in
+# current releases — see gethomepage.dev/installation). "*" disables the check,
+# acceptable on a LAN-only lab dashboard behind the toolbox firewall.
+ALLOWED_HOSTS="${HOMEPAGE_ALLOWED_HOSTS:-*}"
 
 # ─── Clean up any previous install ──────────────────────────────────────────
 if docker ps -a --format '{{.Names}}' | grep -qx "${CONTAINER_NAME}"; then
@@ -165,6 +169,7 @@ log "Starting ${CONTAINER_NAME}..."
 docker run -d \
     --name "${CONTAINER_NAME}" \
     -p "${HOST_PORT}:3000" \
+    -e "HOMEPAGE_ALLOWED_HOSTS=${ALLOWED_HOSTS}" \
     -v "${CONFIG_DIR}:/app/config" \
     -v /var/run/docker.sock:/var/run/docker.sock:ro \
     --env-file "${ENV_FILE}" \
