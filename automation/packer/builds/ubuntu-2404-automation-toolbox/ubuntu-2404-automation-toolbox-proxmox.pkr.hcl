@@ -193,9 +193,18 @@ build {
     execute_command = "sudo bash {{.Path}}"
   }
 
+  # Requires Docker CE, already installed earlier by
+  # provision-automation-toolbox.sh. Writes placeholder services.yaml /
+  # settings.yaml / .env.homepage on first run -- see the script header for
+  # what needs filling in once the other bolt-on tools are actually deployed.
+  provisioner "shell" {
+    script          = abspath("${path.root}/../../../../applications/homepage/install-homepage.sh")
+    execute_command = "sudo bash {{.Path}}"
+  }
+
   # Must run after apply-branding.sh (owns the base /etc/issue banner --
-  # this only appends) and after both Semaphore and Webmin are installed,
-  # since it prints both their URLs.
+  # this only appends) and after Semaphore, Webmin, and Homepage are
+  # installed, since it prints their URLs.
   provisioner "shell" {
     script          = abspath("${path.root}/../../scripts/write-toolbox-banner.sh")
     execute_command = "sudo bash {{.Path}}"

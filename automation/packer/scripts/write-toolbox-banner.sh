@@ -6,8 +6,8 @@
 # (/etc/issue) and adds a first-login MOTD fragment listing them.
 #
 # Runs after apply-branding.sh (which owns the base /etc/issue warning
-# banner -- this only appends to it, never overwrites) and after Semaphore
-# and Webmin are both installed, so both URLs are accurate.
+# banner -- this only appends to it, never overwrites) and after Semaphore,
+# Webmin, and Homepage are all installed, so all three URLs are accurate.
 #
 # /etc/issue is displayed by agetty at the console login prompt, BEFORE
 # authentication. It supports agetty's own escape codes -- \4 (IPv4
@@ -35,6 +35,7 @@ cat >> /etc/issue <<'EOF'
  Web Interfaces:
    Semaphore : http://\4/         (http://\n/)
    Webmin    : https://\4:10000/  (https://\n:10000/)
+   Homepage  : http://\4:3000/    (http://\n:3000/)
 
 EOF
 log "/etc/issue updated."
@@ -51,6 +52,7 @@ HOST="$(hostname -f 2>/dev/null || hostname)"
 printf "  Web Interfaces:\n"
 printf "    Semaphore : http://%s/         (http://%s/)\n" "${IP}" "${HOST}"
 printf "    Webmin    : https://%s:10000/  (https://%s:10000/)\n" "${IP}" "${HOST}"
+printf "    Homepage  : http://%s:3000/    (http://%s:3000/)\n" "${IP}" "${HOST}"
 printf "\n"
 EOF
 chmod +x /etc/update-motd.d/10-toolbox-services

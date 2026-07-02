@@ -93,7 +93,7 @@ monorepo/
 │   └── cloud/aws/                # AWS Backup configuration
 │
 ├── image-maintenance/            # Golden image refresh: AWS AMI, Azure/GCP images, Proxmox templates, sysprep
-├── applications/                 # AWX, Bacula, Webmin, WordPress deployment scripts
+├── applications/                 # AWX, Bacula, Homepage, Webmin, WordPress deployment scripts
 ├── projects/blockchain/          # Cardano, COTI, World Mobile node deployment
 ├── scripts/ & utilities/         # Standalone helper scripts (repo sync, RDS certs, etc.)
 └── CONFIGURATION.md              # Full credentials/setup guide for every platform above
