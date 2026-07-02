@@ -134,6 +134,19 @@ build {
   name    = "automation-toolbox"
   sources = ["source.proxmox-iso.automation-toolbox"]
 
+  # Every "sudo {{ .Vars }} bash {{.Path}}" execute_command below (this
+  # provisioner and the two after provision-automation-toolbox.sh/
+  # provision-semaphore.sh) needs {{ .Vars }} placed AFTER sudo, not before.
+  # Packer only injects environment_vars via that token; without it,
+  # environment_vars is silently a no-op. Confirmed via a real build:
+  # "Hypervisor : unknown" (should be "proxmox"), "No ADMIN_USERNAME
+  # provided" (it-admin never got created), and "SEMAPHORE_ADMIN_PASS not
+  # set -- generated password: <random>" (Semaphore's real admin password
+  # was never what was actually typed at the build prompt). Putting
+  # {{ .Vars }} before sudo doesn't work either -- sudo's env_reset default
+  # strips it before the script ever sees it; per HashiCorp's own fix for
+  # this exact issue (packer-plugin-proxmox/packer#12687), the vars must be
+  # set by the sudo'd process itself.
   provisioner "file" {
     sources = [
       abspath("${path.root}/../../../../infrastructure/servers/linux/configuration/apply-branding.sh"),
@@ -147,7 +160,7 @@ build {
 
   provisioner "shell" {
     script          = abspath("${path.root}/../../scripts/provision.sh")
-    execute_command = "sudo bash {{.Path}}"
+    execute_command = "sudo {{ .Vars }} bash {{.Path}}"
     pause_before    = "10s"
     environment_vars = [
       "HYPERVISOR=proxmox",
@@ -157,7 +170,7 @@ build {
 
   provisioner "shell" {
     script          = abspath("${path.root}/../../scripts/provision-automation-toolbox.sh")
-    execute_command = "sudo bash {{.Path}}"
+    execute_command = "sudo {{ .Vars }} bash {{.Path}}"
     environment_vars = [
       "ADMIN_USERNAME=${var.admin_username}",
       "ADMIN_PASSWORD=${var.admin_password}",
@@ -167,7 +180,7 @@ build {
 
   provisioner "shell" {
     script          = abspath("${path.root}/../../scripts/provision-semaphore.sh")
-    execute_command = "sudo bash {{.Path}}"
+    execute_command = "sudo {{ .Vars }} bash {{.Path}}"
     environment_vars = [
       "SEMAPHORE_ADMIN_PASS=${var.semaphore_admin_password}",
     ]
