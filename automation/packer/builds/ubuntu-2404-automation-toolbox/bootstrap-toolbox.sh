@@ -271,7 +271,64 @@ else
 fi
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
-# ─── 7. Firewall lockdown ────────────────────────────────────────────────────
+# ─── 7. Finalise the Homepage dashboard ──────────────────────────────────────
+HOMEPAGE_CONFIG="/opt/homepage/config"
+HOMEPAGE_ENV="/opt/homepage/.env.homepage"
+SERVER_IP=$(hostname -I | awk '{print $1}')
+if [[ -d "${HOMEPAGE_CONFIG}" ]]; then
+    if grep -q "toolbox.lab.local" "${HOMEPAGE_CONFIG}/services.yaml" 2>/dev/null; then
+        sed -i "s/toolbox\.lab\.local/${SERVER_IP}/g" "${HOMEPAGE_CONFIG}/services.yaml"
+        log "Homepage: placeholder hostnames replaced with ${SERVER_IP}"
+    fi
+    if [[ -n "${PVE_TOKEN_ID}" && -f "${HOMEPAGE_ENV}" ]]; then
+        # Homepage's Proxmox widget authenticates with an API token:
+        # username = user@realm!tokenid, password = token secret.
+        cat > "${HOMEPAGE_ENV}" <<HP_EOF
+# Homepage widget credentials — written by bootstrap-toolbox.sh. Never commit.
+HOMEPAGE_VAR_PROXMOX_USER=${PVE_USER}!${PVE_TOKEN_ID}
+HOMEPAGE_VAR_PROXMOX_PASS=${PVE_TOKEN_SECRET}
+HP_EOF
+        chmod 600 "${HOMEPAGE_ENV}"
+        log "Homepage: Proxmox widget credentials written (token auth)"
+    elif [[ -z "${PVE_TOKEN_ID}" ]]; then
+        warn "Homepage: Proxmox widget needs an API token — using password auth here would put the root password in a widget. Edit ${HOMEPAGE_ENV} once you create a token."
+    fi
+    docker restart homepage >/dev/null 2>&1 && log "Homepage restarted (http://${SERVER_IP}:3002/)" \
+        || warn "Could not restart the homepage container — is Docker running?"
+else
+    warn "Homepage config not found at ${HOMEPAGE_CONFIG} — skipping dashboard finalisation."
+fi
+
+# ─── 8. SSH password access check ────────────────────────────────────────────
+# The build should have configured password SSH for the admin account via
+# the common role's sshd template. Verify, and repair if missing.
+if ! grep -q "^Match User" /etc/ssh/sshd_config; then
+    echo ""
+    warn "sshd_config has no per-user password override — SSH is key-only for everyone."
+    read -r -p "Enable SSH password login for one admin account? Username (Enter = skip): " SSH_PW_USER
+    if [[ -n "${SSH_PW_USER}" ]]; then
+        if id "${SSH_PW_USER}" &>/dev/null; then
+            if ! passwd -S "${SSH_PW_USER}" 2>/dev/null | awk '{exit ($2=="P")?0:1}'; then
+                log "'${SSH_PW_USER}' has no usable password — set one now:"
+                passwd "${SSH_PW_USER}"
+            fi
+            cat >> /etc/ssh/sshd_config <<SSHD_EOF
+
+# Per-user override added by bootstrap-toolbox.sh — keep at end of file
+Match User ${SSH_PW_USER}
+    PasswordAuthentication yes
+SSHD_EOF
+            sshd -t && systemctl restart ssh && log "Password SSH enabled for '${SSH_PW_USER}' (all other accounts stay key-only)" \
+                || warn "sshd config test failed — change NOT applied cleanly, inspect /etc/ssh/sshd_config"
+        else
+            warn "User '${SSH_PW_USER}' does not exist — skipping."
+        fi
+    fi
+else
+    log "SSH per-user password override already present."
+fi
+
+# ─── 9. Firewall lockdown ────────────────────────────────────────────────────
 echo ""
 log "Firewall: the build baseline allows all private-subnet traffic. You can"
 log "lock this server down so that ONLY a management subnet may reach it"

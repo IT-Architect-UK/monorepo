@@ -44,3 +44,14 @@ LogLevel INFO
 
 # ── Subsystems ───────────────────────────────────────────────────────────────
 Subsystem sftp /usr/lib/openssh/sftp-server
+{% if ssh_password_auth_users | default([]) | length > 0 %}
+
+# ── Per-user overrides ────────────────────────────────────────────────────────
+# Accounts allowed password authentication (var: ssh_password_auth_users).
+# Everything else stays key-only per PasswordAuthentication above.
+# Match blocks must remain at the end of this file.
+{% for user in ssh_password_auth_users %}
+Match User {{ user }}
+    PasswordAuthentication yes
+{% endfor %}
+{% endif %}

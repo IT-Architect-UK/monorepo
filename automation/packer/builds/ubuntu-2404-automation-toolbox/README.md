@@ -217,7 +217,9 @@ vm_disk_gb    = 100
    You'll be prompted for the Semaphore admin password and your Proxmox API
    details (an API token is recommended — the script header explains how to
    create one). Credentials are stored encrypted in Semaphore, never on disk.
-   Finally it offers to lock the firewall down to your management subnet —
+   It also finalises the Homepage dashboard (real addresses + Proxmox widget
+   credentials), verifies password SSH is enabled for your admin account,
+   and finally offers to lock the firewall down to your management subnet —
    after that, only that subnet can reach SSH and the web UIs.
 5. Open `http://<vm-ip>/`, log in as `admin`, and provision your first VM:
    **Task Templates → Provision VM (Proxmox) → Run** — fill in the survey

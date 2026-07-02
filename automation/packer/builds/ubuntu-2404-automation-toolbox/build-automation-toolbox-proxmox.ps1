@@ -286,6 +286,17 @@ try {
     $proxmoxPassword        = Resolve-RequiredVar "PKR_VAR_proxmox_password"         "What's the password for your Proxmox host (root or API user)?"
     $semaphoreAdminPassword = Resolve-RequiredVar "PKR_VAR_semaphore_admin_password" "Choose a password for the Semaphore web UI's admin login (you'll use this to log in after the build)."
     $adminPassword          = Resolve-OptionalVar "PKR_VAR_admin_password"           "Choose a password for the '$AdminUsername' login on the built VM. You can also just use your SSH key and leave this blank."
+
+    # A blank admin password silently produces a server that refuses password
+    # SSH — that has bitten before. Make key-only an explicit choice.
+    while (-not $adminPassword) {
+        Write-Host ""
+        Write-Host "  No admin password set: '$AdminUsername' will be SSH-KEY-ONLY (password login refused, console login unavailable)." -ForegroundColor Yellow
+        $ans = Read-Host "  Type 'key-only' to confirm that, or press Enter to set a password now"
+        if ($ans -eq 'key-only') { break }
+        $secure        = Read-Host "  Password for '$AdminUsername' (input hidden)" -AsSecureString
+        $adminPassword = [System.Net.NetworkCredential]::new("", $secure).Password
+    }
 } catch {
     Write-Fail $_.Exception.Message
     exit 1

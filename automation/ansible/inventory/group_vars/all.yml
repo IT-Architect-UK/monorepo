@@ -24,6 +24,8 @@ ssh_port: 22                          # Change to a non-standard port for produc
 ssh_permit_root_login: "no"           # Never allow root SSH login
 ssh_password_authentication: "no"     # SSH keys only — passwords are insecure
 ssh_max_auth_tries: 3
+ssh_password_auth_users: []           # Accounts allowed SSH *password* login (everyone else is key-only).
+                                      # The toolbox build sets this to its admin account automatically.
 
 # ── Timezone / NTP ────────────────────────────────────────────────────────
 system_timezone: "Europe/London"

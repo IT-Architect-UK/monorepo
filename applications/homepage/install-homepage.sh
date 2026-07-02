@@ -5,10 +5,11 @@
 # status dashboard and launcher for the toolbox's management interfaces
 # (Semaphore, Vault, Prometheus, Grafana, Portainer, Webmin, Proxmox).
 #
-# Live status widgets are available out of the box for Grafana, Portainer,
-# Prometheus, and Proxmox. Everything else (Semaphore, Vault, Webmin) gets a
-# bookmark tile with a Docker-based up/down indicator, since no purpose-built
-# widget exists for them.
+# Only the Proxmox tile ships with a live status widget (credentials are
+# filled in by the toolbox bootstrap script). Prometheus, Grafana and
+# Portainer get plain tiles until they are actually deployed — their
+# install playbooks enable the live widgets. This keeps the dashboard free
+# of error boxes for services that don't exist yet.
 #
 # Assumes Docker CE is already installed (it is, as part of the toolbox
 # golden image) — this script does not install Docker itself.
@@ -17,7 +18,7 @@
 #   sudo ./install-homepage.sh
 #
 # Author:            Darren Pilkington
-# Version:           1.2
+# Version:           1.3
 # Date:              02-07-2026
 # =============================================================================
 
@@ -81,31 +82,18 @@ if [[ ! -f "${CONFIG_DIR}/services.yaml" ]]; then
     - Prometheus:
         icon: prometheus.png
         href: http://toolbox.lab.local:9090/
-        description: Metrics collection
-        widget:
-          type: prometheus
-          url: http://toolbox.lab.local:9090
+        description: Metrics collection — not yet deployed
 
     - Grafana:
         icon: grafana.png
         href: http://toolbox.lab.local:3001/
-        description: Monitoring dashboards
-        widget:
-          type: grafana
-          url: http://toolbox.lab.local:3001
-          username: "{{HOMEPAGE_VAR_GRAFANA_USER}}"
-          password: "{{HOMEPAGE_VAR_GRAFANA_PASS}}"
+        description: Monitoring dashboards — not yet deployed
 
 - Container Management:
     - Portainer:
         icon: portainer.png
         href: https://toolbox.lab.local:9443/
-        description: Docker/container fleet management
-        widget:
-          type: portainer
-          url: https://toolbox.lab.local:9443
-          env: 1
-          key: "{{HOMEPAGE_VAR_PORTAINER_KEY}}"
+        description: Docker/container fleet management — not yet deployed
 
 - Admin:
     - Webmin:
@@ -140,6 +128,32 @@ else
     log "settings.yaml already exists — leaving it untouched."
 fi
 
+# ─── Write bookmarks.yaml ─────────────────────────────────────────────────────
+# Without this, Homepage ships default Developer/Social/Entertainment
+# bookmark rows (GitHub/Reddit/YouTube) that have nothing to do with the lab.
+if [[ ! -f "${CONFIG_DIR}/bookmarks.yaml" ]]; then
+    log "Writing bookmarks.yaml..."
+    cat > "${CONFIG_DIR}/bookmarks.yaml" <<'YAML_EOF'
+- Lab:
+    - Monorepo:
+        - abbr: GH
+          href: https://github.com/IT-Architect-UK/monorepo
+
+- Documentation:
+    - Semaphore Docs:
+        - abbr: SEM
+          href: https://semaphoreui.com/docs/
+    - Proxmox Docs:
+        - abbr: PVE
+          href: https://pve.proxmox.com/pve-docs/
+    - Homepage Docs:
+        - abbr: HP
+          href: https://gethomepage.dev/
+YAML_EOF
+else
+    log "bookmarks.yaml already exists — leaving it untouched."
+fi
+
 # ─── Env file for widget credentials ─────────────────────────────────────────
 # Never contains real values here. Real credentials belong here only on the
 # live server, and this path is never committed to git.
@@ -150,9 +164,6 @@ if [[ ! -f "${ENV_FILE}" ]]; then
     cat > "${ENV_FILE}" <<'ENV_EOF'
 # Homepage widget credentials -- fill in real values, then: docker restart homepage
 # Never commit this file.
-HOMEPAGE_VAR_GRAFANA_USER=
-HOMEPAGE_VAR_GRAFANA_PASS=
-HOMEPAGE_VAR_PORTAINER_KEY=
 HOMEPAGE_VAR_PROXMOX_USER=
 HOMEPAGE_VAR_PROXMOX_PASS=
 ENV_EOF

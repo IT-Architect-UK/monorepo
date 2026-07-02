@@ -277,7 +277,10 @@ build {
 
   provisioner "shell" {
     inline = [
-      "cd /git/monorepo/automation/ansible && ANSIBLE_ROLES_PATH=/git/monorepo/automation/ansible/roles ansible-playbook -i 'localhost,' -e '@group_vars/all.yml' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"
+      # The trailing -e (conditional): when a build-time admin password was
+      # set, tell the common role's sshd template to allow password login for
+      # that one account. Appended AFTER '@group_vars/all.yml' so it wins.
+      "cd /git/monorepo/automation/ansible && ANSIBLE_ROLES_PATH=/git/monorepo/automation/ansible/roles ansible-playbook -i 'localhost,' -e '@group_vars/all.yml' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3${var.admin_password != "" && var.admin_username != "" ? " -e '{\"ssh_password_auth_users\":[\"${var.admin_username}\"]}'" : ""}"
     ]
     execute_command = "sudo bash {{.Path}}"
   }
