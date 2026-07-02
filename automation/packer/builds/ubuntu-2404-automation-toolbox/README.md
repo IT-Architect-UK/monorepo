@@ -2,8 +2,6 @@
 
 Builds the primary automation host for the lab -- pre-loaded with every tool needed to run infrastructure automation. Not a golden image: this is deployed once and used as the standing server everything else gets deployed from.
 
-> **Architecture, design decisions, and roadmap:** see [DESIGN.md](DESIGN.md).
-
 ## What Gets Installed
 
 | Category | Tools |
@@ -233,3 +231,16 @@ Each build directory has its own `variables.pkr.hcl`. Do not run `packer build .
 
 **VM already exists (ID conflict)**
 Change `proxmox_vm_id` in `automation-toolbox.pkrvars.hcl` to a free ID in your cluster.
+
+---
+
+## Roadmap
+
+Planned additions to the toolbox workflow, in build order:
+
+1. **Post-clone bootstrap script** — initialise Semaphore admin and store the Proxmox API credential in Semaphore's encrypted Key Store.
+2. **`provision_vm.yml`** — Ansible playbook (`community.proxmox.proxmox_kvm`) wired to a Semaphore Job Template with Survey variables (hostname, template, vCPU/RAM/disk, VLAN, role).
+3. **Vault server** — deployed as the first provisioned workload on a dedicated VM (`security/vault/`); playbook secrets move to `community.hashi_vault` lookups.
+4. **NetBox + Proxbox** — inventory/CMDB; every provisioned VM registers automatically; becomes Ansible dynamic inventory.
+5. **Prometheus + Grafana** — every new VM auto-enrolls via the `monitoring-agent` role.
+6. **Portainer** — server + Agent rollout to Docker hosts via the `common` role.

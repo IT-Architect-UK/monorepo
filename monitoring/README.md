@@ -80,3 +80,21 @@ gcloud alpha monitoring channels create \
     --display-name="Email" --type=email \
     --channel-labels=email_address=admin@example.com
 ```
+
+## Prometheus & Grafana — `prometheus-grafana/`
+
+| Script | Purpose |
+|--------|---------|
+| `install-grafana-prometheus.sh` | Prometheus (latest GitHub release) + Grafana OSS (apt) as systemd services — bare-metal |
+| `install-grafana-prometheus-docker.sh` | Prometheus + Grafana as Docker containers |
+| `install-node-exporter-ubuntu.sh` | Node Exporter on Ubuntu (systemd) — exposes host metrics on :9100 |
+| `install-node-exporter-windows.ps1` | Windows Exporter for Prometheus scraping |
+
+## Zabbix — `zabbix/`
+
+| Script | Purpose |
+|--------|---------|
+| `install-zabbix-agent-ubuntu.sh` | Zabbix agent on Ubuntu, pointed at your Zabbix server |
+| `install-zabbix-agent-windows.ps1` | Zabbix agent on Windows |
+
+Usage details are in each script's header.
