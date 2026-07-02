@@ -269,6 +269,12 @@ Planned additions to the toolbox workflow, in build order:
 1. ✅ **Post-clone bootstrap** — `bootstrap-toolbox.sh` configures Semaphore (project, repo, Proxmox credentials, job templates) via the API.
 2. ✅ **VM provisioning** — `automation/ansible/playbooks/provision-vm.yml` + the "Provision VM (Proxmox)" job template with survey variables.
 3. ✅ **Vault server deployment** — `automation/ansible/playbooks/deploy-vault.yml` + the "Deploy Vault Server" job template. Next: move playbook secrets to `community.hashi_vault` lookups.
-4. **NetBox + Proxbox** — inventory/CMDB; every provisioned VM registers automatically; becomes Ansible dynamic inventory.
-5. **Prometheus + Grafana** — every new VM auto-enrolls via the `monitoring-agent` role.
-6. **Portainer** — server + Agent rollout to Docker hosts via the `common` role.
+4. **AD DS** — domain controller from the Win2025 golden image + `infrastructure/identity/active-directory/` scripts (prerequisite for AD CS).
+5. **Two-tier PKI** — one offline root CA (`security/pki/`), two issuing CAs chained to it:
+   - **AD CS enterprise CA** — certificates for domain computers, users, and services via certificate templates + GPO auto-enrolment.
+   - **Vault PKI engine** — certificates for Linux hosts, containers, and services via ACME/vault-agent.
+   - Root trust distributed to every Linux VM by the `common` role, to Windows by GPO. Toolbox service certs reissued from the lab PKI.
+   - **Public-facing certs** stay on Let's Encrypt (`security/tls/letsencrypt/`, DNS-01 for hosts not exposed to inbound HTTP), auto-renewed by the certbot timer.
+6. **NetBox + Proxbox** — inventory/CMDB; every provisioned VM registers automatically; becomes Ansible dynamic inventory.
+7. **Prometheus + Grafana** — every new VM auto-enrolls via the `monitoring-agent` role. Includes **certificate lifecycle monitoring**: blackbox_exporter probes every TLS endpoint (private, Vault-issued, and Let's Encrypt alike) with Grafana alerts on `ssl_earliest_cert_expiry` < 21 days, plus a scheduled Semaphore job reporting CA-level inventory (PSPKI for AD CS, `vault list` for Vault PKI, `certbot certificates` for LE).
+8. **Portainer** — server + Agent rollout to Docker hosts via the `common` role.
