@@ -193,9 +193,37 @@ build {
   # resolve to nothing. Confirmed via a real build: "'common_packages' is
   # undefined". -e '@group_vars/all.yml' loads that file explicitly,
   # independent of directory-adjacency rules.
+  #
+  # infrastructure/networking/firewall/setup-iptables.sh is referenced by
+  # roles/common/tasks/main.yml via a path relative to playbook_dir
+  # (../../../infrastructure/...). That resolves correctly against a FULL
+  # monorepo checkout (what Semaphore uses in production), but
+  # /opt/toolbox/ansible/ above is only a partial copy (automation/ansible/
+  # alone) -- infrastructure/ was never uploaded there. Confirmed via a real
+  # build: "Could not find or access .../infrastructure/networking/firewall/
+  # setup-iptables.sh on the Ansible Controller".
+  #
+  # provision.sh (step 12) already clones the full monorepo to /git/monorepo
+  # for the sync-monorepo.sh cron job. verify-monorepo-sync.sh (just below)
+  # turns that best-effort clone into a hard precondition for this build,
+  # then ansible-playbook runs against /git/monorepo/automation/ansible
+  # instead of /opt/toolbox/ansible, so the relative path resolves with no
+  # special-casing -- identically to how Semaphore will run it later.
+  # /opt/toolbox/ansible/ itself is untouched by this change: it's still
+  # needed for Semaphore's own post-boot Project/Inventory setup (see
+  # provision-semaphore.sh), just not for this self-provisioning step.
+  # ANSIBLE_ROLES_PATH pins role loading to the same /git/monorepo checkout
+  # the playbook runs from, rather than falling through to ansible.cfg's
+  # hardcoded roles_path=/opt/toolbox/ansible/roles (a different, separately
+  # -uploaded copy that could in principle drift out of sync).
+  provisioner "shell" {
+    script          = abspath("${path.root}/../../scripts/verify-monorepo-sync.sh")
+    execute_command = "sudo bash {{.Path}}"
+  }
+
   provisioner "shell" {
     inline = [
-      "cd /opt/toolbox/ansible && ansible-playbook -i 'localhost,' -e '@group_vars/all.yml' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"
+      "cd /git/monorepo/automation/ansible && ANSIBLE_ROLES_PATH=/git/monorepo/automation/ansible/roles ansible-playbook -i 'localhost,' -e '@group_vars/all.yml' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"
     ]
     execute_command = "sudo bash {{.Path}}"
   }
