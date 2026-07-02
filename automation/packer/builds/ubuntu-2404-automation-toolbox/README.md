@@ -2,6 +2,8 @@
 
 Builds the primary automation host for the lab -- pre-loaded with every tool needed to run infrastructure automation. Not a golden image: this is deployed once and used as the standing server everything else gets deployed from.
 
+> **Architecture, design decisions, and roadmap:** see [DESIGN.md](DESIGN.md).
+
 ## What Gets Installed
 
 | Category | Tools |

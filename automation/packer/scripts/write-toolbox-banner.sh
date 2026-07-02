@@ -35,7 +35,7 @@ cat >> /etc/issue <<'EOF'
  Web Interfaces:
    Semaphore : http://\4/         (http://\n/)
    Webmin    : https://\4:10000/  (https://\n:10000/)
-   Homepage  : http://\4:3000/    (http://\n:3000/)
+   Homepage  : http://\4:3002/    (http://\n:3002/)
 
 EOF
 log "/etc/issue updated."
@@ -52,7 +52,7 @@ HOST="$(hostname -f 2>/dev/null || hostname)"
 printf "  Web Interfaces:\n"
 printf "    Semaphore : http://%s/         (http://%s/)\n" "${IP}" "${HOST}"
 printf "    Webmin    : https://%s:10000/  (https://%s:10000/)\n" "${IP}" "${HOST}"
-printf "    Homepage  : http://%s:3000/    (http://%s:3000/)\n" "${IP}" "${HOST}"
+printf "    Homepage  : http://%s:3002/    (http://%s:3002/)\n" "${IP}" "${HOST}"
 printf "\n"
 EOF
 chmod +x /etc/update-motd.d/10-toolbox-services

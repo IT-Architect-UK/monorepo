@@ -3,10 +3,10 @@
 # Homepage Dashboard Installation — Deployment Toolbox
 # Deploys Homepage (gethomepage.dev) as a Docker container: a single-page
 # status dashboard and launcher for the toolbox's management interfaces
-# (Foreman, Vault, Prometheus, Grafana, Portainer, Webmin, Proxmox).
+# (Semaphore, Vault, Prometheus, Grafana, Portainer, Webmin, Proxmox).
 #
 # Live status widgets are available out of the box for Grafana, Portainer,
-# Prometheus, and Proxmox. Everything else (Foreman, Vault, Webmin) gets a
+# Prometheus, and Proxmox. Everything else (Semaphore, Vault, Webmin) gets a
 # bookmark tile with a Docker-based up/down indicator, since no purpose-built
 # widget exists for them.
 #
@@ -17,7 +17,7 @@
 #   sudo ./install-homepage.sh
 #
 # Author:            Darren Pilkington
-# Version:           1.0
+# Version:           1.1
 # Date:              02-07-2026
 # =============================================================================
 
@@ -44,7 +44,7 @@ CONFIG_DIR="/opt/homepage/config"
 ENV_FILE="/opt/homepage/.env.homepage"
 CONTAINER_NAME="homepage"
 IMAGE="ghcr.io/gethomepage/homepage:latest"
-HOST_PORT="3000"
+HOST_PORT="3002"
 
 # ─── Clean up any previous install ──────────────────────────────────────────
 if docker ps -a --format '{{.Names}}' | grep -qx "${CONTAINER_NAME}"; then
@@ -63,10 +63,10 @@ if [[ ! -f "${CONFIG_DIR}/services.yaml" ]]; then
     log "Writing services.yaml (first install — edit in place on future runs, this script won't overwrite it)..."
     cat > "${CONFIG_DIR}/services.yaml" <<'YAML_EOF'
 - Core Console:
-    - Foreman:
-        icon: foreman.png
-        href: https://toolbox.lab.local/
-        description: VM & bare-metal provisioning, inventory, job execution
+    - Semaphore:
+        icon: semaphore.png
+        href: http://toolbox.lab.local/
+        description: Ansible orchestration — provisioning jobs, surveys, task history
 
 - Secrets & Monitoring:
     - Vault:
