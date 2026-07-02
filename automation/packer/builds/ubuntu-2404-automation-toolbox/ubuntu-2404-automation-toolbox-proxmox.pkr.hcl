@@ -186,6 +186,21 @@ build {
     ]
   }
 
+  # Webmin auth is PAM-based against local system accounts (root, it-admin,
+  # etc.) -- no separate Webmin-specific credential to create or manage.
+  provisioner "shell" {
+    script          = abspath("${path.root}/../../../../applications/webmin/install-webmin.sh")
+    execute_command = "sudo bash {{.Path}}"
+  }
+
+  # Must run after apply-branding.sh (owns the base /etc/issue banner --
+  # this only appends) and after both Semaphore and Webmin are installed,
+  # since it prints both their URLs.
+  provisioner "shell" {
+    script          = abspath("${path.root}/../../scripts/write-toolbox-banner.sh")
+    execute_command = "sudo bash {{.Path}}"
+  }
+
   provisioner "shell" {
     inline          = ["chown -R ${var.ssh_username}:${var.ssh_username} /opt/toolbox"]
     execute_command = "sudo bash {{.Path}}"
