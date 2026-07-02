@@ -175,9 +175,19 @@ build {
     destination = "/opt/toolbox/"
   }
 
+  # ansible.cfg (copied in by the previous provisioner) sets
+  # inventory = /opt/toolbox/ansible/inventory/hosts.yml -- that's the
+  # correct default for post-boot admin use (managing the real fleet:
+  # web01, db01, etc.), but it means --limit=localhost matches nothing
+  # here, since 'localhost' isn't a host in that real inventory. Confirmed
+  # via a real build: 'Specified inventory, host pattern and/or --limit
+  # leaves us with no hosts to target.' -i 'localhost,' (trailing comma,
+  # single-quoted so no HCL escaping is needed) overrides ansible.cfg's
+  # inventory for just this invocation with an inline single-host list,
+  # which is what --connection=local actually needs for self-provisioning.
   provisioner "shell" {
     inline = [
-      "cd /opt/toolbox/ansible && ansible-playbook playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"
+      "cd /opt/toolbox/ansible && ansible-playbook -i 'localhost,' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"
     ]
     execute_command = "sudo bash {{.Path}}"
   }
