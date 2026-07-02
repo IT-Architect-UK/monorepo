@@ -36,8 +36,13 @@ packer {
 
 # ─── Locals ───────────────────────────────────────────────────────────────────
 locals {
+  # image_name is set via automation-toolbox.pkrvars.hcl (currently
+  # "T-UBUNTU-24-DEPLOY") -- no timestamp suffix, since the build always
+  # targets the same fixed vm_id and is destroyed/rebuilt between runs
+  # rather than versioned by name. timestamp is kept for the human-readable
+  # build date in template_description below.
   timestamp  = formatdate("YYYYMMDD-HHmm", timestamp())
-  image_name = "${var.image_name}-${local.timestamp}"
+  image_name = var.image_name
 }
 
 # ─── Source ───────────────────────────────────────────────────────────────────
@@ -53,6 +58,18 @@ source "proxmox-iso" "automation-toolbox" {
   vm_name              = local.image_name
   template_name        = local.image_name
   template_description = "Ubuntu 24.04 Automation Toolbox | Built ${local.timestamp} by Packer | Tools: Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI"
+
+  # Attaches a Proxmox-native Cloud-Init CDROM to the resulting template.
+  # provision.sh deliberately skips disable-cloud-init.sh for HYPERVISOR=proxmox
+  # (that script still runs for other hypervisors -- it exists to work around
+  # a VMware-specific networking bug, not a Proxmox one), and cleanup.sh's
+  # existing `cloud-init clean --logs --seed` wipes the cached instance-id
+  # before sealing. Together, that means each clone's first boot re-runs
+  # cloud-init against fresh Proxmox-generated meta-data, which sets the
+  # guest hostname to match whatever name the clone was given -- see
+  # build-automation-toolbox-proxmox.ps1's post-build clone prompt.
+  cloud_init              = true
+  cloud_init_storage_pool = var.proxmox_storage_pool
 
   boot_iso {
     iso_url          = var.ubuntu_iso_url

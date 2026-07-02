@@ -23,7 +23,13 @@ section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
 section "Image Seal — Removing Machine-Unique Data"
 
-# cloud-init: must be cleaned so it re-runs on each clone's first boot
+# cloud-init: must be cleaned so it re-runs on each clone's first boot.
+# For Proxmox builds this is load-bearing, not just tidiness: provision.sh
+# skips disable-cloud-init.sh for HYPERVISOR=proxmox specifically so this
+# clean-and-let-it-rerun mechanism can set each clone's hostname from its
+# Proxmox VM name (cloud_init=true in the Packer source block). For other
+# hypervisors, disable-cloud-init.sh already ran, so this is a no-op safety
+# net rather than something actively relied upon.
 log "Cleaning cloud-init cache..."
 sudo cloud-init clean --logs --seed
 sudo rm -rf /var/lib/cloud/

@@ -14,7 +14,7 @@
 #   export PKR_VAR_ssh_password="your-chosen-packer-user-password"
 # =============================================================================
 
-image_name        = "POSLXPDEPLOY01"
+image_name        = "T-UBUNTU-24-DEPLOY"
 image_description = "Ubuntu 24.04 Automation Toolbox — Ansible, Packer, Terraform, AWS CLI, Azure CLI, kubectl, Helm, Docker, GitHub CLI, Semaphore"
 
 # This host is permanently pinned to Ubuntu 24.04 LTS, not the 26.04 used by

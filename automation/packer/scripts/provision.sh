@@ -111,12 +111,26 @@ chmod +x /tmp/apply-branding.sh
     --non-interactive
 log "Branding applied for '${COMPANY_NAME}'"
 
-# ── 5. Disable cloud-init ─────────────────────────────────────────────────────
+# ── 5. Disable cloud-init (skipped for Proxmox) ───────────────────────────────
+# disable-cloud-init.sh exists to work around a VMware-specific bug where
+# cloud-init re-running on every boot clobbered netplan config. That bug is
+# not Proxmox-specific, and Proxmox templates rely on cloud-init running on
+# each clone's first boot (see cloud_init=true in the Proxmox Packer source
+# block) to set the guest hostname from the clone's VM name. So: still
+# disable it everywhere this bug actually applies, skip it for Proxmox.
 section "5 — Disable cloud-init"
-[[ -f /tmp/disable-cloud-init.sh ]] || fail "disable-cloud-init.sh not found in /tmp/ — check Packer file provisioner"
-chmod +x /tmp/disable-cloud-init.sh
-/tmp/disable-cloud-init.sh
-log "cloud-init disabled (prevents unwanted reconfiguration on every future clone)"
+if [[ "${HYPERVISOR}" == "proxmox" ]]; then
+    warn "Skipping cloud-init disable for Proxmox — cloud_init=true in the"
+    warn "Packer source block relies on it running on each clone's first"
+    warn "boot to set the guest hostname. cleanup.sh's 'cloud-init clean'"
+    warn "step still runs, so each clone gets a genuinely fresh cloud-init"
+    warn "pass rather than replaying this build's own instance data."
+else
+    [[ -f /tmp/disable-cloud-init.sh ]] || fail "disable-cloud-init.sh not found in /tmp/ — check Packer file provisioner"
+    chmod +x /tmp/disable-cloud-init.sh
+    /tmp/disable-cloud-init.sh
+    log "cloud-init disabled (prevents unwanted reconfiguration on every future clone)"
+fi
 
 # ── 6. Disable IPv6 ───────────────────────────────────────────────────────────
 section "6 — Disable IPv6"

@@ -34,6 +34,7 @@ vault_password_file
 
 # ── Packer build outputs ──────────────────────────────────────────────────────
 packer-manifest*.json
+packer-manifest*.json.lock
 packer-build*.log
 packer_cache/
 *.box

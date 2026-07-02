@@ -106,17 +106,155 @@ function Resolve-OptionalVar {
 }
 
 function Get-PkrVarValue {
-    # Reads a plain (non-secret) string value out of a .pkrvars.hcl file,
-    # e.g. admin_username = "it-admin". Used only for friendlier prompt text
-    # -- never for anything sensitive.
+    # Reads a plain (non-secret) value out of a .pkrvars.hcl file -- quoted
+    # strings (admin_username = "it-admin") or bare tokens like numbers
+    # (proxmox_vm_id = 9002). Used only for non-sensitive values -- never
+    # for anything that should stay secret.
     param([string]$FilePath, [string]$VarName, [string]$Default)
 
     if (-not (Test-Path $FilePath)) { return $Default }
-    $match = Select-String -Path $FilePath -Pattern "^\s*$VarName\s*=\s*`"([^`"]*)`"" | Select-Object -First 1
+    $match = Select-String -Path $FilePath -Pattern "^\s*$VarName\s*=\s*`"?([^`"\r\n]+?)`"?\s*$" | Select-Object -First 1
     if ($match -and $match.Matches[0].Groups[1].Success -and $match.Matches[0].Groups[1].Value) {
-        return $match.Matches[0].Groups[1].Value
+        return $match.Matches[0].Groups[1].Value.Trim()
     }
     return $Default
+}
+
+function Get-LayeredPkrVarValue {
+    # Mirrors Packer's own -var-file precedence for this build:
+    #   -var-file="../../environments/homelab.pkrvars.hcl"
+    #   -var-file="automation-toolbox.pkrvars.hcl"
+    # (later file wins), so this script's fallback values for the post-build
+    # clone step always match whatever `packer build` actually just used.
+    param([string]$VarName, [string]$Default)
+
+    $toolboxFile = Join-Path $TemplateDir "automation-toolbox.pkrvars.hcl"
+    $homelabFile = Join-Path $TemplateDir "..\..\environments\homelab.pkrvars.hcl"
+
+    $value = Get-PkrVarValue -FilePath $toolboxFile -VarName $VarName -Default ""
+    if (-not [string]::IsNullOrWhiteSpace($value)) { return $value }
+
+    $value = Get-PkrVarValue -FilePath $homelabFile -VarName $VarName -Default ""
+    if (-not [string]::IsNullOrWhiteSpace($value)) { return $value }
+
+    return $Default
+}
+
+function Invoke-ProxmoxApi {
+    # Thin Invoke-RestMethod wrapper that tolerates the Proxmox host's
+    # self-signed cert (the same thing Packer's own insecure_skip_tls_verify
+    # = true does) on both Windows PowerShell 5.1 and PowerShell 7+, since
+    # -SkipCertificateCheck only exists on 7+.
+    param(
+        [string]$Uri,
+        [string]$Method = "GET",
+        [hashtable]$Headers = @{},
+        [object]$Body = $null
+    )
+
+    if ($PSVersionTable.PSVersion.Major -ge 6) {
+        if ($Body) {
+            return Invoke-RestMethod -Uri $Uri -Method $Method -Headers $Headers -Body $Body -SkipCertificateCheck
+        }
+        return Invoke-RestMethod -Uri $Uri -Method $Method -Headers $Headers -SkipCertificateCheck
+    }
+
+    # Windows PowerShell 5.1 has no -SkipCertificateCheck -- fall back to a
+    # process-wide certificate validation bypass instead.
+    if (-not ("TrustAllCertsPolicy" -as [type])) {
+        Add-Type @"
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllCertsPolicy : ICertificatePolicy {
+    public bool CheckValidationResult(ServicePoint sp, X509Certificate cert, WebRequest req, int problem) {
+        return true;
+    }
+}
+"@
+    }
+    [System.Net.ServicePointManager]::CertificatePolicy   = New-Object TrustAllCertsPolicy
+    [System.Net.ServicePointManager]::SecurityProtocol    = [System.Net.SecurityProtocolType]::Tls12
+
+    if ($Body) {
+        return Invoke-RestMethod -Uri $Uri -Method $Method -Headers $Headers -Body $Body
+    }
+    return Invoke-RestMethod -Uri $Uri -Method $Method -Headers $Headers
+}
+
+function Wait-ProxmoxTask {
+    # Proxmox's clone/start/delete calls are async -- each returns a task ID
+    # (UPID) immediately, not a result. This polls until the task reports
+    # stopped, and throws if it didn't exit cleanly.
+    param(
+        [string]$ProxmoxUrl,
+        [string]$ProxmoxNode,
+        [string]$Upid,
+        [hashtable]$AuthHeaders,
+        [int]$TimeoutSeconds = 300
+    )
+
+    $elapsed = 0
+    while ($elapsed -lt $TimeoutSeconds) {
+        $status = Invoke-ProxmoxApi -Uri "$ProxmoxUrl/nodes/$ProxmoxNode/tasks/$Upid/status" -Headers $AuthHeaders
+        if ($status.data.status -eq "stopped") {
+            if ($status.data.exitstatus -ne "OK") {
+                throw "Proxmox task $Upid finished with exitstatus '$($status.data.exitstatus)' (expected OK)"
+            }
+            return
+        }
+        Start-Sleep -Seconds 3
+        $elapsed += 3
+    }
+    throw "Proxmox task $Upid did not finish within $TimeoutSeconds seconds"
+}
+
+function Invoke-ProxmoxCloneAndStart {
+    # Clones the just-built template into a real, running VM: authenticate,
+    # ask Proxmox for a free VMID (avoids guessing a number that might
+    # collide with your existing scheme), full-clone, then start it.
+    # cloud-init (see cloud_init=true in the .pkr.hcl source block) sets the
+    # guest hostname to match $NewVmName automatically on first boot.
+    param(
+        [string]$ProxmoxUrl,
+        [string]$ProxmoxNode,
+        [string]$ProxmoxUsername,
+        [string]$ProxmoxPassword,
+        [int]$TemplateVmId,
+        [string]$NewVmName
+    )
+
+    Write-Step "Authenticating to Proxmox API..."
+    $ticketResp = Invoke-ProxmoxApi -Uri "$ProxmoxUrl/access/ticket" -Method Post -Body @{
+        username = $ProxmoxUsername
+        password = $ProxmoxPassword
+    }
+    $ticket = $ticketResp.data.ticket
+    $csrf   = $ticketResp.data.CSRFPreventionToken
+    if (-not $ticket) { throw "Proxmox authentication did not return a ticket -- check proxmox_username/proxmox_password" }
+    Write-OK "Authenticated to $ProxmoxUrl"
+
+    $authHeaders  = @{ Cookie = "PVEAuthCookie=$ticket" }
+    $writeHeaders = @{ Cookie = "PVEAuthCookie=$ticket"; CSRFPreventionToken = $csrf }
+
+    Write-Step "Requesting a free VMID..."
+    $nextIdResp = Invoke-ProxmoxApi -Uri "$ProxmoxUrl/cluster/nextid" -Headers $authHeaders
+    $newVmId = $nextIdResp.data
+    Write-OK "Assigned VMID $newVmId"
+
+    Write-Step "Cloning VMID $TemplateVmId -> $newVmId ('$NewVmName')..."
+    $cloneUpid = Invoke-ProxmoxApi -Uri "$ProxmoxUrl/nodes/$ProxmoxNode/qemu/$TemplateVmId/clone" -Method Post -Headers $writeHeaders -Body @{
+        newid = $newVmId
+        name  = $NewVmName
+        full  = 1
+    }
+    Wait-ProxmoxTask -ProxmoxUrl $ProxmoxUrl -ProxmoxNode $ProxmoxNode -Upid $cloneUpid.data -AuthHeaders $authHeaders -TimeoutSeconds 600
+    Write-OK "Clone complete -- VMID $newVmId ('$NewVmName') created"
+
+    Write-Step "Starting VMID $newVmId..."
+    $startUpid = Invoke-ProxmoxApi -Uri "$ProxmoxUrl/nodes/$ProxmoxNode/qemu/$newVmId/status/start" -Method Post -Headers $writeHeaders
+    Wait-ProxmoxTask -ProxmoxUrl $ProxmoxUrl -ProxmoxNode $ProxmoxNode -Upid $startUpid.data -AuthHeaders $authHeaders -TimeoutSeconds 120
+    Write-OK "VMID $newVmId is running"
+    Write-Host "  cloud-init will set the guest hostname to '$NewVmName' a few seconds after boot completes." -ForegroundColor DarkGray
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -153,6 +291,13 @@ try {
     exit 1
 }
 Write-OK "Credentials ready"
+
+# Non-secret Proxmox connection details, read from the same var files Packer
+# itself uses -- needed for the optional post-build clone step below.
+$ProxmoxUrlValue      = Get-LayeredPkrVarValue -VarName "proxmox_url"      -Default "https://192.168.1.10:8006/api2/json"
+$ProxmoxNodeValue     = Get-LayeredPkrVarValue -VarName "proxmox_node"     -Default "pve"
+$ProxmoxUsernameValue = Get-LayeredPkrVarValue -VarName "proxmox_username" -Default "root@pam"
+$ProxmoxTemplateVmId  = [int](Get-LayeredPkrVarValue -VarName "proxmox_vm_id" -Default "9002")
 
 $env:PKR_VAR_proxmox_password         = $proxmoxPassword
 $env:PKR_VAR_semaphore_admin_password = $semaphoreAdminPassword
@@ -209,11 +354,43 @@ try {
         if (Test-Path "packer-manifest-automation-toolbox.json") {
             Write-Host "  Manifest: $TemplateDir\packer-manifest-automation-toolbox.json" -ForegroundColor DarkGray
         }
+
+        # ── Step 6: Optional — clone the template into a real running VM ──
+        Write-Step "Deploy a VM from this template now?"
+        $deployNow = Read-Host "  Deploy a new VM from the template now? (y/N)"
+        if ($deployNow -match "^[Yy]") {
+            $vmName = Read-Host "  Name for the new VM (used as both the Proxmox display name and the guest hostname)"
+            if ([string]::IsNullOrWhiteSpace($vmName)) {
+                Write-Fail "No name entered -- skipping deployment. Clone the template manually in Proxmox whenever you're ready."
+            } else {
+                try {
+                    Invoke-ProxmoxCloneAndStart `
+                        -ProxmoxUrl      $ProxmoxUrlValue `
+                        -ProxmoxNode     $ProxmoxNodeValue `
+                        -ProxmoxUsername $ProxmoxUsernameValue `
+                        -ProxmoxPassword $proxmoxPassword `
+                        -TemplateVmId    $ProxmoxTemplateVmId `
+                        -NewVmName       $vmName
+                } catch {
+                    Write-Fail "Deployment failed: $($_.Exception.Message)"
+                    Write-Host "  The template itself is unaffected -- clone it manually in Proxmox to retry." -ForegroundColor DarkGray
+                }
+            }
+        } else {
+            Write-Host "  Skipping -- clone the template manually in Proxmox whenever you're ready." -ForegroundColor DarkGray
+        }
     }
 } catch {
     Write-Fail $_.Exception.Message
     exit 1
 } finally {
+    # Packer's manifest post-processor leaves this lock file behind; it has
+    # no purpose after the build finishes and was showing up as an
+    # unexpected "modified/untracked" file in git/VS Code. Safe to remove
+    # unconditionally -- it's regenerated fresh on the next build.
+    $LockFile = Join-Path $TemplateDir "packer-manifest-automation-toolbox.json.lock"
+    if (Test-Path $LockFile) { Remove-Item $LockFile -Force -ErrorAction SilentlyContinue }
+
     Remove-Item Env:\PKR_VAR_proxmox_password          -ErrorAction SilentlyContinue
     Remove-Item Env:\PKR_VAR_ssh_password              -ErrorAction SilentlyContinue
     Remove-Item Env:\PKR_VAR_semaphore_admin_password  -ErrorAction SilentlyContinue
