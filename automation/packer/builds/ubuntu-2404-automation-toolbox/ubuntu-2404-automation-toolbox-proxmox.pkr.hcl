@@ -161,9 +161,18 @@ build {
     execute_command = "sudo bash {{.Path}}"
   }
 
+  # abspath() strips trailing slashes, so "ansible/" here would be uploaded
+  # as "ansible" (no slash) regardless of how it's written -- and Packer's
+  # file provisioner treats a no-trailing-slash source as "nest this
+  # directory inside the destination", not "copy its contents into it".
+  # That silently produced /opt/toolbox/ansible/ansible/... instead of
+  # /opt/toolbox/ansible/... (confirmed via a real build: 'ansible-playbook
+  # playbooks/server-baseline.yml' then failed with 'could not be found').
+  # Fix: destination is the parent dir, so Packer creates the nested
+  # "ansible" directory itself, landing content at the expected path.
   provisioner "file" {
-    source      = abspath("${path.root}/../../../ansible/")
-    destination = "/opt/toolbox/ansible/"
+    source      = abspath("${path.root}/../../../ansible")
+    destination = "/opt/toolbox/"
   }
 
   provisioner "shell" {
