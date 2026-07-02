@@ -208,7 +208,19 @@ vm_disk_gb    = 100
    packer --version
    docker --version
    ```
-4. Change the Semaphore admin password — open `http://<vm-ip>:3000` in a browser
+4. Run the bootstrap script — it configures Semaphore (project, repository,
+   Proxmox credentials, and ready-to-run job templates) via the API:
+   ```bash
+   sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/bootstrap-toolbox.sh
+   ```
+   You'll be prompted for the Semaphore admin password and your Proxmox API
+   details (an API token is recommended — the script header explains how to
+   create one). Credentials are stored encrypted in Semaphore, never on disk.
+5. Open `http://<vm-ip>/`, log in as `admin`, and provision your first VM:
+   **Task Templates → Provision VM (Proxmox) → Run** — fill in the survey
+   (VM name + which template to clone) and watch the task output.
+6. To stand up the standalone Vault server: provision a VM, note its IP, then
+   run **Deploy Vault Server** and store the unseal keys it prints somewhere safe.
 
 ---
 
@@ -238,9 +250,9 @@ Change `proxmox_vm_id` in `automation-toolbox.pkrvars.hcl` to a free ID in your 
 
 Planned additions to the toolbox workflow, in build order:
 
-1. **Post-clone bootstrap script** — initialise Semaphore admin and store the Proxmox API credential in Semaphore's encrypted Key Store.
-2. **`provision_vm.yml`** — Ansible playbook (`community.proxmox.proxmox_kvm`) wired to a Semaphore Job Template with Survey variables (hostname, template, vCPU/RAM/disk, VLAN, role).
-3. **Vault server** — deployed as the first provisioned workload on a dedicated VM (`security/vault/`); playbook secrets move to `community.hashi_vault` lookups.
+1. ✅ **Post-clone bootstrap** — `bootstrap-toolbox.sh` configures Semaphore (project, repo, Proxmox credentials, job templates) via the API.
+2. ✅ **VM provisioning** — `automation/ansible/playbooks/provision-vm.yml` + the "Provision VM (Proxmox)" job template with survey variables.
+3. ✅ **Vault server deployment** — `automation/ansible/playbooks/deploy-vault.yml` + the "Deploy Vault Server" job template. Next: move playbook secrets to `community.hashi_vault` lookups.
 4. **NetBox + Proxbox** — inventory/CMDB; every provisioned VM registers automatically; becomes Ansible dynamic inventory.
 5. **Prometheus + Grafana** — every new VM auto-enrolls via the `monitoring-agent` role.
 6. **Portainer** — server + Agent rollout to Docker hosts via the `common` role.

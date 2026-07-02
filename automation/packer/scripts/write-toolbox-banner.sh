@@ -54,6 +54,10 @@ printf "    Semaphore : http://%s/         (http://%s/)\n" "${IP}" "${HOST}"
 printf "    Webmin    : https://%s:10000/  (https://%s:10000/)\n" "${IP}" "${HOST}"
 printf "    Homepage  : http://%s:3002/    (http://%s:3002/)\n" "${IP}" "${HOST}"
 printf "\n"
+if [ ! -f /opt/toolbox/.bootstrapped ]; then
+    printf "  First run: sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/bootstrap-toolbox.sh\n"
+    printf "\n"
+fi
 EOF
 chmod +x /etc/update-motd.d/10-toolbox-services
 log "MOTD fragment written."

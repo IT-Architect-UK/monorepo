@@ -1,0 +1,71 @@
+---
+# =============================================================================
+# deploy-vault.yml
+# =============================================================================
+# Installs HashiCorp Vault on a target server using the repo's standard
+# installer (security/vault/install-hashicorp-vault.sh): latest Vault from
+# the HashiCorp apt repository, self-signed TLS, Raft storage, systemd unit.
+#
+# Intended flow (Deployment Toolbox):
+#   1. Provision a fresh Ubuntu VM with the "Provision VM (Proxmox)" template
+#      (see provision-vm.yml)
+#   2. Run this playbook against the new VM's IP to turn it into the
+#      standalone Vault server
+#
+# Required variables (Survey or -e):
+#   vault_host       IP or FQDN of the target server
+#
+# Optional variables:
+#   vault_ssh_user   SSH user on the target       (default: sysadmin)
+#
+# Usage:
+#   ansible-playbook playbooks/deploy-vault.yml -e vault_host=192.168.4.60
+#
+# IMPORTANT — after installation:
+#   The installer initialises Vault and prints the unseal keys and root
+#   token in the task output. STORE THESE SECURELY IMMEDIATELY — they are
+#   shown only once. Vault starts SEALED after every reboot and must be
+#   unsealed with 3 of the 5 unseal keys:  vault operator unseal
+#   See security/vault/useful-commands.txt for day-2 operations.
+# =============================================================================
+
+- name: Register Vault target host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - vault_host is defined and vault_host | length > 0
+        fail_msg: "vault_host must be set to the IP/FQDN of the target server."
+
+    - name: Add target to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ vault_host }}"
+        groups: vault_target
+        ansible_user: "{{ vault_ssh_user | default('sysadmin') }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+
+- name: Install HashiCorp Vault
+  hosts: vault_target
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Run the standard Vault installer from this repo
+      ansible.builtin.script: ../../../security/vault/install-hashicorp-vault.sh
+      register: vault_install
+      changed_when: true
+
+    - name: Installer output — SAVE THE UNSEAL KEYS AND ROOT TOKEN NOW
+      ansible.builtin.debug:
+        msg: "{{ vault_install.stdout_lines | default([]) }}"
+
+    - name: Post-install reminder
+      ansible.builtin.debug:
+        msg:
+          - "Vault is installed and initialised on {{ inventory_hostname }} (https://{{ inventory_hostname }}:8200)."
+          - "The unseal keys and root token are in the output above — store them securely, they are not shown again."
+          - "Vault starts SEALED after every reboot: run 'vault operator unseal' with 3 of the 5 key shares."

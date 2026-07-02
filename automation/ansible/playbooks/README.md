@@ -8,6 +8,8 @@ ansible-playbook -i ../inventory/hosts.yml <playbook>.yml
 
 | Playbook | Purpose |
 |----------|---------|
+| `provision-vm.yml` | Create a new VM on Proxmox by cloning a template (API-driven, no SSH needed) |
+| `deploy-vault.yml` | Install HashiCorp Vault on a target server (the toolbox's standalone secrets VM) |
 | `server-baseline.yml` | Initial hardening — run once on every new server |
 | `deploy-docker.yml` | Install Docker Engine + Compose |
 | `configure-tls.yml` | Let's Encrypt certificate via Certbot |

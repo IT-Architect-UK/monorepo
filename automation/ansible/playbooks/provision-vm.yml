@@ -1,0 +1,154 @@
+---
+# =============================================================================
+# provision-vm.yml
+# =============================================================================
+# Provisions a new VM on Proxmox VE by cloning an existing template, then
+# sizing and starting it. Runs entirely from the control node (localhost) —
+# no SSH access to the new VM is required.
+#
+# What this playbook does:
+#   1. Clones the named Proxmox template to a new VM (full clone)
+#   2. Sets vCPU count and memory
+#   3. Optionally overrides the network bridge / VLAN tag
+#   4. Optionally grows the OS disk
+#   5. Starts the VM and reports the outcome
+#
+# Designed to be driven from a Semaphore Job Template with Survey Variables
+# (created by the toolbox bootstrap script), but works equally from the CLI.
+#
+# Required variables (Survey or -e):
+#   vm_name          Name for the new VM
+#   vm_template      Name of the Proxmox template to clone
+#
+# Optional variables:
+#   vm_vcpu          vCPU count                    (default: 2)
+#   vm_memory_mb     Memory in MB                  (default: 4096)
+#   vm_disk_gb       Grow OS disk to this size GB  (default: 0 = keep template size)
+#   vm_vlan_tag      VLAN tag for net0             (default: keep template setting)
+#   vm_bridge        Bridge for net0               (default: VLANs; only used with vm_vlan_tag)
+#   vm_storage       Target storage for the clone  (default: keep template storage)
+#   proxmox_node     Proxmox node name             (default: PROXMOX_NODE env var)
+#
+# Proxmox connection (set by the Semaphore "Proxmox" variable group, or env):
+#   PROXMOX_HOST           API host/IP (no scheme, no port)
+#   PROXMOX_USER           e.g. root@pam or automation@pve
+#   PROXMOX_TOKEN_ID       API token ID    (token auth — recommended)
+#   PROXMOX_TOKEN_SECRET   API token secret
+#   PROXMOX_PASSWORD       Password (only if not using token auth)
+#
+# Usage:
+#   ansible-playbook playbooks/provision-vm.yml \
+#     -e vm_name=POSLXPTEST01 -e vm_template=T-UBUNTU-24-DEPLOY \
+#     -e vm_vcpu=2 -e vm_memory_mb=4096
+#
+# Requirements: community.proxmox collection, python3-proxmoxer (both baked
+# into the toolbox image).
+# =============================================================================
+
+- name: Provision a VM on Proxmox VE from a template
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    proxmox_api_host: "{{ lookup('env', 'PROXMOX_HOST') }}"
+    proxmox_api_user: "{{ lookup('env', 'PROXMOX_USER') | default('root@pam', true) }}"
+    proxmox_api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+    proxmox_api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+    proxmox_api_password: "{{ lookup('env', 'PROXMOX_PASSWORD') }}"
+    proxmox_node: "{{ lookup('env', 'PROXMOX_NODE') | default('POSVMPWS01', true) }}"
+    vm_vcpu: 2
+    vm_memory_mb: 4096
+    vm_disk_gb: 0
+    vm_vlan_tag: ""
+    vm_bridge: "VLANs"
+    vm_storage: ""
+    clone_timeout: 600
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - vm_name is defined and vm_name | length > 0
+          - vm_template is defined and vm_template | length > 0
+          - proxmox_api_host | length > 0
+          - (proxmox_api_token_secret | length > 0) or (proxmox_api_password | length > 0)
+        fail_msg: >-
+          vm_name and vm_template must be set, and Proxmox connection details
+          (PROXMOX_HOST plus token or password) must be present in the
+          environment. In Semaphore these come from the 'Proxmox' variable group.
+
+    - name: "Clone template '{{ vm_template }}' to new VM '{{ vm_name }}'"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
+        api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        node: "{{ proxmox_node }}"
+        clone: "{{ vm_template }}"
+        name: "{{ vm_name }}"
+        full: true
+        storage: "{{ vm_storage | default(omit, true) }}"
+        timeout: "{{ clone_timeout }}"
+        state: present
+      register: clone_result
+
+    - name: "Set vCPU and memory on '{{ vm_name }}'"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
+        api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        node: "{{ proxmox_node }}"
+        name: "{{ vm_name }}"
+        cores: "{{ vm_vcpu | int }}"
+        memory: "{{ vm_memory_mb | int }}"
+        update: true
+
+    - name: "Apply VLAN tag {{ vm_vlan_tag }} to net0"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
+        api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        node: "{{ proxmox_node }}"
+        name: "{{ vm_name }}"
+        net:
+          net0: "virtio,bridge={{ vm_bridge }},tag={{ vm_vlan_tag }}"
+        update: true
+      when: vm_vlan_tag | string | length > 0
+
+    - name: "Grow OS disk to {{ vm_disk_gb }}G"
+      community.proxmox.proxmox_disk:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
+        api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        name: "{{ vm_name }}"
+        disk: scsi0
+        size: "{{ vm_disk_gb | int }}G"
+        state: resized
+      when: vm_disk_gb | int > 0
+
+    - name: "Start '{{ vm_name }}'"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
+        api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        node: "{{ proxmox_node }}"
+        name: "{{ vm_name }}"
+        state: started
+
+    - name: Provisioning summary
+      ansible.builtin.debug:
+        msg:
+          - "VM '{{ vm_name }}' cloned from '{{ vm_template }}' and started on {{ proxmox_node }}."
+          - "vCPU: {{ vm_vcpu }}  Memory: {{ vm_memory_mb }} MB  Disk: {{ (vm_disk_gb | int > 0) | ternary(vm_disk_gb ~ 'G', 'template default') }}"
+          - "Network: {{ (vm_vlan_tag | string | length > 0) | ternary('net0 on ' ~ vm_bridge ~ ' tag ' ~ vm_vlan_tag, 'template default') }}"
+          - "The VM will pick up an address via cloud-init/DHCP — check the Proxmox console or your DHCP leases for its IP."

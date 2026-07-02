@@ -98,9 +98,14 @@ apt-get install -y ansible
 ansible-galaxy collection install \
     community.general \
     community.crypto \
+    community.proxmox \
+    community.hashi_vault \
     ansible.posix \
     amazon.aws \
     --force
+# Python libraries required by community.proxmox (proxmoxer) and
+# community.hashi_vault (hvac) modules on the control node
+apt-get install -y python3-proxmoxer python3-requests python3-hvac
 ok "$(ansible --version | head -1) installed"
 
 # ─── 7. Install AWS CLI v2 ────────────────────────────────────────────────────
