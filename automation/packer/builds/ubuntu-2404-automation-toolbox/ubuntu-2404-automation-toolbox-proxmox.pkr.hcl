@@ -185,9 +185,17 @@ build {
   # single-quoted so no HCL escaping is needed) overrides ansible.cfg's
   # inventory for just this invocation with an inline single-host list,
   # which is what --connection=local actually needs for self-provisioning.
+  #
+  # That override has a side effect: Ansible only auto-loads group_vars/
+  # from a directory next to the inventory FILE or next to the playbook --
+  # an inline -i 'localhost,' string is neither, so common_packages/
+  # system_timezone/admin_user/admin_groups (defined in group_vars/all.yml)
+  # resolve to nothing. Confirmed via a real build: "'common_packages' is
+  # undefined". -e '@group_vars/all.yml' loads that file explicitly,
+  # independent of directory-adjacency rules.
   provisioner "shell" {
     inline = [
-      "cd /opt/toolbox/ansible && ansible-playbook -i 'localhost,' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"
+      "cd /opt/toolbox/ansible && ansible-playbook -i 'localhost,' -e '@group_vars/all.yml' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3"
     ]
     execute_command = "sudo bash {{.Path}}"
   }
