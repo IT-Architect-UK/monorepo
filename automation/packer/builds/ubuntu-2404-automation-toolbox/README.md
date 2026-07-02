@@ -227,6 +227,19 @@ vm_disk_gb    = 100
 
 ---
 
+## Rebuild / Test Cycle
+
+Testing a change end-to-end means: delete the old template and test clone, rebuild, re-clone, re-bootstrap. The cleanup step is scripted:
+
+```powershell
+.\cleanup-automation-toolbox-proxmox.ps1        # deletes template 9002 + any VM named POSLXPDEPLOY01 (asks first)
+.\build-automation-toolbox-proxmox.ps1          # fresh build
+```
+
+`cleanup-automation-toolbox-proxmox.ps1 -CloneName <name>` if your test clone uses a different name; `-TemplateOnly` / `-CloneOnly` / `-Force` are also available — see the script header.
+
+---
+
 ## Troubleshooting
 
 **SSH timeout during build**
