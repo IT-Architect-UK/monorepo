@@ -46,6 +46,14 @@ variable "vm_disk_gb" {
   default = 50
 }
 
+variable "proxmox_token" {
+  # API token secret — used with proxmox_username "user@realm!tokenid".
+  # Leave empty to authenticate with proxmox_password instead.
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
 variable "win_vm_id" {
   type    = number
   default = 9003

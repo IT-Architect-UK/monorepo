@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # provision-windows.ps1 — Windows Server 2025 golden image provisioning
 # =============================================================================
 # Run by Packer via the powershell provisioner after WinRM is available.

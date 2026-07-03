@@ -72,9 +72,17 @@ variable "proxmox_iso_storage" {
   default = "local"
 }
 
+variable "proxmox_token" {
+  # API token secret — used with proxmox_username "user@realm!tokenid".
+  # Leave empty to authenticate with proxmox_password instead.
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
 variable "proxmox_vm_id" {
   type    = number
-  default = 9000
+  default = 9006
 }
 
 variable "vm_company_name" {

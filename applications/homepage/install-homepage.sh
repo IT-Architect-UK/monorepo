@@ -18,7 +18,7 @@
 #   sudo ./install-homepage.sh
 #
 # Author:            Darren Pilkington
-# Version:           1.4
+# Version:           1.5
 # Date:              02-07-2026
 # =============================================================================
 
@@ -202,6 +202,11 @@ else
 fi
 
 # ─── Run container ───────────────────────────────────────────────────────────
+# NODE_TLS_REJECT_UNAUTHORIZED=0: the Proxmox widget talks to the hypervisor's
+# self-signed HTTPS API and Homepage's proxy rejects untrusted certs with a
+# bare "API Error: HTTP Error". Acceptable on a management-subnet-only lab
+# dashboard. TODO: remove once the internal PKI (roadmap) issues Proxmox a
+# certificate the toolbox trusts.
 log "Pulling ${IMAGE}..."
 docker pull "${IMAGE}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -210,6 +215,7 @@ docker run -d \
     --name "${CONTAINER_NAME}" \
     -p "${HOST_PORT}:3000" \
     -e "HOMEPAGE_ALLOWED_HOSTS=${ALLOWED_HOSTS}" \
+    -e "NODE_TLS_REJECT_UNAUTHORIZED=0" \
     -v "${CONFIG_DIR}:/app/config" \
     -v /var/run/docker.sock:/var/run/docker.sock:ro \
     --env-file "${ENV_FILE}" \

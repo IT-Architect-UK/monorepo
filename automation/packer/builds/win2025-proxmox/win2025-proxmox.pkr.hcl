@@ -72,7 +72,8 @@ source "proxmox-iso" "win2025" {
   # ── Proxmox connection ──────────────────────────────────────────────────
   proxmox_url              = var.proxmox_url
   username                 = var.proxmox_username
-  password                 = var.proxmox_password
+  password                 = var.proxmox_password == "" ? null : var.proxmox_password
+  token                    = var.proxmox_token == "" ? null : var.proxmox_token
   insecure_skip_tls_verify = true
   node                     = var.proxmox_node
 

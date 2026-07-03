@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # cleanup-automation-toolbox-proxmox.ps1
 # Deletes the automation-toolbox Packer template and/or cloned test server
 # from Proxmox, so a fresh build/test cycle can start clean.

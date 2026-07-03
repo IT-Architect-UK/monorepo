@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # build-automation-toolbox-proxmox.ps1
 # Packer build script for ubuntu-2404-automation-toolbox (Proxmox only)
 #
@@ -335,7 +335,7 @@ function Invoke-ToolboxBootstrap {
         [hashtable]$WriteHeaders, [hashtable]$AuthHeaders,
         [string]$SemaphorePassword, [string]$PveHost, [string]$PveUser,
         [string]$TokenId, [string]$TokenSecret, [string]$PvePassword,
-        [string]$MgmtSubnet
+        [string]$MgmtSubnet, [bool]$AutoBuildGolden = $false
     )
 
     Write-Step "Waiting for the new VM to report an IP (guest agent)..."
@@ -356,6 +356,7 @@ function Invoke-ToolboxBootstrap {
         $lines += "PROXMOX_PASSWORD=$(ConvertTo-ShellSingleQuoted $PvePassword)"
     }
     if ($MgmtSubnet) { $lines += "MGMT_SUBNET=$(ConvertTo-ShellSingleQuoted $MgmtSubnet)" }
+    if ($AutoBuildGolden) { $lines += "AUTO_BUILD_GOLDEN='1'" }
     $envContent = ($lines -join "`n") + "`n"
     $fwBody = "file=" + [uri]::EscapeDataString("/root/.bootstrap-env") + "&content=" + [uri]::EscapeDataString($envContent)
     Invoke-ProxmoxApi -Uri "$ProxmoxUrl/nodes/$ProxmoxNode/qemu/$VmId/agent/file-write" -Method Post -Headers $WriteHeaders -Body $fwBody | Out-Null
@@ -455,10 +456,13 @@ if (-not $DryRun) {
             $pveTokenSecret = [System.Net.NetworkCredential]::new("", $sec).Password
         }
         $mgmtSubnet = (Read-Host "  Management subnet for firewall lockdown, e.g. 192.168.4.0/24 (Enter = skip)").Trim()
+        $ans = Read-Host "  Build the Ubuntu 24.04 golden image template right after bootstrap? (Y/n)"
+        $autoBuildGolden = ($ans -notmatch '^[Nn]')
     }
 }
 
 # ── Toolbox sizing (defaults suit modest hosts; more is better if you have it) ─
+$autoBuildGolden = $false
 $vmCpu = 4; $vmMemMb = 8192
 if (-not $DryRun) {
     Write-Host ""
@@ -553,7 +557,8 @@ try {
                     -TokenId           $pveTokenId `
                     -TokenSecret       $pveTokenSecret `
                     -PvePassword       $proxmoxPassword `
-                    -MgmtSubnet        $mgmtSubnet | Out-Null
+                    -MgmtSubnet        $mgmtSubnet `
+                    -AutoBuildGolden   $autoBuildGolden | Out-Null
             } catch {
                 Write-Fail "Deployment failed: $($_.Exception.Message)"
                 Write-Host "  The template itself is unaffected. Retry: clone it in Proxmox, then run" -ForegroundColor DarkGray

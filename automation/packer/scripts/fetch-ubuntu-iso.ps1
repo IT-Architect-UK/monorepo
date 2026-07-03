@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # fetch-ubuntu-iso.ps1 — Stage the latest Ubuntu server ISO on Proxmox storage
 #
 # Windows twin of fetch-ubuntu-iso.sh — same behaviour: finds the newest
@@ -21,7 +21,10 @@
 # =============================================================================
 
 param(
-    [Parameter(Mandatory = $true)][ValidatePattern('^\d\d\.\d\d$')][string]$Release,
+    # $Release: an Ubuntu release like 24.04, or the literal "url" together
+    # with -DirectUrl to stage any direct http(s) ISO (e.g. virtio-win).
+    [Parameter(Mandatory = $true)][ValidatePattern('^(\d\d\.\d\d|url)$')][string]$Release,
+    [string]$DirectUrl = "",
     [string]$ProxmoxHost = $(if ($env:PROXMOX_HOST) { $env:PROXMOX_HOST } else { "192.168.4.150" }),
     [string]$Node        = $env:PROXMOX_NODE,
     [string]$Storage     = $env:ISO_STORAGE
@@ -53,7 +56,14 @@ function Invoke-Pve {
     (Invoke-RestMethod @req).data
 }
 
-# ── 1. Discover the latest ISO ───────────────────────────────────────────────
+# ── 1. Discover the latest ISO (or take the direct URL) ─────────────────────
+if ($Release -eq "url") {
+    if (-not $DirectUrl) { throw "-DirectUrl is required when -Release is 'url'" }
+    $isoName = [System.IO.Path]::GetFileName(([uri]$DirectUrl).AbsolutePath)
+    $isoSha  = ""
+    $isoUrl  = $DirectUrl
+    Write-Host "Direct URL mode: $isoName" -ForegroundColor Cyan
+} else {
 $mirror = "https://releases.ubuntu.com/$Release"
 Write-Host "Checking $mirror for the latest live-server ISO..." -ForegroundColor Cyan
 $sums = (Invoke-WebRequest -Uri "$mirror/SHA256SUMS" -UseBasicParsing).Content
@@ -63,6 +73,8 @@ if (-not $isoMatches) { throw "No live-server-amd64 ISO found at $mirror" }
 $isoName = ($isoMatches | Sort-Object { [version]($_ -replace '^ubuntu-([\d.]+)-live.*$', '$1') })[-1]
 $isoSha  = (($sums -split "`n") | Where-Object { $_ -like "*$isoName*" } | Select-Object -First 1).Split(' ')[0].Trim()
 Write-Host "Latest: $isoName" -ForegroundColor Green
+$isoUrl = "$mirror/$isoName"
+}
 
 # ── 2. Authenticate ──────────────────────────────────────────────────────────
 $pveUser = if ($env:PROXMOX_USER) { $env:PROXMOX_USER } else { "root@pam" }
@@ -107,10 +119,9 @@ if ($existing) {
 
 # ── 5. Server-side download ──────────────────────────────────────────────────
 Write-Host "Asking Proxmox to download $isoName (~3 GB — this can take a while)..." -ForegroundColor Cyan
-$upid = Invoke-Pve POST "/nodes/$Node/storage/$Storage/download-url" @{
-    content = "iso"; filename = $isoName; url = "$mirror/$isoName"
-    checksum = $isoSha; 'checksum-algorithm' = "sha256"
-}
+$dlBody = @{ content = "iso"; filename = $isoName; url = $isoUrl }
+if ($isoSha) { $dlBody.checksum = $isoSha; $dlBody.'checksum-algorithm' = "sha256" }
+$upid = Invoke-Pve POST "/nodes/$Node/storage/$Storage/download-url" $dlBody
 $elapsed = 0
 while ($elapsed -lt 2700) {
     Start-Sleep -Seconds 10; $elapsed += 10

@@ -67,7 +67,8 @@ source "proxmox-iso" "ubuntu-2604" {
   # ── Proxmox connection ──────────────────────────────────────────────────
   proxmox_url              = var.proxmox_url
   username                 = var.proxmox_username
-  password                 = var.proxmox_password
+  password                 = var.proxmox_password == "" ? null : var.proxmox_password
+  token                    = var.proxmox_token == "" ? null : var.proxmox_token
   insecure_skip_tls_verify = true    # Set to false in production with valid cert
   node                     = var.proxmox_node
 
@@ -170,16 +171,24 @@ build {
     ]
   }
 
-  # Step 2: Ansible provisioner — applies our server-baseline role
-  # Requires Ansible installed on the machine running Packer (not the build VM)
-  provisioner "ansible" {
-    playbook_file   = abspath("${path.root}/../../../ansible/playbooks/server-baseline.yml")
-    user          = var.ssh_username
-    extra_arguments = [
-      "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
-      "--extra-vars", "target_hosts=default",
-      "-v"
+  # Step 2: Ansible server-baseline — runs INSIDE the guest against
+  # localhost, so the machine running Packer needs NOTHING but Packer
+  # (standalone principle: no hidden build-host dependencies). Ansible is
+  # installed for the baseline run and removed again before sealing.
+  provisioner "file" {
+    source      = abspath("${path.root}/../../../ansible")
+    destination = "/tmp/"
+  }
+
+  provisioner "shell" {
+    inline = [
+      "export DEBIAN_FRONTEND=noninteractive",
+      "apt-get install -y ansible",
+      "cd /tmp/ansible && ANSIBLE_ROLES_PATH=/tmp/ansible/roles ansible-playbook -i 'localhost,' -e '@inventory/group_vars/all.yml' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3",
+      "apt-get remove -y ansible && apt-get autoremove -y",
+      "rm -rf /tmp/ansible",
     ]
+    execute_command = "sudo bash {{.Path}}"
   }
 
   # Step 3: Cleanup — seal the image (remove machine-unique data)

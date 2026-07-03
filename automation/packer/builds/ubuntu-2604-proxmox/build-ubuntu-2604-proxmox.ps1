@@ -1,22 +1,22 @@
 ﻿# =============================================================================
-# build-ubuntu-2404-proxmox.ps1 — Ubuntu 24.04 Golden Image (Proxmox), Windows
+# build-ubuntu-2604-proxmox.ps1 — Ubuntu 26.04 Golden Image (Proxmox), Windows
 # Standalone Packer build wrapper. The ONLY requirement on this machine is
 # Packer >= 1.10 — the Ansible baseline runs inside the build VM.
 #
 # USAGE (from this folder in a PowerShell terminal):
-#   .\build-ubuntu-2404-proxmox.ps1            # guided build
-#   .\build-ubuntu-2404-proxmox.ps1 -DryRun    # init + validate only
+#   .\build-ubuntu-2604-proxmox.ps1            # guided build
+#   .\build-ubuntu-2604-proxmox.ps1 -DryRun    # init + validate only
 #
 # CREDENTIALS (prompted if not set):
 #   $env:PKR_VAR_proxmox_password              # password auth, OR
 #   $env:PKR_VAR_proxmox_username = "user@pam!tokenid"
 #   $env:PKR_VAR_proxmox_token    = "<secret>" # token auth (recommended)
 #
-# ISO: staged automatically — the latest 24.04 live-server image is found on
+# ISO: staged automatically — the latest 26.04 live-server image is found on
 # releases.ubuntu.com and downloaded BY the Proxmox host (server-side pull,
 # checksum-verified) via ..\..\scripts\fetch-ubuntu-iso.ps1. To pin a specific
 # pre-uploaded ISO instead:
-#   $env:PKR_VAR_ubuntu_iso_file = "local:iso/ubuntu-24.04.2-live-server-amd64.iso"
+#   $env:PKR_VAR_ubuntu_iso_file = "local:iso/ubuntu-26.04.2-live-server-amd64.iso"
 #
 # Site settings (proxmox_url, node, storage, VLAN) come from variables.pkr.hcl
 # defaults — override any of them with $env:PKR_VAR_<name>.
@@ -48,13 +48,13 @@ if (-not ($hasToken -or $hasPassword)) {
 
 if ([string]::IsNullOrWhiteSpace($env:PKR_VAR_ubuntu_iso_file)) {
     Write-Host ""
-    Write-Host "  PKR_VAR_ubuntu_iso_file not set — staging the latest Ubuntu 24.04 ISO on Proxmox..." -ForegroundColor Yellow
+    Write-Host "  PKR_VAR_ubuntu_iso_file not set — staging the latest Ubuntu 26.04 ISO on Proxmox..." -ForegroundColor Yellow
     # fetch-ubuntu-iso.ps1 reuses the same PROXMOX_* env vars / prompts; the
     # ISO is downloaded BY the Proxmox host itself and checksum-verified.
     if (-not $env:PROXMOX_PASSWORD -and -not $env:PROXMOX_TOKEN_SECRET -and $env:PKR_VAR_proxmox_password) {
         $env:PROXMOX_PASSWORD = $env:PKR_VAR_proxmox_password   # reuse what the build already collected
     }
-    $volid = & (Join-Path $TemplateDir "..\..\scriptsetch-ubuntu-iso.ps1") -Release "24.04" | Select-Object -Last 1
+    $volid = & (Join-Path $TemplateDir "..\..\scriptsetch-ubuntu-iso.ps1") -Release "26.04" | Select-Object -Last 1
     if ([string]::IsNullOrWhiteSpace($volid)) { Write-Error "ISO staging failed — set PKR_VAR_ubuntu_iso_file manually (see header)."; exit 1 }
     $env:PKR_VAR_ubuntu_iso_file = $volid.Trim()
     Write-Host "  Using ISO: $($env:PKR_VAR_ubuntu_iso_file)" -ForegroundColor Green
@@ -63,7 +63,7 @@ if ([string]::IsNullOrWhiteSpace($env:PKR_VAR_ubuntu_iso_file)) {
 # ── Build ─────────────────────────────────────────────────────────────────────
 $LogDir = Join-Path $TemplateDir "logs"
 New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
-$LogFile = Join-Path $LogDir "build-ubuntu-2404-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
+$LogFile = Join-Path $LogDir "build-ubuntu-2604-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
 $env:PACKER_NO_COLOR = "1"
 
 try {
@@ -81,7 +81,7 @@ try {
         Write-Host "`n[3/3] packer build (15-30 min)..." -ForegroundColor Cyan
         packer build . 2>&1 | Tee-Object -FilePath $LogFile -Append | ForEach-Object { Write-Host $_ }
         if ($LASTEXITCODE -ne 0) { throw "packer build failed" }
-        Write-Host "`nDone. New template: ubuntu-2404-golden-<timestamp> (VMID 9004)." -ForegroundColor Green
+        Write-Host "`nDone. New template: ubuntu-2604-golden-<timestamp> (VMID 9006)." -ForegroundColor Green
         Write-Host "Provision from it: Semaphore -> Task Templates -> Provision VM (Proxmox)." -ForegroundColor Green
     }
 } catch {

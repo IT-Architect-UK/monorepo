@@ -50,12 +50,27 @@ fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
 command -v curl &>/dev/null || fail "curl not found"
 command -v jq   &>/dev/null || fail "jq not found"
 
+# Two modes:
+#   <release>  e.g. 24.04 — discover the latest Ubuntu live-server ISO
+#   <url>      any direct http(s) ISO URL (e.g. the virtio-win drivers ISO) —
+#              staged as-is, no checksum (add one upstream when available)
 RELEASE="${1:-}"
-[[ "${RELEASE}" =~ ^[0-9]{2}\.[0-9]{2}$ ]] || fail "Usage: $0 <release>   e.g. $0 24.04"
+DIRECT_URL=""
+if [[ "${RELEASE}" =~ ^https?:// ]]; then
+    DIRECT_URL="${RELEASE}"
+elif [[ ! "${RELEASE}" =~ ^[0-9]{2}\.[0-9]{2}$ ]]; then
+    fail "Usage: $0 <release|url>   e.g. $0 24.04   or   $0 https://host/path/some.iso"
+fi
 
 NONINTERACTIVE=0; [[ ! -t 0 ]] && NONINTERACTIVE=1
 
-# ─── 1. Discover the latest ISO for this release ─────────────────────────────
+# ─── 1. Determine what to download ───────────────────────────────────────────
+if [[ -n "${DIRECT_URL}" ]]; then
+    ISO_URL="${DIRECT_URL}"
+    ISO_NAME="$(basename "${DIRECT_URL}")"
+    ISO_SHA256=""
+    log "Direct URL mode: ${ISO_NAME}"
+else
 MIRROR="https://releases.ubuntu.com/${RELEASE}"
 log "Checking ${MIRROR} for the latest live-server ISO..."
 SUMS=$(curl -fsSL --max-time 30 "${MIRROR}/SHA256SUMS") \
@@ -67,6 +82,7 @@ ISO_SHA256=$(echo "${SUMS}" | grep -F "${ISO_NAME}" | awk '{print $1}' | head -1
 ISO_URL="${MIRROR}/${ISO_NAME}"
 log "Latest: ${ISO_NAME}"
 log "SHA256: ${ISO_SHA256}"
+fi
 
 # ─── 2. Proxmox connection ───────────────────────────────────────────────────
 PVE_HOST="${PROXMOX_HOST:-}"
@@ -152,12 +168,13 @@ fi
 
 # ─── 6. Server-side download (Proxmox pulls and verifies it) ─────────────────
 log "Asking Proxmox to download ${ISO_NAME} to '${STORAGE}' (~3 GB, this can take a while)..."
+CHECKSUM_ARGS=()
+[[ -n "${ISO_SHA256}" ]] && CHECKSUM_ARGS=(--data-urlencode "checksum=${ISO_SHA256}" --data-urlencode "checksum-algorithm=sha256")
 UPID=$(pve POST "/nodes/${PVE_NODE}/storage/${STORAGE}/download-url" \
     --data-urlencode "content=iso" \
     --data-urlencode "filename=${ISO_NAME}" \
     --data-urlencode "url=${ISO_URL}" \
-    --data-urlencode "checksum=${ISO_SHA256}" \
-    --data-urlencode "checksum-algorithm=sha256" | jq -r '.data')
+    "${CHECKSUM_ARGS[@]}" | jq -r '.data')
 [[ -n "${UPID}" && "${UPID}" != "null" ]] || fail "download-url did not return a task ID"
 
 ELAPSED=0; TIMEOUT=2700

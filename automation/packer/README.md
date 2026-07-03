@@ -47,12 +47,12 @@ packer build   -var-file="../../environments/homelab.pkrvars.hcl" .
 |----------|----------|--------|--------|
 | `ubuntu-2404-automation-toolbox` | Proxmox | VM Template (ID 9002) | [README](builds/ubuntu-2404-automation-toolbox/README.md) |
 | `ubuntu-2404-proxmox` | Proxmox | VM Template (ID 9004) | [README](builds/ubuntu-2404-proxmox/README.md) |
-| `ubuntu-2604-proxmox` | Proxmox | VM Template | — |
+| `ubuntu-2604-proxmox` | Proxmox | VM Template (ID 9006) | [README](builds/ubuntu-2604-proxmox/README.md) |
 | `ubuntu-2604-vmware` | VMware vSphere | vSphere Template | — |
 | `ubuntu-2604-aws` | AWS | AMI | — |
 | `ubuntu-2604-azure` | Azure | Managed Image | — |
 | `ubuntu-2604-gcp` | GCP | Custom Image | — |
-| `win2025-proxmox` | Proxmox | VM Template | — |
+| `win2025-proxmox` | Proxmox | VM Template | [README](builds/win2025-proxmox/README.md) |
 | `win2025-vmware` | VMware vSphere | vSphere Template | — |
 
 ## Prerequisites

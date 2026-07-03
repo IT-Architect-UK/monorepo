@@ -34,7 +34,7 @@
 # encrypted store and the API session token is revoked on exit.
 #
 # Author:            Darren Pilkington
-# Version:           1.3
+# Version:           1.4
 # Date:              02-07-2026
 # =============================================================================
 
@@ -313,6 +313,24 @@ else
     log "Job template 'Build Golden Image — Ubuntu 24.04' already exists (id ${GOLD_TPL_ID})"
 fi
 
+for GOLD in "Build Golden Image — Ubuntu 26.04|automation/packer/builds/ubuntu-2604-proxmox/build-ubuntu-2604-proxmox.sh|Packer-build a fresh Ubuntu 26.04 template on Proxmox." \
+            "Build Golden Image — Windows 2025|automation/packer/builds/win2025-proxmox/build-win2025-proxmox.sh|Packer-build a Windows Server 2025 template. Requires the Windows ISO pre-uploaded and WINRM_PASSWORD in the variable group."; do
+    G_NAME="${GOLD%%|*}"; G_REST="${GOLD#*|}"; G_PLAY="${G_REST%%|*}"; G_DESC="${G_REST#*|}"
+    G_ID=$(echo "${TPL_JSON}" | find_id "${G_NAME}")
+    if [[ -z "${G_ID}" ]]; then
+        G_ID=$(api POST "${P}/templates" "$(jq -n \
+            --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
+            --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+            --arg name "${G_NAME}" --arg play "${G_PLAY}" --arg desc "${G_DESC}" \
+            '{project_id: $pid, name: $name, app: "bash", playbook: $play,
+              inventory_id: $inv, repository_id: $rid, environment_id: $eid,
+              arguments: "[]", type: "", description: $desc}')" | jq -r '.id')
+        log "Job template '${G_NAME}' created (id ${G_ID})"
+    else
+        log "Job template '${G_NAME}' already exists (id ${G_ID})"
+    fi
+done
+
 # ─── Summary ─────────────────────────────────────────────────────────────────
 # ─── 7. Finalise the Homepage dashboard ──────────────────────────────────────
 HOMEPAGE_CONFIG="/opt/homepage/config"
@@ -399,13 +417,36 @@ else
     log "Firewall unchanged (baseline rules still in effect)."
 fi
 
+# ─── 10. Golden image templates ──────────────────────────────────────────────
+# A toolbox without templates can't deploy anything yet — offer to start the
+# Ubuntu 24.04 golden image build right away (runs as a Semaphore task on
+# this server, ~20-30 min, watch it in the UI). Non-interactive runs opt in
+# via AUTO_BUILD_GOLDEN=1. Windows 2025 / Ubuntu 26.04 join this list once
+# their builds get the same standalone treatment.
+BUILD_GOLDEN="${AUTO_BUILD_GOLDEN:-}"
+if [[ -z "${BUILD_GOLDEN}" && "${NONINTERACTIVE}" != "1" ]]; then
+    read -r -p "Start building the Ubuntu 24.04 golden image template now? (Y/n): " ans
+    [[ "${ans}" =~ ^[Nn] ]] || BUILD_GOLDEN=1
+fi
+if [[ "${BUILD_GOLDEN}" == "1" && -n "${GOLD_TPL_ID:-}" ]]; then
+    TASK_ID=$(api POST "${P}/tasks"         "$(jq -n --argjson tid "${GOLD_TPL_ID}" '{template_id: $tid}')" | jq -r '.id // empty')
+    if [[ -n "${TASK_ID}" ]]; then
+        log "Golden image build started (Semaphore task ${TASK_ID}) — progress: http://$(hostname -I | awk '{print $1}')/ → Tasks"
+        log "The template 'ubuntu-2404-golden-<timestamp>' appears in Proxmox when it finishes (~20-30 min)."
+    else
+        warn "Could not start the golden image task — run it manually: Semaphore → Build Golden Image — Ubuntu 24.04"
+    fi
+elif [[ "${BUILD_GOLDEN}" == "1" ]]; then
+    warn "Golden image job template not found — skipping auto-build."
+fi
+
 mkdir -p /opt/toolbox && touch /opt/toolbox/.bootstrapped
 IP=$(hostname -I | awk '{print $1}')
 echo ""
 log "Bootstrap complete."
 log "  Semaphore     : http://${IP}/  (login: admin)"
 log "  Project       : ${PROJECT_NAME}"
-log "  Job templates : 'Provision VM (Proxmox)', 'Deploy Vault Server', 'Build Golden Image — Ubuntu 24.04'"
+log "  Job templates : Provision VM, Deploy Vault Server, Build Golden Image (Ubuntu 24.04 / 26.04 / Windows 2025)"
 log ""
 log "To provision your first VM:"
 log "  1. Open http://${IP}/ and log in"
