@@ -34,7 +34,7 @@
 # encrypted store and the API session token is revoked on exit.
 #
 # Author:            Darren Pilkington
-# Version:           1.2
+# Version:           1.3
 # Date:              02-07-2026
 # =============================================================================
 
@@ -296,6 +296,23 @@ else
     log "Job template 'Deploy Vault Server' already exists (id ${VAULT_TPL_ID})"
 fi
 
+GOLD_TPL_ID=$(echo "${TPL_JSON}" | find_id "Build Golden Image — Ubuntu 24.04")
+if [[ -z "${GOLD_TPL_ID}" ]]; then
+    GOLD_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
+        --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
+        --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+        '{
+          project_id: $pid, name: "Build Golden Image — Ubuntu 24.04", app: "bash",
+          playbook: "automation/packer/builds/ubuntu-2404-proxmox/build-ubuntu-2404-proxmox.sh",
+          inventory_id: $inv, repository_id: $rid, environment_id: $eid,
+          arguments: "[]", type: "",
+          description: "Packer-build a fresh, patched Ubuntu 24.04 template on Proxmox. Add a Schedule for monthly golden-image refreshes."
+        }')" | jq -r '.id')
+    log "Job template 'Build Golden Image — Ubuntu 24.04' created (id ${GOLD_TPL_ID})"
+else
+    log "Job template 'Build Golden Image — Ubuntu 24.04' already exists (id ${GOLD_TPL_ID})"
+fi
+
 # ─── Summary ─────────────────────────────────────────────────────────────────
 # ─── 7. Finalise the Homepage dashboard ──────────────────────────────────────
 HOMEPAGE_CONFIG="/opt/homepage/config"
@@ -388,7 +405,7 @@ echo ""
 log "Bootstrap complete."
 log "  Semaphore     : http://${IP}/  (login: admin)"
 log "  Project       : ${PROJECT_NAME}"
-log "  Job templates : 'Provision VM (Proxmox)', 'Deploy Vault Server'"
+log "  Job templates : 'Provision VM (Proxmox)', 'Deploy Vault Server', 'Build Golden Image — Ubuntu 24.04'"
 log ""
 log "To provision your first VM:"
 log "  1. Open http://${IP}/ and log in"

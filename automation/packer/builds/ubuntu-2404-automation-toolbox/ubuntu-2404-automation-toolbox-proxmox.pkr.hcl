@@ -245,7 +245,7 @@ build {
   # an inline -i 'localhost,' string is neither, so common_packages/
   # system_timezone/admin_user/admin_groups (defined in group_vars/all.yml)
   # resolve to nothing. Confirmed via a real build: "'common_packages' is
-  # undefined". -e '@group_vars/all.yml' loads that file explicitly,
+  # undefined". -e '@inventory/group_vars/all.yml' loads that file explicitly,
   # independent of directory-adjacency rules.
   #
   # infrastructure/networking/firewall/setup-iptables.sh is referenced by
@@ -280,7 +280,7 @@ build {
       # The trailing -e (conditional): when a build-time admin password was
       # set, tell the common role's sshd template to allow password login for
       # that one account. Appended AFTER '@group_vars/all.yml' so it wins.
-      "cd /git/monorepo/automation/ansible && ANSIBLE_ROLES_PATH=/git/monorepo/automation/ansible/roles ansible-playbook -i 'localhost,' -e '@group_vars/all.yml' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3${var.admin_password != "" && var.admin_username != "" ? " -e '{\"ssh_password_auth_users\":[\"${var.admin_username}\"]}'" : ""}"
+      "cd /git/monorepo/automation/ansible && ANSIBLE_ROLES_PATH=/git/monorepo/automation/ansible/roles ansible-playbook -i 'localhost,' -e '@inventory/group_vars/all.yml' playbooks/server-baseline.yml --connection=local --limit=localhost -e ansible_python_interpreter=/usr/bin/python3${var.admin_password != "" && var.admin_username != "" ? " -e '{\"ssh_password_auth_users\":[\"${var.admin_username}\"]}'" : ""}"
     ]
     execute_command = "sudo bash {{.Path}}"
   }
