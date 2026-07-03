@@ -16,7 +16,7 @@ Builds a sysprep-sealed Windows Server 2025 template on Proxmox VE — the base 
 | Requirement | Detail |
 |-------------|--------|
 | Packer ≥ 1.10 | The only build-machine requirement — provisioning runs in-guest via WinRM |
-| Windows Server 2025 ISO | **Manual upload required** (Microsoft licensing — no stable public URL). Get an evaluation ISO from the [Microsoft Evaluation Center](https://www.microsoft.com/en-us/evalcenter/), upload to Proxmox ISO storage, set `win_iso_file` to its volid |
+| Windows Server 2025 ISO | The wrapper walks you through it: **pick an ISO already on Proxmox storage, or upload one from a local folder** (no auto-download — Microsoft licensing; eval ISOs from the [Microsoft Evaluation Center](https://www.microsoft.com/en-us/evalcenter/)). Scripted runs set `win_iso_file` directly |
 | virtio-win drivers ISO | **Staged automatically** by the wrapper from the stable upstream URL; or upload manually and set `virtio_iso_file` |
 | WinRM password | The `packer` account password in `../../http/win2025-proxmox/autounattend.xml` must match `winrm_password` — change the placeholder (`PackerBuild2025!`) in BOTH places for anything internet-adjacent |
 

@@ -52,9 +52,14 @@ if ([string]::IsNullOrWhiteSpace($env:PKR_VAR_winrm_password)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($env:PKR_VAR_win_iso_file)) {
-    $iso = Read-Host "Windows Server 2025 ISO volid [local:iso/windows-server-2025.iso]"
-    if ([string]::IsNullOrWhiteSpace($iso)) { $iso = "local:iso/windows-server-2025.iso" }
-    $env:PKR_VAR_win_iso_file = $iso.Trim()
+    Write-Host "Choose the Windows Server 2025 ISO — pick one already on Proxmox storage, or upload from a local folder." -ForegroundColor Yellow
+    if (-not $env:PROXMOX_PASSWORD -and -not $env:PROXMOX_TOKEN_SECRET -and $env:PKR_VAR_proxmox_password) {
+        $env:PROXMOX_PASSWORD = $env:PKR_VAR_proxmox_password
+    }
+    $volid = & (Join-Path $TemplateDir "..\..\scripts\select-or-upload-iso.ps1") | Select-Object -Last 1
+    if ([string]::IsNullOrWhiteSpace($volid)) { Write-Error "ISO selection failed — set PKR_VAR_win_iso_file manually."; exit 1 }
+    $env:PKR_VAR_win_iso_file = $volid.Trim()
+    Write-Host "Using Windows ISO: $($env:PKR_VAR_win_iso_file)" -ForegroundColor Green
 }
 
 if ([string]::IsNullOrWhiteSpace($env:PKR_VAR_virtio_iso_file)) {

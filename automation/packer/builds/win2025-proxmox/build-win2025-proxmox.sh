@@ -77,12 +77,18 @@ if [[ -z "${PKR_VAR_winrm_password:-}" ]]; then
     fi
 fi
 
-# ── Windows ISO: manual upload required (Microsoft licensing) ────────────────
+# ── Windows ISO: pick from storage or upload from a local folder ─────────────
+# (Microsoft licensing means no auto-download — but if the ISO is already on
+# a Proxmox volume, just select it; otherwise the helper uploads yours.)
 if [[ -z "${PKR_VAR_win_iso_file:-}" ]]; then
     [[ "${NONINTERACTIVE}" == "1" ]] \
-        && fail "PKR_VAR_win_iso_file not set — upload the Windows Server 2025 ISO to Proxmox first"
-    read -r -p "Windows Server 2025 ISO volid [local:iso/windows-server-2025.iso]: " wiso
-    export PKR_VAR_win_iso_file="${wiso:-local:iso/windows-server-2025.iso}"
+        && fail "PKR_VAR_win_iso_file not set — required in non-interactive mode"
+    log "Choose the Windows Server 2025 ISO (existing on Proxmox, or upload)..."
+    SELECT="${SCRIPT_DIR}/../../scripts/select-or-upload-iso.sh"
+    VOLID=$(PROXMOX_HOST="${PVE_HOST}" bash "${SELECT}" | tail -1) \
+        || fail "ISO selection failed — set PKR_VAR_win_iso_file manually"
+    export PKR_VAR_win_iso_file="${VOLID}"
+    log "Using Windows ISO: ${VOLID}"
 fi
 
 # ── VirtIO drivers ISO: auto-staged from the stable upstream URL ─────────────
