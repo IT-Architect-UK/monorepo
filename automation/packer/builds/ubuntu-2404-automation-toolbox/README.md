@@ -237,7 +237,8 @@ Testing a change end-to-end means: delete the old template and test clone, rebui
 .\build-automation-toolbox-proxmox.ps1          # build → clone → bootstrap, one command end-to-end
 ```
 
-All questions (VM name, Proxmox API token, firewall subnet) are asked up-front,
+All questions (VM name, Proxmox API token, firewall subnet, VM sizing —
+default 4 vCPU / 8 GB, increase offered) are asked up-front,
 so the run is hands-off after that — a fully bootstrapped toolbox comes out the
 other end with its URLs printed at the finish.
 

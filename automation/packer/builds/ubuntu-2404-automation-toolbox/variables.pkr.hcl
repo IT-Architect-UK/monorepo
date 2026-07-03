@@ -48,13 +48,17 @@ variable "ssh_password" {
 }
 
 variable "vm_cpu_count" {
+  # Default suits modest hosts; the build wrapper offers an increase and any
+  # value can be forced with -var or a var-file. 8 recommended if you have it.
   type    = number
   default = 4
 }
 
 variable "vm_memory_mb" {
+  # 8 GB runs the core toolbox comfortably; 16 GB recommended once NetBox
+  # and Prometheus/Grafana are deployed onto this host.
   type    = number
-  default = 4096
+  default = 8192
 }
 
 variable "vm_disk_gb" {

@@ -458,6 +458,20 @@ if (-not $DryRun) {
     }
 }
 
+# ── Toolbox sizing (defaults suit modest hosts; more is better if you have it) ─
+$vmCpu = 4; $vmMemMb = 8192
+if (-not $DryRun) {
+    Write-Host ""
+    Write-Host "  Toolbox VM sizing: default 4 vCPU / 8 GB RAM — fine for the core services." -ForegroundColor Yellow
+    Write-Host "  8 vCPU / 16 GB is recommended if your host has capacity (needed comfort once" -ForegroundColor DarkGray
+    Write-Host "  NetBox and Prometheus/Grafana are deployed onto this server later)." -ForegroundColor DarkGray
+    $v = Read-Host "  vCPU count [4]"
+    if ($v -match '^\d+$' -and [int]$v -ge 1) { $vmCpu = [int]$v }
+    $v = Read-Host "  Memory in GB [8]"
+    if ($v -match '^\d+$' -and [int]$v -ge 2) { $vmMemMb = [int]$v * 1024 }
+    Write-Host "  Sizing: $vmCpu vCPU / $($vmMemMb/1024) GB" -ForegroundColor Green
+}
+
 $env:PKR_VAR_proxmox_password         = $proxmoxPassword
 $env:PKR_VAR_semaphore_admin_password = $semaphoreAdminPassword
 if (-not [string]::IsNullOrWhiteSpace($adminPassword)) {
@@ -493,7 +507,8 @@ try {
     Write-OK "Plugins ready"
 
     Write-Step "Validating template..."
-    $varArgs = $VarFiles | ForEach-Object { "-var-file=$_" }
+    $varArgs = @($VarFiles | ForEach-Object { "-var-file=$_" })
+    $varArgs += @("-var", "vm_cpu_count=$vmCpu", "-var", "vm_memory_mb=$vmMemMb")
     packer validate @varArgs . 2>&1 | Tee-Object -FilePath $LogFile -Append | ForEach-Object { Write-Host $_ }
     if ($LASTEXITCODE -ne 0) { throw "packer validate failed" }
     Write-OK "Template valid"

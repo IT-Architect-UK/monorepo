@@ -30,10 +30,12 @@ image_description = "Ubuntu 24.04 Automation Toolbox — Ansible, Packer, Terraf
 ubuntu_iso_url      = "https://releases.ubuntu.com/noble/ubuntu-24.04.4-live-server-amd64.iso"
 ubuntu_iso_checksum = "file:https://releases.ubuntu.com/noble/SHA256SUMS"
 
-# More resources than a standard VM — this host runs Packer builds,
-# Terraform plans, Docker containers, and the Semaphore web UI concurrently.
-vm_cpu_count = 6
-vm_memory_mb = 8192
+# Sizing is NOT fixed here: defaults are 4 vCPU / 8 GB (variables.pkr.hcl)
+# and the build wrapper asks whether to increase them — 8 vCPU / 16 GB is
+# recommended if the host has the capacity, especially once NetBox and
+# Prometheus/Grafana are deployed onto this server. To pin values, uncomment:
+# vm_cpu_count = 8
+# vm_memory_mb = 16384
 vm_disk_gb   = 80    # Tools + Docker images + Terraform state + Semaphore data
 
 # Dedicated VM ID — change if 9002 is already in use in your Proxmox cluster
