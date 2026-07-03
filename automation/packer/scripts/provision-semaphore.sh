@@ -191,10 +191,13 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=semaphore
 
-# Harden the service
+# Harden the service. PrivateTmp gives tasks a writable, isolated /tmp —
+# without it, ProtectSystem=strict leaves /tmp read-only and anything a job
+# runs (e.g. Packer's log tempfile) fails. Confirmed on a real task run.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
+PrivateTmp=true
 ReadWritePaths=${SEMAPHORE_DATA_DIR} ${SEMAPHORE_LOG_DIR}
 
 [Install]

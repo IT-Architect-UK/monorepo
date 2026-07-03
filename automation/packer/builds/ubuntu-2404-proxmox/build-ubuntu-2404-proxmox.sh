@@ -92,6 +92,15 @@ mkdir -p "${LOG_DIR}"
 LOG_FILE="${LOG_DIR}/build-ubuntu-2404-$(date '+%Y%m%d-%H%M%S').log"
 log "Build log: ${LOG_FILE}"
 
+# Keep ALL of Packer's writable state inside this build directory: the
+# Semaphore service (and other hardened environments) mount /tmp read-only
+# and block $HOME, which otherwise kills packer's log tempfile and plugin
+# install. Self-contained dirs work everywhere. (.packer/ is gitignored.)
+export TMPDIR="${LOG_DIR}"
+export PACKER_CONFIG_DIR="${SCRIPT_DIR}/.packer"
+export PACKER_PLUGIN_PATH="${SCRIPT_DIR}/.packer/plugins"
+mkdir -p "${PACKER_PLUGIN_PATH}"
+
 export PACKER_NO_COLOR=1
 {
     log "packer init..."

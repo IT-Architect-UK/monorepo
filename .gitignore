@@ -64,6 +64,9 @@ __pycache__/
 .venv/
 venv/
 
+# ── Local Packer state (plugins/config kept inside build dirs) ───────────────
+.packer/
+
 # ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
 logs/
