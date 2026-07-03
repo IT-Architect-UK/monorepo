@@ -129,10 +129,10 @@ ACCESS_KEY_ENC=$(openssl rand -base64 32 | tr -d '\n')
 
 cat > "${SEMAPHORE_CONFIG}" << EOF
 {
-  "bolt": {
-    "host": "${SEMAPHORE_DATA_DIR}/semaphore.db"
+  "sqlite": {
+    "host": "${SEMAPHORE_DATA_DIR}/semaphore.sqlite"
   },
-  "dialect":    "bolt",
+  "dialect":    "sqlite",
   "port":       ":${SEMAPHORE_PORT}",
   "interface":  "127.0.0.1",
   "tmp_path":   "${SEMAPHORE_DATA_DIR}/tmp",
