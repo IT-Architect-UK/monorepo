@@ -111,9 +111,16 @@ log "Build log: ${LOG_FILE}"
 # and block $HOME, which otherwise kills packer's log tempfile and plugin
 # install. Self-contained dirs work everywhere. (.packer/ is gitignored.)
 export TMPDIR="${LOG_DIR}"
+export PACKER_TMP_DIR="${LOG_DIR}"          # Packer's own temp-dir knob — takes precedence
 export PACKER_CONFIG_DIR="${SCRIPT_DIR}/.packer"
 export PACKER_PLUGIN_PATH="${SCRIPT_DIR}/.packer/plugins"
-mkdir -p "${PACKER_PLUGIN_PATH}"
+export PACKER_CACHE_DIR="${SCRIPT_DIR}/.packer/cache"
+mkdir -p "${PACKER_PLUGIN_PATH}" "${PACKER_CACHE_DIR}"
+
+# Self-diagnosis: every run states exactly which code and paths it uses, so
+# a stale Semaphore repo cache or env problem is visible at a glance.
+log "Wrapper commit : $(git -C "${SCRIPT_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+log "Packer temp    : TMPDIR=${TMPDIR} PACKER_TMP_DIR=${PACKER_TMP_DIR}"
 
 export PACKER_NO_COLOR=1
 {
