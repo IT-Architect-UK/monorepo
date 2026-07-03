@@ -435,7 +435,7 @@ $ProxmoxTemplateVmId  = [int](Get-LayeredPkrVarValue -VarName "proxmox_vm_id" -D
 
 # ── Deployment answers, collected up-front so the whole run is hands-off ─────
 $deployAfterBuild = $false
-$vmName = "POSLXPDEPLOY01"; $pveTokenId = ""; $pveTokenSecret = ""; $mgmtSubnet = ""
+$vmName = "POSLXPDEPLOY01"; $pveTokenId = ""; $pveTokenSecret = ""; $pveTokenUser = ""; $mgmtSubnet = ""
 if (-not $DryRun) {
     Write-Host ""
     Write-Host "  After the build this script can clone the template, start the VM and" -ForegroundColor Yellow
@@ -452,8 +452,28 @@ if (-not $DryRun) {
         Write-Host "  Proxmox password for provisioning; the dashboard widget then needs a token later." -ForegroundColor DarkGray
         $pveTokenId = (Read-Host "  Proxmox API token ID (Enter = skip)").Trim()
         if ($pveTokenId) {
+            $u = (Read-Host "  Which user OWNS this token? [$ProxmoxUsernameValue]").Trim()
+            if ($u) { $pveTokenUser = $u } else { $pveTokenUser = $ProxmoxUsernameValue }
             $sec = Read-Host "  Token secret (input hidden)" -AsSecureString
             $pveTokenSecret = [System.Net.NetworkCredential]::new("", $sec).Password
+            # Validate NOW — a user/token mismatch would otherwise surface as
+            # 401s in Semaphore jobs and the dashboard after a 30-min build.
+            while ($true) {
+                try {
+                    Invoke-ProxmoxApi -Uri "$ProxmoxUrlValue/version" -Headers @{
+                        Authorization = "PVEAPIToken=$pveTokenUser!$pveTokenId=$pveTokenSecret"
+                    } | Out-Null
+                    Write-Host "  Token verified for $pveTokenUser!$pveTokenId" -ForegroundColor Green
+                    break
+                } catch {
+                    Write-Host "  Proxmox rejected that token as '$pveTokenUser!$pveTokenId' — the user must be the token's OWNER (e.g. claude@pam, not root@pam)." -ForegroundColor Red
+                    $u = (Read-Host "  Token owner user [$pveTokenUser]").Trim()
+                    if ($u) { $pveTokenUser = $u }
+                    $sec = Read-Host "  Token secret (Enter = keep current, input hidden)" -AsSecureString
+                    $ts = [System.Net.NetworkCredential]::new("", $sec).Password
+                    if ($ts) { $pveTokenSecret = $ts }
+                }
+            }
         }
         $mgmtSubnet = (Read-Host "  Management subnet for firewall lockdown, e.g. 192.168.4.0/24 (Enter = skip)").Trim()
         $ans = Read-Host "  Build the Ubuntu 24.04 golden image template right after bootstrap? (Y/n)"
@@ -545,6 +565,7 @@ try {
                     -NewVmName       $vmName
 
                 $pveApiHost = ([uri]$ProxmoxUrlValue).Host
+                $bootstrapUser = if ($pveTokenUser) { $pveTokenUser } else { $ProxmoxUsernameValue }
                 Invoke-ToolboxBootstrap `
                     -ProxmoxUrl        $ProxmoxUrlValue `
                     -ProxmoxNode       $ProxmoxNodeValue `
@@ -553,7 +574,7 @@ try {
                     -AuthHeaders       $deploy.AuthHeaders `
                     -SemaphorePassword $semaphoreAdminPassword `
                     -PveHost           $pveApiHost `
-                    -PveUser           $ProxmoxUsernameValue `
+                    -PveUser           $bootstrapUser `
                     -TokenId           $pveTokenId `
                     -TokenSecret       $pveTokenSecret `
                     -PvePassword       $proxmoxPassword `

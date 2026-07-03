@@ -34,7 +34,7 @@
 # encrypted store and the API session token is revoked on exit.
 #
 # Author:            Darren Pilkington
-# Version:           1.4
+# Version:           1.5
 # Date:              02-07-2026
 # =============================================================================
 
@@ -116,6 +116,36 @@ if [[ -z "${PVE_TOKEN_ID}" && -z "${PVE_PASSWORD}" && "${NONINTERACTIVE}" != "1"
 fi
 [[ -n "${PVE_TOKEN_SECRET}" || -n "${PVE_PASSWORD}" ]] || fail "No Proxmox credential provided (token or password)"
 default_or_prompt PVE_NODE "Proxmox node name" "POSVMPWS01"
+
+# ─── Validate the Proxmox credential BEFORE storing it anywhere ──────────────
+# A wrong user/token pairing (e.g. token owned by claude@pam entered against
+# the default root@pam) poisons Semaphore jobs and the dashboard widget with
+# 401s — caught on a real deployment. Probe /version and re-prompt on failure.
+verify_pve() {
+    if [[ -n "${PVE_TOKEN_ID}" ]]; then
+        curl -fsSk --max-time 10 -H "Authorization: PVEAPIToken=${PVE_USER}!${PVE_TOKEN_ID}=${PVE_TOKEN_SECRET}"             "https://${PVE_HOST}:8006/api2/json/version" >/dev/null 2>&1
+    else
+        curl -fsSk --max-time 10 -X POST "https://${PVE_HOST}:8006/api2/json/access/ticket"             --data-urlencode "username=${PVE_USER}" --data-urlencode "password=${PVE_PASSWORD}" >/dev/null 2>&1
+    fi
+}
+TRIES=0
+until verify_pve; do
+    TRIES=$(( TRIES + 1 ))
+    warn "Proxmox rejected the credential (as ${PVE_USER}${PVE_TOKEN_ID:+!${PVE_TOKEN_ID}})."
+    warn "Common cause: the user doesn't match the token's owner — a token created under"
+    warn "claude@pam must be entered with user 'claude@pam', not the root@pam default."
+    [[ "${NONINTERACTIVE}" == "1" || ${TRIES} -ge 3 ]] && fail "Proxmox credential validation failed"
+    read -r -p "Proxmox API user [${PVE_USER}]: " u; PVE_USER="${u:-${PVE_USER}}"
+    read -r -p "API token ID [${PVE_TOKEN_ID:-none}] (empty = keep): " t; PVE_TOKEN_ID="${t:-${PVE_TOKEN_ID}}"
+    if [[ -n "${PVE_TOKEN_ID}" ]]; then
+        read -r -s -p "API token secret: " ts; echo
+        [[ -n "${ts}" ]] && PVE_TOKEN_SECRET="${ts}"
+    else
+        read -r -s -p "Password for ${PVE_USER}: " pw; echo
+        [[ -n "${pw}" ]] && PVE_PASSWORD="${pw}"
+    fi
+done
+log "Proxmox credential verified (${PVE_USER}${PVE_TOKEN_ID:+!${PVE_TOKEN_ID}})."
 
 REPO_URL="https://github.com/IT-Architect-UK/monorepo.git"
 REPO_BRANCH="main"

@@ -123,6 +123,12 @@ pve() { # pve METHOD PATH [curl-data-args...]
 }
 
 # ─── 3. Node ─────────────────────────────────────────────────────────────────
+# Probe the credential early with a clear message — a 401 here almost always
+# means PROXMOX_USER doesn't match the token's owner (e.g. claude@pam token
+# entered with the root@pam default).
+pve GET /version >/dev/null \
+    || fail "Proxmox rejected the credential (user=${PVE_USER}${PROXMOX_TOKEN_ID:+, token=${PROXMOX_TOKEN_ID}}). Check that PROXMOX_USER matches the token's OWNER."
+
 PVE_NODE="${PROXMOX_NODE:-}"
 if [[ -z "${PVE_NODE}" ]]; then
     PVE_NODE=$(pve GET /nodes | jq -r '.data[0].node')
