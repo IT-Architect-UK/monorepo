@@ -18,7 +18,7 @@
 #   sudo ./install-homepage.sh
 #
 # Author:            Darren Pilkington
-# Version:           1.3
+# Version:           1.4
 # Date:              02-07-2026
 # =============================================================================
 
@@ -72,6 +72,7 @@ if [[ ! -f "${CONFIG_DIR}/services.yaml" ]]; then
         icon: semaphore.png
         href: http://toolbox.lab.local/
         description: Ansible orchestration — provisioning jobs, surveys, task history
+        siteMonitor: http://toolbox.lab.local/
 
 - Secrets & Monitoring:
     - Vault:
@@ -100,16 +101,22 @@ if [[ ! -f "${CONFIG_DIR}/services.yaml" ]]; then
         icon: webmin.png
         href: https://toolbox.lab.local:10000/
         description: General server administration
+        siteMonitor: https://toolbox.lab.local:10000/
 
+    # The deployment target. CPU/memory/VM-count here is the pre-flight
+    # capacity check before provisioning more servers from this toolbox.
     - Proxmox Host:
         icon: proxmox.png
         href: https://192.168.4.150:8006/
-        description: POSVMPWS01 hypervisor
+        description: Deployment target — capacity at a glance
+        siteMonitor: https://192.168.4.150:8006/
         widget:
           type: proxmox
           url: https://192.168.4.150:8006
           username: "{{HOMEPAGE_VAR_PROXMOX_USER}}"
           password: "{{HOMEPAGE_VAR_PROXMOX_PASS}}"
+          node: "{{HOMEPAGE_VAR_PROXMOX_NODE}}"
+          fields: ["resources.cpu", "resources.mem", "vms", "lxc"]
 YAML_EOF
 else
     log "services.yaml already exists — leaving it untouched."
@@ -126,6 +133,27 @@ statusStyle: dot
 YAML_EOF
 else
     log "settings.yaml already exists — leaving it untouched."
+fi
+
+# ─── Write widgets.yaml ───────────────────────────────────────────────────────
+# Header row: the toolbox's own health (CPU, memory, disk, uptime) so the
+# operator can see this server is sound before deploying anything from it.
+if [[ ! -f "${CONFIG_DIR}/widgets.yaml" ]]; then
+    log "Writing widgets.yaml..."
+    cat > "${CONFIG_DIR}/widgets.yaml" <<'YAML_EOF'
+- resources:
+    label: Toolbox
+    cpu: true
+    memory: true
+    disk: /
+    uptime: true
+
+- search:
+    provider: duckduckgo
+    target: _blank
+YAML_EOF
+else
+    log "widgets.yaml already exists — leaving it untouched."
 fi
 
 # ─── Write bookmarks.yaml ─────────────────────────────────────────────────────
@@ -166,6 +194,7 @@ if [[ ! -f "${ENV_FILE}" ]]; then
 # Never commit this file.
 HOMEPAGE_VAR_PROXMOX_USER=
 HOMEPAGE_VAR_PROXMOX_PASS=
+HOMEPAGE_VAR_PROXMOX_NODE=
 ENV_EOF
     chmod 600 "${ENV_FILE}"
 else

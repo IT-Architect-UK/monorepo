@@ -34,7 +34,7 @@
 # encrypted store and the API session token is revoked on exit.
 #
 # Author:            Darren Pilkington
-# Version:           1.1
+# Version:           1.2
 # Date:              02-07-2026
 # =============================================================================
 
@@ -313,6 +313,7 @@ if [[ -d "${HOMEPAGE_CONFIG}" ]]; then
 # Homepage widget credentials — written by bootstrap-toolbox.sh. Never commit.
 HOMEPAGE_VAR_PROXMOX_USER=${PVE_USER}!${PVE_TOKEN_ID}
 HOMEPAGE_VAR_PROXMOX_PASS=${PVE_TOKEN_SECRET}
+HOMEPAGE_VAR_PROXMOX_NODE=${PVE_NODE}
 HP_EOF
         chmod 600 "${HOMEPAGE_ENV}"
         log "Homepage: Proxmox widget credentials written (token auth)"
