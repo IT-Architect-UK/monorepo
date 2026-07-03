@@ -26,9 +26,9 @@
 param(
     [int]    $TemplateId   = 9002,
     [string] $CloneName    = "POSLXPDEPLOY01",
-    [string] $ProxmoxUrl   = "https://192.168.4.150:8006",
+    [string] $ProxmoxUrl   = "",
     [string] $ProxmoxUser  = "root@pam",
-    [string] $Node         = "POSVMPWS01",
+    [string] $Node         = "",
     [switch] $TemplateOnly,
     [switch] $CloneOnly,
     [switch] $Force
@@ -36,6 +36,21 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# Site defaults from the repo's single site file (environments/homelab.pkrvars.hcl)
+$siteFile = Join-Path $PSScriptRoot "..\..\environments\homelab.pkrvars.hcl"
+if (Test-Path $siteFile) {
+    if (-not $ProxmoxUrl) {
+        $m = Select-String -Path $siteFile -Pattern '^\s*proxmox_url\s*=\s*"(https?://[^:/"]+)' | Select-Object -First 1
+        if ($m) { $ProxmoxUrl = $m.Matches[0].Groups[1].Value + ":8006" }
+    }
+    if (-not $Node) {
+        $m = Select-String -Path $siteFile -Pattern '^\s*proxmox_node\s*=\s*"([^"]+)"' | Select-Object -First 1
+        if ($m) { $Node = $m.Matches[0].Groups[1].Value }
+    }
+}
+if (-not $ProxmoxUrl) { $ProxmoxUrl = "https://" + (Read-Host "Proxmox API host") + ":8006" }
+if (-not $Node)       { $Node = Read-Host "Proxmox node name" }
 
 # ── TLS: Proxmox uses a self-signed certificate ──────────────────────────────
 # PowerShell 7 has -SkipCertificateCheck; Windows PowerShell 5.1 needs the

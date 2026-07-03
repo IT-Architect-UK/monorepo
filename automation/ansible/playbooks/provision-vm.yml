@@ -27,7 +27,8 @@
 #   vm_vlan_tag      VLAN tag for net0             (default: keep template setting)
 #   vm_bridge        Bridge for net0               (default: VLANs; only used with vm_vlan_tag)
 #   vm_storage       Target storage for the clone  (default: keep template storage)
-#   proxmox_node     Proxmox node name             (default: PROXMOX_NODE env var)
+#   proxmox_node     Proxmox node name             (from PROXMOX_NODE env var — set
+#                    by the Semaphore 'Proxmox' variable group; required)
 #
 # Proxmox connection (set by the Semaphore "Proxmox" variable group, or env):
 #   PROXMOX_HOST           API host/IP (no scheme, no port)
@@ -56,7 +57,7 @@
     proxmox_api_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
     proxmox_api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
     proxmox_api_password: "{{ lookup('env', 'PROXMOX_PASSWORD') }}"
-    proxmox_node: "{{ lookup('env', 'PROXMOX_NODE') | default('POSVMPWS01', true) }}"
+    proxmox_node: "{{ lookup('env', 'PROXMOX_NODE') }}"
     vm_vcpu: 2
     vm_memory_mb: 4096
     vm_disk_gb: 0
@@ -72,6 +73,7 @@
           - vm_name is defined and vm_name | length > 0
           - vm_template is defined and vm_template | length > 0
           - proxmox_api_host | length > 0
+          - proxmox_node | length > 0
           - (proxmox_api_token_secret | length > 0) or (proxmox_api_password | length > 0)
         fail_msg: >-
           vm_name and vm_template must be set, and Proxmox connection details

@@ -37,12 +37,26 @@ command -v jq   &>/dev/null || fail "jq not found"
 [[ -t 0 ]] || fail "This helper is interactive — set the ISO volid via environment for scripted use."
 
 # ─── Connection (same contract as fetch-ubuntu-iso.sh) ───────────────────────
+# Site defaults come from the ONE user-edited site file (no lab-specific
+# values hardcoded here): automation/packer/environments/homelab.pkrvars.hcl
+SITE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../environments" 2>/dev/null && pwd)/homelab.pkrvars.hcl"
+site_val() { # site_val <pkrvars-key>
+    [[ -f "${SITE_FILE}" ]] || return 0
+    grep -E "^\s*${1}\s*=" "${SITE_FILE}" | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/'
+}
+SITE_HOST="$(site_val proxmox_url | sed -E 's#^https?://##; s#[:/].*$##')"
 PVE_HOST="${PROXMOX_HOST:-}"
 if [[ -z "${PVE_HOST}" ]]; then
-    read -r -p "Proxmox API host [192.168.4.150]: " PVE_HOST
-    PVE_HOST="${PVE_HOST:-192.168.4.150}"
+    if [[ -n "${SITE_HOST}" ]]; then
+        read -r -p "Proxmox API host [${SITE_HOST}]: " PVE_HOST
+        PVE_HOST="${PVE_HOST:-${SITE_HOST}}"
+    else
+        read -r -p "Proxmox API host: " PVE_HOST
+        [[ -n "${PVE_HOST}" ]] || fail "A Proxmox API host is required"
+    fi
 fi
-PVE_USER="${PROXMOX_USER:-root@pam}"
+PVE_USER="${PROXMOX_USER:-$(site_val proxmox_username)}"
+PVE_USER="${PVE_USER:-root@pam}"
 API="https://${PVE_HOST}:8006/api2/json"
 AUTH_HEADER=""; COOKIE=""; CSRF=""
 if [[ -n "${PROXMOX_TOKEN_ID:-}" && -n "${PROXMOX_TOKEN_SECRET:-}" ]]; then

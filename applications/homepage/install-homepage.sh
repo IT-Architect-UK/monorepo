@@ -18,7 +18,7 @@
 #   sudo ./install-homepage.sh
 #
 # Author:            Darren Pilkington
-# Version:           1.5
+# Version:           1.6
 # Date:              02-07-2026
 # =============================================================================
 
@@ -105,14 +105,16 @@ if [[ ! -f "${CONFIG_DIR}/services.yaml" ]]; then
 
     # The deployment target. CPU/memory/VM-count here is the pre-flight
     # capacity check before provisioning more servers from this toolbox.
+    # PROXMOX-HOST-PLACEHOLDER is replaced with the real hypervisor address
+    # by the toolbox bootstrap (or edit it in place on a standalone install).
     - Proxmox Host:
         icon: proxmox.png
-        href: https://192.168.4.150:8006/
+        href: https://PROXMOX-HOST-PLACEHOLDER:8006/
         description: Deployment target — capacity at a glance
-        siteMonitor: https://192.168.4.150:8006/
+        siteMonitor: https://PROXMOX-HOST-PLACEHOLDER:8006/
         widget:
           type: proxmox
-          url: https://192.168.4.150:8006
+          url: https://PROXMOX-HOST-PLACEHOLDER:8006
           username: "{{HOMEPAGE_VAR_PROXMOX_USER}}"
           password: "{{HOMEPAGE_VAR_PROXMOX_PASS}}"
           node: "{{HOMEPAGE_VAR_PROXMOX_NODE}}"

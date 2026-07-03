@@ -15,7 +15,7 @@
 #   ./fetch-ubuntu-iso.sh 26.04
 #
 # Usage (scripted/CI — no prompts, e.g. from Semaphore or build wrappers):
-#   PROXMOX_HOST=192.168.4.150 PROXMOX_USER=root@pam \
+#   PROXMOX_HOST=192.0.2.10 PROXMOX_USER=root@pam \
 #   PROXMOX_TOKEN_ID=automation PROXMOX_TOKEN_SECRET=... \
 #   ISO_STORAGE=local ./fetch-ubuntu-iso.sh 24.04
 #
@@ -85,13 +85,29 @@ log "SHA256: ${ISO_SHA256}"
 fi
 
 # ─── 2. Proxmox connection ───────────────────────────────────────────────────
+# Site defaults come from the ONE user-edited site file (no lab-specific
+# values hardcoded here): automation/packer/environments/homelab.pkrvars.hcl
+SITE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../environments" 2>/dev/null && pwd)/homelab.pkrvars.hcl"
+site_val() { # site_val <pkrvars-key>
+    [[ -f "${SITE_FILE}" ]] || return 0
+    grep -E "^\s*${1}\s*=" "${SITE_FILE}" | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/'
+}
+SITE_HOST="$(site_val proxmox_url | sed -E 's#^https?://##; s#[:/].*$##')"
 PVE_HOST="${PROXMOX_HOST:-}"
 if [[ -z "${PVE_HOST}" ]]; then
-    [[ "${NONINTERACTIVE}" == "1" ]] && fail "PROXMOX_HOST not set"
-    read -r -p "Proxmox API host [192.168.4.150]: " PVE_HOST
-    PVE_HOST="${PVE_HOST:-192.168.4.150}"
+    [[ "${NONINTERACTIVE}" == "1" && -z "${SITE_HOST}" ]] && fail "PROXMOX_HOST not set"
+    if [[ "${NONINTERACTIVE}" == "1" ]]; then
+        PVE_HOST="${SITE_HOST}"
+    elif [[ -n "${SITE_HOST}" ]]; then
+        read -r -p "Proxmox API host [${SITE_HOST}]: " PVE_HOST
+        PVE_HOST="${PVE_HOST:-${SITE_HOST}}"
+    else
+        read -r -p "Proxmox API host: " PVE_HOST
+        [[ -n "${PVE_HOST}" ]] || fail "A Proxmox API host is required"
+    fi
 fi
-PVE_USER="${PROXMOX_USER:-root@pam}"
+PVE_USER="${PROXMOX_USER:-$(site_val proxmox_username)}"
+PVE_USER="${PVE_USER:-root@pam}"
 API="https://${PVE_HOST}:8006/api2/json"
 
 AUTH_HEADER=""

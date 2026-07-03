@@ -9,7 +9,7 @@
 #
 # USAGE:
 #   .\fetch-ubuntu-iso.ps1 -Release 24.04
-#   .\fetch-ubuntu-iso.ps1 -Release 26.04 -Storage local -ProxmoxHost 192.168.4.150
+#   .\fetch-ubuntu-iso.ps1 -Release 26.04 -Storage local -ProxmoxHost 192.0.2.10
 #
 # CREDENTIALS (prompted if not set):
 #   $env:PROXMOX_TOKEN_ID / $env:PROXMOX_TOKEN_SECRET   # token (recommended)
@@ -25,13 +25,24 @@ param(
     # with -DirectUrl to stage any direct http(s) ISO (e.g. virtio-win).
     [Parameter(Mandatory = $true)][ValidatePattern('^(\d\d\.\d\d|url)$')][string]$Release,
     [string]$DirectUrl = "",
-    [string]$ProxmoxHost = $(if ($env:PROXMOX_HOST) { $env:PROXMOX_HOST } else { "192.168.4.150" }),
+    [string]$ProxmoxHost = $env:PROXMOX_HOST,
     [string]$Node        = $env:PROXMOX_NODE,
     [string]$Storage     = $env:ISO_STORAGE
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# Site default from the repo's single site file — nothing lab-specific here.
+if (-not $ProxmoxHost) {
+    $siteFile = Join-Path $PSScriptRoot "..\environments\homelab.pkrvars.hcl"
+    if (Test-Path $siteFile) {
+        $m = Select-String -Path $siteFile -Pattern '^\s*proxmox_url\s*=\s*"?https?://([^:/"]+)' | Select-Object -First 1
+        if ($m) { $ProxmoxHost = $m.Matches[0].Groups[1].Value }
+    }
+    if (-not $ProxmoxHost) { $ProxmoxHost = Read-Host "Proxmox API host" }
+    if (-not $ProxmoxHost) { throw "A Proxmox API host is required" }
+}
 
 # ── TLS: tolerate Proxmox's self-signed cert (PS 5.1 and 7+) ─────────────────
 $IsPS7 = $PSVersionTable.PSVersion.Major -ge 6

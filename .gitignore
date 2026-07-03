@@ -66,6 +66,7 @@ venv/
 
 # ── Local Packer state (plugins/config kept inside build dirs) ───────────────
 .packer/
+.tmp/
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 *.log

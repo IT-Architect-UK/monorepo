@@ -43,11 +43,22 @@ command -v packer &>/dev/null || fail "packer not found on PATH"
 NONINTERACTIVE=0; [[ ! -t 0 ]] && NONINTERACTIVE=1
 
 # ── Proxmox connection (same contract as the Ubuntu wrappers) ────────────────
+# Site defaults from automation/packer/environments/homelab.pkrvars.hcl —
+# the one file users edit for their environment; nothing site-specific here.
+SITE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../environments" 2>/dev/null && pwd)/homelab.pkrvars.hcl"
+SITE_HOST=""
+[[ -f "${SITE_FILE}" ]] && SITE_HOST="$(grep -E '^\s*proxmox_url\s*=' "${SITE_FILE}" | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/' | sed -E 's#^https?://##; s#[:/].*$##')"
 PVE_HOST="${PROXMOX_HOST:-}"
 if [[ -z "${PVE_HOST}" && -z "${PKR_VAR_proxmox_url:-}" ]]; then
-    [[ "${NONINTERACTIVE}" == "1" ]] && fail "PROXMOX_HOST not set"
-    read -r -p "Proxmox API host [192.168.4.150]: " PVE_HOST
-    PVE_HOST="${PVE_HOST:-192.168.4.150}"
+    if [[ "${NONINTERACTIVE}" == "1" ]]; then
+        [[ -n "${SITE_HOST}" ]] && PVE_HOST="${SITE_HOST}" || fail "PROXMOX_HOST not set"
+    elif [[ -n "${SITE_HOST}" ]]; then
+        read -r -p "Proxmox API host [${SITE_HOST}]: " PVE_HOST
+        PVE_HOST="${PVE_HOST:-${SITE_HOST}}"
+    else
+        read -r -p "Proxmox API host: " PVE_HOST
+        [[ -n "${PVE_HOST}" ]] || fail "A Proxmox API host is required"
+    fi
 fi
 [[ -n "${PVE_HOST}" ]] && export PKR_VAR_proxmox_url="https://${PVE_HOST}:8006/api2/json"
 [[ -n "${PROXMOX_NODE:-}" ]] && export PKR_VAR_proxmox_node="${PROXMOX_NODE}"
@@ -110,8 +121,19 @@ log "Build log: ${LOG_FILE}"
 # Semaphore service (and other hardened environments) mount /tmp read-only
 # and block $HOME, which otherwise kills packer's log tempfile and plugin
 # install. Self-contained dirs work everywhere. (.packer/ is gitignored.)
-export TMPDIR="${LOG_DIR}"
-export PACKER_TMP_DIR="${LOG_DIR}"          # Packer's own temp-dir knob — takes precedence
+# Temp dir must be SHORT: Packer plugins bind a unix socket in TMPDIR and
+# the kernel caps socket paths at ~108 chars — a deep checkout path kills
+# plugins with "plugin exited before we could connect" (hit on a real run).
+# Prefer /tmp when writable; otherwise a short .tmp at the repo root.
+if touch /tmp/.pkr-write-test 2>/dev/null; then
+    rm -f /tmp/.pkr-write-test
+    PKR_TMP="/tmp"
+else
+    PKR_TMP="$(cd "${SCRIPT_DIR}/../../../.." && pwd)/.tmp"
+    mkdir -p "${PKR_TMP}"
+fi
+export TMPDIR="${PKR_TMP}"
+export PACKER_TMP_DIR="${PKR_TMP}"          # Packer's own temp-dir knob — takes precedence
 export PACKER_CONFIG_DIR="${SCRIPT_DIR}/.packer"
 export PACKER_PLUGIN_PATH="${SCRIPT_DIR}/.packer/plugins"
 export PACKER_CACHE_DIR="${SCRIPT_DIR}/.packer/cache"
@@ -120,7 +142,11 @@ mkdir -p "${PACKER_PLUGIN_PATH}" "${PACKER_CACHE_DIR}"
 # Self-diagnosis: every run states exactly which code and paths it uses, so
 # a stale Semaphore repo cache or env problem is visible at a glance.
 log "Wrapper commit : $(git -C "${SCRIPT_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-log "Packer temp    : TMPDIR=${TMPDIR} PACKER_TMP_DIR=${PACKER_TMP_DIR}"
+log "Packer temp    : ${TMPDIR} ($(echo -n "${TMPDIR}" | wc -c) chars — must stay well under 108)"
+# Full Packer debug log alongside the build log — invaluable when a plugin
+# dies before it can talk (gitignored with the rest of logs/).
+export PACKER_LOG=1
+export PACKER_LOG_PATH="${LOG_FILE%.log}-packer-debug.log"
 
 export PACKER_NO_COLOR=1
 {

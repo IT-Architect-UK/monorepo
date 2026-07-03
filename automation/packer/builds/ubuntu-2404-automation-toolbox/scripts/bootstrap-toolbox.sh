@@ -21,7 +21,7 @@
 #
 # You will be prompted for:
 #   1. The Semaphore admin password (set at image build time)
-#   2. Proxmox API host (default: 192.168.4.150)
+#   2. Proxmox API host (default read from environments/homelab.pkrvars.hcl)
 #   3. Proxmox API credentials — an API token (recommended) or password
 #
 # To create a Proxmox API token (recommended over the root password):
@@ -102,9 +102,23 @@ default_or_prompt() { # varname prompt default
     ref="${ref:-$3}"
 }
 
+# Site defaults from the repo's single site file — nothing lab-specific here.
+SITE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../environments" 2>/dev/null && pwd)/homelab.pkrvars.hcl"
+site_val() {
+    [[ -f "${SITE_FILE}" ]] || return 0
+    grep -E "^\s*${1}\s*=" "${SITE_FILE}" | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/'
+}
+SITE_HOST="$(site_val proxmox_url | sed -E 's#^https?://##; s#[:/].*$##')"
+SITE_NODE="$(site_val proxmox_node)"
+
 require_or_prompt_secret SEM_PASS "Semaphore admin password"
-default_or_prompt PVE_HOST "Proxmox API host" "192.168.4.150"
-default_or_prompt PVE_USER "Proxmox API user" "root@pam"
+if [[ -n "${SITE_HOST}" ]]; then
+    default_or_prompt PVE_HOST "Proxmox API host" "${SITE_HOST}"
+else
+    require_or_prompt_secret PVE_HOST "Proxmox API host"
+fi
+default_or_prompt PVE_USER "Proxmox API user" "$(site_val proxmox_username || true)"
+PVE_USER="${PVE_USER:-root@pam}"
 if [[ -z "${PVE_TOKEN_ID}" && -z "${PVE_PASSWORD}" && "${NONINTERACTIVE}" != "1" ]]; then
     read -r -p "Proxmox API token ID (leave empty to use password auth): " PVE_TOKEN_ID
     if [[ -n "${PVE_TOKEN_ID}" ]]; then
@@ -115,7 +129,11 @@ if [[ -z "${PVE_TOKEN_ID}" && -z "${PVE_PASSWORD}" && "${NONINTERACTIVE}" != "1"
     fi
 fi
 [[ -n "${PVE_TOKEN_SECRET}" || -n "${PVE_PASSWORD}" ]] || fail "No Proxmox credential provided (token or password)"
-default_or_prompt PVE_NODE "Proxmox node name" "POSVMPWS01"
+if [[ -n "${SITE_NODE}" ]]; then
+    default_or_prompt PVE_NODE "Proxmox node name" "${SITE_NODE}"
+else
+    require_or_prompt_secret PVE_NODE "Proxmox node name"
+fi
 
 # ─── Validate the Proxmox credential BEFORE storing it anywhere ──────────────
 # A wrong user/token pairing (e.g. token owned by claude@pam entered against
@@ -370,6 +388,10 @@ if [[ -d "${HOMEPAGE_CONFIG}" ]]; then
     if grep -q "toolbox.lab.local" "${HOMEPAGE_CONFIG}/services.yaml" 2>/dev/null; then
         sed -i "s/toolbox\.lab\.local/${SERVER_IP}/g" "${HOMEPAGE_CONFIG}/services.yaml"
         log "Homepage: placeholder hostnames replaced with ${SERVER_IP}"
+    fi
+    if grep -q "PROXMOX-HOST-PLACEHOLDER" "${HOMEPAGE_CONFIG}/services.yaml" 2>/dev/null; then
+        sed -i "s/PROXMOX-HOST-PLACEHOLDER/${PVE_HOST}/g" "${HOMEPAGE_CONFIG}/services.yaml"
+        log "Homepage: Proxmox tile pointed at ${PVE_HOST}"
     fi
     if [[ -n "${PVE_TOKEN_ID}" && -f "${HOMEPAGE_ENV}" ]]; then
         # Homepage's Proxmox widget authenticates with an API token:
