@@ -285,6 +285,24 @@ build {
     execute_command = "sudo bash {{.Path}}"
   }
 
+  # Build-time health check — runs the full diagnostics collector inside the
+  # freshly provisioned VM and downloads the report next to the build logs,
+  # so every build produces a health artefact before the template is sealed.
+  # chmod 644 so Packer's (non-root) ssh user can read it for the download.
+  provisioner "shell" {
+    inline = [
+      "bash /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/collect-diagnostics.sh /tmp/build-diagnostics.log",
+      "chmod 644 /tmp/build-diagnostics.log",
+    ]
+    execute_command = "sudo bash {{.Path}}"
+  }
+
+  provisioner "file" {
+    direction   = "download"
+    source      = "/tmp/build-diagnostics.log"
+    destination = "${path.root}/logs/build-diagnostics-${local.timestamp}.log"
+  }
+
   provisioner "shell" {
     script          = abspath("${path.root}/../../scripts/cleanup.sh")
     execute_command = "sudo bash {{.Path}}"

@@ -244,6 +244,17 @@ Testing a change end-to-end means: delete the old template and test clone, rebui
 
 ## Troubleshooting
 
+**Every build produces a health report automatically** — check `logs/build-diagnostics-<timestamp>.log` next to your build log before anything else.
+
+To re-run the same health check later on the running server:
+
+```bash
+sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/collect-diagnostics.sh
+```
+
+One command produces a complete health report (services, Homepage, SSH policy, firewall, tooling versions, bootstrap state, recent errors) in `/var/log/toolbox-diagnostics/`. Secrets are redacted — the file is safe to share when asking for help.
+
+
 **SSH timeout during build**
 The autoinstall + first boot can take 20–30 min. The template allows 90 min. Check the Proxmox console — if the VM is at a boot menu, the cidata ISO may not have been attached correctly.
 
