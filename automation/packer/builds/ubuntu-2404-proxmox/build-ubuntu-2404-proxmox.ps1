@@ -12,9 +12,11 @@
 #   $env:PKR_VAR_proxmox_username = "user@pam!tokenid"
 #   $env:PKR_VAR_proxmox_token    = "<secret>" # token auth (recommended)
 #
-# PREREQUISITE: Ubuntu 24.04 live-server ISO uploaded to Proxmox ISO storage;
+# ISO: staged automatically — the latest 24.04 live-server image is found on
+# releases.ubuntu.com and downloaded BY the Proxmox host (server-side pull,
+# checksum-verified) via ..\..\scripts\fetch-ubuntu-iso.ps1. To pin a specific
+# pre-uploaded ISO instead:
 #   $env:PKR_VAR_ubuntu_iso_file = "local:iso/ubuntu-24.04.2-live-server-amd64.iso"
-# List available ISOs on the Proxmox host: pvesm list <storage> --content iso
 #
 # Site settings (proxmox_url, node, storage, VLAN) come from variables.pkr.hcl
 # defaults — override any of them with $env:PKR_VAR_<name>.
@@ -46,10 +48,16 @@ if (-not ($hasToken -or $hasPassword)) {
 
 if ([string]::IsNullOrWhiteSpace($env:PKR_VAR_ubuntu_iso_file)) {
     Write-Host ""
-    Write-Host "  PKR_VAR_ubuntu_iso_file not set — the volid of the pre-uploaded Ubuntu 24.04 ISO." -ForegroundColor Yellow
-    $iso = Read-Host "  ISO volid (e.g. local:iso/ubuntu-24.04.2-live-server-amd64.iso)"
-    if ([string]::IsNullOrWhiteSpace($iso)) { Write-Error "An ISO volid is required."; exit 1 }
-    $env:PKR_VAR_ubuntu_iso_file = $iso.Trim()
+    Write-Host "  PKR_VAR_ubuntu_iso_file not set — staging the latest Ubuntu 24.04 ISO on Proxmox..." -ForegroundColor Yellow
+    # fetch-ubuntu-iso.ps1 reuses the same PROXMOX_* env vars / prompts; the
+    # ISO is downloaded BY the Proxmox host itself and checksum-verified.
+    if (-not $env:PROXMOX_PASSWORD -and -not $env:PROXMOX_TOKEN_SECRET -and $env:PKR_VAR_proxmox_password) {
+        $env:PROXMOX_PASSWORD = $env:PKR_VAR_proxmox_password   # reuse what the build already collected
+    }
+    $volid = & (Join-Path $TemplateDir "..\..\scriptsetch-ubuntu-iso.ps1") -Release "24.04" | Select-Object -Last 1
+    if ([string]::IsNullOrWhiteSpace($volid)) { Write-Error "ISO staging failed — set PKR_VAR_ubuntu_iso_file manually (see header)."; exit 1 }
+    $env:PKR_VAR_ubuntu_iso_file = $volid.Trim()
+    Write-Host "  Using ISO: $($env:PKR_VAR_ubuntu_iso_file)" -ForegroundColor Green
 }
 
 # ── Build ─────────────────────────────────────────────────────────────────────

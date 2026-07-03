@@ -25,10 +25,11 @@
 # Prerequisites:
 #   - packer >= 1.10 on THIS machine — the only requirement (the Ansible
 #     baseline runs inside the build VM, not here)
-#   - Ubuntu 24.04 live-server ISO uploaded to Proxmox ISO storage; set its
-#     volid via PKR_VAR_ubuntu_iso_file, e.g.:
+#   - The Ubuntu ISO is staged AUTOMATICALLY: if PKR_VAR_ubuntu_iso_file is
+#     unset, fetch-ubuntu-iso.sh finds the latest 24.04 live-server image and
+#     has Proxmox download it server-side (storage chosen interactively, or
+#     via ISO_STORAGE). To pin a specific pre-uploaded ISO instead:
 #       export PKR_VAR_ubuntu_iso_file="local:iso/ubuntu-24.04.2-live-server-amd64.iso"
-#     (list what's available: pvesm list <storage> --content iso)
 #
 # Output: Proxmox template "ubuntu-2404-golden-<timestamp>" (VMID 9004 by
 # default) plus a timestamped build log in ./logs/.
@@ -73,6 +74,16 @@ elif [[ -z "${PKR_VAR_proxmox_password:-}${PKR_VAR_proxmox_token:-}" ]]; then
     read -r -s -p "Proxmox password for ${PROXMOX_USER:-root@pam}: " pw; echo
     [[ -n "${PROXMOX_USER:-}" ]] && export PKR_VAR_proxmox_username="${PROXMOX_USER}"
     export PKR_VAR_proxmox_password="${pw}"
+fi
+
+# ── ISO: auto-stage the latest 24.04 image if none specified ─────────────────
+if [[ -z "${PKR_VAR_ubuntu_iso_file:-}" ]]; then
+    log "PKR_VAR_ubuntu_iso_file not set — staging the latest Ubuntu 24.04 ISO on Proxmox..."
+    FETCH="${SCRIPT_DIR}/../../scripts/fetch-ubuntu-iso.sh"
+    [[ -f "${FETCH}" ]] || fail "fetch-ubuntu-iso.sh not found at ${FETCH}"
+    VOLID=$(PROXMOX_HOST="${PVE_HOST}" bash "${FETCH}" 24.04 | tail -1)         || fail "ISO staging failed — set PKR_VAR_ubuntu_iso_file manually (see header)"
+    export PKR_VAR_ubuntu_iso_file="${VOLID}"
+    log "Using ISO: ${VOLID}"
 fi
 
 # ── Build ─────────────────────────────────────────────────────────────────────

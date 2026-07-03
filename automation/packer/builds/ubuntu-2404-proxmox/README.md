@@ -21,7 +21,7 @@ Fully patched Ubuntu 24.04, qemu-guest-agent, cloud-init (re-armed at seal time 
 |-------------|--------|
 | Packer ≥ 1.10 | The **only** build-machine requirement, on any OS — the Ansible baseline runs inside the build VM |
 | Proxmox API access | Password, or API token (`user@realm!tokenid` + secret) — token recommended |
-| Ubuntu 24.04 live-server ISO | Pre-uploaded to Proxmox ISO storage; point `ubuntu_iso_file` at its volid, e.g. `local:iso/ubuntu-24.04.2-live-server-amd64.iso` |
+| Ubuntu 24.04 live-server ISO | **Staged automatically** — the wrappers find the latest release and have Proxmox download it server-side (checksum-verified), prompting for the target storage. Pin a specific ISO via `ubuntu_iso_file` if preferred. Standalone staging: `../../scripts/fetch-ubuntu-iso.sh 24.04` |
 
 ## Key variables (`variables.pkr.hcl`)
 
