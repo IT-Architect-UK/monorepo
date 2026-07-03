@@ -55,7 +55,7 @@ printf "    Webmin    : https://%s:10000/  (https://%s:10000/)\n" "${IP}" "${HOS
 printf "    Homepage  : http://%s:3002/    (http://%s:3002/)\n" "${IP}" "${HOST}"
 printf "\n"
 if [ ! -f /opt/toolbox/.bootstrapped ]; then
-    printf "  First run: sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/bootstrap-toolbox.sh\n"
+    printf "  First run: sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/scripts/bootstrap-toolbox.sh\n"
     printf "\n"
 fi
 EOF

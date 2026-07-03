@@ -255,6 +255,128 @@ function Invoke-ProxmoxCloneAndStart {
     Wait-ProxmoxTask -ProxmoxUrl $ProxmoxUrl -ProxmoxNode $ProxmoxNode -Upid $startUpid.data -AuthHeaders $authHeaders -TimeoutSeconds 120
     Write-OK "VMID $newVmId is running"
     Write-Host "  cloud-init will set the guest hostname to '$NewVmName' a few seconds after boot completes." -ForegroundColor DarkGray
+
+    return @{ VmId = [int]$newVmId; AuthHeaders = $authHeaders; WriteHeaders = $writeHeaders }
+}
+
+function Wait-ProxmoxGuestAgent {
+    # Polls the QEMU guest agent until the VM reports a usable IPv4 address.
+    # The agent typically comes up 30-90s after the VM starts booting.
+    param(
+        [string]$ProxmoxUrl, [string]$ProxmoxNode, [int]$VmId,
+        [hashtable]$AuthHeaders, [int]$TimeoutSeconds = 300
+    )
+    $elapsed = 0
+    while ($elapsed -lt $TimeoutSeconds) {
+        try {
+            $r = Invoke-ProxmoxApi -Uri "$ProxmoxUrl/nodes/$ProxmoxNode/qemu/$VmId/agent/network-get-interfaces" -Headers $AuthHeaders
+            foreach ($iface in $r.data.result) {
+                if ($iface.name -eq 'lo') { continue }
+                $addrsProp = $iface.PSObject.Properties['ip-addresses']
+                if ($addrsProp -and $addrsProp.Value) {
+                    foreach ($a in $addrsProp.Value) {
+                        if ($a.'ip-address-type' -eq 'ipv4' -and $a.'ip-address' -notlike '127.*') {
+                            return $a.'ip-address'
+                        }
+                    }
+                }
+            }
+        } catch { }  # agent not up yet -- keep waiting
+        Start-Sleep -Seconds 5
+        $elapsed += 5
+    }
+    throw "QEMU guest agent did not report an IPv4 address within $TimeoutSeconds seconds"
+}
+
+function Invoke-ProxmoxGuestExec {
+    # Runs a command inside the guest via the QEMU agent (no SSH involved)
+    # and returns @{ exitcode; out; err }. The 'command' parameter must be
+    # sent as REPEATED form fields, which Invoke-RestMethod's hashtable
+    # body cannot produce -- so the body is built by hand.
+    param(
+        [string]$ProxmoxUrl, [string]$ProxmoxNode, [int]$VmId,
+        [hashtable]$WriteHeaders, [hashtable]$AuthHeaders,
+        [string[]]$Command, [int]$TimeoutSeconds = 600
+    )
+    $body = ($Command | ForEach-Object { "command=" + [uri]::EscapeDataString($_) }) -join "&"
+    $execResp = Invoke-ProxmoxApi -Uri "$ProxmoxUrl/nodes/$ProxmoxNode/qemu/$VmId/agent/exec" -Method Post -Headers $WriteHeaders -Body $body
+    $procId = $execResp.data.pid
+    if (-not $procId) { throw "agent/exec did not return a pid" }
+
+    $elapsed = 0
+    while ($elapsed -lt $TimeoutSeconds) {
+        Start-Sleep -Seconds 5
+        $elapsed += 5
+        $st = Invoke-ProxmoxApi -Uri "$ProxmoxUrl/nodes/$ProxmoxNode/qemu/$VmId/agent/exec-status?pid=$procId" -Headers $AuthHeaders
+        if ($st.data.exited -eq 1) {
+            $out = ""; $err = ""; $ec = 0
+            $p = $st.data.PSObject.Properties['out-data'];  if ($p -and $p.Value) { $out = $p.Value }
+            $p = $st.data.PSObject.Properties['err-data'];  if ($p -and $p.Value) { $err = $p.Value }
+            $p = $st.data.PSObject.Properties['exitcode'];  if ($p) { $ec = [int]$p.Value }
+            return @{ exitcode = $ec; out = $out; err = $err }
+        }
+    }
+    throw "Guest command did not finish within $TimeoutSeconds seconds"
+}
+
+function ConvertTo-ShellSingleQuoted {
+    # Safely single-quotes a value for a POSIX shell env file.
+    param([string]$Value)
+    return "'" + ($Value -replace "'", "'\''") + "'"
+}
+
+function Invoke-ToolboxBootstrap {
+    # Drives scripts/bootstrap-toolbox.sh inside the freshly cloned VM via
+    # the QEMU guest agent: waits for an IP, delivers the answers as a
+    # root-only env file (deleted by the guest as it runs), executes the
+    # bootstrap non-interactively, and streams its output back.
+    param(
+        [string]$ProxmoxUrl, [string]$ProxmoxNode, [int]$VmId,
+        [hashtable]$WriteHeaders, [hashtable]$AuthHeaders,
+        [string]$SemaphorePassword, [string]$PveHost, [string]$PveUser,
+        [string]$TokenId, [string]$TokenSecret, [string]$PvePassword,
+        [string]$MgmtSubnet
+    )
+
+    Write-Step "Waiting for the new VM to report an IP (guest agent)..."
+    $ip = Wait-ProxmoxGuestAgent -ProxmoxUrl $ProxmoxUrl -ProxmoxNode $ProxmoxNode -VmId $VmId -AuthHeaders $AuthHeaders
+    Write-OK "VM is up at $ip"
+
+    Write-Step "Delivering bootstrap answers to the guest..."
+    $lines = @(
+        "SEMAPHORE_ADMIN_PASS=$(ConvertTo-ShellSingleQuoted $SemaphorePassword)"
+        "PROXMOX_HOST=$(ConvertTo-ShellSingleQuoted $PveHost)"
+        "PROXMOX_USER=$(ConvertTo-ShellSingleQuoted $PveUser)"
+        "PROXMOX_NODE=$(ConvertTo-ShellSingleQuoted $ProxmoxNode)"
+    )
+    if ($TokenId) {
+        $lines += "PROXMOX_TOKEN_ID=$(ConvertTo-ShellSingleQuoted $TokenId)"
+        $lines += "PROXMOX_TOKEN_SECRET=$(ConvertTo-ShellSingleQuoted $TokenSecret)"
+    } elseif ($PvePassword) {
+        $lines += "PROXMOX_PASSWORD=$(ConvertTo-ShellSingleQuoted $PvePassword)"
+    }
+    if ($MgmtSubnet) { $lines += "MGMT_SUBNET=$(ConvertTo-ShellSingleQuoted $MgmtSubnet)" }
+    $envContent = ($lines -join "`n") + "`n"
+    $fwBody = "file=" + [uri]::EscapeDataString("/root/.bootstrap-env") + "&content=" + [uri]::EscapeDataString($envContent)
+    Invoke-ProxmoxApi -Uri "$ProxmoxUrl/nodes/$ProxmoxNode/qemu/$VmId/agent/file-write" -Method Post -Headers $WriteHeaders -Body $fwBody | Out-Null
+
+    Write-Step "Running bootstrap inside the guest..."
+    $guestCmd = 'chmod 600 /root/.bootstrap-env; set -a; . /root/.bootstrap-env; set +a; rm -f /root/.bootstrap-env; ' +
+                'export BOOTSTRAP_NONINTERACTIVE=1; ' +
+                'bash /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/scripts/bootstrap-toolbox.sh'
+    $result = Invoke-ProxmoxGuestExec -ProxmoxUrl $ProxmoxUrl -ProxmoxNode $ProxmoxNode -VmId $VmId `
+        -WriteHeaders $WriteHeaders -AuthHeaders $AuthHeaders -Command @("bash", "-c", $guestCmd)
+
+    if ($result.out) { $result.out -split "`n" | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray } }
+    if ($result.err) { $result.err -split "`n" | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkYellow } }
+    if ($result.exitcode -ne 0) { throw "Bootstrap exited with code $($result.exitcode) -- see output above" }
+
+    Write-OK "Bootstrap complete -- toolbox is fully operational"
+    Write-Host ""
+    Write-Host "    Semaphore : http://$ip/        (login: admin)"  -ForegroundColor Green
+    Write-Host "    Homepage  : http://${ip}:3002/"                 -ForegroundColor Green
+    Write-Host "    Webmin    : https://${ip}:10000/"               -ForegroundColor Green
+    return $ip
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -309,6 +431,32 @@ $ProxmoxUrlValue      = Get-LayeredPkrVarValue -VarName "proxmox_url"      -Defa
 $ProxmoxNodeValue     = Get-LayeredPkrVarValue -VarName "proxmox_node"     -Default "pve"
 $ProxmoxUsernameValue = Get-LayeredPkrVarValue -VarName "proxmox_username" -Default "root@pam"
 $ProxmoxTemplateVmId  = [int](Get-LayeredPkrVarValue -VarName "proxmox_vm_id" -Default "9002")
+
+# ── Deployment answers, collected up-front so the whole run is hands-off ─────
+$deployAfterBuild = $false
+$vmName = "POSLXPDEPLOY01"; $pveTokenId = ""; $pveTokenSecret = ""; $mgmtSubnet = ""
+if (-not $DryRun) {
+    Write-Host ""
+    Write-Host "  After the build this script can clone the template, start the VM and" -ForegroundColor Yellow
+    Write-Host "  bootstrap it into a fully working toolbox -- zero touch." -ForegroundColor Yellow
+    $ans = Read-Host "  Deploy + bootstrap automatically after the build? (Y/n)"
+    $deployAfterBuild = ($ans -notmatch '^[Nn]')
+    if ($deployAfterBuild) {
+        $v = Read-Host "  New VM name [$vmName]"
+        if (-not [string]::IsNullOrWhiteSpace($v)) { $vmName = $v.Trim() }
+        Write-Host ""
+        Write-Host "  A Proxmox API token (recommended) powers Semaphore's provisioning jobs and the" -ForegroundColor DarkGray
+        Write-Host "  dashboard's live Proxmox widget. Create one: Datacenter -> Permissions -> API Tokens" -ForegroundColor DarkGray
+        Write-Host "  -- give it privileges (or untick Privilege Separation). Skipping falls back to the" -ForegroundColor DarkGray
+        Write-Host "  Proxmox password for provisioning; the dashboard widget then needs a token later." -ForegroundColor DarkGray
+        $pveTokenId = (Read-Host "  Proxmox API token ID (Enter = skip)").Trim()
+        if ($pveTokenId) {
+            $sec = Read-Host "  Token secret (input hidden)" -AsSecureString
+            $pveTokenSecret = [System.Net.NetworkCredential]::new("", $sec).Password
+        }
+        $mgmtSubnet = (Read-Host "  Management subnet for firewall lockdown, e.g. 192.168.4.0/24 (Enter = skip)").Trim()
+    }
+}
 
 $env:PKR_VAR_proxmox_password         = $proxmoxPassword
 $env:PKR_VAR_semaphore_admin_password = $semaphoreAdminPassword
@@ -366,29 +514,38 @@ try {
             Write-Host "  Manifest: $TemplateDir\packer-manifest-automation-toolbox.json" -ForegroundColor DarkGray
         }
 
-        # ── Step 6: Optional — clone the template into a real running VM ──
-        Write-Step "Deploy a VM from this template now?"
-        $deployNow = Read-Host "  Deploy a new VM from the template now? (y/N)"
-        if ($deployNow -match "^[Yy]") {
-            $vmName = Read-Host "  Name for the new VM (used as both the Proxmox display name and the guest hostname)"
-            if ([string]::IsNullOrWhiteSpace($vmName)) {
-                Write-Fail "No name entered -- skipping deployment. Clone the template manually in Proxmox whenever you're ready."
-            } else {
-                try {
-                    Invoke-ProxmoxCloneAndStart `
-                        -ProxmoxUrl      $ProxmoxUrlValue `
-                        -ProxmoxNode     $ProxmoxNodeValue `
-                        -ProxmoxUsername $ProxmoxUsernameValue `
-                        -ProxmoxPassword $proxmoxPassword `
-                        -TemplateVmId    $ProxmoxTemplateVmId `
-                        -NewVmName       $vmName
-                } catch {
-                    Write-Fail "Deployment failed: $($_.Exception.Message)"
-                    Write-Host "  The template itself is unaffected -- clone it manually in Proxmox to retry." -ForegroundColor DarkGray
-                }
+        # ── Step 6: Clone + bootstrap — the hands-off deployment ──
+        if ($deployAfterBuild) {
+            try {
+                $deploy = Invoke-ProxmoxCloneAndStart `
+                    -ProxmoxUrl      $ProxmoxUrlValue `
+                    -ProxmoxNode     $ProxmoxNodeValue `
+                    -ProxmoxUsername $ProxmoxUsernameValue `
+                    -ProxmoxPassword $proxmoxPassword `
+                    -TemplateVmId    $ProxmoxTemplateVmId `
+                    -NewVmName       $vmName
+
+                $pveApiHost = ([uri]$ProxmoxUrlValue).Host
+                Invoke-ToolboxBootstrap `
+                    -ProxmoxUrl        $ProxmoxUrlValue `
+                    -ProxmoxNode       $ProxmoxNodeValue `
+                    -VmId              $deploy.VmId `
+                    -WriteHeaders      $deploy.WriteHeaders `
+                    -AuthHeaders       $deploy.AuthHeaders `
+                    -SemaphorePassword $semaphoreAdminPassword `
+                    -PveHost           $pveApiHost `
+                    -PveUser           $ProxmoxUsernameValue `
+                    -TokenId           $pveTokenId `
+                    -TokenSecret       $pveTokenSecret `
+                    -PvePassword       $proxmoxPassword `
+                    -MgmtSubnet        $mgmtSubnet | Out-Null
+            } catch {
+                Write-Fail "Deployment failed: $($_.Exception.Message)"
+                Write-Host "  The template itself is unaffected. Retry: clone it in Proxmox, then run" -ForegroundColor DarkGray
+                Write-Host "  sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/scripts/bootstrap-toolbox.sh on the VM." -ForegroundColor DarkGray
             }
         } else {
-            Write-Host "  Skipping -- clone the template manually in Proxmox whenever you're ready." -ForegroundColor DarkGray
+            Write-Host "  Skipping deployment -- clone the template in Proxmox, then run the bootstrap on the VM." -ForegroundColor DarkGray
         }
     }
 } catch {

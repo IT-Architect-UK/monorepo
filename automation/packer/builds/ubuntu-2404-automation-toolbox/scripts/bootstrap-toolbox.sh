@@ -17,7 +17,7 @@
 #   http://<this-server>/  →  Task Templates  →  Provision VM (Proxmox)  →  Run
 #
 # Usage:
-#   sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/bootstrap-toolbox.sh
+#   sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/scripts/bootstrap-toolbox.sh
 #
 # You will be prompted for:
 #   1. The Semaphore admin password (set at image build time)
@@ -34,7 +34,7 @@
 # encrypted store and the API session token is revoked on exit.
 #
 # Author:            Darren Pilkington
-# Version:           1.0
+# Version:           1.1
 # Date:              02-07-2026
 # =============================================================================
 
@@ -74,22 +74,48 @@ done
 log "Semaphore API is up."
 
 # ─── Gather input ────────────────────────────────────────────────────────────
-read -r -s -p "Semaphore admin password: " SEM_PASS; echo
-read -r -p "Proxmox API host [192.168.4.150]: " PVE_HOST
-PVE_HOST="${PVE_HOST:-192.168.4.150}"
-read -r -p "Proxmox API user [root@pam]: " PVE_USER
-PVE_USER="${PVE_USER:-root@pam}"
-read -r -p "Proxmox API token ID (leave empty to use password auth): " PVE_TOKEN_ID
-if [[ -n "${PVE_TOKEN_ID}" ]]; then
-    read -r -s -p "Proxmox API token secret: " PVE_TOKEN_SECRET; echo
-    PVE_PASSWORD=""
-else
-    read -r -s -p "Proxmox password for ${PVE_USER}: " PVE_PASSWORD; echo
-    PVE_TOKEN_SECRET=""
-    warn "Password auth works, but an API token is the better long-term choice — see the header of this script."
+# Every value can be supplied via environment variables (that's how the build
+# wrapper drives this script end-to-end); prompts appear only for whatever is
+# missing. With BOOTSTRAP_NONINTERACTIVE=1, missing required values fail fast
+# instead of prompting.
+NONINTERACTIVE="${BOOTSTRAP_NONINTERACTIVE:-0}"
+SEM_PASS="${SEMAPHORE_ADMIN_PASS:-}"
+PVE_HOST="${PROXMOX_HOST:-}"
+PVE_USER="${PROXMOX_USER:-}"
+PVE_TOKEN_ID="${PROXMOX_TOKEN_ID:-}"
+PVE_TOKEN_SECRET="${PROXMOX_TOKEN_SECRET:-}"
+PVE_PASSWORD="${PROXMOX_PASSWORD:-}"
+PVE_NODE="${PROXMOX_NODE:-}"
+MGMT_SUBNET="${MGMT_SUBNET:-}"
+
+require_or_prompt_secret() { # varname prompt
+    local -n ref="$1"
+    [[ -n "${ref}" ]] && return 0
+    [[ "${NONINTERACTIVE}" == "1" ]] && fail "$1 not provided (required in non-interactive mode)"
+    read -r -s -p "$2: " ref; echo
+}
+default_or_prompt() { # varname prompt default
+    local -n ref="$1"
+    [[ -n "${ref}" ]] && return 0
+    if [[ "${NONINTERACTIVE}" == "1" ]]; then ref="$3"; return 0; fi
+    read -r -p "$2 [$3]: " ref
+    ref="${ref:-$3}"
+}
+
+require_or_prompt_secret SEM_PASS "Semaphore admin password"
+default_or_prompt PVE_HOST "Proxmox API host" "192.168.4.150"
+default_or_prompt PVE_USER "Proxmox API user" "root@pam"
+if [[ -z "${PVE_TOKEN_ID}" && -z "${PVE_PASSWORD}" && "${NONINTERACTIVE}" != "1" ]]; then
+    read -r -p "Proxmox API token ID (leave empty to use password auth): " PVE_TOKEN_ID
+    if [[ -n "${PVE_TOKEN_ID}" ]]; then
+        read -r -s -p "Proxmox API token secret: " PVE_TOKEN_SECRET; echo
+    else
+        read -r -s -p "Proxmox password for ${PVE_USER}: " PVE_PASSWORD; echo
+        warn "Password auth works, but an API token is the better long-term choice — see the header of this script."
+    fi
 fi
-read -r -p "Proxmox node name [POSVMPWS01]: " PVE_NODE
-PVE_NODE="${PVE_NODE:-POSVMPWS01}"
+[[ -n "${PVE_TOKEN_SECRET}" || -n "${PVE_PASSWORD}" ]] || fail "No Proxmox credential provided (token or password)"
+default_or_prompt PVE_NODE "Proxmox node name" "POSVMPWS01"
 
 REPO_URL="https://github.com/IT-Architect-UK/monorepo.git"
 REPO_BRANCH="main"
@@ -305,7 +331,10 @@ fi
 if ! grep -q "^Match User" /etc/ssh/sshd_config; then
     echo ""
     warn "sshd_config has no per-user password override — SSH is key-only for everyone."
-    read -r -p "Enable SSH password login for one admin account? Username (Enter = skip): " SSH_PW_USER
+    SSH_PW_USER=""
+    if [[ "${NONINTERACTIVE}" != "1" ]]; then
+        read -r -p "Enable SSH password login for one admin account? Username (Enter = skip): " SSH_PW_USER
+    fi
     if [[ -n "${SSH_PW_USER}" ]]; then
         if id "${SSH_PW_USER}" &>/dev/null; then
             if ! passwd -S "${SSH_PW_USER}" 2>/dev/null | awk '{exit ($2=="P")?0:1}'; then
@@ -335,9 +364,11 @@ log "lock this server down so that ONLY a management subnet may reach it"
 log "(SSH 22, Semaphore 80, Homepage 3002, Webmin 10000, ICMP)."
 warn "Run this from the Proxmox console or from a host INSIDE that subnet —"
 warn "an SSH session from anywhere else will be cut off when rules apply."
-read -r -p "Management subnet to allow, e.g. 192.168.4.0/24 (Enter = skip, keep baseline): " MGMT_SUBNET
+if [[ -z "${MGMT_SUBNET}" && "${NONINTERACTIVE}" != "1" ]]; then
+    read -r -p "Management subnet to allow, e.g. 192.168.4.0/24 (Enter = skip, keep baseline): " MGMT_SUBNET
+fi
 if [[ -n "${MGMT_SUBNET}" ]]; then
-    REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+    REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
     FW_SCRIPT="${REPO_ROOT}/infrastructure/networking/firewall/setup-iptables.sh"
     [[ -f "${FW_SCRIPT}" ]] || FW_SCRIPT="/git/monorepo/infrastructure/networking/firewall/setup-iptables.sh"
     if [[ -f "${FW_SCRIPT}" ]]; then

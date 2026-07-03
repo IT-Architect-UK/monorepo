@@ -209,23 +209,22 @@ vm_disk_gb    = 100
    packer --version
    docker --version
    ```
-4. Run the bootstrap script — it configures Semaphore (project, repository,
-   Proxmox credentials, and ready-to-run job templates) via the API:
-   ```bash
-   sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/bootstrap-toolbox.sh
-   ```
-   You'll be prompted for the Semaphore admin password and your Proxmox API
-   details (an API token is recommended — the script header explains how to
-   create one). Credentials are stored encrypted in Semaphore, never on disk.
-   It also finalises the Homepage dashboard (real addresses + Proxmox widget
-   credentials), verifies password SSH is enabled for your admin account,
-   and finally offers to lock the firewall down to your management subnet —
-   after that, only that subnet can reach SSH and the web UIs.
-5. Open `http://<vm-ip>/`, log in as `admin`, and provision your first VM:
-   **Task Templates → Provision VM (Proxmox) → Run** — fill in the survey
-   (VM name + which template to clone) and watch the task output.
-6. To stand up the standalone Vault server: provision a VM, note its IP, then
-   run **Deploy Vault Server** and store the unseal keys it prints somewhere safe.
+(Manual path — only needed if you answered "n" to automatic deployment.)
+The build script normally does all of this itself: clone → start → bootstrap,
+using the answers you gave up-front. To do it by hand instead, clone the
+template in Proxmox, then on the VM run:
+```bash
+sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/scripts/bootstrap-toolbox.sh
+```
+The bootstrap configures Semaphore (project, repository, encrypted Proxmox
+credentials, ready-to-run job templates), finalises the Homepage dashboard,
+verifies password SSH for your admin account, and offers the firewall
+lockdown. Credentials go into Semaphore's encrypted store, never to disk.
+
+Either way, when it finishes: open `http://<vm-ip>/`, log in as `admin`, and
+provision your first VM — **Task Templates → Provision VM (Proxmox) → Run**.
+For the standalone Vault server: provision a VM, note its IP, run **Deploy
+Vault Server**, and store the unseal keys it prints somewhere safe.
 
 ---
 
@@ -235,8 +234,12 @@ Testing a change end-to-end means: delete the old template and test clone, rebui
 
 ```powershell
 .\cleanup-automation-toolbox-proxmox.ps1        # deletes template 9002 + any VM named POSLXPDEPLOY01 (asks first)
-.\build-automation-toolbox-proxmox.ps1          # fresh build
+.\build-automation-toolbox-proxmox.ps1          # build → clone → bootstrap, one command end-to-end
 ```
+
+All questions (VM name, Proxmox API token, firewall subnet) are asked up-front,
+so the run is hands-off after that — a fully bootstrapped toolbox comes out the
+other end with its URLs printed at the finish.
 
 `cleanup-automation-toolbox-proxmox.ps1 -CloneName <name>` if your test clone uses a different name; `-TemplateOnly` / `-CloneOnly` / `-Force` are also available — see the script header.
 
@@ -249,7 +252,7 @@ Testing a change end-to-end means: delete the old template and test clone, rebui
 To re-run the same health check later on the running server:
 
 ```bash
-sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/collect-diagnostics.sh
+sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/scripts/collect-diagnostics.sh
 ```
 
 One command produces a complete health report (services, Homepage, SSH policy, firewall, tooling versions, bootstrap state, recent errors) in `/var/log/toolbox-diagnostics/`. Secrets are redacted — the file is safe to share when asking for help.

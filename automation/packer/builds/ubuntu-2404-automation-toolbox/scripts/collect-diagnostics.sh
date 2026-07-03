@@ -13,7 +13,7 @@
 # credential entries EXIST (names only), never their values.
 #
 # Usage:
-#   sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/collect-diagnostics.sh
+#   sudo /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/scripts/collect-diagnostics.sh
 #
 # Output:
 #   /var/log/toolbox-diagnostics/toolbox-diagnostics-<timestamp>.log

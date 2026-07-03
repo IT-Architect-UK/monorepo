@@ -291,7 +291,7 @@ build {
   # chmod 644 so Packer's (non-root) ssh user can read it for the download.
   provisioner "shell" {
     inline = [
-      "bash /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/collect-diagnostics.sh /tmp/build-diagnostics.log",
+      "bash /git/monorepo/automation/packer/builds/ubuntu-2404-automation-toolbox/scripts/collect-diagnostics.sh /tmp/build-diagnostics.log",
       "chmod 644 /tmp/build-diagnostics.log",
     ]
     execute_command = "sudo bash {{.Path}}"
