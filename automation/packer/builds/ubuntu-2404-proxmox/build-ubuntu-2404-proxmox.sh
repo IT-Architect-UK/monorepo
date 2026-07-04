@@ -95,6 +95,18 @@ elif [[ -z "${PKR_VAR_proxmox_password:-}${PKR_VAR_proxmox_token:-}" ]]; then
     export PKR_VAR_proxmox_password="${pw}"
 fi
 
+# ── Site settings → Packer (fill gaps only; explicit PKR_VAR_* always wins) ──
+# Only site-general keys are taken — per-build values (vm_id, image name,
+# pinned ISOs, sizing) deliberately stay with the build or the user.
+if [[ -f "${SITE_FILE}" ]]; then
+    for key in proxmox_url proxmox_node proxmox_username proxmox_storage_pool proxmox_iso_storage proxmox_network_bridge proxmox_vlan_tag; do
+        envname="PKR_VAR_${key}"
+        [[ -n "${!envname:-}" ]] && continue
+        v="$(grep -E "^\s*${key}\s*=" "${SITE_FILE}" | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/')" || true
+        [[ -n "${v}" ]] && export "${envname}=${v}" || true
+    done
+fi
+
 # ── ISO: auto-stage the latest 24.04 image if none specified ─────────────────
 if [[ -z "${PKR_VAR_ubuntu_iso_file:-}" ]]; then
     log "PKR_VAR_ubuntu_iso_file not set — staging the latest Ubuntu 24.04 ISO on Proxmox..."
@@ -103,6 +115,13 @@ if [[ -z "${PKR_VAR_ubuntu_iso_file:-}" ]]; then
     VOLID=$(PROXMOX_HOST="${PVE_HOST}" bash "${FETCH}" 24.04 | tail -1)         || fail "ISO staging failed — set PKR_VAR_ubuntu_iso_file manually (see header)"
     export PKR_VAR_ubuntu_iso_file="${VOLID}"
     log "Using ISO: ${VOLID}"
+fi
+# The cidata CD goes to ISO-capable storage too — default to wherever the
+# boot ISO lives if the site file didn't say (fixes '500 storage does not
+# support iso content' against the generic 'local' default).
+if [[ -z "${PKR_VAR_proxmox_iso_storage:-}" && -n "${PKR_VAR_ubuntu_iso_file:-}" ]]; then
+    export PKR_VAR_proxmox_iso_storage="${PKR_VAR_ubuntu_iso_file%%:*}"
+    log "ISO storage    : ${PKR_VAR_proxmox_iso_storage} (derived from the boot ISO location)"
 fi
 
 # ── Build ─────────────────────────────────────────────────────────────────────

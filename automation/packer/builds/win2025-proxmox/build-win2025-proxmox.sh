@@ -84,6 +84,16 @@ elif [[ -z "${PKR_VAR_proxmox_password:-}${PKR_VAR_proxmox_token:-}" ]]; then
     export PKR_VAR_proxmox_password="${pw}"
 fi
 
+# ── Site settings → Packer (fill gaps only; explicit PKR_VAR_* always wins) ──
+if [[ -f "${SITE_FILE}" ]]; then
+    for key in proxmox_url proxmox_node proxmox_username proxmox_storage_pool proxmox_iso_storage proxmox_network_bridge proxmox_vlan_tag win_iso_file virtio_iso_file; do
+        envname="PKR_VAR_${key}"
+        [[ -n "${!envname:-}" ]] && continue
+        v="$(grep -E "^\s*${key}\s*=" "${SITE_FILE}" | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/')" || true
+        [[ -n "${v}" ]] && export "${envname}=${v}" || true
+    done
+fi
+
 # ── WinRM password (must match autounattend.xml) ─────────────────────────────
 if [[ -z "${PKR_VAR_winrm_password:-}" ]]; then
     if [[ -n "${WINRM_PASSWORD:-}" ]]; then
@@ -119,6 +129,12 @@ if [[ -z "${PKR_VAR_virtio_iso_file:-}" ]]; then
         || fail "virtio ISO staging failed — set PKR_VAR_virtio_iso_file manually"
     export PKR_VAR_virtio_iso_file="${VOLID}"
     log "Using virtio ISO: ${VOLID}"
+fi
+
+# autounattend CD storage defaults to wherever the Windows ISO lives
+if [[ -z "${PKR_VAR_proxmox_iso_storage:-}" && -n "${PKR_VAR_win_iso_file:-}" ]]; then
+    export PKR_VAR_proxmox_iso_storage="${PKR_VAR_win_iso_file%%:*}"
+    log "ISO storage    : ${PKR_VAR_proxmox_iso_storage} (derived from the Windows ISO location)"
 fi
 
 # ── Build ─────────────────────────────────────────────────────────────────────
