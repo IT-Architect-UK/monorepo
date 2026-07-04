@@ -35,4 +35,6 @@ Fully patched Ubuntu 24.04, qemu-guest-agent, cloud-init (re-armed at seal time 
 
 ## After the build
 
-The template appears as `ubuntu-2404-golden-<timestamp>`. Provision servers from it with the toolbox: **Semaphore → Provision VM (Proxmox) → Run**, entering the template name in the survey. Old timestamped templates can be deleted once nothing references them.
+The template appears as `ubuntu-2404-golden-<timestamp>`. Provision servers from it with the toolbox: **Semaphore → Provision VM (Proxmox) → Run**, entering the template name in the survey.
+
+**Logins:** the sealed template has no interactive accounts by design — each clone gets its identity on first boot via cloud-init: hostname from the VM name, plus the account/password/SSH key you enter in the provisioning survey. (During a build, the temporary `packer` account exists and is removed at seal.) Old timestamped templates can be deleted once nothing references them.

@@ -113,6 +113,13 @@ source "proxmox-iso" "ubuntu-2404" {
   # a real build of VM 9004.
   bios = "ovmf"
 
+  # Cloud-init drive on the template: this is how every CLONE receives its
+  # identity (hostname from the VM name, user/password/SSH key from the
+  # provisioning playbook). Without it clones boot as anonymous copies —
+  # caught live on the first built template.
+  cloud_init              = true
+  cloud_init_storage_pool = var.proxmox_storage_pool
+
   # EFI disk enables UEFI boot — recommended for Ubuntu 24.04
   efi_config {
     efi_storage_pool  = var.proxmox_storage_pool

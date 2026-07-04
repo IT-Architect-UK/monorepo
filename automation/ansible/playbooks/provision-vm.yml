@@ -21,6 +21,9 @@
 #   vm_template      Name of the Proxmox template to clone
 #
 # Optional variables:
+#   vm_user          Login account created on the clone via cloud-init
+#   vm_password      Password for that account (survey 'secret' field)
+#   vm_ssh_key       SSH public key for that account
 #   vm_vcpu          vCPU count                    (default: 2)
 #   vm_memory_mb     Memory in MB                  (default: 4096)
 #   vm_disk_gb       Grow OS disk to this size GB  (default: 0 = keep template size)
@@ -58,6 +61,9 @@
     proxmox_api_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
     proxmox_api_password: "{{ lookup('env', 'PROXMOX_PASSWORD') }}"
     proxmox_node: "{{ lookup('env', 'PROXMOX_NODE') }}"
+    vm_user: ""
+    vm_password: ""
+    vm_ssh_key: ""
     vm_vcpu: 2
     vm_memory_mb: 4096
     vm_disk_gb: 0
@@ -107,6 +113,9 @@
         name: "{{ vm_name }}"
         cores: "{{ vm_vcpu | int }}"
         memory: "{{ vm_memory_mb | int }}"
+        ciuser: "{{ vm_user | default(omit, true) }}"
+        cipassword: "{{ vm_password | default(omit, true) }}"
+        sshkeys: "{{ vm_ssh_key | default(omit, true) }}"
         update: true
 
     - name: "Apply VLAN tag {{ vm_vlan_tag }} to net0"
@@ -153,4 +162,5 @@
           - "VM '{{ vm_name }}' cloned from '{{ vm_template }}' and started on {{ proxmox_node }}."
           - "vCPU: {{ vm_vcpu }}  Memory: {{ vm_memory_mb }} MB  Disk: {{ (vm_disk_gb | int > 0) | ternary(vm_disk_gb ~ 'G', 'template default') }}"
           - "Network: {{ (vm_vlan_tag | string | length > 0) | ternary('net0 on ' ~ vm_bridge ~ ' tag ' ~ vm_vlan_tag, 'template default') }}"
+          - "Login: {{ (vm_user | length > 0) | ternary(vm_user ~ ' (set via cloud-init on first boot)', 'none set — pass vm_user/vm_password/vm_ssh_key to create one') }}"
           - "The VM will pick up an address via cloud-init/DHCP — check the Proxmox console or your DHCP leases for its IP."

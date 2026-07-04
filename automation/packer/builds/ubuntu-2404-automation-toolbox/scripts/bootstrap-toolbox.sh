@@ -316,8 +316,11 @@ if [[ -z "${PROV_TPL_ID}" ]]; then
           arguments: "[]", type: "",
           description: "Clone a Proxmox template into a new VM, size it, and start it.",
           survey_vars: [
-            {name: "vm_name",      title: "VM name",                        type: "",    required: true},
+            {name: "vm_name",      title: "VM name (also the hostname)",    type: "",    required: true},
             {name: "vm_template",  title: "Proxmox template to clone",      type: "",    required: true},
+            {name: "vm_user",      title: "Login account to create",        type: "",    required: false},
+            {name: "vm_password",  title: "Password for that account",      type: "secret", required: false},
+            {name: "vm_ssh_key",   title: "SSH public key for that account", type: "",   required: false},
             {name: "vm_vcpu",      title: "vCPU count (default 2)",         type: "int", required: false},
             {name: "vm_memory_mb", title: "Memory MB (default 4096)",       type: "int", required: false},
             {name: "vm_disk_gb",   title: "Grow OS disk to GB (0 = keep)",  type: "int", required: false},
