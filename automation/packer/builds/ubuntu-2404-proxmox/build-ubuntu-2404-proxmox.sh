@@ -52,7 +52,8 @@ fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
-command -v packer &>/dev/null || fail "packer not found on PATH (the ONLY build-host requirement — Ansible runs inside the guest)"
+command -v packer  &>/dev/null || fail "packer not found on PATH"
+command -v xorriso &>/dev/null || fail "xorriso not found — Packer needs it to build the cidata/unattend CD. Install it: sudo apt-get install -y xorriso (baked into toolbox images from the next rebuild)"
 
 NONINTERACTIVE=0; [[ ! -t 0 ]] && NONINTERACTIVE=1   # no TTY (e.g. Semaphore) = no prompts
 

@@ -49,6 +49,7 @@ apt-get install -y --no-install-recommends \
     software-properties-common \
     git \
     jq \
+    xorriso \
     unzip \
     wget \
     python3 \
