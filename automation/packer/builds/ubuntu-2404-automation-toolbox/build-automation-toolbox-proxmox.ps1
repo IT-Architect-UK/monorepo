@@ -458,7 +458,12 @@ if (-not $DryRun) {
             $pveTokenSecret = [System.Net.NetworkCredential]::new("", $sec).Password
             # Validate NOW — a user/token mismatch would otherwise surface as
             # 401s in Semaphore jobs and the dashboard after a 30-min build.
+            # NB: hidden input can silently mangle PASTED secrets in some
+            # consoles — if validation keeps failing with a known-good token,
+            # that is the usual culprit. 'skip' bypasses validation.
             while ($true) {
+                # strip whitespace/control chars that clipboard paste can inject
+                $pveTokenSecret = ($pveTokenSecret -replace '[\x00-\x1f]', '').Trim()
                 try {
                     Invoke-ProxmoxApi -Uri "$ProxmoxUrlValue/version" -Headers @{
                         Authorization = "PVEAPIToken=$pveTokenUser!$pveTokenId=$pveTokenSecret"
@@ -466,8 +471,16 @@ if (-not $DryRun) {
                     Write-Host "  Token verified for $pveTokenUser!$pveTokenId" -ForegroundColor Green
                     break
                 } catch {
-                    Write-Host "  Proxmox rejected that token as '$pveTokenUser!$pveTokenId' — the user must be the token's OWNER (e.g. claude@pam, not root@pam)." -ForegroundColor Red
-                    $u = (Read-Host "  Token owner user [$pveTokenUser]").Trim()
+                    Write-Host "  Validation failed for '$pveTokenUser!$pveTokenId' against $ProxmoxUrlValue/version" -ForegroundColor Red
+                    Write-Host "  Underlying error: $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host "  (401 = wrong owner user or secret; timeouts/TLS errors = URL problem, not the token." -ForegroundColor DarkGray
+                    Write-Host "   Secrets pasted into hidden prompts are sometimes mangled — type 'visible' to enter it non-hidden.)" -ForegroundColor DarkGray
+                    $u = (Read-Host "  Token owner user [$pveTokenUser] ('skip' = proceed unvalidated)").Trim()
+                    if ($u -eq 'skip') { Write-Host "  Skipping validation — proceeding with the values as entered." -ForegroundColor Yellow; break }
+                    if ($u -eq 'visible') {
+                        $pveTokenSecret = (Read-Host "  Token secret (VISIBLE)").Trim()
+                        continue
+                    }
                     if ($u) { $pveTokenUser = $u }
                     $sec = Read-Host "  Token secret (Enter = keep current, input hidden)" -AsSecureString
                     $ts = [System.Net.NetworkCredential]::new("", $sec).Password
