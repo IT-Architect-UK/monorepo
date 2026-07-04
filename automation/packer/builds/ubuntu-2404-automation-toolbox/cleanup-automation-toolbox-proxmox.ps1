@@ -83,7 +83,7 @@ function Invoke-Pve {
         Headers = $script:PveHeaders
     }
     if ($Body)  { $req.Body = $Body }
-    if ($IsPS7) { $req.SkipCertificateCheck = $true }
+    if ($IsPS7) { $req.SkipCertificateCheck = $true; $req.SkipHeaderValidation = $true }
     (Invoke-RestMethod @req).data
 }
 

@@ -153,10 +153,12 @@ function Invoke-ProxmoxApi {
     )
 
     if ($PSVersionTable.PSVersion.Major -ge 6) {
+        # -SkipHeaderValidation: PS7's HttpClient rejects Proxmox's
+        # 'PVEAPIToken=user!id=secret' Authorization format before sending.
         if ($Body) {
-            return Invoke-RestMethod -Uri $Uri -Method $Method -Headers $Headers -Body $Body -SkipCertificateCheck
+            return Invoke-RestMethod -Uri $Uri -Method $Method -Headers $Headers -Body $Body -SkipCertificateCheck -SkipHeaderValidation
         }
-        return Invoke-RestMethod -Uri $Uri -Method $Method -Headers $Headers -SkipCertificateCheck
+        return Invoke-RestMethod -Uri $Uri -Method $Method -Headers $Headers -SkipCertificateCheck -SkipHeaderValidation
     }
 
     # Windows PowerShell 5.1 has no -SkipCertificateCheck -- fall back to a

@@ -56,7 +56,7 @@ function Invoke-Pve {
     param([string]$Method, [string]$Path, [object]$Body = $null)
     $req = @{ Method = $Method; Uri = "https://${ProxmoxHost}:8006/api2/json$Path"; Headers = $script:PveHeaders }
     if ($Body)  { $req.Body = $Body }
-    if ($IsPS7) { $req.SkipCertificateCheck = $true }
+    if ($IsPS7) { $req.SkipCertificateCheck = $true; $req.SkipHeaderValidation = $true }
     (Invoke-RestMethod @req).data
 }
 
