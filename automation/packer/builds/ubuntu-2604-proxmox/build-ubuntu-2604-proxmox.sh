@@ -39,7 +39,12 @@
 # Date:              02-07-2026
 # =============================================================================
 
+# First breath before strict mode: if this script ever dies, these two lines
+# guarantee it can never do so silently — the banner proves it started, and
+# the ERR trap names the exact line and command that killed it.
+echo "[$(basename "${BASH_SOURCE[0]:-$0}")] starting as $(id -un 2>/dev/null || echo '?') in $(pwd)"
 set -euo pipefail
+trap 's=$?; echo "[$(basename "${BASH_SOURCE[0]:-$0}")] FATAL exit=$s at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
 log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
 fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }

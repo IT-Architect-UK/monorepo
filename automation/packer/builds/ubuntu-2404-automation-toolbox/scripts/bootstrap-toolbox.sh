@@ -38,7 +38,12 @@
 # Date:              02-07-2026
 # =============================================================================
 
+# First breath before strict mode: if this script ever dies, these two lines
+# guarantee it can never do so silently — the banner proves it started, and
+# the ERR trap names the exact line and command that killed it.
+echo "[$(basename "${BASH_SOURCE[0]:-$0}")] starting as $(id -un 2>/dev/null || echo '?') in $(pwd)"
 set -euo pipefail
+trap 's=$?; echo "[$(basename "${BASH_SOURCE[0]:-$0}")] FATAL exit=$s at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
 log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
@@ -378,6 +383,21 @@ for GOLD in "Build Golden Image — Ubuntu 26.04|automation/packer/builds/ubuntu
         log "Job template '${G_NAME}' already exists (id ${G_ID})"
     fi
 done
+
+PROBE_TPL_ID=$(echo "${TPL_JSON}" | find_id "Diagnostics — Task Probe")
+if [[ -z "${PROBE_TPL_ID}" ]]; then
+    PROBE_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
+        --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
+        --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+        '{project_id: $pid, name: "Diagnostics — Task Probe", app: "bash",
+          playbook: "automation/packer/scripts/task-probe.sh",
+          inventory_id: $inv, repository_id: $rid, environment_id: $eid,
+          arguments: "[]", type: "",
+          description: "Prints the task execution context (user, paths, env var names). Run when any job misbehaves — its output is always safe to share."}')" | jq -r '.id')
+    log "Job template 'Diagnostics — Task Probe' created (id ${PROBE_TPL_ID})"
+else
+    log "Job template 'Diagnostics — Task Probe' already exists (id ${PROBE_TPL_ID})"
+fi
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 # ─── 7. Finalise the Homepage dashboard ──────────────────────────────────────
