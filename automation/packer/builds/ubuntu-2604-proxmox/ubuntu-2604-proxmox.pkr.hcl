@@ -101,6 +101,12 @@ source "proxmox-iso" "ubuntu-2604" {
     vlan_tag = var.proxmox_vlan_tag
   }
 
+  # UEFI firmware — must accompany efi_config, otherwise Proxmox boots the
+  # VM with SeaBIOS, which only tries the FIRST CD drive (the tiny cidata
+  # disc) and dies with "Could not read from CDROM (code 0004)". Caught on
+  # a real build of VM 9004.
+  bios = "ovmf"
+
   # EFI disk enables UEFI boot — recommended for Ubuntu 26.04
   efi_config {
     efi_storage_pool  = var.proxmox_storage_pool
@@ -114,6 +120,9 @@ source "proxmox-iso" "ubuntu-2604" {
   # The Ubuntu installer finds them automatically via cloud-init nocloud datasource.
   # No HTTP server needed — Packer can run from any machine with Proxmox API access.
   additional_iso_files {
+    # ide3: keep the cidata disc AFTER the boot ISO in device order — on
+    # ide0 it becomes the first CD the firmware tries to boot from.
+    device           = "ide3"
     cd_files         = [abspath("${path.root}/../../http/user-data"), abspath("${path.root}/../../http/meta-data")]
     cd_label         = "cidata"
     iso_storage_pool = var.proxmox_iso_storage

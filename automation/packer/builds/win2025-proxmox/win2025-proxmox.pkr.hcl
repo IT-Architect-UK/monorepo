@@ -106,6 +106,10 @@ source "proxmox-iso" "win2025" {
     bridge = "vmbr0"
   }
 
+  # UEFI firmware — must accompany efi_config (same SeaBIOS-default trap
+  # caught live on the Ubuntu golden build)
+  bios = "ovmf"
+
   # EFI config — Windows Server 2025 requires UEFI
   efi_config {
     efi_storage_pool  = var.proxmox_storage_pool
