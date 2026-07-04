@@ -50,7 +50,9 @@ NONINTERACTIVE=0; [[ ! -t 0 ]] && NONINTERACTIVE=1
 # ── Proxmox connection (same contract as the Ubuntu wrappers) ────────────────
 # Site defaults from automation/packer/environments/homelab.pkrvars.hcl —
 # the one file users edit for their environment; nothing site-specific here.
-SITE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../environments" 2>/dev/null && pwd)/homelab.pkrvars.hcl"
+# NB: built from the absolute SCRIPT_DIR — deriving it from the relative
+# BASH_SOURCE after cd'ing broke under Semaphore (caught by the ERR trap).
+SITE_FILE="${SCRIPT_DIR}/../../environments/homelab.pkrvars.hcl"
 SITE_HOST=""
 [[ -f "${SITE_FILE}" ]] && SITE_HOST="$(grep -E '^\s*proxmox_url\s*=' "${SITE_FILE}" | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/' | sed -E 's#^https?://##; s#[:/].*$##')"
 PVE_HOST="${PROXMOX_HOST:-}"

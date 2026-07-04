@@ -108,7 +108,8 @@ default_or_prompt() { # varname prompt default
 }
 
 # Site defaults from the repo's single site file — nothing lab-specific here.
-SITE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../environments" 2>/dev/null && pwd)/homelab.pkrvars.hcl"
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # own dir always exists
+SITE_FILE="${SELF_DIR}/../../../environments/homelab.pkrvars.hcl"
 site_val() {
     [[ -f "${SITE_FILE}" ]] || return 0
     grep -E "^\s*${1}\s*=" "${SITE_FILE}" | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/'

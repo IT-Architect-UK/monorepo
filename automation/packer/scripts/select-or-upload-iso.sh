@@ -44,7 +44,8 @@ command -v jq   &>/dev/null || fail "jq not found"
 # ─── Connection (same contract as fetch-ubuntu-iso.sh) ───────────────────────
 # Site defaults come from the ONE user-edited site file (no lab-specific
 # values hardcoded here): automation/packer/environments/homelab.pkrvars.hcl
-SITE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../environments" 2>/dev/null && pwd)/homelab.pkrvars.hcl"
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # own dir always exists
+SITE_FILE="${SELF_DIR}/../environments/homelab.pkrvars.hcl"
 site_val() { # site_val <pkrvars-key>
     [[ -f "${SITE_FILE}" ]] || return 0
     grep -E "^\s*${1}\s*=" "${SITE_FILE}" | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/'
