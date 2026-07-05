@@ -11,23 +11,23 @@ Builds a sysprep-sealed Windows Server 2025 template on Proxmox VE — the base 
 | **`.\build-win2025-proxmox.ps1`** | Standalone on Windows — same contract |
 | **`packer build .`** | Fully manual on any OS — see the header of `win2025-proxmox.pkr.hcl` |
 
-## Critical: the Windows edition name must match your ISO
+## Which Windows edition gets installed
 
-`windows_image_name` (default *Windows Server 2025 Standard Evaluation
-(Desktop Experience)*) must EXACTLY match an edition inside your ISO's
-`install.wim`, or Setup stalls at the edition picker and nothing installs —
-the disk ends up empty and the VM reboots to "no bootable device". If your
-ISO is retail/VL rather than Evaluation, the name has no "Evaluation" in it.
-List the editions in your ISO on the Proxmox host:
+`windows_image_index` (default **2** = Standard, Desktop Experience) selects
+the edition by index — unambiguous, unlike edition-name matching (which will
+silently stall Setup and leave an empty disk if it's off by a word, e.g.
+"Evaluation" vs retail). List your ISO's editions on the Proxmox host:
 
 ```bash
-mkdir /mnt/w && mount -o loop <your.iso> /mnt/w
-dism /Get-WimInfo /WimFile:/mnt/w/sources/install.wim   # or install.esd
+apt-get install -y wimtools
+mount -o loop <your.iso> /mnt/w
+wiminfo /mnt/w/sources/install.wim   # or install.esd
 umount /mnt/w
 ```
 
-Set the matching name via `PKR_VAR_windows_image_name` (Semaphore variable
-group) or `-var windows_image_name=...`.
+Typical Windows Server 2025 layout: 1=Standard Core, 2=Standard Desktop,
+3=Datacenter Core, 4=Datacenter Desktop. Override via
+`PKR_VAR_windows_image_index` (Semaphore variable group) or `-var`.
 
 ## Prerequisites
 

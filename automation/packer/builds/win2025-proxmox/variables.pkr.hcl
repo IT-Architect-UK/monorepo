@@ -20,16 +20,18 @@ variable "virtio_iso_file" {
   default = "local:iso/virtio-win.iso"
 }
 
-variable "windows_image_name" {
-  # MUST match an edition name inside the ISO's install.wim EXACTLY, or
-  # Setup stalls at the edition picker and nothing installs (caught live).
-  # Eval ISO  -> "Windows Server 2025 Standard Evaluation (Desktop Experience)"
-  # Retail/VL -> "Windows Server 2025 Standard (Desktop Experience)"  (no "Evaluation")
-  # List editions in an ISO on the Proxmox host:
-  #   mkdir /mnt/w; mount -o loop <iso> /mnt/w
-  #   dism /Get-WimInfo /WimFile:/mnt/w/sources/install.wim   (or install.esd)
+variable "windows_image_index" {
+  # Which edition (by INDEX) to install from the ISO's install.wim. Index is
+  # unambiguous — no edition-name matching to get wrong. List an ISO's
+  # editions on the Proxmox host:
+  #   apt-get install -y wimtools
+  #   mount -o loop <iso> /mnt/w
+  #   wiminfo /mnt/w/sources/install.wim   (or install.esd)
+  # Typical Windows Server 2025 layout:
+  #   1 = Standard Core   2 = Standard (Desktop Experience)
+  #   3 = Datacenter Core 4 = Datacenter (Desktop Experience)
   type    = string
-  default = "Windows Server 2025 Standard Evaluation (Desktop Experience)"
+  default = "2"
 }
 
 variable "winrm_username" {

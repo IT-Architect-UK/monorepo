@@ -135,8 +135,8 @@ source "proxmox-iso" "win2025" {
           "PackerBuild2025!",
           var.winrm_password
         ),
-        "WINDOWS_IMAGE_NAME",
-        var.windows_image_name
+        "WINDOWS_IMAGE_INDEX",
+        var.windows_image_index
       )
     }
     iso_storage_pool = var.proxmox_iso_storage
