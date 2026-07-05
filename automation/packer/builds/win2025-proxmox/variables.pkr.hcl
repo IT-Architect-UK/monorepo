@@ -49,6 +49,18 @@ variable "vm_disk_gb" {
   default = 50
 }
 
+variable "proxmox_network_bridge" {
+  type    = string
+  default = "vmbr0"
+}
+
+variable "proxmox_vlan_tag" {
+  # Empty = untagged. Site value comes from environments/homelab.pkrvars.hcl
+  # via the build wrapper.
+  type    = string
+  default = ""
+}
+
 variable "proxmox_token" {
   # API token secret — used with proxmox_username "user@realm!tokenid".
   # Leave empty to authenticate with proxmox_password instead.

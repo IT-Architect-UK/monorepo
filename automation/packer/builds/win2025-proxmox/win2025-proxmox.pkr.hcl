@@ -100,10 +100,13 @@ source "proxmox-iso" "win2025" {
     format       = "raw"
   }
 
-  # e1000 NIC — Intel E1000 driver is bundled with Windows Server 2025
+  # e1000 NIC — Intel E1000 driver is bundled with Windows Server 2025.
+  # Bridge/VLAN come from site variables (was hardcoded vmbr0 — wrong
+  # network on any site using VLAN bridges; caught live).
   network_adapters {
-    model  = "e1000"
-    bridge = "vmbr0"
+    model    = "e1000"
+    bridge   = var.proxmox_network_bridge
+    vlan_tag = var.proxmox_vlan_tag == "" ? null : var.proxmox_vlan_tag
   }
 
   # UEFI firmware — must accompany efi_config (same SeaBIOS-default trap
