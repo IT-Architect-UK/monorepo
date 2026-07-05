@@ -160,7 +160,7 @@ source "proxmox-iso" "win2025" {
     }
     iso_storage_pool = var.proxmox_iso_storage
     cd_label = "autounattend"
-    unmount  = false
+    unmount  = true
   }
 
   # ── Secondary ISO: virtio-win drivers ────────────────────────────────────
@@ -169,7 +169,7 @@ source "proxmox-iso" "win2025" {
   additional_iso_files {
     iso_file         = var.virtio_iso_file
     iso_storage_pool = var.proxmox_iso_storage
-    unmount          = false
+    unmount          = true
   }
 
   # ── Boot settings ────────────────────────────────────────────────────────
