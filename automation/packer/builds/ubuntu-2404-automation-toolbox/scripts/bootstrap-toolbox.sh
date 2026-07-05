@@ -34,7 +34,7 @@
 # encrypted store and the API session token is revoked on exit.
 #
 # Author:            Darren Pilkington
-# Version:           1.8
+# Version:           1.9
 # Date:              02-07-2026
 # =============================================================================
 
@@ -488,7 +488,11 @@ if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx portainer; then
     if [[ "${#P_PASS}" -lt 12 ]]; then
         warn "Portainer needs a 12+ character admin password — set it manually at https://${SERVER_IP}:9443"
     else
-        # wait for the API to answer (container may still be starting)
+        # Restart Portainer FIRST: its admin-init endpoint locks ~5 min after
+        # container start, and the bootstrap can arrive later than that. A
+        # restart opens a fresh window deterministically instead of racing it.
+        docker restart portainer >/dev/null 2>&1 || true
+        # wait for the API to answer (container restarting)
         P_READY=0
         for _ in 1 2 3 4 5 6; do
             pcurl PS GET "${P_URL}/system/status"
