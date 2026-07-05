@@ -420,11 +420,11 @@ try {
         Write-Host ""
         Write-Host "  Choose the admin password for the web UIs (Semaphore AND Portainer)." -ForegroundColor Yellow
         Write-Host "  Requirements: 12+ characters. Press Enter to use the default" -ForegroundColor Yellow
-        Write-Host "  'ChangeMe-Toolbox-2026' — easy to remember, change it after first login" -ForegroundColor Yellow
+        Write-Host "  'Change-Me-Toolbox!' — easy to remember, change it after first login" -ForegroundColor Yellow
         Write-Host "  (Semaphore: top-right user menu; Portainer: user settings)." -ForegroundColor Yellow
-        $secure = Read-Host "  Admin password [ChangeMe-Toolbox-2026] (input hidden)" -AsSecureString
+        $secure = Read-Host "  Admin password [Change-Me-Toolbox!] (input hidden)" -AsSecureString
         $semaphoreAdminPassword = [System.Net.NetworkCredential]::new("", $secure).Password
-        if ([string]::IsNullOrWhiteSpace($semaphoreAdminPassword)) { $semaphoreAdminPassword = "ChangeMe-Toolbox-2026" }
+        if ([string]::IsNullOrWhiteSpace($semaphoreAdminPassword)) { $semaphoreAdminPassword = "Change-Me-Toolbox!" }
     }
     $adminPassword          = Resolve-OptionalVar "PKR_VAR_admin_password"           "Choose a password for the '$AdminUsername' login on the built VM. You can also just use your SSH key and leave this blank."
 

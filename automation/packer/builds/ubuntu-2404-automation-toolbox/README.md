@@ -241,7 +241,7 @@ Testing a change end-to-end means: delete the old template and test clone, rebui
 All questions (VM name, Proxmox API token, firewall subnet, VM sizing —
 default 4 vCPU / 8 GB, increase offered) are asked up-front. The web-UI
 admin password (shared by Semaphore and Portainer) must be 12+ characters;
-pressing Enter accepts the default `ChangeMe-Toolbox-2026` — change it
+pressing Enter accepts the default `Change-Me-Toolbox!` — change it
 after first login in both UIs. Everything is asked up-front,
 so the run is hands-off after that — a fully bootstrapped toolbox comes out the
 other end with its URLs printed at the finish.
