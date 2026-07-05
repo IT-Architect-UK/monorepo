@@ -147,10 +147,12 @@ source "proxmox-iso" "win2025" {
   }
 
   # ── Boot settings ────────────────────────────────────────────────────────
-  # Windows ISO auto-boots from EFI. The short boot_command dismisses the
-  # "Press any key to boot from CD/DVD" prompt that some BIOSes show.
-  boot_wait    = "4s"
-  boot_command = ["<enter>"]
+  # The Windows ISO shows "Press any key to boot from CD or DVD..." for only
+  # a few seconds; miss it and OVMF drops to "no bootable device" (caught
+  # live on VM 9003 — a single keystroke at 4s arrived outside the window).
+  # Start early and keep pressing for ~15s so the prompt cannot be missed.
+  boot_wait    = "1s"
+  boot_command = ["<enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter><wait><enter>"]
 
   # ── WinRM communicator ──────────────────────────────────────────────────
   # Packer connects via WinRM after autounattend.xml finishes setup.
