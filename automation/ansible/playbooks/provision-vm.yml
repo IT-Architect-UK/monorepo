@@ -23,7 +23,8 @@
 # Optional variables:
 #   vm_user          Login account created on the clone via cloud-init
 #   vm_password      Password for that account (survey 'secret' field)
-#   vm_ssh_key       SSH public key for that account
+#   vm_ssh_key       SSH public key for that account (default: the toolbox's
+#                    provisioning key, so Semaphore playbooks can reach the VM)
 #   vm_vcpu          vCPU count                    (default: 2)
 #   vm_memory_mb     Memory in MB                  (default: 4096)
 #   vm_disk_gb       Grow OS disk to this size GB  (default: 0 = keep template size)
@@ -63,7 +64,9 @@
     proxmox_node: "{{ lookup('env', 'PROXMOX_NODE') }}"
     vm_user: ""
     vm_password: ""
-    vm_ssh_key: ""
+    # Defaults to the toolbox's provisioning public key (published by the
+    # bootstrap as PROVISION_SSH_PUBKEY) so follow-up playbooks can connect.
+    vm_ssh_key: "{{ lookup('env', 'PROVISION_SSH_PUBKEY') }}"
     vm_vcpu: 2
     vm_memory_mb: 4096
     vm_disk_gb: 0

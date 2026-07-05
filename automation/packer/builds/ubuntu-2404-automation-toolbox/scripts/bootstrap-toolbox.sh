@@ -34,7 +34,7 @@
 # encrypted store and the API session token is revoked on exit.
 #
 # Author:            Darren Pilkington
-# Version:           1.5
+# Version:           1.6
 # Date:              02-07-2026
 # =============================================================================
 
@@ -141,6 +141,14 @@ else
     require_or_prompt_secret PVE_NODE "Proxmox node name"
 fi
 
+# WinRM build password for Windows golden images (optional — stored as a
+# secret in the variable group so the win2025 Semaphore job works without
+# manual UI setup; must match http/win2025-proxmox/autounattend.xml)
+WINRM_PW="${WINRM_PASSWORD:-}"
+if [[ -z "${WINRM_PW}" && "${NONINTERACTIVE}" != "1" ]]; then
+    read -r -s -p "WinRM password for Windows golden builds (Enter = skip): " WINRM_PW; echo
+fi
+
 # ─── Validate the Proxmox credential BEFORE storing it anywhere ──────────────
 # A wrong user/token pairing (e.g. token owned by claude@pam entered against
 # the default root@pam) poisons Semaphore jobs and the dashboard widget with
@@ -244,6 +252,28 @@ else
     SSH_KEY_ID="${NONE_KEY_ID}"
 fi
 
+# Dedicated provisioning keypair: the toolbox injects the PUBLIC key into
+# every VM it provisions (cloud-init) and keeps the PRIVATE key in the Key
+# Store, so follow-up playbooks (Deploy Vault, baselines) can connect
+# without any manual key juggling.
+PROV_KEY_DIR="/var/lib/semaphore/.ssh"
+PROV_KEY_FILE="${PROV_KEY_DIR}/provisioning_ed25519"
+if [[ ! -f "${PROV_KEY_FILE}" ]]; then
+    mkdir -p "${PROV_KEY_DIR}"
+    ssh-keygen -t ed25519 -N "" -C "toolbox-provisioning" -f "${PROV_KEY_FILE}" -q
+    chown -R semaphore:semaphore "${PROV_KEY_DIR}" 2>/dev/null || true
+    chmod 700 "${PROV_KEY_DIR}"; chmod 600 "${PROV_KEY_FILE}"
+    log "Provisioning SSH keypair generated (${PROV_KEY_FILE})"
+fi
+PROV_PUBKEY="$(cat "${PROV_KEY_FILE}.pub")"
+PROV_KEY_ID=$(echo "${KEYS_JSON}" | find_id "provisioning-ssh")
+if [[ -z "${PROV_KEY_ID}" ]]; then
+    PROV_KEY_ID=$(api POST "${P}/keys"         "$(jq -n --argjson pid "${PROJECT_ID}" --rawfile k "${PROV_KEY_FILE}"             '{name: "provisioning-ssh", type: "ssh", project_id: $pid, ssh: {login: "", private_key: $k}}')" | jq -r '.id')
+    log "Key 'provisioning-ssh' created (id ${PROV_KEY_ID}) — private key stays in the Key Store"
+else
+    log "Key 'provisioning-ssh' already exists (id ${PROV_KEY_ID})"
+fi
+
 # ─── 3. Variable Group (Proxmox connection) ──────────────────────────────────
 ENV_ID=$(api GET "${P}/environment" | find_id "Proxmox")
 if [[ -z "${ENV_ID}" ]]; then
@@ -251,12 +281,14 @@ if [[ -z "${ENV_ID}" ]]; then
         --argjson pid "${PROJECT_ID}" \
         --arg host "${PVE_HOST}" --arg user "${PVE_USER}" --arg node "${PVE_NODE}" \
         --arg tid "${PVE_TOKEN_ID}" --arg tsec "${PVE_TOKEN_SECRET}" --arg pw "${PVE_PASSWORD}" \
+        --arg pub "${PROV_PUBKEY}" --arg winrm "${WINRM_PW}" \
         '{
           name: "Proxmox", project_id: $pid, json: "{}",
-          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid} | tojson),
+          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub} | tojson),
           secrets: ([
-            (if $tsec != "" then {type: "env", name: "PROXMOX_TOKEN_SECRET", secret: $tsec, operation: "create"} else empty end),
-            (if $pw   != "" then {type: "env", name: "PROXMOX_PASSWORD",     secret: $pw,   operation: "create"} else empty end)
+            (if $tsec  != "" then {type: "env", name: "PROXMOX_TOKEN_SECRET", secret: $tsec,  operation: "create"} else empty end),
+            (if $pw    != "" then {type: "env", name: "PROXMOX_PASSWORD",     secret: $pw,    operation: "create"} else empty end),
+            (if $winrm != "" then {type: "env", name: "WINRM_PASSWORD",       secret: $winrm, operation: "create"} else empty end)
           ])
         }')
     ENV_ID=$(api POST "${P}/environment" "${ENV_BODY}" | jq -r '.id')
@@ -282,7 +314,7 @@ INV_JSON=$(api GET "${P}/inventory")
 LOCAL_INV_ID=$(echo "${INV_JSON}" | find_id "localhost")
 if [[ -z "${LOCAL_INV_ID}" ]]; then
     LOCAL_INV_ID=$(api POST "${P}/inventory" \
-        "$(jq -n --argjson pid "${PROJECT_ID}" --argjson kid "${NONE_KEY_ID}" \
+        "$(jq -n --argjson pid "${PROJECT_ID}" --argjson kid "${PROV_KEY_ID}" \
             '{name: "localhost", project_id: $pid, type: "static", ssh_key_id: $kid,
               inventory: "localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3"}')" | jq -r '.id')
     log "Inventory 'localhost' created (id ${LOCAL_INV_ID})"

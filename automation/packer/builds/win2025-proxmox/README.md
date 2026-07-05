@@ -6,7 +6,7 @@ Builds a sysprep-sealed Windows Server 2025 template on Proxmox VE — the base 
 
 | Entry point | When to use |
 |-------------|-------------|
-| **Semaphore** — Task Templates → *Build Golden Image — Windows 2025* | Normal operation from the Deployment Toolbox (set `WINRM_PASSWORD` in the variable group) |
+| **Semaphore** — Task Templates → *Build Golden Image — Windows 2025* | Normal operation from the Deployment Toolbox (`WINRM_PASSWORD` is stored by the bootstrap; add it to the Proxmox variable group manually only if you skipped that prompt) |
 | **`./build-win2025-proxmox.sh`** | Standalone on any Linux/macOS machine — prompts for anything missing |
 | **`.\build-win2025-proxmox.ps1`** | Standalone on Windows — same contract |
 | **`packer build .`** | Fully manual on any OS — see the header of `win2025-proxmox.pkr.hcl` |
