@@ -34,7 +34,7 @@
 # encrypted store and the API session token is revoked on exit.
 #
 # Author:            Darren Pilkington
-# Version:           1.7
+# Version:           1.8
 # Date:              02-07-2026
 # =============================================================================
 
@@ -470,33 +470,60 @@ else
 fi
 
 # ─── 7b. Portainer initialisation ────────────────────────────────────────────
-# Portainer locks itself if no admin is set within ~5 min of first start.
-# Initialise it with the Semaphore admin password (needs 12+ chars for
-# Portainer) and mint an API key so the dashboard widget goes live.
+# Best-effort by design: NOTHING in this section may abort the bootstrap.
+# Portainer locks its init endpoint ~5 min after container start; a restart
+# re-opens it. Every call logs its HTTP status so failures are diagnosable.
 if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx portainer; then
     P_URL="https://127.0.0.1:9443/api"
     P_PASS="${SEM_PASS}"
+    pcurl() { # pcurl <out-var-prefix> <curl args...> — never fails the script
+        local _pfx="$1"; shift
+        local resp code
+        resp=$(curl -sk --max-time 15 -w '\n%{http_code}' "$@" 2>/dev/null) || resp=$'\n000'
+        code="${resp##*$'\n'}"
+        printf -v "${_pfx}_CODE" '%s' "${code}"
+        printf -v "${_pfx}_BODY" '%s' "${resp%$'\n'*}"
+        return 0
+    }
     if [[ "${#P_PASS}" -lt 12 ]]; then
-        warn "Portainer needs a 12+ character admin password — Semaphore's is shorter."
-        warn "Set it manually at https://${SERVER_IP}:9443 (within 5 min of first boot)."
+        warn "Portainer needs a 12+ character admin password — set it manually at https://${SERVER_IP}:9443"
     else
-        if curl -fsSk --max-time 10 -X POST "${P_URL}/users/admin/init"              -H "Content-Type: application/json"              -d "$(jq -n --arg p "${P_PASS}" '{Username: "admin", Password: $p}')" >/dev/null 2>&1; then
-            log "Portainer admin initialised (admin / same password as Semaphore)"
+        # wait for the API to answer (container may still be starting)
+        P_READY=0
+        for _ in 1 2 3 4 5 6; do
+            pcurl PS GET "${P_URL}/system/status"
+            [[ "${PS_CODE}" == "200" ]] && { P_READY=1; break; }
+            sleep 5
+        done
+        if [[ "${P_READY}" != "1" ]]; then
+            warn "Portainer API not responding (last status ${PS_CODE:-none}) — initialise it manually at https://${SERVER_IP}:9443"
         else
-            log "Portainer admin already initialised (or init API unavailable) — continuing"
-        fi
-        P_JWT=$(curl -fsSk --max-time 10 -X POST "${P_URL}/auth"             -H "Content-Type: application/json"             -d "$(jq -n --arg p "${P_PASS}" '{username: "admin", password: $p}')" | jq -r '.jwt // empty')
-        if [[ -n "${P_JWT}" ]]; then
-            P_KEY=$(curl -fsSk --max-time 10 -X POST "${P_URL}/users/1/tokens"                 -H "Authorization: Bearer ${P_JWT}" -H "Content-Type: application/json"                 -d '{"description":"homepage-widget"}' | jq -r '.rawAPIKey // empty')
-            if [[ -n "${P_KEY}" && -f "${HOMEPAGE_ENV}" ]]; then
-                sed -i "s|^HOMEPAGE_VAR_PORTAINER_KEY=.*|HOMEPAGE_VAR_PORTAINER_KEY=${P_KEY}|" "${HOMEPAGE_ENV}"
-                docker restart homepage >/dev/null 2>&1 || true
-                log "Portainer dashboard widget wired (API key stored for Homepage)"
+            pcurl PI POST "${P_URL}/users/admin/init"                 -H "Content-Type: application/json"                 -d "$(jq -n --arg p "${P_PASS}" '{Username: "admin", Password: $p}')"
+            case "${PI_CODE}" in
+                200) log "Portainer admin initialised (admin / same password as Semaphore)" ;;
+                409) log "Portainer admin already initialised — continuing" ;;
+                408) warn "Portainer init window expired — restarting the container re-opens it: docker restart portainer, then initialise at https://${SERVER_IP}:9443"
+                     docker restart portainer >/dev/null 2>&1 || true
+                     sleep 5
+                     pcurl PI POST "${P_URL}/users/admin/init" -H "Content-Type: application/json"                          -d "$(jq -n --arg p "${P_PASS}" '{Username: "admin", Password: $p}')"
+                     [[ "${PI_CODE}" == "200" ]] && log "Portainer admin initialised after restart"                          || warn "Init still failing (HTTP ${PI_CODE}): ${PI_BODY:0:200}" ;;
+                *)   warn "Portainer init returned HTTP ${PI_CODE}: ${PI_BODY:0:200}" ;;
+            esac
+            pcurl PA POST "${P_URL}/auth" -H "Content-Type: application/json"                 -d "$(jq -n --arg p "${P_PASS}" '{username: "admin", password: $p}')"
+            P_JWT=$(echo "${PA_BODY}" | jq -r '.jwt // empty' 2>/dev/null) || P_JWT=""
+            if [[ -n "${P_JWT}" ]]; then
+                pcurl PT POST "${P_URL}/users/1/tokens"                     -H "Authorization: Bearer ${P_JWT}" -H "Content-Type: application/json"                     -d '{"description":"homepage-widget"}'
+                P_KEY=$(echo "${PT_BODY}" | jq -r '.rawAPIKey // empty' 2>/dev/null) || P_KEY=""
+                if [[ -n "${P_KEY}" && -f "${HOMEPAGE_ENV}" ]]; then
+                    sed -i "s|^HOMEPAGE_VAR_PORTAINER_KEY=.*|HOMEPAGE_VAR_PORTAINER_KEY=${P_KEY}|" "${HOMEPAGE_ENV}" || true
+                    docker restart homepage >/dev/null 2>&1 || true
+                    log "Portainer dashboard widget wired (API key stored for Homepage)"
+                else
+                    warn "Could not mint a Portainer API key (HTTP ${PT_CODE}: ${PT_BODY:0:200}) — widget shows an error until a key is added to ${HOMEPAGE_ENV}"
+                fi
             else
-                warn "Could not mint a Portainer API key — the dashboard widget will show an error until one is added to ${HOMEPAGE_ENV}"
+                warn "Portainer authentication failed (HTTP ${PA_CODE}: ${PA_BODY:0:200}) — initialise/verify at https://${SERVER_IP}:9443"
             fi
-        else
-            warn "Portainer authentication failed — initialise it manually at https://${SERVER_IP}:9443"
         fi
     fi
 else
