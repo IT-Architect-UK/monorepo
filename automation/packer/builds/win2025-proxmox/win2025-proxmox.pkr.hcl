@@ -91,35 +91,33 @@ source "proxmox-iso" "win2025" {
   cores  = var.vm_cpu_count
   memory = var.vm_memory_mb
 
-  # Machine + controller matched to a proven WS2025 template: q35 chipset,
-  # VirtIO SCSI single with iothread. The VirtIO storage driver (vioscsi) is
-  # injected during Windows Setup via the autounattend DriverPaths, so WinPE
-  # can see the disk (unlike SATA, VirtIO needs the driver at install time).
-  machine         = "q35"
-  scsi_controller = "virtio-scsi-single"
+  # q35 chipset (matches the reference template; in-box Windows support).
+  machine = "q35"
 
-  # Boot order: DISK FIRST, then the install DVD. This is the fully-automated
-  # fix for the "Press any key to boot from CD" reboot trap:
-  #   • First boot  — scsi0 is empty, firmware falls through to the DVD (ide2)
-  #                   and boots the installer (boot_command presses the key).
-  #   • After install — scsi0 is bootable, so the reboot boots Windows and
-  #                   never reaches the DVD prompt. No custom ISO needed.
-  # Non-existent devices in the list are ignored, so this is safe.
-  boot = "order=scsi0;ide2;ide0;ide3;sata0;net0"
+  # Build on SATA + e1000: both have IN-BOX Windows drivers, so WinPE sees
+  # the disk and Setup completes with zero driver injection — the reliable
+  # path. The full VirtIO driver set is installed later by
+  # provision-windows.ps1 (virtio-win-guest-tools), so the SEALED template's
+  # OS can boot from VirtIO — clones may switch to VirtIO SCSI/NIC hardware.
+  # (Building directly on VirtIO needs reliable WinPE driver injection, which
+  # was flaky — revisit separately, not on the critical path to a template.)
+
+  # Boot order: DISK FIRST, then the install DVD — the fully-automated fix
+  # for the reboot DVD-prompt trap. First boot: sata0 empty -> falls through
+  # to the DVD and boots the installer. After install: sata0 is bootable, so
+  # the reboot boots Windows and never reaches "Press any key". Missing
+  # devices in the list are ignored.
+  boot = "order=sata0;ide2;ide0;ide3;net0"
 
   disks {
     disk_size    = "${var.vm_disk_gb}G"
     storage_pool = var.proxmox_storage_pool
-    type         = "scsi"
+    type         = "sata"
     format       = "raw"
-    io_thread    = true
   }
 
-  # VirtIO NIC — faster than e1000. The NetKVM driver is injected during
-  # Setup (same DriverPaths), so the network is up for WinRM. Bridge/VLAN
-  # come from site variables.
   network_adapters {
-    model    = "virtio"
+    model    = "e1000"
     bridge   = var.proxmox_network_bridge
     vlan_tag = var.proxmox_vlan_tag == "" ? null : var.proxmox_vlan_tag
   }

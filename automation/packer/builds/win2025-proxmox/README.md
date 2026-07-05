@@ -31,13 +31,15 @@ Typical Windows Server 2025 layout: 1=Standard Core, 2=Standard Desktop,
 
 ## Virtual hardware
 
-Matches a proven WS2025 template: **q35** machine, **VirtIO SCSI** (single +
-iothread) disk, **VirtIO** NIC, **TPM 2.0**, UEFI/Secure Boot. VirtIO storage
-and network drivers are injected during Windows Setup (autounattend
-`DriverPaths`, from the mounted virtio-win ISO) so WinPE can see the disk and
-reach WinRM; the full driver set is then installed by `provision-windows.ps1`
-so the sealed template keeps them. Requires the virtio-win ISO to contain
-`2k25` driver folders (virtio-win ≥ 0.1.262).
+**q35** machine, **TPM 2.0**, UEFI/Secure Boot. The build itself uses a
+**SATA disk + e1000 NIC** — both have in-box Windows drivers, so WinPE sees
+the disk and Setup completes reliably with no driver injection. The full
+**VirtIO** driver set is then installed by `provision-windows.ps1`
+(virtio-win-guest-tools), so the sealed template's OS can boot from VirtIO —
+**clones may be switched to VirtIO SCSI + VirtIO NIC** (faster) and will work
+because the drivers are already present. Building directly on VirtIO hardware
+needs reliable WinPE driver injection and is a separate exercise, off the
+critical path to a working template.
 
 ## Prerequisites
 
