@@ -13,9 +13,9 @@
 # Environment variables (prompted when missing and interactive):
 #   PROXMOX_HOST / PROXMOX_USER / PROXMOX_TOKEN_ID+SECRET or PROXMOX_PASSWORD
 #   PROXMOX_NODE           Proxmox node name
-#   WINRM_PASSWORD         MUST match the password inside
-#                          http/win2025-proxmox/autounattend.xml
-#                          (placeholder default: PackerBuild2025!)
+#   WINRM_PASSWORD         Build-account password — injected into the
+#                          unattended install automatically (default:
+#                          PackerBuild2025!); no XML editing needed
 #   PKR_VAR_win_iso_file   volid of the Windows Server 2025 ISO — MANUAL
 #                          upload required (Microsoft licensing; grab an eval
 #                          ISO from the Microsoft Evaluation Center), e.g.:
@@ -99,9 +99,9 @@ if [[ -z "${PKR_VAR_winrm_password:-}" ]]; then
     if [[ -n "${WINRM_PASSWORD:-}" ]]; then
         export PKR_VAR_winrm_password="${WINRM_PASSWORD}"
     elif [[ "${NONINTERACTIVE}" == "1" ]]; then
-        fail "WINRM_PASSWORD not set (must match http/win2025-proxmox/autounattend.xml)"
+        fail "WINRM_PASSWORD not set"
     else
-        read -r -s -p "WinRM 'packer' password (must match autounattend.xml) [PackerBuild2025!]: " wp; echo
+        read -r -s -p "WinRM build-account password (injected into the unattended install) [PackerBuild2025!]: " wp; echo
         export PKR_VAR_winrm_password="${wp:-PackerBuild2025!}"
     fi
 fi

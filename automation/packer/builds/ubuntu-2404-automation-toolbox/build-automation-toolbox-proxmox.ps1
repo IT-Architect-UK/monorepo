@@ -507,7 +507,7 @@ if (-not $DryRun) {
             }
         }
         $mgmtSubnet = (Read-Host "  Management subnet for firewall lockdown, e.g. 192.168.4.0/24 (Enter = skip)").Trim()
-        $sec = Read-Host "  WinRM password for Windows golden builds (Enter = skip; must match autounattend.xml)" -AsSecureString
+        $sec = Read-Host "  WinRM password for Windows golden builds (Enter = skip; injected into the unattended install automatically)" -AsSecureString
         $winrmPassword = [System.Net.NetworkCredential]::new("", $sec).Password
         $ans = Read-Host "  Build the Ubuntu 24.04 golden image template right after bootstrap? (Y/n)"
         $autoBuildGolden = ($ans -notmatch '^[Nn]')

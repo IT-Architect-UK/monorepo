@@ -11,7 +11,7 @@
 #   $env:PKR_VAR_proxmox_password             # password auth, OR
 #   $env:PKR_VAR_proxmox_username = "user@pam!tokenid"
 #   $env:PKR_VAR_proxmox_token    = "<secret>"
-#   $env:PKR_VAR_winrm_password               # MUST match autounattend.xml
+#   $env:PKR_VAR_winrm_password               # injected into the unattended install
 #
 # ISOs:
 #   $env:PKR_VAR_win_iso_file    — Windows Server 2025 ISO volid; MANUAL
@@ -45,7 +45,7 @@ if (-not ($hasToken -or $hasPassword)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($env:PKR_VAR_winrm_password)) {
-    $secure = Read-Host "WinRM 'packer' password — must match autounattend.xml [PackerBuild2025!] (input hidden)" -AsSecureString
+    $secure = Read-Host "WinRM build-account password — injected into the unattended install [PackerBuild2025!] (input hidden)" -AsSecureString
     $wp = [System.Net.NetworkCredential]::new("", $secure).Password
     if ([string]::IsNullOrWhiteSpace($wp)) { $wp = "PackerBuild2025!" }
     $env:PKR_VAR_winrm_password = $wp

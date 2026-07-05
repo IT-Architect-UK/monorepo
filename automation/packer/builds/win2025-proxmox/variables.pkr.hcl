@@ -26,8 +26,11 @@ variable "winrm_username" {
 }
 
 variable "winrm_password" {
+  # Injected into autounattend.xml at build time (single source of truth —
+  # whatever you set here IS the build account's password). The default
+  # matches the XML placeholder so a bare 'packer build .' still works.
   type      = string
-  default   = ""
+  default   = "PackerBuild2025!"
   sensitive = true
 }
 

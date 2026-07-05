@@ -143,7 +143,7 @@ fi
 
 # WinRM build password for Windows golden images (optional — stored as a
 # secret in the variable group so the win2025 Semaphore job works without
-# manual UI setup; must match http/win2025-proxmox/autounattend.xml)
+# manual UI setup; the build injects it into the unattended install)
 WINRM_PW="${WINRM_PASSWORD:-}"
 if [[ -z "${WINRM_PW}" && "${NONINTERACTIVE}" != "1" ]]; then
     read -r -s -p "WinRM password for Windows golden builds (Enter = skip): " WINRM_PW; echo

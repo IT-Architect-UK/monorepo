@@ -122,7 +122,16 @@ source "proxmox-iso" "win2025" {
   # The Windows installer automatically searches attached drives for
   # autounattend.xml at the drive root — no boot_command typing needed.
   additional_iso_files {
-    cd_files         = [abspath("${path.root}/../../http/win2025-proxmox/autounattend.xml")]
+    # The password you set in winrm_password is injected INTO the
+    # autounattend at build time (the XML's placeholder is replaced), so
+    # there is exactly ONE source of truth — no manual XML editing.
+    cd_content = {
+      "autounattend.xml" = replace(
+        file("${path.root}/../../http/win2025-proxmox/autounattend.xml"),
+        "PackerBuild2025!",
+        var.winrm_password
+      )
+    }
     iso_storage_pool = var.proxmox_iso_storage
     cd_label = "autounattend"
     unmount  = false
