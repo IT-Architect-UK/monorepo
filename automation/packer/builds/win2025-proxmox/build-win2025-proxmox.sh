@@ -177,36 +177,10 @@ export PACKER_LOG_PATH="${LOG_FILE%.log}-packer-debug.log"
 
 export PACKER_NO_COLOR=1
 
-# ── "Press any key to boot from CD" side-channel ─────────────────────────────
-# The Windows ISO's boot prompt opens ~3s after power-on and lasts only a
-# few seconds — too early for Packer's VNC typing to reliably catch (missed
-# twice on real builds). So we ALSO press Enter via Proxmox's sendkey API
-# the moment the build VM starts: deterministic, and harmless extra presses
-# land on the setup loading screen.
-(
-    PVE_API="https://${PVE_HOST:-$(echo "${PKR_VAR_proxmox_url}" | sed -E 's#^https?://##; s#[:/].*$##')}:8006/api2/json"
-    if [[ -n "${PROXMOX_TOKEN_ID:-}" && -n "${PROXMOX_TOKEN_SECRET:-}" ]]; then
-        AUTH="Authorization: PVEAPIToken=${PROXMOX_USER:-root@pam}!${PROXMOX_TOKEN_ID}=${PROXMOX_TOKEN_SECRET}"
-        NODE="${PROXMOX_NODE:-$(curl -fsSk --max-time 10 -H "${AUTH}" "${PVE_API}/nodes" 2>/dev/null | jq -r '.data[0].node')}"
-        for _ in $(seq 1 90); do   # watch up to 3 min for the build VM to appear
-            VMID=$(curl -fsSk --max-time 5 -H "${AUTH}" "${PVE_API}/cluster/resources?type=vm" 2>/dev/null                 | jq -r '[.data[] | select((.template // 0) != 1 and .status == "running" and (.name // "" | startswith("win2025-golden-")))][0].vmid // empty')
-            if [[ -n "${VMID}" ]]; then
-                for _k in $(seq 1 30); do   # Enter every second for 30s
-                    curl -fsSk --max-time 5 -X PUT -H "${AUTH}"                         "${PVE_API}/nodes/${NODE}/qemu/${VMID}/sendkey"                         --data-urlencode "key=ret" >/dev/null 2>&1 || true
-                    sleep 1
-                done
-                break
-            fi
-            sleep 2
-        done
-    fi
-) >/dev/null 2>&1 &
-KEYPRESS_PID=$!
 
 {
     log "packer init...";     packer init .
     log "packer validate..."; packer validate .
     log "packer build (30-60 min — Windows installs are slow)..."; packer build .
 } 2>&1 | tee "${LOG_FILE}"
-kill "${KEYPRESS_PID}" 2>/dev/null || true
 log "Done. New template: win2025-golden-<timestamp> in Proxmox."
