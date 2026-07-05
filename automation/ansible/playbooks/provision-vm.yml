@@ -25,6 +25,9 @@
 #   vm_password      Password for that account (survey 'secret' field)
 #   vm_ssh_key       SSH public key for that account (default: the toolbox's
 #                    provisioning key, so Semaphore playbooks can reach the VM)
+#   apply_standard   true|false — after the VM boots, apply the standard
+#                    build defined in inventory/group_vars/standard.yml
+#                    (branding, firewall, fail2ban, Webmin, ...)
 #   vm_vcpu          vCPU count                    (default: 2)
 #   vm_memory_mb     Memory in MB                  (default: 4096)
 #   vm_disk_gb       Grow OS disk to this size GB  (default: 0 = keep template size)
@@ -67,6 +70,7 @@
     # Defaults to the toolbox's provisioning public key (published by the
     # bootstrap as PROVISION_SSH_PUBKEY) so follow-up playbooks can connect.
     vm_ssh_key: "{{ lookup('env', 'PROVISION_SSH_PUBKEY') }}"
+    apply_standard: false
     vm_vcpu: 2
     vm_memory_mb: 4096
     vm_disk_gb: 0
@@ -159,6 +163,55 @@
         name: "{{ vm_name }}"
         state: started
 
+    - name: "Look up the new VM's ID"
+      community.proxmox.proxmox_vm_info:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
+        api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        node: "{{ proxmox_node }}"
+        name: "{{ vm_name }}"
+      register: vm_info
+
+    - name: "Wait for the VM to report its IP (QEMU guest agent — up to 5 min)"
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_info.proxmox_vms[0].vmid }}/agent/network-get-interfaces"
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        validate_certs: false
+      register: agent_net
+      retries: 30
+      delay: 10
+      until: >-
+        agent_net.status == 200 and
+        (agent_net.json.data.result | default([])
+         | selectattr('name', 'ne', 'lo')
+         | map(attribute='ip-addresses', default=[]) | flatten
+         | selectattr('ip-address-type', 'eq', 'ipv4')
+         | map(attribute='ip-address')
+         | reject('match', '^127\.') | list | length > 0)
+      when: proxmox_api_token_secret | length > 0
+
+    - name: "Record the VM's IP"
+      ansible.builtin.set_fact:
+        vm_ip: >-
+          {{ agent_net.json.data.result | default([])
+             | selectattr('name', 'ne', 'lo')
+             | map(attribute='ip-addresses', default=[]) | flatten
+             | selectattr('ip-address-type', 'eq', 'ipv4')
+             | map(attribute='ip-address')
+             | reject('match', '^127\.') | first | default('') }}
+      when: agent_net is not skipped
+
+    - name: "Queue the standard build"
+      ansible.builtin.add_host:
+        name: "{{ vm_ip }}"
+        groups: standard
+        ansible_user: "{{ vm_user | default('sysadmin', true) }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+      when: apply_standard | bool and (vm_ip | default('')) | length > 0
+
     - name: Provisioning summary
       ansible.builtin.debug:
         msg:
@@ -166,4 +219,30 @@
           - "vCPU: {{ vm_vcpu }}  Memory: {{ vm_memory_mb }} MB  Disk: {{ (vm_disk_gb | int > 0) | ternary(vm_disk_gb ~ 'G', 'template default') }}"
           - "Network: {{ (vm_vlan_tag | string | length > 0) | ternary('net0 on ' ~ vm_bridge ~ ' tag ' ~ vm_vlan_tag, 'template default') }}"
           - "Login: {{ (vm_user | length > 0) | ternary(vm_user ~ ' (set via cloud-init on first boot)', 'none set — pass vm_user/vm_password/vm_ssh_key to create one') }}"
-          - "The VM will pick up an address via cloud-init/DHCP — check the Proxmox console or your DHCP leases for its IP."
+          - "IP address: {{ vm_ip | default('not yet reported — check the Proxmox console') }}"
+
+# ── The standard build (only when apply_standard=true) ───────────────────────
+# Everything in inventory/group_vars/standard.yml, applied to the fresh VM.
+- name: Apply the standard build
+  hosts: standard
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../inventory/group_vars/standard.yml
+  pre_tasks:
+    - name: Wait for the VM to accept SSH (cloud-init may still be creating the login)
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+        sleep: 10
+    - name: Gather facts
+      ansible.builtin.setup:
+  roles:
+    - role: common
+  post_tasks:
+    - name: Install Webmin (standard_webmin)
+      ansible.builtin.script: ../../../applications/webmin/install-webmin.sh
+      when: standard_webmin | default(false) | bool
+
+    - name: Standard build summary
+      ansible.builtin.debug:
+        msg: "Standard build applied to {{ inventory_hostname }}{{ (standard_webmin | default(false) | bool) | ternary(' — Webmin at https://' ~ inventory_hostname ~ ':10000', '') }}"

@@ -350,6 +350,8 @@ if [[ -z "${PROV_TPL_ID}" ]]; then
           survey_vars: [
             {name: "vm_name",      title: "VM name (also the hostname)",    type: "",    required: true},
             {name: "vm_template",  title: "Proxmox template to clone",      type: "",    required: true},
+            {name: "apply_standard", title: "Apply the standard build? (branding, firewall, fail2ban, Webmin — see group_vars/standard.yml)", type: "enum", required: true,
+             values: [{name: "Yes", value: "true"}, {name: "No", value: "false"}]},
             {name: "vm_user",      title: "Login account to create",        type: "",    required: false},
             {name: "vm_password",  title: "Password for that account",      type: "secret", required: false},
             {name: "vm_ssh_key",   title: "SSH public key for that account", type: "",   required: false},

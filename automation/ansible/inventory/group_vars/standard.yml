@@ -1,0 +1,18 @@
+---
+# =============================================================================
+# group_vars/standard.yml — THE STANDARD BUILD
+# =============================================================================
+# Everything a server "in the standard group" gets on top of the lean golden
+# image. Applied automatically when you answer Yes to "Apply the standard
+# build?" in the Provision VM survey (and later re-appliable fleet-wide once
+# NetBox provides dynamic inventory).
+#
+# This is YOUR standard — edit to taste. Another site edits theirs.
+# =============================================================================
+
+baseline_branding: true          # login banner / MOTD / prompt branding
+baseline_firewall: true          # iptables baseline ruleset
+baseline_fail2ban: true          # SSH brute-force protection
+baseline_disable_ipv6: false     # set true if your network is IPv4-only
+
+standard_webmin: true            # Webmin web admin UI (https://<host>:10000)
