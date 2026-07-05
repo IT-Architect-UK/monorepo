@@ -94,6 +94,13 @@ source "proxmox-iso" "win2025" {
   # q35 chipset (matches the reference template; in-box Windows support).
   machine = "q35"
 
+  # CPU type — CRITICAL for Windows Server 2025 / Win11 24H2 (build 26100).
+  # Its kernel requires POPCNT + SSE4.2; Proxmox's default "kvm64" vCPU does
+  # NOT expose them, so WinPE bugchecks and reboots before installing
+  # ("loading files -> reboot -> nothing", diagnosed live). x86-64-v2-AES is
+  # the minimum model that satisfies it; "host" also works.
+  cpu_type = var.win_cpu_type
+
   # Build on SATA + e1000: both have IN-BOX Windows drivers, so WinPE sees
   # the disk and Setup completes with zero driver injection — the reliable
   # path. The full VirtIO driver set is installed later by

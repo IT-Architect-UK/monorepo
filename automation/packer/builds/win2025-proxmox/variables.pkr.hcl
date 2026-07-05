@@ -83,6 +83,14 @@ variable "proxmox_token" {
   sensitive = true
 }
 
+variable "win_cpu_type" {
+  # WS2025 / Win11 24H2 need POPCNT + SSE4.2 — the default kvm64 lacks them
+  # and WinPE bugchecks. x86-64-v2-AES is the minimum; "host" also works
+  # (fastest, but ties the template to this CPU family).
+  type    = string
+  default = "x86-64-v2-AES"
+}
+
 variable "win_vm_id" {
   type    = number
   default = 9003

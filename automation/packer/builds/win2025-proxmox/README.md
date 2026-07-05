@@ -31,7 +31,9 @@ Typical Windows Server 2025 layout: 1=Standard Core, 2=Standard Desktop,
 
 ## Virtual hardware
 
-**q35** machine, **TPM 2.0**, UEFI/Secure Boot. The build itself uses a
+**q35** machine, **`x86-64-v2-AES` CPU** (WS2025/Win11-24H2 require POPCNT +
+SSE4.2 — the default `kvm64` vCPU lacks them and WinPE bugchecks), **TPM
+2.0**, UEFI/Secure Boot. The build itself uses a
 **SATA disk + e1000 NIC** — both have in-box Windows drivers, so WinPE sees
 the disk and Setup completes reliably with no driver injection. The full
 **VirtIO** driver set is then installed by `provision-windows.ps1`
