@@ -21,8 +21,13 @@ variable "ssh_username" {
 }
 
 variable "ssh_password" {
+  # Must match the password hash baked into ../../http/user-data for the
+  # temporary 'packer' build user (default: "packer-temp-password" — a
+  # build-only credential; the account is removed when the image is sealed).
+  # An empty value here means Packer fails SSH auth forever and times out
+  # after 30 minutes — caught on a real build.
   type      = string
-  default   = ""
+  default   = "packer-temp-password"
   sensitive = true
 }
 
