@@ -10,7 +10,9 @@ ansible-playbook -i ../inventory/hosts.yml <playbook>.yml
 |----------|---------|
 | `provision-vm.yml` | Create a new VM on Proxmox by cloning a template; reports its IP and optionally applies the standard build (`group_vars/standard.yml`) |
 | `deploy-vault.yml` | Install HashiCorp Vault on a target server (the toolbox's standalone secrets VM) |
-| `apply-flavour.yml` | Apply the standard flavour options (branding, firewall, fail2ban, IPv6) to any provisioned server |
+| `ita-linux-customisations.yml` | Subjective OS settings, individually chosen: branding, IPv6 policy, timezone |
+| `configure-iptables.yml` | iptables ruleset — baseline or strict mode, explicit and standalone |
+| `configure-fail2ban.yml` | fail2ban SSH brute-force protection, tunable retry/ban settings |
 | `deploy-webmin.yml` | Install Webmin on any provisioned server |
 | `server-baseline.yml` | Initial hardening — run once on every new server |
 | `deploy-docker.yml` | Install Docker Engine + Compose |

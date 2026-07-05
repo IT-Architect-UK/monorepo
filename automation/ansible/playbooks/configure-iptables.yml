@@ -1,0 +1,54 @@
+---
+# =============================================================================
+# configure-iptables.yml
+# =============================================================================
+# Applies the repo's iptables ruleset to a server, standalone and explicit.
+# Two modes (same as infrastructure/networking/firewall/setup-iptables.sh):
+#   baseline — SSH from anywhere, everything from private RFC-1918 ranges
+#   strict   — ONLY the listed TCP ports + ICMP, ONLY from mgmt_subnets
+#
+# Required variables (Survey or -e):
+#   target_host          IP or FQDN of the server
+#
+# Optional variables:
+#   target_ssh_user      SSH user (default: sysadmin)
+#   mgmt_subnets         e.g. 192.168.4.0/24 — setting this = strict mode
+#   allowed_tcp_ports    e.g. 22,80,443 (strict mode; default: SSH only)
+#
+# WARNING: strict mode cuts off connections from outside mgmt_subnets —
+# including yours, if you run this from elsewhere.
+# =============================================================================
+
+- name: Register target host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that: [target_host is defined and target_host | length > 0]
+        fail_msg: "target_host must be set to the IP/FQDN of the server."
+    - name: Add target to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: firewall_target
+        ansible_user: "{{ target_ssh_user | default('sysadmin') }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+
+- name: Configure iptables firewall
+  hosts: firewall_target
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Apply the iptables ruleset
+      ansible.builtin.script: ../../../infrastructure/networking/firewall/setup-iptables.sh
+      environment:
+        MGMT_SUBNETS: "{{ mgmt_subnets | default('') }}"
+        ALLOWED_TCP_PORTS: "{{ allowed_tcp_ports | default('') }}"
+      changed_when: true
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: >-
+          iptables applied to {{ inventory_hostname }} in
+          {{ (mgmt_subnets | default('') | length > 0) | ternary('STRICT mode (' ~ mgmt_subnets | default('') ~ ')', 'baseline mode (private ranges allowed)') }}

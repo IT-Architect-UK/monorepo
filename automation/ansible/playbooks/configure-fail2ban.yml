@@ -1,0 +1,72 @@
+---
+# =============================================================================
+# configure-fail2ban.yml
+# =============================================================================
+# Installs and configures fail2ban (SSH brute-force protection) on a server,
+# standalone and explicit.
+#
+# Required variables (Survey or -e):
+#   target_host          IP or FQDN of the server
+#
+# Optional variables:
+#   target_ssh_user      SSH user (default: sysadmin)
+#   fail2ban_maxretry    Failed attempts before a ban   (default: 5)
+#   fail2ban_bantime     Ban duration in seconds        (default: 3600)
+#   fail2ban_findtime    Window for counting attempts   (default: 600)
+# =============================================================================
+
+- name: Register target host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that: [target_host is defined and target_host | length > 0]
+        fail_msg: "target_host must be set to the IP/FQDN of the server."
+    - name: Add target to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: fail2ban_target
+        ansible_user: "{{ target_ssh_user | default('sysadmin') }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+
+- name: Configure fail2ban
+  hosts: fail2ban_target
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install fail2ban
+      ansible.builtin.apt:
+        name: fail2ban
+        state: present
+        update_cache: true
+
+    - name: Configure the SSH jail
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [DEFAULT]
+          bantime  = {{ fail2ban_bantime | default(3600) }}
+          findtime = {{ fail2ban_findtime | default(600) }}
+          maxretry = {{ fail2ban_maxretry | default(5) }}
+
+          [sshd]
+          enabled = true
+        mode: "0644"
+      notify: Restart fail2ban
+
+    - name: Enable and start fail2ban
+      ansible.builtin.service:
+        name: fail2ban
+        state: started
+        enabled: true
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: "fail2ban active on {{ inventory_hostname }} (maxretry={{ fail2ban_maxretry | default(5) }}, bantime={{ fail2ban_bantime | default(3600) }}s)"
+  handlers:
+    - name: Restart fail2ban
+      ansible.builtin.service:
+        name: fail2ban
+        state: restarted

@@ -422,32 +422,48 @@ for GOLD in "Build Golden Image — Ubuntu 26.04|automation/packer/builds/ubuntu
     fi
 done
 
-FLAV_TPL_ID=$(echo "${TPL_JSON}" | find_id "Configure Server — Baseline Flavour")
-if [[ -z "${FLAV_TPL_ID}" ]]; then
-    FLAV_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
-        --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
-        --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
-        '{project_id: $pid, name: "Configure Server — Baseline Flavour", app: "ansible",
-          playbook: "automation/ansible/playbooks/apply-flavour.yml",
-          inventory_id: $inv, repository_id: $rid, environment_id: $eid,
-          arguments: "[]", type: "",
-          description: "Apply the standard flavour options (branding, firewall, fail2ban, IPv6 policy) to any provisioned server.",
-          survey_vars: [
-            {name: "target_host",           title: "Server IP/FQDN",          type: "", required: true},
-            {name: "target_ssh_user",       title: "SSH user (default sysadmin)", type: "", required: false},
-            {name: "baseline_branding",     title: "Apply branding?",         type: "enum", required: true,
-             values: [{name: "Yes", value: "true"}, {name: "No", value: "false"}]},
-            {name: "baseline_firewall",     title: "Apply iptables baseline?", type: "enum", required: true,
-             values: [{name: "Yes", value: "true"}, {name: "No", value: "false"}]},
-            {name: "baseline_fail2ban",     title: "Enable fail2ban?",        type: "enum", required: true,
-             values: [{name: "Yes", value: "true"}, {name: "No", value: "false"}]},
-            {name: "baseline_disable_ipv6", title: "Disable IPv6?",           type: "enum", required: true,
-             values: [{name: "Yes", value: "true"}, {name: "No", value: "false"}]}
-          ]}')" | jq -r '.id')
-    log "Job template 'Configure Server — Baseline Flavour' created (id ${FLAV_TPL_ID})"
-else
-    log "Job template 'Configure Server — Baseline Flavour' already exists (id ${FLAV_TPL_ID})"
-fi
+SEED_TPL() { # SEED_TPL <name> <playbook> <description> <survey-json>
+    local T_ID
+    T_ID=$(echo "${TPL_JSON}" | find_id "$1")
+    if [[ -z "${T_ID}" ]]; then
+        T_ID=$(api POST "${P}/templates" "$(jq -n \
+            --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
+            --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+            --arg name "$1" --arg play "$2" --arg desc "$3" --argjson survey "$4" \
+            '{project_id: $pid, name: $name, app: "ansible", playbook: $play,
+              inventory_id: $inv, repository_id: $rid, environment_id: $eid,
+              arguments: "[]", type: "", description: $desc, survey_vars: $survey}')" | jq -r '.id')
+        log "Job template '$1' created (id ${T_ID})"
+    else
+        log "Job template '$1' already exists (id ${T_ID})"
+    fi
+}
+
+TARGET_FIELDS='[{"name":"target_host","title":"Server IP/FQDN","type":"","required":true},
+                {"name":"target_ssh_user","title":"SSH user (default sysadmin)","type":"","required":false}]'
+YESNO='{"type":"enum","required":true,"values":[{"name":"Yes","value":"true"},{"name":"No","value":"false"}]}'
+
+SEED_TPL "ITA Linux Customisations" \
+    "automation/ansible/playbooks/ita-linux-customisations.yml" \
+    "Subjective OS settings, each individually chosen: branding, IPv6 policy, timezone. Firewall/fail2ban/apps have their own templates." \
+    "$(jq -n --argjson t "${TARGET_FIELDS}" --argjson yn "${YESNO}" \
+        '$t + [($yn + {name:"apply_branding", title:"Apply IT-Architect branding?"}),
+               ($yn + {name:"disable_ipv6",  title:"Disable IPv6?"}),
+               {name:"set_timezone", title:"Timezone (e.g. Europe/London; empty = leave)", type:"", required:false}]')"
+
+SEED_TPL "Configure IPTables Firewall" \
+    "automation/ansible/playbooks/configure-iptables.yml" \
+    "Apply the iptables ruleset. Leave subnet empty = baseline (private ranges allowed); set it = STRICT (only listed ports from that subnet)." \
+    "$(jq -n --argjson t "${TARGET_FIELDS}" \
+        '$t + [{name:"mgmt_subnets", title:"Management subnet(s) for STRICT mode (empty = baseline)", type:"", required:false},
+               {name:"allowed_tcp_ports", title:"Allowed TCP ports in strict mode (e.g. 22,80,443)", type:"", required:false}]')"
+
+SEED_TPL "Configure Fail2Ban" \
+    "automation/ansible/playbooks/configure-fail2ban.yml" \
+    "Install and configure fail2ban SSH brute-force protection." \
+    "$(jq -n --argjson t "${TARGET_FIELDS}" \
+        '$t + [{name:"fail2ban_maxretry", title:"Failed attempts before ban (default 5)", type:"int", required:false},
+               {name:"fail2ban_bantime", title:"Ban duration seconds (default 3600)", type:"int", required:false}]')"
 
 WEBMIN_TPL_ID=$(echo "${TPL_JSON}" | find_id "Deploy Webmin")
 if [[ -z "${WEBMIN_TPL_ID}" ]]; then
@@ -667,7 +683,7 @@ echo ""
 log "Bootstrap complete."
 log "  Semaphore     : http://${IP}/  (login: admin)"
 log "  Project       : ${PROJECT_NAME}"
-log "  Job templates : Provision VM, Deploy Vault Server, Configure Server (flavour), Deploy Webmin, Build Golden Image (x3)"
+log "  Job templates : Provision VM, Deploy Vault, ITA Linux Customisations, IPTables, Fail2Ban, Webmin, Build Golden Image (x3)"
 log "  Portainer     : https://${SERVER_IP}:9443/  (admin)"
 log ""
 log "To provision your first VM:"

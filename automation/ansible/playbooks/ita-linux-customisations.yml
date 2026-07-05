@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# ita-linux-customisations.yml
+# =============================================================================
+# IT-Architect Linux OS customisations — the SUBJECTIVE operating-system
+# settings only, each individually chosen: branding, IPv6 policy, timezone.
+# Firewall, fail2ban and applications deliberately have their OWN playbooks
+# and Semaphore templates so it is always obvious what is being applied.
+#
+# Required variables (Survey or -e):
+#   target_host          IP or FQDN of the server
+#
+# Optional variables:
+#   target_ssh_user      SSH user (default: sysadmin)
+#   apply_branding       true|false — login banner / MOTD / prompt branding
+#   disable_ipv6         true|false — disable IPv6 system-wide
+#   set_timezone         e.g. Europe/London (empty = leave unchanged)
+#
+# Usage:
+#   ansible-playbook playbooks/ita-linux-customisations.yml \
+#     -e target_host=192.168.4.60 -e apply_branding=true
+# =============================================================================
+
+- name: Register target host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that: [target_host is defined and target_host | length > 0]
+        fail_msg: "target_host must be set to the IP/FQDN of the server."
+    - name: Add target to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: customisation_target
+        ansible_user: "{{ target_ssh_user | default('sysadmin') }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+
+- name: Apply ITA Linux customisations
+  hosts: customisation_target
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Apply server branding
+      ansible.builtin.script: "../../../infrastructure/servers/linux/configuration/apply-branding.sh --company {{ branding_company | default('IT-Architect') | quote }} --colour Cyan --non-interactive"
+      when: apply_branding | default(false) | bool
+
+    - name: Disable IPv6 system-wide
+      ansible.builtin.script: ../../../infrastructure/servers/linux/configuration/disable-ipv6.sh
+      when: disable_ipv6 | default(false) | bool
+
+    - name: Set timezone
+      community.general.timezone:
+        name: "{{ set_timezone }}"
+      when: set_timezone | default('') | length > 0
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: >-
+          ITA customisations on {{ inventory_hostname }}:
+          branding={{ apply_branding | default(false) }},
+          ipv6_disabled={{ disable_ipv6 | default(false) }},
+          timezone={{ set_timezone | default('unchanged', true) }}
