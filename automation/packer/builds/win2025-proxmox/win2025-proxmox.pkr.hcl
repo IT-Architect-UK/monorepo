@@ -98,6 +98,15 @@ source "proxmox-iso" "win2025" {
   machine         = "q35"
   scsi_controller = "virtio-scsi-single"
 
+  # Boot order: DISK FIRST, then the install DVD. This is the fully-automated
+  # fix for the "Press any key to boot from CD" reboot trap:
+  #   • First boot  — scsi0 is empty, firmware falls through to the DVD (ide2)
+  #                   and boots the installer (boot_command presses the key).
+  #   • After install — scsi0 is bootable, so the reboot boots Windows and
+  #                   never reaches the DVD prompt. No custom ISO needed.
+  # Non-existent devices in the list are ignored, so this is safe.
+  boot = "order=scsi0;ide2;ide0;ide3;sata0;net0"
+
   disks {
     disk_size    = "${var.vm_disk_gb}G"
     storage_pool = var.proxmox_storage_pool
