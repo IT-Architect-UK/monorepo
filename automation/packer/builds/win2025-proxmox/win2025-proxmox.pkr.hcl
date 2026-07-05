@@ -5,8 +5,9 @@
 #
 # What Packer does here:
 #   1. Attaches the Windows Server 2025 ISO (pre-uploaded to Proxmox storage)
-#   2. Creates a temporary VM with SATA disk and e1000 NIC — both have
-#      in-box Windows drivers, so no VirtIO driver injection is needed
+#   2. Creates a temporary VM matching a proven WS2025 template: q35,
+#      VirtIO SCSI (iothread) + VirtIO NIC + TPM 2.0. VirtIO storage/network
+#      drivers are injected during Setup via the autounattend DriverPaths
 #   3. Mounts the autounattend.xml as a secondary CD — Windows installer
 #      finds it automatically and runs the installation unattended
 #   4. Mounts the virtio-win ISO so provision-windows.ps1 can install the
@@ -90,21 +91,26 @@ source "proxmox-iso" "win2025" {
   cores  = var.vm_cpu_count
   memory = var.vm_memory_mb
 
-  # SATA disk — Windows has SATA drivers in-box; no VirtIO injection needed
-  # The QEMU Guest Agent (installed via provision-windows.ps1) communicates
-  # via the Proxmox QEMU socket, not the disk bus
+  # Machine + controller matched to a proven WS2025 template: q35 chipset,
+  # VirtIO SCSI single with iothread. The VirtIO storage driver (vioscsi) is
+  # injected during Windows Setup via the autounattend DriverPaths, so WinPE
+  # can see the disk (unlike SATA, VirtIO needs the driver at install time).
+  machine         = "q35"
+  scsi_controller = "virtio-scsi-single"
+
   disks {
     disk_size    = "${var.vm_disk_gb}G"
     storage_pool = var.proxmox_storage_pool
-    type         = "sata"
+    type         = "scsi"
     format       = "raw"
+    io_thread    = true
   }
 
-  # e1000 NIC — Intel E1000 driver is bundled with Windows Server 2025.
-  # Bridge/VLAN come from site variables (was hardcoded vmbr0 — wrong
-  # network on any site using VLAN bridges; caught live).
+  # VirtIO NIC — faster than e1000. The NetKVM driver is injected during
+  # Setup (same DriverPaths), so the network is up for WinRM. Bridge/VLAN
+  # come from site variables.
   network_adapters {
-    model    = "e1000"
+    model    = "virtio"
     bridge   = var.proxmox_network_bridge
     vlan_tag = var.proxmox_vlan_tag == "" ? null : var.proxmox_vlan_tag
   }
@@ -118,6 +124,12 @@ source "proxmox-iso" "win2025" {
     efi_storage_pool  = var.proxmox_storage_pool
     efi_type          = "4m"
     pre_enrolled_keys = true    # Enables Secure Boot (supported by WS2025)
+  }
+
+  # TPM 2.0 — Windows Server 2025 expects it (the reference template has it).
+  tpm_config {
+    tpm_storage_pool = var.proxmox_storage_pool
+    version          = "v2.0"
   }
 
   # ── Secondary ISO: autounattend.xml ─────────────────────────────────────

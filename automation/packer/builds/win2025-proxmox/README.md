@@ -29,6 +29,16 @@ Typical Windows Server 2025 layout: 1=Standard Core, 2=Standard Desktop,
 3=Datacenter Core, 4=Datacenter Desktop. Override via
 `PKR_VAR_windows_image_index` (Semaphore variable group) or `-var`.
 
+## Virtual hardware
+
+Matches a proven WS2025 template: **q35** machine, **VirtIO SCSI** (single +
+iothread) disk, **VirtIO** NIC, **TPM 2.0**, UEFI/Secure Boot. VirtIO storage
+and network drivers are injected during Windows Setup (autounattend
+`DriverPaths`, from the mounted virtio-win ISO) so WinPE can see the disk and
+reach WinRM; the full driver set is then installed by `provision-windows.ps1`
+so the sealed template keeps them. Requires the virtio-win ISO to contain
+`2k25` driver folders (virtio-win ≥ 0.1.262).
+
 ## Prerequisites
 
 | Requirement | Detail |
