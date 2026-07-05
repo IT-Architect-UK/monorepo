@@ -138,7 +138,7 @@ source "proxmox-iso" "win2025" {
   # TPM 2.0 — Windows Server 2025 expects it (the reference template has it).
   tpm_config {
     tpm_storage_pool = var.proxmox_storage_pool
-    version          = "v2.0"
+    tpm_version      = "v2.0"
   }
 
   # ── Secondary ISO: autounattend.xml ─────────────────────────────────────
