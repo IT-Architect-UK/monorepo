@@ -301,7 +301,7 @@
         <SynchronousCommand wcm:action="add">
           <Order>9</Order>
           <Description>Install virtio-win guest tools (drivers + agent; gives Packer the VM IP)</Description>
-          <CommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "foreach($d in (Get-Volume | Where-Object {$_.DriveType -eq 'CD-ROM' -and $_.DriveLetter})){$e=$d.DriveLetter+':irtio-win-guest-tools.exe'; if(Test-Path $e){Start-Process $e -ArgumentList '/install','/quiet','/norestart' -Wait; break}}"</CommandLine>
+          <CommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "foreach($d in (Get-Volume | Where-Object {$_.DriveType -eq 'CD-ROM' -and $_.DriveLetter})){$e=$d.DriveLetter+':\virtio-win-guest-tools.exe'; if(Test-Path $e){Start-Process $e -ArgumentList '/install','/quiet','/norestart' -Wait; break}}"</CommandLine>
           <RequiresUserInput>false</RequiresUserInput>
         </SynchronousCommand>
 
