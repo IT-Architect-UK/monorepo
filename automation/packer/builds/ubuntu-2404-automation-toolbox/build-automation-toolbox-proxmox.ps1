@@ -411,7 +411,21 @@ $AdminUsername = Get-PkrVarValue `
 
 try {
     $proxmoxPassword        = Resolve-RequiredVar "PKR_VAR_proxmox_password"         "What's the password for your Proxmox host (root or API user)?"
-    $semaphoreAdminPassword = Resolve-RequiredVar "PKR_VAR_semaphore_admin_password" "Choose a password for the Semaphore web UI's admin login (you'll use this to log in after the build)."
+    # Semaphore + Portainer share this login; Portainer enforces 12+ chars.
+    $semaphoreAdminPassword = $env:PKR_VAR_semaphore_admin_password
+    while ([string]::IsNullOrWhiteSpace($semaphoreAdminPassword) -or $semaphoreAdminPassword.Length -lt 12) {
+        if ($semaphoreAdminPassword -and $semaphoreAdminPassword.Length -lt 12) {
+            Write-Host "  That password is $($semaphoreAdminPassword.Length) characters — 12 or more required (Portainer's minimum)." -ForegroundColor Red
+        }
+        Write-Host ""
+        Write-Host "  Choose the admin password for the web UIs (Semaphore AND Portainer)." -ForegroundColor Yellow
+        Write-Host "  Requirements: 12+ characters. Press Enter to use the default" -ForegroundColor Yellow
+        Write-Host "  'ChangeMe-Toolbox-2026' — easy to remember, change it after first login" -ForegroundColor Yellow
+        Write-Host "  (Semaphore: top-right user menu; Portainer: user settings)." -ForegroundColor Yellow
+        $secure = Read-Host "  Admin password [ChangeMe-Toolbox-2026] (input hidden)" -AsSecureString
+        $semaphoreAdminPassword = [System.Net.NetworkCredential]::new("", $secure).Password
+        if ([string]::IsNullOrWhiteSpace($semaphoreAdminPassword)) { $semaphoreAdminPassword = "ChangeMe-Toolbox-2026" }
+    }
     $adminPassword          = Resolve-OptionalVar "PKR_VAR_admin_password"           "Choose a password for the '$AdminUsername' login on the built VM. You can also just use your SSH key and leave this blank."
 
     # A blank admin password silently produces a server that refuses password
