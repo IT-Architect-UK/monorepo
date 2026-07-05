@@ -99,7 +99,10 @@ if [[ -z "${PKR_VAR_winrm_password:-}" ]]; then
     if [[ -n "${WINRM_PASSWORD:-}" ]]; then
         export PKR_VAR_winrm_password="${WINRM_PASSWORD}"
     elif [[ "${NONINTERACTIVE}" == "1" ]]; then
-        fail "WINRM_PASSWORD not set"
+        # The build account is temporary (removed at seal) and the password
+        # is injected into the unattended install from ONE source, so the
+        # packer default is safe — no need to hard-require a custom one.
+        log "WINRM_PASSWORD not set — using the build default (temporary account, removed when the image is sealed)"
     else
         read -r -s -p "WinRM build-account password (injected into the unattended install) [PackerBuild2025!]: " wp; echo
         export PKR_VAR_winrm_password="${wp:-PackerBuild2025!}"
