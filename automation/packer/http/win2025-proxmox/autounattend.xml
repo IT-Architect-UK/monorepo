@@ -108,7 +108,7 @@
           <InstallFrom>
             <MetaData wcm:action="add">
               <Key>/IMAGE/NAME</Key>
-              <Value>Windows Server 2025 Standard Evaluation (Desktop Experience)</Value>
+              <Value>WINDOWS_IMAGE_NAME</Value>
             </MetaData>
           </InstallFrom>
           <InstallTo>

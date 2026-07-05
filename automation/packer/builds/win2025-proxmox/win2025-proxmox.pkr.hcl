@@ -130,9 +130,13 @@ source "proxmox-iso" "win2025" {
     # there is exactly ONE source of truth — no manual XML editing.
     cd_content = {
       "autounattend.xml" = replace(
-        file("${path.root}/../../http/win2025-proxmox/autounattend.xml"),
-        "PackerBuild2025!",
-        var.winrm_password
+        replace(
+          file("${path.root}/../../http/win2025-proxmox/autounattend.xml"),
+          "PackerBuild2025!",
+          var.winrm_password
+        ),
+        "WINDOWS_IMAGE_NAME",
+        var.windows_image_name
       )
     }
     iso_storage_pool = var.proxmox_iso_storage

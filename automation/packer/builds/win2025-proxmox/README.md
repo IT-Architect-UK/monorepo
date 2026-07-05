@@ -11,6 +11,24 @@ Builds a sysprep-sealed Windows Server 2025 template on Proxmox VE — the base 
 | **`.\build-win2025-proxmox.ps1`** | Standalone on Windows — same contract |
 | **`packer build .`** | Fully manual on any OS — see the header of `win2025-proxmox.pkr.hcl` |
 
+## Critical: the Windows edition name must match your ISO
+
+`windows_image_name` (default *Windows Server 2025 Standard Evaluation
+(Desktop Experience)*) must EXACTLY match an edition inside your ISO's
+`install.wim`, or Setup stalls at the edition picker and nothing installs —
+the disk ends up empty and the VM reboots to "no bootable device". If your
+ISO is retail/VL rather than Evaluation, the name has no "Evaluation" in it.
+List the editions in your ISO on the Proxmox host:
+
+```bash
+mkdir /mnt/w && mount -o loop <your.iso> /mnt/w
+dism /Get-WimInfo /WimFile:/mnt/w/sources/install.wim   # or install.esd
+umount /mnt/w
+```
+
+Set the matching name via `PKR_VAR_windows_image_name` (Semaphore variable
+group) or `-var windows_image_name=...`.
+
 ## Prerequisites
 
 | Requirement | Detail |
