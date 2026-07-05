@@ -18,7 +18,7 @@
 #   sudo ./install-homepage.sh
 #
 # Author:            Darren Pilkington
-# Version:           1.6
+# Version:           1.7
 # Date:              02-07-2026
 # =============================================================================
 
@@ -94,7 +94,13 @@ if [[ ! -f "${CONFIG_DIR}/services.yaml" ]]; then
     - Portainer:
         icon: portainer.png
         href: https://toolbox.lab.local:9443/
-        description: Docker/container fleet management — not yet deployed
+        description: Docker/container fleet management
+        siteMonitor: https://toolbox.lab.local:9443/
+        widget:
+          type: portainer
+          url: https://toolbox.lab.local:9443
+          env: 1
+          key: "{{HOMEPAGE_VAR_PORTAINER_KEY}}"
 
 - Admin:
     - Webmin:
@@ -197,6 +203,7 @@ if [[ ! -f "${ENV_FILE}" ]]; then
 HOMEPAGE_VAR_PROXMOX_USER=
 HOMEPAGE_VAR_PROXMOX_PASS=
 HOMEPAGE_VAR_PROXMOX_NODE=
+HOMEPAGE_VAR_PORTAINER_KEY=
 ENV_EOF
     chmod 600 "${ENV_FILE}"
 else

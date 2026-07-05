@@ -14,6 +14,7 @@ Builds the primary automation host for the lab -- pre-loaded with every tool nee
 | Languages / runtimes | Python 3, pip, boto3, azure-identity, google-cloud |
 | Utilities | jq, yq, curl, wget, unzip |
 | Automation UI | Semaphore (web UI for Ansible playbooks) |
+| Dashboards | Homepage (status/launcher, :3002) · Portainer CE (container management, :9443) · Webmin (:10000) |
 
 The build produces a Proxmox template (default VM ID: **9002**, name: **POSLXPDEPLOY01**) as its output artifact -- clone it once to stand up the real toolbox server (see "After the Build" below).
 
@@ -281,17 +282,11 @@ Change `proxmox_vm_id` in `automation-toolbox.pkrvars.hcl` to a free ID in your 
 
 ## Roadmap
 
-Planned additions to the toolbox workflow, in build order:
+Priority order for the platform (this build is stage 1):
 
-1. ✅ **Post-clone bootstrap** — `bootstrap-toolbox.sh` configures Semaphore (project, repo, Proxmox credentials, job templates) via the API.
-2. ✅ **VM provisioning** — `automation/ansible/playbooks/provision-vm.yml` + the "Provision VM (Proxmox)" job template with survey variables.
-3. ✅ **Vault server deployment** — `automation/ansible/playbooks/deploy-vault.yml` + the "Deploy Vault Server" job template. Next: move playbook secrets to `community.hashi_vault` lookups.
-4. **AD DS** — domain controller from the Win2025 golden image + `infrastructure/identity/active-directory/` scripts (prerequisite for AD CS).
-5. **Two-tier PKI** — one offline root CA (`security/pki/`), two issuing CAs chained to it:
-   - **AD CS enterprise CA** — certificates for domain computers, users, and services via certificate templates + GPO auto-enrolment.
-   - **Vault PKI engine** — certificates for Linux hosts, containers, and services via ACME/vault-agent.
-   - Root trust distributed to every Linux VM by the `common` role, to Windows by GPO. Toolbox service certs reissued from the lab PKI.
-   - **Public-facing certs** stay on Let's Encrypt (`security/tls/letsencrypt/`, DNS-01 for hosts not exposed to inbound HTTP), auto-renewed by the certbot timer.
-6. **NetBox + Proxbox** — inventory/CMDB; every provisioned VM registers automatically; becomes Ansible dynamic inventory.
-7. **Prometheus + Grafana** — every new VM auto-enrolls via the `monitoring-agent` role. Includes **certificate lifecycle monitoring**: blackbox_exporter probes every TLS endpoint (private, Vault-issued, and Let's Encrypt alike) with Grafana alerts on `ssl_earliest_cert_expiry` < 21 days, plus a scheduled Semaphore job reporting CA-level inventory (PSPKI for AD CS, `vault list` for Vault PKI, `certbot certificates` for LE).
-8. **Portainer** — server + Agent rollout to Docker hosts via the `common` role.
+1. ✅ **Deployment Toolbox** — Semaphore, Homepage, Portainer, Webmin; single-command build → clone → bootstrap; pre-flight health dashboard.
+2. ✅ **Golden images** — Ubuntu 24.04 pipeline proven end-to-end (lean baseline, group_vars flavour toggles); Ubuntu 26.04 and Windows 2025 built from the same pattern, first live validation pending.
+3. **Vault** — standalone secrets server, provisioned BY the toolbox (`Deploy Vault Server` job); Semaphore/Ansible secrets migrate to it.
+4. **PKI** — offline root CA + Vault PKI issuing CA; issue certificates for every site and service and retrofit TLS across the estate (toolbox UIs included — removes the self-signed workarounds). Let's Encrypt stays for public-facing certs. The AD CS issuing CA joins under the same root when AD DS arrives.
+5. **Additional infrastructure services** — backups (Restic playbooks exist), monitoring (Prometheus + Grafana with certificate-expiry alerting), AD DS (+ GPO certificate auto-enrolment), NetBox inventory, and whatever the lab needs next — each deployed as a toolbox workload.
+

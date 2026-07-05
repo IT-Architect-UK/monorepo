@@ -34,7 +34,7 @@
 # encrypted store and the API session token is revoked on exit.
 #
 # Author:            Darren Pilkington
-# Version:           1.6
+# Version:           1.7
 # Date:              02-07-2026
 # =============================================================================
 
@@ -469,6 +469,40 @@ else
     warn "Homepage config not found at ${HOMEPAGE_CONFIG} — skipping dashboard finalisation."
 fi
 
+# ─── 7b. Portainer initialisation ────────────────────────────────────────────
+# Portainer locks itself if no admin is set within ~5 min of first start.
+# Initialise it with the Semaphore admin password (needs 12+ chars for
+# Portainer) and mint an API key so the dashboard widget goes live.
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx portainer; then
+    P_URL="https://127.0.0.1:9443/api"
+    P_PASS="${SEM_PASS}"
+    if [[ "${#P_PASS}" -lt 12 ]]; then
+        warn "Portainer needs a 12+ character admin password — Semaphore's is shorter."
+        warn "Set it manually at https://${SERVER_IP}:9443 (within 5 min of first boot)."
+    else
+        if curl -fsSk --max-time 10 -X POST "${P_URL}/users/admin/init"              -H "Content-Type: application/json"              -d "$(jq -n --arg p "${P_PASS}" '{Username: "admin", Password: $p}')" >/dev/null 2>&1; then
+            log "Portainer admin initialised (admin / same password as Semaphore)"
+        else
+            log "Portainer admin already initialised (or init API unavailable) — continuing"
+        fi
+        P_JWT=$(curl -fsSk --max-time 10 -X POST "${P_URL}/auth"             -H "Content-Type: application/json"             -d "$(jq -n --arg p "${P_PASS}" '{username: "admin", password: $p}')" | jq -r '.jwt // empty')
+        if [[ -n "${P_JWT}" ]]; then
+            P_KEY=$(curl -fsSk --max-time 10 -X POST "${P_URL}/users/1/tokens"                 -H "Authorization: Bearer ${P_JWT}" -H "Content-Type: application/json"                 -d '{"description":"homepage-widget"}' | jq -r '.rawAPIKey // empty')
+            if [[ -n "${P_KEY}" && -f "${HOMEPAGE_ENV}" ]]; then
+                sed -i "s|^HOMEPAGE_VAR_PORTAINER_KEY=.*|HOMEPAGE_VAR_PORTAINER_KEY=${P_KEY}|" "${HOMEPAGE_ENV}"
+                docker restart homepage >/dev/null 2>&1 || true
+                log "Portainer dashboard widget wired (API key stored for Homepage)"
+            else
+                warn "Could not mint a Portainer API key — the dashboard widget will show an error until one is added to ${HOMEPAGE_ENV}"
+            fi
+        else
+            warn "Portainer authentication failed — initialise it manually at https://${SERVER_IP}:9443"
+        fi
+    fi
+else
+    warn "Portainer container not running — skipping its initialisation."
+fi
+
 # ─── 8. SSH password access check ────────────────────────────────────────────
 # The build should have configured password SSH for the admin account via
 # the common role's sshd template. Verify, and repair if missing.
@@ -517,7 +551,7 @@ if [[ -n "${MGMT_SUBNET}" ]]; then
     [[ -f "${FW_SCRIPT}" ]] || FW_SCRIPT="/git/monorepo/infrastructure/networking/firewall/setup-iptables.sh"
     if [[ -f "${FW_SCRIPT}" ]]; then
         chmod +x "${FW_SCRIPT}"
-        MGMT_SUBNETS="${MGMT_SUBNET}" ALLOWED_TCP_PORTS="22,80,3002,10000" "${FW_SCRIPT}"             && log "Firewall locked down to ${MGMT_SUBNET}"             || warn "Firewall script reported an error — check its log; baseline rules may still apply."
+        MGMT_SUBNETS="${MGMT_SUBNET}" ALLOWED_TCP_PORTS="22,80,3002,9443,10000" "${FW_SCRIPT}"             && log "Firewall locked down to ${MGMT_SUBNET}"             || warn "Firewall script reported an error — check its log; baseline rules may still apply."
     else
         warn "setup-iptables.sh not found in the repo checkout — firewall unchanged."
     fi
@@ -555,6 +589,7 @@ log "Bootstrap complete."
 log "  Semaphore     : http://${IP}/  (login: admin)"
 log "  Project       : ${PROJECT_NAME}"
 log "  Job templates : Provision VM, Deploy Vault Server, Build Golden Image (Ubuntu 24.04 / 26.04 / Windows 2025)"
+log "  Portainer     : https://${SERVER_IP}:9443/  (admin)"
 log ""
 log "To provision your first VM:"
 log "  1. Open http://${IP}/ and log in"

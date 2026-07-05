@@ -203,6 +203,11 @@ build {
     execute_command = "sudo bash {{.Path}}"
   }
 
+  provisioner "shell" {
+    script          = abspath("${path.root}/../../../../containers/portainer/install-portainer.sh")
+    execute_command = "sudo bash {{.Path}}"
+  }
+
   # Must run after apply-branding.sh (owns the base /etc/issue banner --
   # this only appends) and after Semaphore, Webmin, and Homepage are
   # installed, since it prints their URLs.
