@@ -1,0 +1,49 @@
+---
+# =============================================================================
+# deploy-webmin.yml
+# =============================================================================
+# Installs Webmin (web-based server administration, port 10000) on an
+# already-provisioned server, using this repo's standard installer. Driven
+# from the Semaphore template "Deploy Webmin", or from the CLI.
+#
+# Required variables (Survey or -e):
+#   target_host          IP or FQDN of the server
+#
+# Optional variables:
+#   target_ssh_user      SSH user on the target (default: sysadmin)
+#
+# Usage:
+#   ansible-playbook playbooks/deploy-webmin.yml -e target_host=192.168.4.60
+# =============================================================================
+
+- name: Register target host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - target_host is defined and target_host | length > 0
+        fail_msg: "target_host must be set to the IP/FQDN of the server."
+
+    - name: Add target to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: webmin_target
+        ansible_user: "{{ target_ssh_user | default('sysadmin') }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+
+- name: Install Webmin
+  hosts: webmin_target
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Run the standard Webmin installer from this repo
+      ansible.builtin.script: ../../../applications/webmin/install-webmin.sh
+      register: webmin_install
+      changed_when: true
+
+    - name: Access details
+      ansible.builtin.debug:
+        msg: "Webmin installed — https://{{ inventory_hostname }}:10000 (log in with the server's own accounts)"

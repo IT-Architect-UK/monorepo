@@ -10,6 +10,8 @@ ansible-playbook -i ../inventory/hosts.yml <playbook>.yml
 |----------|---------|
 | `provision-vm.yml` | Create a new VM on Proxmox by cloning a template (API-driven, no SSH needed) |
 | `deploy-vault.yml` | Install HashiCorp Vault on a target server (the toolbox's standalone secrets VM) |
+| `apply-flavour.yml` | Apply the standard flavour options (branding, firewall, fail2ban, IPv6) to any provisioned server |
+| `deploy-webmin.yml` | Install Webmin on any provisioned server |
 | `server-baseline.yml` | Initial hardening — run once on every new server |
 | `deploy-docker.yml` | Install Docker Engine + Compose |
 | `configure-tls.yml` | Let's Encrypt certificate via Certbot |

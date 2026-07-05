@@ -420,6 +420,52 @@ for GOLD in "Build Golden Image — Ubuntu 26.04|automation/packer/builds/ubuntu
     fi
 done
 
+FLAV_TPL_ID=$(echo "${TPL_JSON}" | find_id "Configure Server — Baseline Flavour")
+if [[ -z "${FLAV_TPL_ID}" ]]; then
+    FLAV_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
+        --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
+        --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+        '{project_id: $pid, name: "Configure Server — Baseline Flavour", app: "ansible",
+          playbook: "automation/ansible/playbooks/apply-flavour.yml",
+          inventory_id: $inv, repository_id: $rid, environment_id: $eid,
+          arguments: "[]", type: "",
+          description: "Apply the standard flavour options (branding, firewall, fail2ban, IPv6 policy) to any provisioned server.",
+          survey_vars: [
+            {name: "target_host",           title: "Server IP/FQDN",          type: "", required: true},
+            {name: "target_ssh_user",       title: "SSH user (default sysadmin)", type: "", required: false},
+            {name: "baseline_branding",     title: "Apply branding?",         type: "enum", required: true,
+             values: [{name: "Yes", value: "true"}, {name: "No", value: "false"}]},
+            {name: "baseline_firewall",     title: "Apply iptables baseline?", type: "enum", required: true,
+             values: [{name: "Yes", value: "true"}, {name: "No", value: "false"}]},
+            {name: "baseline_fail2ban",     title: "Enable fail2ban?",        type: "enum", required: true,
+             values: [{name: "Yes", value: "true"}, {name: "No", value: "false"}]},
+            {name: "baseline_disable_ipv6", title: "Disable IPv6?",           type: "enum", required: true,
+             values: [{name: "Yes", value: "true"}, {name: "No", value: "false"}]}
+          ]}')" | jq -r '.id')
+    log "Job template 'Configure Server — Baseline Flavour' created (id ${FLAV_TPL_ID})"
+else
+    log "Job template 'Configure Server — Baseline Flavour' already exists (id ${FLAV_TPL_ID})"
+fi
+
+WEBMIN_TPL_ID=$(echo "${TPL_JSON}" | find_id "Deploy Webmin")
+if [[ -z "${WEBMIN_TPL_ID}" ]]; then
+    WEBMIN_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
+        --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
+        --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+        '{project_id: $pid, name: "Deploy Webmin", app: "ansible",
+          playbook: "automation/ansible/playbooks/deploy-webmin.yml",
+          inventory_id: $inv, repository_id: $rid, environment_id: $eid,
+          arguments: "[]", type: "",
+          description: "Install Webmin (web-based server admin, port 10000) on any provisioned server.",
+          survey_vars: [
+            {name: "target_host",     title: "Server IP/FQDN",              type: "", required: true},
+            {name: "target_ssh_user", title: "SSH user (default sysadmin)", type: "", required: false}
+          ]}')" | jq -r '.id')
+    log "Job template 'Deploy Webmin' created (id ${WEBMIN_TPL_ID})"
+else
+    log "Job template 'Deploy Webmin' already exists (id ${WEBMIN_TPL_ID})"
+fi
+
 PROBE_TPL_ID=$(echo "${TPL_JSON}" | find_id "Diagnostics — Task Probe")
 if [[ -z "${PROBE_TPL_ID}" ]]; then
     PROBE_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
@@ -619,7 +665,7 @@ echo ""
 log "Bootstrap complete."
 log "  Semaphore     : http://${IP}/  (login: admin)"
 log "  Project       : ${PROJECT_NAME}"
-log "  Job templates : Provision VM, Deploy Vault Server, Build Golden Image (Ubuntu 24.04 / 26.04 / Windows 2025)"
+log "  Job templates : Provision VM, Deploy Vault Server, Configure Server (flavour), Deploy Webmin, Build Golden Image (x3)"
 log "  Portainer     : https://${SERVER_IP}:9443/  (admin)"
 log ""
 log "To provision your first VM:"

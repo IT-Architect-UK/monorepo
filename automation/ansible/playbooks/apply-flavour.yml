@@ -1,0 +1,57 @@
+---
+# =============================================================================
+# apply-flavour.yml
+# =============================================================================
+# Applies the baseline "flavour" options to an already-provisioned server —
+# the same toggles that shape golden images (branding, firewall, fail2ban,
+# IPv6 policy), applied on demand to one VM. Driven from the Semaphore
+# template "Configure Server — Baseline Flavour" (survey chooses the target
+# and each option), or from the CLI.
+#
+# Required variables (Survey or -e):
+#   target_host          IP or FQDN of the server to configure
+#
+# Optional variables:
+#   target_ssh_user      SSH user on the target (default: the account you
+#                        set when provisioning the VM)
+#   baseline_branding / baseline_firewall / baseline_fail2ban /
+#   baseline_disable_ipv6   true|false — same semantics as group_vars
+#
+# Usage:
+#   ansible-playbook playbooks/apply-flavour.yml \
+#     -e target_host=192.168.4.60 -e baseline_branding=true
+# =============================================================================
+
+- name: Register target host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - target_host is defined and target_host | length > 0
+        fail_msg: "target_host must be set to the IP/FQDN of the server."
+
+    - name: Add target to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: flavour_target
+        ansible_user: "{{ target_ssh_user | default('sysadmin') }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+
+- name: Apply baseline flavour
+  hosts: flavour_target
+  become: true
+  gather_facts: true
+  roles:
+    - role: common
+  post_tasks:
+    - name: Summary
+      ansible.builtin.debug:
+        msg: >-
+          Flavour applied to {{ inventory_hostname }} —
+          branding={{ baseline_branding | default(false) }},
+          firewall={{ baseline_firewall | default(true) }},
+          fail2ban={{ baseline_fail2ban | default(true) }},
+          ipv6_disabled={{ baseline_disable_ipv6 | default(false) }}
