@@ -27,6 +27,17 @@ ssh_max_auth_tries: 3
 ssh_password_auth_users: []           # Accounts allowed SSH *password* login (everyone else is key-only).
                                       # The toolbox build sets this to its admin account automatically.
 
+# ── Baseline flavour toggles ───────────────────────────────────────────────
+# The golden image baseline is LEAN by default: hardened SSH/kernel, patched,
+# cloud-init ready — and nothing opinionated. Turn site flavour on here.
+baseline_firewall: true               # iptables baseline ruleset
+baseline_fail2ban: true               # SSH brute-force protection
+baseline_create_admin: false          # bake a fixed admin account into images
+                                      # (normally OFF — logins arrive per-clone via cloud-init)
+baseline_branding: false              # login banner / MOTD / prompt branding
+baseline_disable_ipv6: false          # disable IPv6 system-wide
+baseline_monorepo_clone: false        # clone this repo to /git/monorepo on every image
+
 # ── Timezone / NTP ────────────────────────────────────────────────────────
 system_timezone: "Europe/London"
 ntp_servers:

@@ -36,6 +36,9 @@
   notify: Restart timesyncd
   tags: ntp
 
+# Baked-in accounts conflict with the clone-identity model (users arrive
+# per-clone via cloud-init) — off by default, enable via group_vars for
+# standing servers that want a fixed admin account.
 - name: Create admin user
   ansible.builtin.user:
     name: "{{ admin_user }}"
@@ -43,6 +46,7 @@
     shell: /bin/bash
     create_home: true
     state: present
+  when: baseline_create_admin | default(false) | bool
   tags: users
 
 - name: Harden SSH configuration
@@ -64,18 +68,21 @@
     src: "{{ playbook_dir }}/../../../infrastructure/networking/firewall/setup-iptables.sh"
     dest: /tmp/setup-iptables.sh
     mode: "0755"
+  when: baseline_firewall | default(true) | bool
   tags: firewall
 
 - name: Apply iptables baseline ruleset
   ansible.builtin.command: /tmp/setup-iptables.sh
   args:
     creates: /etc/iptables/rules.v4
+  when: baseline_firewall | default(true) | bool
   tags: firewall
 
 - name: Remove iptables setup script
   ansible.builtin.file:
     path: /tmp/setup-iptables.sh
     state: absent
+  when: baseline_firewall | default(true) | bool
   tags: firewall
 
 # ── fail2ban ──────────────────────────────────────────────────────────────────
@@ -93,6 +100,7 @@
       port    = {{ ssh_port | default(22) }}
     mode: "0644"
   notify: Restart fail2ban
+  when: baseline_fail2ban | default(true) | bool
   tags: security
 
 - name: Enable and start fail2ban
@@ -100,7 +108,27 @@
     name: fail2ban
     state: started
     enabled: true
+  when: baseline_fail2ban | default(true) | bool
   tags: security
 
 # Handlers (Restart SSH / Restart timesyncd / Restart fail2ban) live in
 # roles/common/handlers/main.yml -- Ansible loads that automatically.
+
+# ── Optional site flavour (all default OFF — lean golden baseline) ──────────
+# Enable per site in inventory/group_vars/all.yml. Each reuses the standalone
+# script from this repo, so behaviour is identical to running it by hand.
+
+- name: Apply server branding (baseline_branding)
+  ansible.builtin.script: "{{ playbook_dir }}/../../../infrastructure/servers/linux/configuration/apply-branding.sh --company {{ branding_company | default('IT-Architect') | quote }} --colour Cyan --non-interactive"
+  when: baseline_branding | default(false) | bool
+  tags: branding
+
+- name: Disable IPv6 system-wide (baseline_disable_ipv6)
+  ansible.builtin.script: "{{ playbook_dir }}/../../../infrastructure/servers/linux/configuration/disable-ipv6.sh"
+  when: baseline_disable_ipv6 | default(false) | bool
+  tags: ipv6
+
+- name: Install monorepo sync (baseline_monorepo_clone)
+  ansible.builtin.script: "{{ playbook_dir }}/../../../infrastructure/servers/linux/configuration/sync-monorepo.sh"
+  when: baseline_monorepo_clone | default(false) | bool
+  tags: monorepo

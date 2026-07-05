@@ -4,7 +4,20 @@ Builds a lean, hardened Ubuntu 24.04 LTS template on Proxmox VE — the standard
 
 ## What's in the image
 
-Fully patched Ubuntu 24.04, qemu-guest-agent, cloud-init (re-armed at seal time so every clone gets a unique identity/hostname/IP), the `server-baseline` Ansible hardening (SSH policy, firewall baseline, NTP/DNS, standard packages), and nothing else.
+**Lean by design:** fully patched Ubuntu 24.04, qemu-guest-agent, cloud-init (re-armed at seal so every clone gets a unique identity), SSH and kernel hardening, iptables baseline + fail2ban, NTP, and the standard package set — nothing opinionated.
+
+**Make it yours:** site flavour is controlled by toggles in `automation/ansible/inventory/group_vars/all.yml`, applied by the in-guest Ansible baseline at build time — so different users cut different golden images from the same code:
+
+| Toggle | Default | Adds |
+|--------|---------|------|
+| `baseline_firewall` / `baseline_fail2ban` | on | drop either if you manage them elsewhere |
+| `baseline_branding` | off | login banner / MOTD / prompt branding |
+| `baseline_disable_ipv6` | off | IPv6 disabled system-wide |
+| `baseline_monorepo_clone` | off | this repo cloned to `/git/monorepo` on every image |
+| `baseline_create_admin` | off | a fixed admin account baked in (normally logins arrive per-clone via cloud-init) |
+| `common_packages`, `system_timezone`, `ntp_servers` | see file | package list, timezone, NTP sources |
+
+Applications (Webmin, monitoring agents, Docker, …) deliberately never go into golden images — deploy them post-provision with the playbooks in `automation/ansible/playbooks/` and `applications/`.
 
 ## Three ways to build it
 

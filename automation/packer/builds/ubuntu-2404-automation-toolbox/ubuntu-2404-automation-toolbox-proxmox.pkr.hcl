@@ -165,6 +165,7 @@ build {
     environment_vars = [
       "HYPERVISOR=proxmox",
       "COMPANY_NAME=${var.vm_company_name}",
+      "BUILD_PROFILE=toolbox",
     ]
   }
 

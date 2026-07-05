@@ -42,10 +42,19 @@ section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 # ── Environment ───────────────────────────────────────────────────────────────
 HYPERVISOR="${HYPERVISOR:-unknown}"
 COMPANY_NAME="${COMPANY_NAME:-IT-Architect}"
+# BUILD_PROFILE controls how opinionated this script is:
+#   golden  (default) — LEAN: OS updates, packages, guest agent, SSH and
+#                       kernel hardening only. Site flavour (branding, IPv6
+#                       policy, firewall, timezone, repo sync) is applied by
+#                       the in-guest Ansible baseline, where group_vars
+#                       toggles give each user control over their image.
+#   toolbox           — full flavour for the standing automation server.
+BUILD_PROFILE="${BUILD_PROFILE:-golden}"
 
 section "Packer Provisioner — Ubuntu 24.04 Baseline"
 log "Hypervisor : ${HYPERVISOR}"
 log "Company    : ${COMPANY_NAME}"
+log "Profile    : ${BUILD_PROFILE}"
 
 # ── 1. OS Updates ─────────────────────────────────────────────────────────────
 section "1 — OS Updates"
@@ -103,13 +112,17 @@ sed -i 's/\r$//' /tmp/*.sh 2>/dev/null || true
 
 # ── 4. Branding ───────────────────────────────────────────────────────────────
 section "4 — Server Branding"
-[[ -f /tmp/apply-branding.sh ]] || fail "apply-branding.sh not found in /tmp/ — check Packer file provisioner"
-chmod +x /tmp/apply-branding.sh
-/tmp/apply-branding.sh \
-    --company "${COMPANY_NAME}" \
-    --colour Cyan \
-    --non-interactive
-log "Branding applied for '${COMPANY_NAME}'"
+if [[ "${BUILD_PROFILE}" == "toolbox" ]]; then
+    [[ -f /tmp/apply-branding.sh ]] || fail "apply-branding.sh not found in /tmp/ — check Packer file provisioner"
+    chmod +x /tmp/apply-branding.sh
+    /tmp/apply-branding.sh \
+        --company "${COMPANY_NAME}" \
+        --colour Cyan \
+        --non-interactive
+    log "Branding applied for '${COMPANY_NAME}'"
+else
+    log "Skipped (lean golden profile — enable via baseline_branding in group_vars)"
+fi
 
 # ── 5. Disable cloud-init (skipped for Proxmox) ───────────────────────────────
 # disable-cloud-init.sh exists to work around a VMware-specific bug where
@@ -134,17 +147,25 @@ fi
 
 # ── 6. Disable IPv6 ───────────────────────────────────────────────────────────
 section "6 — Disable IPv6"
-[[ -f /tmp/disable-ipv6.sh ]] || fail "disable-ipv6.sh not found in /tmp/ — check Packer file provisioner"
-chmod +x /tmp/disable-ipv6.sh
-/tmp/disable-ipv6.sh
-log "IPv6 disabled system-wide"
+if [[ "${BUILD_PROFILE}" == "toolbox" ]]; then
+    [[ -f /tmp/disable-ipv6.sh ]] || fail "disable-ipv6.sh not found in /tmp/ — check Packer file provisioner"
+    chmod +x /tmp/disable-ipv6.sh
+    /tmp/disable-ipv6.sh
+    log "IPv6 disabled system-wide"
+else
+    log "Skipped (lean golden profile — enable via baseline_disable_ipv6 in group_vars)"
+fi
 
 # ── 7. Firewall — iptables ────────────────────────────────────────────────────
 section "7 — Firewall (iptables)"
-[[ -f /tmp/setup-iptables.sh ]] || fail "setup-iptables.sh not found in /tmp/ — check Packer file provisioner"
-chmod +x /tmp/setup-iptables.sh
-/tmp/setup-iptables.sh
-log "iptables baseline applied (default-drop INPUT, RFC-1918 allowed)"
+if [[ "${BUILD_PROFILE}" == "toolbox" ]]; then
+    [[ -f /tmp/setup-iptables.sh ]] || fail "setup-iptables.sh not found in /tmp/ — check Packer file provisioner"
+    chmod +x /tmp/setup-iptables.sh
+    /tmp/setup-iptables.sh
+    log "iptables baseline applied (default-drop INPUT, RFC-1918 allowed)"
+else
+    log "Deferred to the Ansible baseline (baseline_firewall, default ON)"
+fi
 
 # ── 8. SSH Hardening ──────────────────────────────────────────────────────────
 section "8 — SSH Hardening"
@@ -170,17 +191,21 @@ log "SSH service restarted"
 
 # ── 9. Timezone ───────────────────────────────────────────────────────────────
 section "9 — Timezone"
-DETECTED_TZ=""
-if command -v curl &>/dev/null; then
-    DETECTED_TZ=$(curl -sf --max-time 5 https://ipapi.co/timezone 2>/dev/null || true)
-fi
-
-if [[ -n "${DETECTED_TZ}" ]] && timedatectl list-timezones 2>/dev/null | grep -qxF "${DETECTED_TZ}"; then
-    timedatectl set-timezone "${DETECTED_TZ}"
-    log "Timezone set to ${DETECTED_TZ} (detected via IP geolocation)"
+if [[ "${BUILD_PROFILE}" == "toolbox" ]]; then
+    DETECTED_TZ=""
+    if command -v curl &>/dev/null; then
+        DETECTED_TZ=$(curl -sf --max-time 5 https://ipapi.co/timezone 2>/dev/null || true)
+    fi
+    if [[ -n "${DETECTED_TZ}" ]] && timedatectl list-timezones 2>/dev/null | grep -qxF "${DETECTED_TZ}"; then
+        timedatectl set-timezone "${DETECTED_TZ}"
+        log "Timezone set to ${DETECTED_TZ} (detected via IP geolocation)"
+    else
+        timedatectl set-timezone UTC
+        warn "Timezone detection failed or returned invalid value — defaulted to UTC"
+    fi
 else
     timedatectl set-timezone UTC
-    warn "Timezone detection failed or returned invalid value — defaulted to UTC"
+    log "UTC set (lean golden profile — site timezone comes from system_timezone in group_vars)"
 fi
 
 # ── 10. Kernel Hardening ──────────────────────────────────────────────────────
@@ -210,11 +235,18 @@ log "Kernel hardening applied"
 
 # ── 11. Services ──────────────────────────────────────────────────────────────
 section "11 — Services"
-systemctl enable fail2ban
-log "fail2ban enabled at boot (SSH brute-force protection via iptables)"
+if [[ "${BUILD_PROFILE}" == "toolbox" ]]; then
+    systemctl enable fail2ban
+    log "fail2ban enabled at boot (SSH brute-force protection via iptables)"
+else
+    log "Deferred to the Ansible baseline (baseline_fail2ban, default ON)"
+fi
 
 # ── 12. Monorepo sync ─────────────────────────────────────────────────────────
 section "12 — Monorepo sync"
+if [[ "${BUILD_PROFILE}" != "toolbox" ]]; then
+    log "Skipped (lean golden profile — enable via baseline_monorepo_clone in group_vars)"
+else
 # Install the sync script permanently so cron and admins can call it directly
 cp /tmp/sync-monorepo.sh /usr/local/bin/sync-monorepo.sh
 chmod +x /usr/local/bin/sync-monorepo.sh
@@ -234,6 +266,7 @@ log "Cron jobs created: @reboot + daily 01:00 → /usr/local/bin/sync-monorepo.s
 # Initial clone during Packer build (best-effort — doesn't fail the build)
 log "Running initial monorepo clone ..."
 /usr/local/bin/sync-monorepo.sh || warn "Initial clone failed — will retry on first boot"
+fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 section "Provisioning Complete"
