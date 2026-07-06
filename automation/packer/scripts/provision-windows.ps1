@@ -63,7 +63,7 @@ Write-Step "Firewall baseline"
 
 # Re-enable the firewall (autounattend.xml disabled it; we turn it back on
 # here so provisioners run inside a known-good firewall state)
-netsh advfirewall set allprofiles state on | Out-Null
+Set-NetFirewallProfile -All -Enabled True | Out-Null
 
 # Block inbound by default on all profiles
 Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block  | Out-Null
@@ -252,7 +252,7 @@ $trigBoot.Delay = "PT1M"          # 1-minute delay for network stack to be ready
 $trigDaily  = New-ScheduledTaskTrigger -Daily -At "01:00"
 $principal  = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 $settings   = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 15) `
-                                            -StartWhenAvailable $true `
+                                            -StartWhenAvailable `
                                             -MultipleInstances IgnoreNew
 
 # Remove existing task if present (idempotent)

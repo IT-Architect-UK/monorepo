@@ -57,11 +57,11 @@ Write-OK "Windows Update download cache cleared"
 
 # ── 5. Remove pagefile (sysprep re-creates it on first boot) ─────────────────
 Write-Step "Remove pagefile"
-$cs = Get-WmiObject Win32_ComputerSystem
-$cs.AutomaticManagedPagefile = $false
-$cs.Put() | Out-Null
-$pf = Get-WmiObject Win32_PageFileSetting -ErrorAction SilentlyContinue
-if ($pf) { $pf.Delete() | Out-Null }
+$cs = Get-CimInstance -ClassName Win32_ComputerSystem
+if ($cs.AutomaticManagedPagefile) {
+    Set-CimInstance -InputObject $cs -Property @{ AutomaticManagedPagefile = $false } | Out-Null
+}
+Get-CimInstance -ClassName Win32_PageFileSetting -ErrorAction SilentlyContinue | Remove-CimInstance -ErrorAction SilentlyContinue
 Write-OK "Pagefile removed (sysprep will recreate on first boot)"
 
 # ── 6. Remove the packer build account ────────────────────────────────────────
@@ -157,11 +157,11 @@ $sysprep = "C:\Windows\System32\sysprep\sysprep.exe"
 $unattend = "C:\Windows\System32\sysprep\unattend.xml"
 
 # Use an unattend.xml for the specialize pass if present; otherwise generalize without one
-if (Test-Path $unattend) {
-    & $sysprep /generalize /oobe /shutdown /quiet /unattend:$unattend
-} else {
-    & $sysprep /generalize /oobe /shutdown /quiet
-}
-
-# Sysprep shuts down the VM; this line is never reached during a real build
-Write-OK "Sysprep complete"
+# /quit (not /shutdown): sysprep generalizes then returns control, so this
+# script and Packer's provisioner finish cleanly — Packer then powers the VM
+# off and templates it. Using /shutdown made Packer's post-script env-var
+# cleanup race the shutdown and log a harmless "file not recognized" error.
+$sysprepArgs = @('/generalize','/oobe','/quit','/quiet')
+if (Test-Path $unattend) { $sysprepArgs += "/unattend:$unattend" }
+& $sysprep @sysprepArgs
+Write-OK "Sysprep generalize complete — Packer will power off and seal the template"
