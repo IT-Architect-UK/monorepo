@@ -4,8 +4,8 @@
 # MUST be the last provisioner step. After this script:
 #   1. Temp files and logs are cleared
 #   2. The packer build account is removed
-#   3. Sysprep generalizes the image and shuts down the VM
-#   4. Packer detects the shutdown and converts the VM to a template
+#   3. Sysprep generalizes the image (/quit — returns cleanly, no self-shutdown)
+#   4. Packer powers the VM off and converts it to a template
 #
 # After cloning the template, the new VM runs the Windows OOBE "specialize"
 # pass on first boot — it will boot up, auto-configure, and be ready to use.
@@ -41,9 +41,16 @@ $tempPaths = @(
 
 foreach ($p in $tempPaths) {
     if (Test-Path $p) {
+        # Preserve Packer's own working files. Packer keeps its per-provisioner
+        # helper (packer-ps-env-vars-*.ps1) and uploaded script in C:\Windows\Temp
+        # and dot-sources the env-vars file when THIS script returns. Deleting it
+        # mid-run is what produced the "...is not recognized" error at the end of
+        # cleanup — harmless (build still succeeds) but ugly. Skipping packer-*
+        # leaves that machinery intact; Packer removes it itself after the build.
         Get-ChildItem -Path $p -Recurse -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notlike 'packer-*' } |
             Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        Write-OK "Cleaned: $p"
+        Write-OK "Cleaned: $p (Packer working files preserved)"
     }
 }
 
@@ -146,21 +153,22 @@ try {
     Write-Warn "AppX cleanup had issues (non-critical): $($_.Exception.Message)"
 }
 
-# ── 9. Sysprep — generalize and shut down ─────────────────────────────────────
-Write-Step "Sysprep (generalize + shutdown)"
+# ── 9. Sysprep — generalize (Packer powers off) ─────────────────────────────────────
+Write-Step "Sysprep (generalize)"
 
-Write-Host "  Sysprep is running — the VM will shut down automatically."
-Write-Host "  Packer will detect the shutdown and convert the VM to a template."
+Write-Host "  Sysprep will generalize the image, then Packer powers the VM"
+Write-Host "  off and converts it to a template."
 Write-Host ""
 
 $sysprep = "C:\Windows\System32\sysprep\sysprep.exe"
 $unattend = "C:\Windows\System32\sysprep\unattend.xml"
 
 # Use an unattend.xml for the specialize pass if present; otherwise generalize without one
-# /quit (not /shutdown): sysprep generalizes then returns control, so this
-# script and Packer's provisioner finish cleanly — Packer then powers the VM
-# off and templates it. Using /shutdown made Packer's post-script env-var
-# cleanup race the shutdown and log a harmless "file not recognized" error.
+# /quit (not /shutdown): sysprep generalizes then returns control, letting this
+# script and Packer's provisioner finish cleanly before Packer powers the VM
+# off and templates it. (The old "packer-ps-env-vars ... not recognized" error
+# was unrelated to sysprep — it was the temp-clean above deleting Packer's own
+# helper file; that is fixed separately by preserving packer-* in C:\Windows\Temp.)
 $sysprepArgs = @('/generalize','/oobe','/quit','/quiet')
 if (Test-Path $unattend) { $sysprepArgs += "/unattend:$unattend" }
 & $sysprep @sysprepArgs
