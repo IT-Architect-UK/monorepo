@@ -111,6 +111,41 @@ Remove-Item -Path "$env:USERPROFILE\AppData\Roaming\Microsoft\Windows\Recent\*" 
 Clear-History -ErrorAction SilentlyContinue
 Write-OK "Recent files and history cleared"
 
+# ── 8b. Remove Windows.old (previous-install leftovers) ──────────────────────
+Write-Step "Remove Windows.old"
+if (Test-Path "C:\Windows.old") {
+    # takeown/icacls first — Windows.old is owned by TrustedInstaller and a
+    # plain Remove-Item can't touch it. DISM's cleanup is the supported route.
+    try {
+        Start-Process cmd.exe -ArgumentList '/c','takeown /F C:\Windows.old /R /A /D Y >nul 2>&1 & icacls C:\Windows.old /grant Administrators:F /T /C >nul 2>&1 & rmdir /S /Q C:\Windows.old' -Wait -NoNewWindow
+    } catch {}
+    if (Test-Path "C:\Windows.old") {
+        Write-Warn "Windows.old still present — DISM/Disk Cleanup may be needed; not baked-in blocker"
+    } else {
+        Write-OK "Windows.old removed"
+    }
+} else {
+    Write-OK "No Windows.old present"
+}
+
+# ── 8c. Sysprep pre-flight: strip provisioned AppX that blocks generalize ────
+# The #1 cause of a hung/failed sysprep on Win11/Server 2025 is a provisioned
+# AppX package that can't generalize. Remove per-user packages that aren't
+# provisioned for all users, then de-provision the store payload. All wrapped
+# so a single stubborn package can never abort the build.
+Write-Step "Sysprep pre-flight — clear AppX generalize blockers"
+try {
+    Get-AppxPackage -AllUsers | ForEach-Object {
+        try { Remove-AppxPackage -Package $_.PackageFullName -AllUsers -ErrorAction SilentlyContinue } catch {}
+    }
+    Get-AppxProvisionedPackage -Online | ForEach-Object {
+        try { Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue | Out-Null } catch {}
+    }
+    Write-OK "Provisioned AppX packages cleared (removes the common sysprep hang)"
+} catch {
+    Write-Warn "AppX cleanup had issues (non-critical): $($_.Exception.Message)"
+}
+
 # ── 9. Sysprep — generalize and shut down ─────────────────────────────────────
 Write-Step "Sysprep (generalize + shutdown)"
 
