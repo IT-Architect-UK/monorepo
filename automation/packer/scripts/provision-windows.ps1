@@ -172,12 +172,17 @@ New-Item -Path $llmnrPath -Force | Out-Null
 Set-ItemProperty -Path $llmnrPath -Name "EnableMulticast" -Value 0 -Type DWord
 Write-OK "LLMNR disabled"
 
-# Disable NetBIOS over TCP/IP (set via registry)
-$adapters = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces\*"
-foreach ($adapter in $adapters) {
-    Set-ItemProperty -Path $adapter.PSPath -Name "NetbiosOptions" -Value 2 -Type DWord -ErrorAction SilentlyContinue
+# Disable NetBIOS over TCP/IP (set via registry). Non-critical — never let it
+# abort the build (the -Stop preference + a registry read that errors would).
+try {
+    $adapters = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces" -ErrorAction SilentlyContinue
+    foreach ($adapter in $adapters) {
+        Set-ItemProperty -Path $adapter.PSPath -Name "NetbiosOptions" -Value 2 -Type DWord -ErrorAction SilentlyContinue
+    }
+    Write-OK "NetBIOS over TCP/IP disabled on all adapters"
+} catch {
+    Write-Warn "NetBIOS tweak skipped (non-critical): $($_.Exception.Message)"
 }
-Write-OK "NetBIOS over TCP/IP disabled on all adapters"
 
 # Disable Windows Script Host (reduces attack surface)
 # Uncomment if you don't need VBScript/JScript:
@@ -198,6 +203,7 @@ Write-Warn "Windows Update auto-install skipped — apply updates manually after
 
 # ── 10. Monorepo sync ────────────────────────────────────────────────────────
 Write-Step "Monorepo sync scheduled task"
+try {
 
 # Create C:\Scripts\ and write the sync script into the image
 $scriptsDir = "C:\Scripts"
@@ -269,6 +275,10 @@ try {
     Write-OK "Initial clone complete. Repo available at C:\Git\Monorepo"
 } catch {
     Write-Warn "Initial clone skipped — will run on first boot (git may not be installed yet)"
+}
+
+} catch {
+    Write-Warn "Monorepo sync task setup skipped (non-critical): $($_.Exception.Message)"
 }
 
 # ── Done ──────────────────────────────────────────────────────────────────────
