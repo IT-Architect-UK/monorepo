@@ -167,6 +167,18 @@ export PACKER_NO_COLOR=1
     packer init .
     log "packer validate..."
     packer validate .
+    # Replace mode: clear any VM/template already holding our fixed VMID before
+    # Packer creates the new one (the proxmox-iso plugin has no "force" arg).
+    # VMID comes from this build's variables.pkr.hcl default unless an explicit
+    # PKR_VAR_proxmox_vm_id was passed — one source of truth, no drift.
+    VMID="${PKR_VAR_proxmox_vm_id:-$(grep -A3 'variable "proxmox_vm_id"' "${SCRIPT_DIR}/variables.pkr.hcl" | grep -m1 -oE '[0-9]+')}"
+    if [[ -n "${VMID}" ]]; then
+        log "Replace mode: ensuring VMID ${VMID} is free before build..."
+        VM_ID="${VMID}" bash "${SCRIPT_DIR}/../../scripts/remove-vm-if-exists.sh" \
+            || fail "Could not clear existing VMID ${VMID} — see log above"
+    else
+        log "WARN: target VMID undetermined; skipping replace-mode pre-clean"
+    fi
     log "packer build (15-30 min)..."
     packer build .
 } 2>&1 | tee "${LOG_FILE}"
