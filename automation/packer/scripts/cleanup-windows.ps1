@@ -101,8 +101,13 @@ try {
 
 # ── 8. Clear recent files and shell history ───────────────────────────────────
 Write-Step "Clear user shell artefacts"
+# -Recurse is REQUIRED: the Recent folder has subfolders (AutomaticDestinations,
+# CustomDestinations jump lists) with children. Without it, Remove-Item prompts
+# "has children... continue?" which hangs forever in Packer's non-interactive
+# WinRM session (-ErrorAction does NOT suppress a confirmation prompt). Caught
+# live — the build hung here ~50 min before sysprep.
 Remove-Item -Path "$env:USERPROFILE\AppData\Roaming\Microsoft\Windows\Recent\*" `
-            -Force -ErrorAction SilentlyContinue
+            -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
 Clear-History -ErrorAction SilentlyContinue
 Write-OK "Recent files and history cleared"
 
