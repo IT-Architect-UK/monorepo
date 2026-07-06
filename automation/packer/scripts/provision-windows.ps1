@@ -52,15 +52,11 @@ Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server\W
 Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
 Write-OK "RDP enabled (NLA disabled for lab compatibility)"
 
-# ── 3. WinRM hardening for post-build use ─────────────────────────────────────
-Write-Step "Configure WinRM for production use"
-
-# The autounattend.xml set up basic WinRM; here we tighten it slightly
-# WinRM stays enabled so admins can manage remotely — it's re-secured below
-winrm set winrm/config/service '@{AllowUnencrypted="false"}' | Out-Null
-winrm set winrm/config/service/auth '@{Basic="false"}' | Out-Null
-winrm set winrm/config/service/auth '@{Negotiate="true"}' | Out-Null
-Write-OK "WinRM re-secured (Negotiate auth, encryption required)"
+# NOTE: WinRM is deliberately NOT hardened here. Packer is connected over
+# HTTP/Basic/unencrypted for the whole build; disabling that transport
+# mid-build severs Packer's own connection (401 on the next step — caught
+# live). WinRM security is a DEPLOY-TIME concern (applied by Ansible when the
+# server is provisioned), and sysprep resets machine config on clone anyway.
 
 # ── 4. Firewall — baseline rules ─────────────────────────────────────────────
 Write-Step "Firewall baseline"
