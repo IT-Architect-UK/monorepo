@@ -80,6 +80,8 @@ source "proxmox-iso" "ubuntu-2404" {
 
   # ── VM settings ─────────────────────────────────────────────────────────
   vm_id   = var.proxmox_vm_id
+  # Replace any existing VM/template holding this VMID (re-run = rebuild in place)
+  force   = true
   vm_name = local.image_name
 
   # The ISO to boot from

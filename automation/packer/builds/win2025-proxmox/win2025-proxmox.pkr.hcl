@@ -80,6 +80,8 @@ source "proxmox-iso" "win2025" {
 
   # ── VM settings ─────────────────────────────────────────────────────────
   vm_id   = var.win_vm_id
+  # Replace any existing VM/template holding this VMID (re-run = rebuild in place)
+  force   = true
   vm_name = local.image_name
 
   # ── Windows ISO (must be pre-uploaded to Proxmox) ────────────────────────
