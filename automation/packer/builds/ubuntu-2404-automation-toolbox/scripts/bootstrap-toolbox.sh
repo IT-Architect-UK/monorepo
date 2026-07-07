@@ -420,6 +420,10 @@ for GOLD in "Build Golden Image — Ubuntu 26.04|automation/packer/builds/ubuntu
     else
         log "Job template '${G_NAME}' already exists (id ${G_ID})"
     fi
+    case "${G_NAME}" in
+        *"26.04"*)   GOLD26_TPL_ID="${G_ID}"  ;;
+        *"Windows"*) GOLDWIN_TPL_ID="${G_ID}" ;;
+    esac
 done
 
 SEED_TPL() { # SEED_TPL <name> <playbook> <description> <survey-json>
@@ -689,26 +693,61 @@ else
 fi
 
 # ─── 10. Golden image templates ──────────────────────────────────────────────
-# A toolbox without templates can't deploy anything yet — offer to start the
-# Ubuntu 24.04 golden image build right away (runs as a Semaphore task on
-# this server, ~20-30 min, watch it in the UI). Non-interactive runs opt in
-# via AUTO_BUILD_GOLDEN=1. Windows 2025 / Ubuntu 26.04 join this list once
-# their builds get the same standalone treatment.
+# A toolbox without templates can't deploy anything yet. Offer to build the
+# golden images now — each runs as a Semaphore task on this server (watch in the
+# UI). Non-interactive runs opt in via AUTO_BUILD_GOLDEN=1.
+#   • Ubuntu 24.04 and 26.04 stage their own ISOs (fetch-ubuntu-iso.sh), so they
+#     always build.
+#   • Windows 2025 needs its ISO pre-uploaded (Microsoft licensing = no auto-
+#     download). We only auto-start it when the ISO named by win_iso_file in
+#     homelab.pkrvars.hcl actually exists on Proxmox storage; otherwise we skip
+#     and point at the manual build.
+IP_ADDR=$(hostname -I | awk '{print $1}')
+SITE_FILE="${REPO_ROOT}/automation/packer/environments/homelab.pkrvars.hcl"
+[[ -f "${SITE_FILE}" ]] || SITE_FILE="/git/monorepo/automation/packer/environments/homelab.pkrvars.hcl"
 BUILD_GOLDEN="${AUTO_BUILD_GOLDEN:-}"
 if [[ -z "${BUILD_GOLDEN}" && "${NONINTERACTIVE}" != "1" ]]; then
-    read -r -p "Start building the Ubuntu 24.04 golden image template now? (Y/n): " ans
+    read -r -p "Start building the golden image templates now (Ubuntu 24.04 + 26.04, and Windows if its ISO is present)? (Y/n): " ans
     [[ "${ans}" =~ ^[Nn] ]] || BUILD_GOLDEN=1
 fi
-if [[ "${BUILD_GOLDEN}" == "1" && -n "${GOLD_TPL_ID:-}" ]]; then
-    TASK_ID=$(api POST "${P}/tasks"         "$(jq -n --argjson tid "${GOLD_TPL_ID}" '{template_id: $tid}')" | jq -r '.id // empty')
-    if [[ -n "${TASK_ID}" ]]; then
-        log "Golden image build started (Semaphore task ${TASK_ID}) — progress: http://$(hostname -I | awk '{print $1}')/ → Tasks"
-        log "The template 't-ubuntu-2404-<timestamp>' appears in Proxmox when it finishes (~20-30 min)."
+
+start_golden() { # start_golden <template-id> <label> <manual-name>
+    local tid="$1" label="$2" name="$3" task
+    [[ -n "${tid}" ]] || { warn "${label}: job template not found — skipping."; return; }
+    task=$(api POST "${P}/tasks" "$(jq -n --argjson t "${tid}" '{template_id: $t}')" | jq -r '.id // empty')
+    [[ -n "${task}" ]] \
+        && log "${label} build started (Semaphore task ${task}) — watch: http://${IP_ADDR}/ -> Tasks" \
+        || warn "Could not start ${label} — run it manually: Semaphore -> ${name}"
+}
+
+# Is a Proxmox ISO volid actually on storage? 0 = present, 1 = absent,
+# 2 = cannot tell (no API token). Token auth mirrors the rest of the toolbox.
+proxmox_iso_present() { # proxmox_iso_present <volid>
+    local volid="$1" storage node hdr
+    [[ -n "${volid}" && -n "${PVE_TOKEN_ID}" && -n "${PVE_TOKEN_SECRET}" ]] || return 2
+    hdr="Authorization: PVEAPIToken=${PVE_USER}!${PVE_TOKEN_ID}=${PVE_TOKEN_SECRET}"
+    storage="${volid%%:*}"
+    node="${PVE_NODE}"
+    [[ -n "${node}" ]] || node=$(curl -sk --max-time 15 -H "${hdr}" "https://${PVE_HOST}:8006/api2/json/nodes" 2>/dev/null | jq -r '.data[0].node // empty')
+    [[ -n "${node}" ]] || return 2
+    curl -sk --max-time 20 -H "${hdr}" "https://${PVE_HOST}:8006/api2/json/nodes/${node}/storage/${storage}/content?content=iso" 2>/dev/null \
+        | jq -e --arg v "${volid}" '.data[]? | select(.volid == $v)' >/dev/null 2>&1
+}
+
+if [[ "${BUILD_GOLDEN}" == "1" ]]; then
+    start_golden "${GOLD_TPL_ID:-}"   "Ubuntu 24.04 golden image" "Build Golden Image — Ubuntu 24.04"
+    start_golden "${GOLD26_TPL_ID:-}" "Ubuntu 26.04 golden image" "Build Golden Image — Ubuntu 26.04"
+
+    WIN_ISO_VOLID="$(grep -E '^\s*win_iso_file\s*=' "${SITE_FILE}" 2>/dev/null | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/')"
+    if proxmox_iso_present "${WIN_ISO_VOLID}"; then
+        log "Windows ISO present on Proxmox (${WIN_ISO_VOLID}) — starting the Windows build."
+        start_golden "${GOLDWIN_TPL_ID:-}" "Windows Server 2025 golden image" "Build Golden Image — Windows 2025"
     else
-        warn "Could not start the golden image task — run it manually: Semaphore → Build Golden Image — Ubuntu 24.04"
+        case "$?" in
+            2) warn "Windows auto-build skipped — a Proxmox API token is needed to verify the ISO. Upload the ISO, then run 'Build Golden Image — Windows 2025' in Semaphore." ;;
+            *) log  "Windows auto-build skipped — ISO '${WIN_ISO_VOLID:-unset}' not found on Proxmox storage. Upload it (see win2025-proxmox/README.md), then run 'Build Golden Image — Windows 2025' in Semaphore." ;;
+        esac
     fi
-elif [[ "${BUILD_GOLDEN}" == "1" ]]; then
-    warn "Golden image job template not found — skipping auto-build."
 fi
 
 mkdir -p /opt/toolbox && touch /opt/toolbox/.bootstrapped
