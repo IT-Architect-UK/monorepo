@@ -401,7 +401,7 @@ fi
 
 VAULT_TPL_ID=$(echo "${TPL_JSON}" | find_id "Deploy Vault Server")
 if [[ -z "${VAULT_TPL_ID}" ]]; then
-    VAULT_TPL_ID=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
+    VAULT_TPL_ID=$(post_template "${VIEW_ROLES_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{
@@ -422,7 +422,7 @@ fi
 
 GOLD_TPL_ID=$(echo "${TPL_JSON}" | find_id "Build Golden Image — Ubuntu 24.04")
 if [[ -z "${GOLD_TPL_ID}" ]]; then
-    GOLD_TPL_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
+    GOLD_TPL_ID=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{
@@ -440,7 +440,7 @@ fi
 for GOLD in "Build Golden Image — Ubuntu 26.04|automation/packer/builds/ubuntu-2604-proxmox/build-ubuntu-2604-proxmox.sh|Packer-build a fresh Ubuntu 26.04 template on Proxmox." \
             "Build Golden Image — Windows 2025|automation/packer/builds/win2025-proxmox/build-win2025-proxmox.sh|Packer-build a Windows Server 2025 template. Requires the Windows ISO pre-uploaded and WINRM_PASSWORD in the variable group."; do
     G_NAME="${GOLD%%|*}"; G_REST="${GOLD#*|}"; G_PLAY="${G_REST%%|*}"; G_DESC="${G_REST#*|}"
-    case "${G_NAME}" in *"Windows"*) G_VIEW="${VIEW_WINDOWS_ID:-0}" ;; *) G_VIEW="${VIEW_LINUX_ID:-0}" ;; esac
+    G_VIEW="${VIEW_TOOLBOX_ID:-0}"   # golden image builds live under Deployment Toolbox
     G_ID=$(echo "${TPL_JSON}" | find_id "${G_NAME}")
     if [[ -z "${G_ID}" ]]; then
         G_ID=$(post_template "${G_VIEW:-0}" "$(jq -n \
@@ -464,7 +464,7 @@ SEED_TPL() { # SEED_TPL <name> <playbook> <description> <survey-json>
     local T_ID
     T_ID=$(echo "${TPL_JSON}" | find_id "$1")
     if [[ -z "${T_ID}" ]]; then
-        T_ID=$(post_template "${VIEW_ROLES_ID:-0}" "$(jq -n \
+        T_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
             --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
             --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
             --arg name "$1" --arg play "$2" --arg desc "$3" --argjson survey "$4" \
@@ -505,7 +505,7 @@ SEED_TPL "Configure Fail2Ban" \
 
 WEBMIN_TPL_ID=$(echo "${TPL_JSON}" | find_id "Deploy Webmin")
 if [[ -z "${WEBMIN_TPL_ID}" ]]; then
-    WEBMIN_TPL_ID=$(post_template "${VIEW_ROLES_ID:-0}" "$(jq -n \
+    WEBMIN_TPL_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{project_id: $pid, name: "Deploy Webmin", app: "ansible",
@@ -633,13 +633,22 @@ else
         if [[ -z "${P_JWT}" ]]; then
             warn "Portainer auth failed (HTTP ${PA_CODE}: ${PA_BODY:0:160}) — verify at https://${SERVER_IP}:9443"
         else
-            # Register the local Docker environment if none exists (widget = id 1).
+            # Ensure a local Docker environment exists, then point the widget at
+            # its REAL id (a fresh Portainer numbers it 1, but don't assume).
             pcurl PE GET "${P_URL}/endpoints" -H "Authorization: Bearer ${P_JWT}"
-            if [[ "$(echo "${PE_BODY}" | jq 'length' 2>/dev/null || echo 0)" == "0" ]]; then
+            EP_ID=$(echo "${PE_BODY}" | jq -r '[.[] | select(.Type==1 or .Name=="local")][0].Id // empty' 2>/dev/null) || EP_ID=""
+            if [[ -z "${EP_ID}" ]]; then
                 pcurl PC POST "${P_URL}/endpoints" -H "Authorization: Bearer ${P_JWT}" \
                     -F "Name=local" -F "EndpointCreationType=1"
-                [[ "${PC_CODE}" == "200" ]] && log "Portainer: local Docker environment registered" \
-                    || warn "Portainer: could not register local environment (HTTP ${PC_CODE})"
+                EP_ID=$(echo "${PC_BODY}" | jq -r '.Id // empty' 2>/dev/null) || EP_ID=""
+                [[ -n "${EP_ID}" ]] && log "Portainer: local Docker environment registered (id ${EP_ID})" \
+                    || warn "Portainer: could not register local environment (HTTP ${PC_CODE}: ${PC_BODY:0:160})"
+            else
+                log "Portainer: local Docker environment already present (id ${EP_ID})"
+            fi
+            # Repoint the Homepage Portainer widget at the actual endpoint id.
+            if [[ -n "${EP_ID}" && -f "${HOMEPAGE_CONFIG}/services.yaml" ]]; then
+                sed -i -E "s/^([[:space:]]*)env:[[:space:]]*[0-9]+/\1env: ${EP_ID}/" "${HOMEPAGE_CONFIG}/services.yaml"
             fi
             # Mint the widget key — needs the admin's id and the password in body.
             P_AID=$(curl -sk --max-time 20 "${P_URL}/users" -H "Authorization: Bearer ${P_JWT}" 2>/dev/null \
