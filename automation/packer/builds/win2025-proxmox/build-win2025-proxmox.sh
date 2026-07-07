@@ -24,7 +24,7 @@
 #                          AUTOMATICALLY from the stable upstream URL when
 #                          unset (see fetch-ubuntu-iso.sh URL mode)
 #
-# Output: Proxmox template "win2025-golden-<timestamp>" plus a build log
+# Output: Proxmox template "t-win2025-<timestamp>" plus a build log
 # in ./logs/.
 #
 # Author:            Darren Pilkington
@@ -195,4 +195,4 @@ export PACKER_NO_COLOR=1
     fi
     log "packer build (30-60 min — Windows installs are slow)..."; packer build .
 } 2>&1 | tee "${LOG_FILE}"
-log "Done. New template: win2025-golden-<timestamp> in Proxmox."
+log "Done. New template: t-win2025-<timestamp> in Proxmox."

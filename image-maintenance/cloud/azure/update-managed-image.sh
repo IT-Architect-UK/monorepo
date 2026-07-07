@@ -8,7 +8,7 @@
 # They enable deploying identical, pre-configured VMs quickly.
 #
 # Usage:
-#   ./update-managed-image.sh --resource-group myRG --image-name ubuntu-2404-golden
+#   ./update-managed-image.sh --resource-group myRG --image-name t-ubuntu-2404
 #
 # Author  : IT-Architect-UK
 # Repo    : https://github.com/IT-Architect-UK/monorepo

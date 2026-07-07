@@ -62,11 +62,11 @@ as optional belt-and-braces if a specific ISO ever misbehaves.)
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `win_vm_id` | see file | Build VM / template ID |
-| `image_name` | `win2025-golden` | Template name prefix (timestamp appended) |
+| `image_name` | `t-win2025` | Template name prefix (timestamp appended) |
 | `win_iso_file` | `local:iso/windows-server-2025.iso` | Windows ISO volid |
 | `virtio_iso_file` | `local:iso/virtio-win.iso` | VirtIO drivers ISO volid |
 | `winrm_username` / `winrm_password` | `packer` / — | Build account (must match autounattend.xml) |
 
 ## After the build
 
-The template appears as `win2025-golden-<timestamp>`. Provision Windows servers from it via **Semaphore → Provision VM (Proxmox)**. First planned consumer: the AD DS domain controller (see the toolbox roadmap).
+The template appears as `t-win2025-<timestamp>`. Provision Windows servers from it via **Semaphore → Provision VM (Proxmox)**. First planned consumer: the AD DS domain controller (see the toolbox roadmap).

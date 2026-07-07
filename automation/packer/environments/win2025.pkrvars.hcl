@@ -17,7 +17,7 @@
 #   automation/packer/http/win2025-proxmox/autounattend.xml
 # =============================================================================
 
-image_name        = "win2025-golden"
+image_name        = "t-win2025"
 image_description = "Windows Server 2025 Standard Evaluation golden image — built with Packer"
 
 # Windows needs more resources than the Ubuntu baseline

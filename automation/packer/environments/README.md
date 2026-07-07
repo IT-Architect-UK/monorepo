@@ -85,7 +85,7 @@ All variables are defined in `../variables.pkr.hcl`. Sensitive values (passwords
 
 | Variable | Default | Description |
 |---|---|---|
-| `image_name` | `ubuntu-2604-golden` | Base name — a timestamp is appended automatically |
+| `image_name` | `t-ubuntu-2604` | Base name — a timestamp is appended automatically |
 | `image_description` | _(set per template)_ | Description stored in the template metadata |
 | `vm_company_name` | `IT-Architect` | Used in MOTD, login banner, and shell prompt |
 

@@ -91,8 +91,8 @@ sudo ./templates/prepare-ubuntu-2404-template.sh
 Example `vms.csv`:
 ```csv
 Name,Template,Datastore,Cluster,CPU,MemoryGB,CustomisationSpec,PowerOn
-web01,ubuntu-2404-golden,datastore1,Cluster01,2,4,Ubuntu-Spec,true
-db01,ubuntu-2404-golden,datastore1,Cluster01,4,8,Ubuntu-Spec,true
+web01,t-ubuntu-2404,datastore1,Cluster01,2,4,Ubuntu-Spec,true
+db01,t-ubuntu-2404,datastore1,Cluster01,4,8,Ubuntu-Spec,true
 dc01,ws2025-golden,datastore1,Cluster01,4,8,Windows-Spec,true
 ```
 

@@ -388,7 +388,7 @@ az account list-locations --output table  # Lists all regions
 ```bash
 ./image-maintenance/cloud/azure/update-managed-image.sh \
   --resource-group "my-rg" \
-  --image-name "ubuntu-2404-golden" \
+  --image-name "t-ubuntu-2404" \
   --location "uksouth"
 ```
 

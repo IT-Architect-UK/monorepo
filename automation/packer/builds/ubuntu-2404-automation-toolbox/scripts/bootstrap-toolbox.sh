@@ -703,7 +703,7 @@ if [[ "${BUILD_GOLDEN}" == "1" && -n "${GOLD_TPL_ID:-}" ]]; then
     TASK_ID=$(api POST "${P}/tasks"         "$(jq -n --argjson tid "${GOLD_TPL_ID}" '{template_id: $tid}')" | jq -r '.id // empty')
     if [[ -n "${TASK_ID}" ]]; then
         log "Golden image build started (Semaphore task ${TASK_ID}) — progress: http://$(hostname -I | awk '{print $1}')/ → Tasks"
-        log "The template 'ubuntu-2404-golden-<timestamp>' appears in Proxmox when it finishes (~20-30 min)."
+        log "The template 't-ubuntu-2404-<timestamp>' appears in Proxmox when it finishes (~20-30 min)."
     else
         warn "Could not start the golden image task — run it manually: Semaphore → Build Golden Image — Ubuntu 24.04"
     fi

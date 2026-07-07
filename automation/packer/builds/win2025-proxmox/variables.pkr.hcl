@@ -2,7 +2,7 @@
 
 variable "image_name" {
   type    = string
-  default = "win2025-golden"
+  default = "t-win2025"
 }
 
 variable "image_description" {

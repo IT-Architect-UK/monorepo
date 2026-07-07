@@ -28,11 +28,11 @@ Fully patched Ubuntu 26.04, qemu-guest-agent, cloud-init (re-armed at seal time 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `proxmox_vm_id` | `9006` | Build VM / template ID |
-| `image_name` | `ubuntu-2604-golden` | Template name prefix (timestamp appended) |
+| `image_name` | `t-ubuntu-2604` | Template name prefix (timestamp appended) |
 | `ubuntu_iso_file` | — | volid of the uploaded ISO (**required**) |
 | `vm_cpu_count` / `vm_memory_mb` / `vm_disk_gb` | 2 / 2048 / 20 | Build-time sizing — clones resize at provision time |
 | `proxmox_url` / `proxmox_node` / storage / VLAN | homelab defaults | Site settings — override per environment |
 
 ## After the build
 
-The template appears as `ubuntu-2604-golden-<timestamp>`. Provision servers from it with the toolbox: **Semaphore → Provision VM (Proxmox) → Run**, entering the template name in the survey. Old timestamped templates can be deleted once nothing references them.
+The template appears as `t-ubuntu-2604-<timestamp>`. Provision servers from it with the toolbox: **Semaphore → Provision VM (Proxmox) → Run**, entering the template name in the survey. Old timestamped templates can be deleted once nothing references them.

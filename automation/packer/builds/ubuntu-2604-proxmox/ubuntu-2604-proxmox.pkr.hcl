@@ -55,7 +55,7 @@ packer {
 # Variables are declared in variables.pkr.hcl — override them here or at build time
 
 locals {
-  # Build a versioned image name: e.g. "ubuntu-2604-golden-20240315"
+  # Build a versioned image name: e.g. "t-ubuntu-2604-20240315"
   timestamp  = formatdate("YYYYMMDD-HHmm", timestamp())
   image_name = "${var.image_name}-${local.timestamp}"
 }

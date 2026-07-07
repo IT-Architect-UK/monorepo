@@ -81,7 +81,7 @@ try {
         Write-Host "`n[3/3] packer build (15-30 min)..." -ForegroundColor Cyan
         packer build . 2>&1 | Tee-Object -FilePath $LogFile -Append | ForEach-Object { Write-Host $_ }
         if ($LASTEXITCODE -ne 0) { throw "packer build failed" }
-        Write-Host "`nDone. New template: ubuntu-2604-golden-<timestamp> (VMID 9006)." -ForegroundColor Green
+        Write-Host "`nDone. New template: t-ubuntu-2604-<timestamp> (VMID 9006)." -ForegroundColor Green
         Write-Host "Provision from it: Semaphore -> Task Templates -> Provision VM (Proxmox)." -ForegroundColor Green
     }
 } catch {

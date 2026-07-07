@@ -11,8 +11,8 @@
 
     CSV format example (save as vms.csv):
         Name,Template,Datastore,Cluster,CPU,MemoryGB,CustomisationSpec,PowerOn
-        web01,ubuntu-2404-golden,datastore1,Cluster01,2,4,Ubuntu-Spec,true
-        db01,ubuntu-2404-golden,datastore1,Cluster01,4,8,Ubuntu-Spec,true
+        web01,t-ubuntu-2404,datastore1,Cluster01,2,4,Ubuntu-Spec,true
+        db01,t-ubuntu-2404,datastore1,Cluster01,4,8,Ubuntu-Spec,true
         dc01,ws2025-golden,datastore1,Cluster01,4,8,Windows-Spec,true
 
 .PARAMETER vCenterServer

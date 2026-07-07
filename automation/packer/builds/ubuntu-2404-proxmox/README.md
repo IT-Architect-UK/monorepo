@@ -41,13 +41,13 @@ Applications (Webmin, monitoring agents, Docker, …) deliberately never go into
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `proxmox_vm_id` | `9004` | Build VM / template ID |
-| `image_name` | `ubuntu-2404-golden` | Template name prefix (timestamp appended) |
+| `image_name` | `t-ubuntu-2404` | Template name prefix (timestamp appended) |
 | `ubuntu_iso_file` | — | volid of the uploaded ISO (**required**) |
 | `vm_cpu_count` / `vm_memory_mb` / `vm_disk_gb` | 2 / 2048 / 20 | Build-time sizing — clones resize at provision time |
 | `proxmox_url` / `proxmox_node` / storage / VLAN | homelab defaults | Site settings — override per environment |
 
 ## After the build
 
-The template appears as `ubuntu-2404-golden-<timestamp>`. Provision servers from it with the toolbox: **Semaphore → Provision VM (Proxmox) → Run**, entering the template name in the survey.
+The template appears as `t-ubuntu-2404-<timestamp>`. Provision servers from it with the toolbox: **Semaphore → Provision VM (Proxmox) → Run**, entering the template name in the survey.
 
 **Logins:** the sealed template has no interactive accounts by design — each clone gets its identity on first boot via cloud-init: hostname from the VM name, plus the account/password/SSH key you enter in the provisioning survey. (During a build, the temporary `packer` account exists and is removed at seal.) Old timestamped templates can be deleted once nothing references them.

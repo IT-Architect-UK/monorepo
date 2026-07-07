@@ -53,7 +53,7 @@
 
 .EXAMPLE
     # Clone with customisation spec and power on
-    .\clone-from-template.ps1 -vCenterServer "vcenter.lab.local" -TemplateName "ubuntu-2404-golden" -VMName "web01" -CustomisationSpec "Ubuntu-Spec" -PowerOn
+    .\clone-from-template.ps1 -vCenterServer "vcenter.lab.local" -TemplateName "t-ubuntu-2404" -VMName "web01" -CustomisationSpec "Ubuntu-Spec" -PowerOn
 
 .EXAMPLE
     # Clone with resource override

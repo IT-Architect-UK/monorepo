@@ -2,7 +2,7 @@
 
 variable "image_name" {
   type    = string
-  default = "ubuntu-2404-golden"
+  default = "t-ubuntu-2404"
 }
 
 variable "image_description" {

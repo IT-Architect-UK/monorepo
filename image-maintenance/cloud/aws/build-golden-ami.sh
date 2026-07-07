@@ -26,7 +26,7 @@
 #
 # Usage:
 #   ./build-golden-ami.sh --region eu-west-2
-#   ./build-golden-ami.sh --region eu-west-2 --instance-type t3.medium --name "ubuntu-2404-golden"
+#   ./build-golden-ami.sh --region eu-west-2 --instance-type t3.medium --name "t-ubuntu-2404"
 #
 # Author  : IT-Architect-UK
 # Repo    : https://github.com/IT-Architect-UK/monorepo
@@ -47,7 +47,7 @@ ENV_FILE="$(dirname "$0")/.env"
 [[ -f "$ENV_FILE" ]] && source "$ENV_FILE" && log "Loaded defaults from .env"
 
 
-REGION="${AWS_DEFAULT_REGION:-eu-west-2}"; INSTANCE_TYPE="t3.micro"; AMI_NAME="ubuntu-2404-golden"
+REGION="${AWS_DEFAULT_REGION:-eu-west-2}"; INSTANCE_TYPE="t3.micro"; AMI_NAME="t-ubuntu-2404"
 SUBNET_ID=""; KEY_NAME=""; SG_ID=""
 
 while [[ $# -gt 0 ]]; do

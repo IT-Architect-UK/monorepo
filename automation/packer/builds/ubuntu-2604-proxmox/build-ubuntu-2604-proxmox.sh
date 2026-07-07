@@ -31,7 +31,7 @@
 #     via ISO_STORAGE). To pin a specific pre-uploaded ISO instead:
 #       export PKR_VAR_ubuntu_iso_file="local:iso/ubuntu-26.04.2-live-server-amd64.iso"
 #
-# Output: Proxmox template "ubuntu-2604-golden-<timestamp>" (VMID 9006 by
+# Output: Proxmox template "t-ubuntu-2604-<timestamp>" (VMID 9006 by
 # default) plus a timestamped build log in ./logs/.
 #
 # Author:            Darren Pilkington
@@ -183,5 +183,5 @@ export PACKER_NO_COLOR=1
     packer build .
 } 2>&1 | tee "${LOG_FILE}"
 
-log "Done. New template: check 'ubuntu-2604-golden-<timestamp>' (VMID 9006) in Proxmox."
+log "Done. New template: check 't-ubuntu-2604-<timestamp>' (VMID 9006) in Proxmox."
 log "Provision from it via Semaphore: Task Templates -> Provision VM (Proxmox)."

@@ -48,14 +48,14 @@ sudo ./linux/update-proxmox-template.sh \
 
 ### AWS — Build Golden AMI
 ```bash
-./cloud/aws/build-golden-ami.sh --region eu-west-2 --name "ubuntu-2404-golden"
+./cloud/aws/build-golden-ami.sh --region eu-west-2 --name "t-ubuntu-2404"
 ```
 
 ### Azure — Update Managed Image
 ```bash
 ./cloud/azure/update-managed-image.sh \
     --resource-group myRG \
-    --image-name ubuntu-2404-golden
+    --image-name t-ubuntu-2404
 ```
 
 ### GCP — Update Machine Image

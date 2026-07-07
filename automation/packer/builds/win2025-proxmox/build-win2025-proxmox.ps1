@@ -96,7 +96,7 @@ try {
         Write-Host "`n[3/3] packer build (30-60 min — Windows installs are slow)..." -ForegroundColor Cyan
         packer build . 2>&1 | Tee-Object -FilePath $LogFile -Append | ForEach-Object { Write-Host $_ }
         if ($LASTEXITCODE -ne 0) { throw "packer build failed" }
-        Write-Host "`nDone. New template: win2025-golden-<timestamp>." -ForegroundColor Green
+        Write-Host "`nDone. New template: t-win2025-<timestamp>." -ForegroundColor Green
     }
 } catch {
     Write-Host "`nFAILED: $($_.Exception.Message)" -ForegroundColor Red

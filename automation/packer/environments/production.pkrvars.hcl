@@ -24,5 +24,5 @@ vm_cpu_count = 2
 vm_memory_mb = 4096
 vm_disk_gb   = 30
 
-image_name        = "ubuntu-2604-golden"
+image_name        = "t-ubuntu-2604"
 image_description = "Ubuntu 26.04 LTS — Production Golden Image — Built with Packer"
