@@ -7,15 +7,24 @@
 #
 # What it does:
 #   1. Connects to the Proxmox API (same host/credentials as the build)
-#   2. Finds the template (default VM ID 9002) and any VM whose name you give
+#   2. Finds the toolbox template (VM ID 9002), the cloned toolbox VM (by name),
+#      and the golden image templates (VM IDs 9003/9004/9006 by default)
 #   3. Shows exactly what it found and asks for confirmation
-#   4. Stops the clone if it is running, then deletes clone and template
+#   4. Stops any running VM, then deletes every confirmed target
+#
+# SCOPE / SAFETY: only the specific VM IDs above and the named clone are ever
+# touched. Your other VMs and templates are never selected. A golden ID is only
+# deleted if the VM at that ID is actually a template. Nothing runs without you
+# typing 'yes' at the confirmation (unless -Force).
 #
 # USAGE (from this folder in a PowerShell terminal):
-#   .\cleanup-automation-toolbox-proxmox.ps1                      # template 9002 + clones named POSLXPDEPLOY01
+#   .\cleanup-automation-toolbox-proxmox.ps1                      # toolbox template + clone + goldens (all)
+#   .\cleanup-automation-toolbox-proxmox.ps1 -KeepGolden          # toolbox template + clone, keep goldens
+#   .\cleanup-automation-toolbox-proxmox.ps1 -GoldenOnly          # only the golden templates
+#   .\cleanup-automation-toolbox-proxmox.ps1 -TemplateOnly        # only the toolbox template (9002)
+#   .\cleanup-automation-toolbox-proxmox.ps1 -CloneOnly           # only the cloned toolbox VM
 #   .\cleanup-automation-toolbox-proxmox.ps1 -CloneName MYTEST01  # different clone name
-#   .\cleanup-automation-toolbox-proxmox.ps1 -TemplateOnly        # leave the clone alone
-#   .\cleanup-automation-toolbox-proxmox.ps1 -CloneOnly           # leave the template alone
+#   .\cleanup-automation-toolbox-proxmox.ps1 -GoldenIds 9003,9004 # override golden VM IDs
 #   .\cleanup-automation-toolbox-proxmox.ps1 -Force               # skip the confirmation prompt
 #
 # CREDENTIALS: uses the same env var as the build script
@@ -26,11 +35,14 @@
 param(
     [int]    $TemplateId   = 9002,
     [string] $CloneName    = "POSLXPDEPLOY01",
+    [int[]]  $GoldenIds    = @(9003, 9004, 9006),
     [string] $ProxmoxUrl   = "",
     [string] $ProxmoxUser  = "root@pam",
     [string] $Node         = "",
     [switch] $TemplateOnly,
     [switch] $CloneOnly,
+    [switch] $GoldenOnly,
+    [switch] $KeepGolden,
     [switch] $Force
 )
 
@@ -106,23 +118,43 @@ $script:PveHeaders = @{
 $vms = Invoke-Pve GET "/cluster/resources?type=vm"
 $targets = @()
 
-if (-not $CloneOnly) {
+# Which groups to act on. Default (no switches) = all three.
+$doTemplate = -not ($CloneOnly -or $GoldenOnly)
+$doClone    = -not ($TemplateOnly -or $GoldenOnly)
+$doGolden   = -not ($TemplateOnly -or $CloneOnly -or $KeepGolden)
+
+if ($doTemplate) {
     $tpl = $vms | Where-Object { $_.vmid -eq $TemplateId }
     if ($tpl) {
         if ((Get-Prop $tpl 'template') -ne 1) {
-            Write-Warning "VM $TemplateId ('$($tpl.name)') is NOT a template — skipping it. Use -CloneName to delete regular VMs."
+            Write-Warning "VM $TemplateId ('$($tpl.name)') is NOT a template — skipping it (safety)."
         } else {
             $targets += $tpl
         }
     } else {
-        Write-Host "No template with VM ID $TemplateId found — nothing to do there." -ForegroundColor DarkGray
+        Write-Host "No toolbox template with VM ID $TemplateId found — skipping." -ForegroundColor DarkGray
     }
 }
 
-if (-not $TemplateOnly) {
+if ($doClone) {
     $clones = $vms | Where-Object { $_.name -eq $CloneName -and $_.vmid -ne $TemplateId -and (Get-Prop $_ 'template') -ne 1 }
     if ($clones) { $targets += $clones }
-    else { Write-Host "No VM named '$CloneName' found — nothing to do there." -ForegroundColor DarkGray }
+    else { Write-Host "No VM named '$CloneName' found — skipping." -ForegroundColor DarkGray }
+}
+
+if ($doGolden) {
+    foreach ($gid in $GoldenIds) {
+        $g = $vms | Where-Object { $_.vmid -eq $gid }
+        if ($g) {
+            if ((Get-Prop $g 'template') -ne 1) {
+                Write-Warning "VM $gid ('$($g.name)') is NOT a template — skipping it (safety)."
+            } else {
+                $targets += $g
+            }
+        } else {
+            Write-Host "No golden template with VM ID $gid found — skipping." -ForegroundColor DarkGray
+        }
+    }
 }
 
 if (-not $targets) { Write-Host "Nothing to delete. Done." -ForegroundColor Green; exit 0 }
