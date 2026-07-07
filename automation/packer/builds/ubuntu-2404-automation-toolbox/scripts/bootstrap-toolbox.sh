@@ -501,9 +501,33 @@ fi
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 # ─── 7. Finalise the Homepage dashboard ──────────────────────────────────────
+# Homepage widget credentials live in an --env-file. Two rules matter here:
+#   • NEVER truncate the env file — set each key IN PLACE. An earlier version
+#     used `cat >` for the Proxmox creds, which deleted the Portainer key line
+#     so the widget never got a key.
+#   • `docker restart` does NOT re-read an --env-file. The container must be
+#     RECREATED to pick up new values. So we write every credential first, then
+#     recreate the homepage container once at the end (section 7c).
 HOMEPAGE_CONFIG="/opt/homepage/config"
 HOMEPAGE_ENV="/opt/homepage/.env.homepage"
 SERVER_IP=$(hostname -I | awk '{print $1}')
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
+HOMEPAGE_INSTALL="${REPO_ROOT}/applications/homepage/install-homepage.sh"
+[[ -f "${HOMEPAGE_INSTALL}" ]] || HOMEPAGE_INSTALL="/git/monorepo/applications/homepage/install-homepage.sh"
+PORTAINER_INSTALL="${REPO_ROOT}/containers/portainer/install-portainer.sh"
+[[ -f "${PORTAINER_INSTALL}" ]] || PORTAINER_INSTALL="/git/monorepo/containers/portainer/install-portainer.sh"
+
+# Set KEY=VALUE in an env file without disturbing other lines. Uses grep-out +
+# append (not sed) so values containing +, / or = never trip a delimiter.
+set_env_kv() { # set_env_kv FILE KEY VALUE
+    local file="$1" key="$2" val="$3" tmp
+    touch "${file}"; chmod 600 "${file}"
+    tmp="$(mktemp)"
+    grep -v "^${key}=" "${file}" > "${tmp}" 2>/dev/null || true
+    printf '%s=%s\n' "${key}" "${val}" >> "${tmp}"
+    cat "${tmp}" > "${file}"; rm -f "${tmp}"
+}
+
 if [[ -d "${HOMEPAGE_CONFIG}" ]]; then
     if grep -q "toolbox.lab.local" "${HOMEPAGE_CONFIG}/services.yaml" 2>/dev/null; then
         sed -i "s/toolbox\.lab\.local/${SERVER_IP}/g" "${HOMEPAGE_CONFIG}/services.yaml"
@@ -513,89 +537,99 @@ if [[ -d "${HOMEPAGE_CONFIG}" ]]; then
         sed -i "s/PROXMOX-HOST-PLACEHOLDER/${PVE_HOST}/g" "${HOMEPAGE_CONFIG}/services.yaml"
         log "Homepage: Proxmox tile pointed at ${PVE_HOST}"
     fi
-    if [[ -n "${PVE_TOKEN_ID}" && -f "${HOMEPAGE_ENV}" ]]; then
-        # Homepage's Proxmox widget authenticates with an API token:
-        # username = user@realm!tokenid, password = token secret.
-        cat > "${HOMEPAGE_ENV}" <<HP_EOF
-# Homepage widget credentials — written by bootstrap-toolbox.sh. Never commit.
-HOMEPAGE_VAR_PROXMOX_USER=${PVE_USER}!${PVE_TOKEN_ID}
-HOMEPAGE_VAR_PROXMOX_PASS=${PVE_TOKEN_SECRET}
-HOMEPAGE_VAR_PROXMOX_NODE=${PVE_NODE}
-HP_EOF
-        chmod 600 "${HOMEPAGE_ENV}"
+    if [[ -n "${PVE_TOKEN_ID}" ]]; then
+        # Proxmox widget auth: username = user@realm!tokenid, password = secret.
+        set_env_kv "${HOMEPAGE_ENV}" HOMEPAGE_VAR_PROXMOX_USER "${PVE_USER}!${PVE_TOKEN_ID}"
+        set_env_kv "${HOMEPAGE_ENV}" HOMEPAGE_VAR_PROXMOX_PASS "${PVE_TOKEN_SECRET}"
+        set_env_kv "${HOMEPAGE_ENV}" HOMEPAGE_VAR_PROXMOX_NODE "${PVE_NODE}"
         log "Homepage: Proxmox widget credentials written (token auth)"
-    elif [[ -z "${PVE_TOKEN_ID}" ]]; then
-        warn "Homepage: Proxmox widget needs an API token — using password auth here would put the root password in a widget. Edit ${HOMEPAGE_ENV} once you create a token."
+    else
+        warn "Homepage: Proxmox widget needs an API token — a password would expose root in a widget. Add a token to ${HOMEPAGE_ENV}."
     fi
-    docker restart homepage >/dev/null 2>&1 && log "Homepage restarted (http://${SERVER_IP}:3002/)" \
-        || warn "Could not restart the homepage container — is Docker running?"
 else
     warn "Homepage config not found at ${HOMEPAGE_CONFIG} — skipping dashboard finalisation."
 fi
 
-# ─── 7b. Portainer initialisation ────────────────────────────────────────────
-# Best-effort by design: NOTHING in this section may abort the bootstrap.
-# Portainer locks its init endpoint ~5 min after container start; a restart
-# re-opens it. Every call logs its HTTP status so failures are diagnosable.
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx portainer; then
+# ─── 7b. Portainer admin + dashboard widget ──────────────────────────────────
+# Best-effort by design: nothing here may abort the bootstrap. Modern Portainer
+# (2.20+) refuses API admin creation without an X-Setup-Token and self-locks a
+# few minutes after start, so we do NOT race it — install-portainer.sh recreates
+# the container with --admin-password-file, creating the admin at boot. We then
+# register the local Docker environment (id 1, which the widget references) and
+# mint the Homepage widget API key.
+if [[ "${#SEM_PASS}" -lt 12 ]]; then
+    warn "Portainer: admin password under 12 chars — skipping Portainer setup."
+elif [[ ! -f "${PORTAINER_INSTALL}" ]]; then
+    warn "Portainer installer not found (${PORTAINER_INSTALL}) — skipping Portainer setup."
+else
     P_URL="https://127.0.0.1:9443/api"
-    P_PASS="${SEM_PASS}"
-    pcurl() { # pcurl <out-var-prefix> <curl args...> — never fails the script
-        local _pfx="$1"; shift
-        local resp code
-        resp=$(curl -sk --max-time 15 -w '\n%{http_code}' "$@" 2>/dev/null) || resp=$'\n000'
+    pcurl() { # pcurl <out-prefix> <curl args...> — never fails the script
+        local _pfx="$1"; shift; local resp code
+        resp=$(curl -sk --max-time 20 -w '\n%{http_code}' "$@" 2>/dev/null) || resp=$'\n000'
         code="${resp##*$'\n'}"
         printf -v "${_pfx}_CODE" '%s' "${code}"
         printf -v "${_pfx}_BODY" '%s' "${resp%$'\n'*}"
         return 0
     }
-    if [[ "${#P_PASS}" -lt 12 ]]; then
-        warn "Portainer needs a 12+ character admin password — set it manually at https://${SERVER_IP}:9443"
+    log "Portainer: creating admin at container start (--admin-password-file)..."
+    PORTAINER_ADMIN_PASSWORD="${SEM_PASS}" bash "${PORTAINER_INSTALL}" >/dev/null 2>&1 \
+        || warn "Portainer installer reported an error — check: docker logs portainer"
+    P_READY=0
+    for _ in $(seq 1 12); do
+        pcurl PS GET "${P_URL}/system/status"
+        [[ "${PS_CODE}" == "200" ]] && { P_READY=1; break; }
+        sleep 5
+    done
+    if [[ "${P_READY}" != "1" ]]; then
+        warn "Portainer API not responding (last ${PS_CODE:-none}) — check https://${SERVER_IP}:9443"
     else
-        # Restart Portainer FIRST: its admin-init endpoint locks ~5 min after
-        # container start, and the bootstrap can arrive later than that. A
-        # restart opens a fresh window deterministically instead of racing it.
-        docker restart portainer >/dev/null 2>&1 || true
-        # wait for the API to answer (container restarting)
-        P_READY=0
-        for _ in 1 2 3 4 5 6; do
-            pcurl PS GET "${P_URL}/system/status"
-            [[ "${PS_CODE}" == "200" ]] && { P_READY=1; break; }
+        # Admin creation completes a moment after boot — retry auth briefly.
+        P_JWT=""
+        for _ in $(seq 1 6); do
+            pcurl PA POST "${P_URL}/auth" -H "Content-Type: application/json" \
+                -d "$(jq -n --arg p "${SEM_PASS}" '{username:"admin",password:$p}')"
+            P_JWT=$(echo "${PA_BODY}" | jq -r '.jwt // empty' 2>/dev/null) || P_JWT=""
+            [[ -n "${P_JWT}" ]] && break
             sleep 5
         done
-        if [[ "${P_READY}" != "1" ]]; then
-            warn "Portainer API not responding (last status ${PS_CODE:-none}) — initialise it manually at https://${SERVER_IP}:9443"
+        if [[ -z "${P_JWT}" ]]; then
+            warn "Portainer auth failed (HTTP ${PA_CODE}: ${PA_BODY:0:160}) — verify at https://${SERVER_IP}:9443"
         else
-            pcurl PI POST "${P_URL}/users/admin/init"                 -H "Content-Type: application/json"                 -d "$(jq -n --arg p "${P_PASS}" '{Username: "admin", Password: $p}')"
-            case "${PI_CODE}" in
-                200) log "Portainer admin initialised (admin / same password as Semaphore)" ;;
-                409) log "Portainer admin already initialised — continuing" ;;
-                408) warn "Portainer init window expired — restarting the container re-opens it: docker restart portainer, then initialise at https://${SERVER_IP}:9443"
-                     docker restart portainer >/dev/null 2>&1 || true
-                     sleep 5
-                     pcurl PI POST "${P_URL}/users/admin/init" -H "Content-Type: application/json"                          -d "$(jq -n --arg p "${P_PASS}" '{Username: "admin", Password: $p}')"
-                     [[ "${PI_CODE}" == "200" ]] && log "Portainer admin initialised after restart"                          || warn "Init still failing (HTTP ${PI_CODE}): ${PI_BODY:0:200}" ;;
-                *)   warn "Portainer init returned HTTP ${PI_CODE}: ${PI_BODY:0:200}" ;;
-            esac
-            pcurl PA POST "${P_URL}/auth" -H "Content-Type: application/json"                 -d "$(jq -n --arg p "${P_PASS}" '{username: "admin", password: $p}')"
-            P_JWT=$(echo "${PA_BODY}" | jq -r '.jwt // empty' 2>/dev/null) || P_JWT=""
-            if [[ -n "${P_JWT}" ]]; then
-                pcurl PT POST "${P_URL}/users/1/tokens"                     -H "Authorization: Bearer ${P_JWT}" -H "Content-Type: application/json"                     -d '{"description":"homepage-widget"}'
-                P_KEY=$(echo "${PT_BODY}" | jq -r '.rawAPIKey // empty' 2>/dev/null) || P_KEY=""
-                if [[ -n "${P_KEY}" && -f "${HOMEPAGE_ENV}" ]]; then
-                    sed -i "s|^HOMEPAGE_VAR_PORTAINER_KEY=.*|HOMEPAGE_VAR_PORTAINER_KEY=${P_KEY}|" "${HOMEPAGE_ENV}" || true
-                    docker restart homepage >/dev/null 2>&1 || true
-                    log "Portainer dashboard widget wired (API key stored for Homepage)"
-                else
-                    warn "Could not mint a Portainer API key (HTTP ${PT_CODE}: ${PT_BODY:0:200}) — widget shows an error until a key is added to ${HOMEPAGE_ENV}"
-                fi
+            # Register the local Docker environment if none exists (widget = id 1).
+            pcurl PE GET "${P_URL}/endpoints" -H "Authorization: Bearer ${P_JWT}"
+            if [[ "$(echo "${PE_BODY}" | jq 'length' 2>/dev/null || echo 0)" == "0" ]]; then
+                pcurl PC POST "${P_URL}/endpoints" -H "Authorization: Bearer ${P_JWT}" \
+                    -F "Name=local" -F "EndpointCreationType=1"
+                [[ "${PC_CODE}" == "200" ]] && log "Portainer: local Docker environment registered" \
+                    || warn "Portainer: could not register local environment (HTTP ${PC_CODE})"
+            fi
+            # Mint the widget key — needs the admin's id and the password in body.
+            P_AID=$(curl -sk --max-time 20 "${P_URL}/users" -H "Authorization: Bearer ${P_JWT}" 2>/dev/null \
+                    | jq -r '.[] | select(.Username=="admin") | .Id' 2>/dev/null)
+            P_AID="${P_AID:-1}"
+            pcurl PT POST "${P_URL}/users/${P_AID}/tokens" -H "Authorization: Bearer ${P_JWT}" \
+                -H "Content-Type: application/json" \
+                -d "$(jq -n --arg p "${SEM_PASS}" '{password:$p, description:"homepage-widget"}')"
+            P_KEY=$(echo "${PT_BODY}" | jq -r '.rawAPIKey // empty' 2>/dev/null) || P_KEY=""
+            if [[ -n "${P_KEY}" ]]; then
+                set_env_kv "${HOMEPAGE_ENV}" HOMEPAGE_VAR_PORTAINER_KEY "${P_KEY}"
+                log "Portainer: dashboard widget key stored"
             else
-                warn "Portainer authentication failed (HTTP ${PA_CODE}: ${PA_BODY:0:200}) — initialise/verify at https://${SERVER_IP}:9443"
+                warn "Portainer: could not mint an API key (HTTP ${PT_CODE}: ${PT_BODY:0:160}) — widget errors until a key is added to ${HOMEPAGE_ENV}"
             fi
         fi
     fi
+fi
+
+# ─── 7c. Recreate the Homepage container so it loads the new credentials ──────
+# docker restart would NOT re-read the --env-file; install-homepage.sh removes
+# and re-runs the container, leaving the existing config and env file in place.
+if [[ -f "${HOMEPAGE_INSTALL}" ]]; then
+    bash "${HOMEPAGE_INSTALL}" >/dev/null 2>&1 \
+        && log "Homepage recreated with live credentials (http://${SERVER_IP}:3002/)" \
+        || warn "Could not recreate the homepage container — check: docker logs homepage"
 else
-    warn "Portainer container not running — skipping its initialisation."
+    warn "Homepage installer not found (${HOMEPAGE_INSTALL}) — recreate homepage manually to load creds."
 fi
 
 # ─── 8. SSH password access check ────────────────────────────────────────────

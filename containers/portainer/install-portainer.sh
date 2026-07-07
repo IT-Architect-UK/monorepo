@@ -15,6 +15,15 @@
 # Usage:
 #   sudo ./install-portainer.sh
 #
+# Optional environment:
+#   PORTAINER_ADMIN_PASSWORD   If set (12+ chars), the admin account is created
+#                              at container start via --admin-password-file,
+#                              bypassing the browser setup and the 5-minute
+#                              setup-token window. The data volume is reset so
+#                              the admin initialises cleanly, so only set this
+#                              for first-time/automated setup. Left unset, do
+#                              the normal browser setup at https://<host>:9443.
+#
 # Author:            Darren Pilkington
 # Version:           2.0
 # Date:              05-07-2026
@@ -37,6 +46,25 @@ IMAGE="portainer/portainer-ce:latest"
 
 log "Installing Portainer CE on $(hostname -f 2>/dev/null || hostname)"
 
+# Optional non-interactive admin bootstrap. When PORTAINER_ADMIN_PASSWORD is
+# set, Portainer creates the admin at startup from a mounted password file,
+# which avoids the browser setup and the setup-token/5-minute lock entirely.
+# We reset the data volume first so the admin initialises on a clean database.
+ADMIN_MOUNT=()
+ADMIN_FLAG=()
+if [[ -n "${PORTAINER_ADMIN_PASSWORD:-}" ]]; then
+    [[ "${#PORTAINER_ADMIN_PASSWORD}" -ge 12 ]] \
+        || fail "PORTAINER_ADMIN_PASSWORD must be at least 12 characters"
+    mkdir -p /opt/portainer
+    printf '%s' "${PORTAINER_ADMIN_PASSWORD}" > /opt/portainer/.admin_pw
+    chmod 600 /opt/portainer/.admin_pw
+    ADMIN_MOUNT=(-v /opt/portainer/.admin_pw:/run/portainer_admin_pw:ro)
+    ADMIN_FLAG=(--admin-password-file /run/portainer_admin_pw)
+    log "Admin will be initialised at startup from PORTAINER_ADMIN_PASSWORD (data volume reset)."
+    docker rm -f "${CONTAINER_NAME}" &>/dev/null || true
+    docker volume rm portainer_data &>/dev/null || true
+fi
+
 if docker ps -a --format '{{.Names}}' | grep -qx "${CONTAINER_NAME}"; then
     log "Removing existing ${CONTAINER_NAME} container (data volume is preserved)..."
     docker rm -f "${CONTAINER_NAME}" &>/dev/null || true
@@ -53,8 +81,10 @@ docker run -d \
     -p 9443:9443 \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v portainer_data:/data \
+    "${ADMIN_MOUNT[@]}" \
     --restart unless-stopped \
-    "${IMAGE}" 2>&1 | tee -a "${LOG_FILE}"
+    "${IMAGE}" \
+    "${ADMIN_FLAG[@]}" 2>&1 | tee -a "${LOG_FILE}"
 
 sleep 3
 docker ps --format '{{.Names}}' | grep -qx "${CONTAINER_NAME}" \
