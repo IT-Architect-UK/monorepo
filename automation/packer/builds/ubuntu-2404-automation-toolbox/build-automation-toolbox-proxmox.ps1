@@ -453,7 +453,7 @@ $ProxmoxTemplateVmId  = [int](Get-LayeredPkrVarValue -VarName "proxmox_vm_id" -D
 
 # ── Deployment answers, collected up-front so the whole run is hands-off ─────
 $deployAfterBuild = $false
-$vmName = "POSLXPDEPLOY01"; $pveTokenId = ""; $pveTokenSecret = ""; $pveTokenUser = ""; $mgmtSubnet = ""
+$vmName = "POSLXPDEPLOY01"; $pveTokenId = ""; $pveTokenSecret = ""; $pveTokenUser = ""; $mgmtSubnet = ""; $winrmPassword = ""; $autoBuildGolden = $false
 if (-not $DryRun) {
     Write-Host ""
     Write-Host "  After the build this script can clone the template, start the VM and" -ForegroundColor Yellow
@@ -509,13 +509,12 @@ if (-not $DryRun) {
         $mgmtSubnet = (Read-Host "  Management subnet for firewall lockdown, e.g. 192.168.4.0/24 (Enter = skip)").Trim()
         $sec = Read-Host "  WinRM password for Windows golden builds (Enter = skip; injected into the unattended install automatically)" -AsSecureString
         $winrmPassword = [System.Net.NetworkCredential]::new("", $sec).Password
-        $ans = Read-Host "  Build the Ubuntu 24.04 golden image template right after bootstrap? (Y/n)"
+        $ans = Read-Host "  Build the golden image templates right after bootstrap (Ubuntu 24.04 + 26.04, and Windows if its ISO is present)? (Y/n)"
         $autoBuildGolden = ($ans -notmatch '^[Nn]')
     }
 }
 
 # ── Toolbox sizing (defaults suit modest hosts; more is better if you have it) ─
-$autoBuildGolden = $false; $winrmPassword = ""
 $vmCpu = 4; $vmMemMb = 8192
 if (-not $DryRun) {
     Write-Host ""
