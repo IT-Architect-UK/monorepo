@@ -336,9 +336,42 @@ fi
 # ─── 6. Job Templates ────────────────────────────────────────────────────────
 TPL_JSON=$(api GET "${P}/templates")
 
+# Views group templates in the Semaphore sidebar. Created before the templates
+# so each can be filed under one. Best-effort: if this Semaphore predates Views,
+# the ids stay empty and templates simply show ungrouped. NB views key on
+# 'title' (not 'name'), so find_id (which matches name) can't be used here.
+VIEWS_JSON=$(api GET "${P}/views" 2>/dev/null || echo '[]')
+seed_view() { # seed_view <title> <position> — echoes the id (logs to stderr)
+    local title="$1" pos="$2" vid
+    vid=$(echo "${VIEWS_JSON}" | jq -r --arg t "${title}" '[.[] | select(.title == $t)][0].id // empty' 2>/dev/null) || vid=""
+    if [[ -z "${vid}" ]]; then
+        vid=$(api POST "${P}/views" "$(jq -n --arg t "${title}" --argjson pid "${PROJECT_ID}" --argjson pos "${pos}" \
+              '{title: $t, project_id: $pid, position: $pos}')" 2>/dev/null | jq -r '.id // empty') || vid=""
+        [[ -n "${vid}" ]] && echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO]  View '${title}' created (id ${vid})" >&2 \
+                          || echo "$(date '+%Y-%m-%d %H:%M:%S') [WARN]  Could not create view '${title}' — its templates will be ungrouped" >&2
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO]  View '${title}' already exists (id ${vid})" >&2
+    fi
+    echo "${vid}"
+}
+VIEW_TOOLBOX_ID=$(seed_view "Deployment Toolbox" 1)
+VIEW_LINUX_ID=$(seed_view "Linux Tasks" 2)
+VIEW_WINDOWS_ID=$(seed_view "Windows Tasks" 3)
+VIEW_ROLES_ID=$(seed_view "Server Roles" 4)
+
+# POST a template, adding view_id only when a valid (>0) view id is supplied,
+# so template creation is unaffected if views weren't available.
+post_template() { # post_template <view_id> <template-json>
+    local vid="$1" json="$2"
+    if [[ -n "${vid}" && "${vid}" != "0" ]]; then
+        json=$(echo "${json}" | jq -c --argjson v "${vid}" '. + {view_id: $v}')
+    fi
+    api POST "${P}/templates" "${json}"
+}
+
 PROV_TPL_ID=$(echo "${TPL_JSON}" | find_id "Provision VM (Proxmox)")
 if [[ -z "${PROV_TPL_ID}" ]]; then
-    PROV_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
+    PROV_TPL_ID=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{
@@ -368,7 +401,7 @@ fi
 
 VAULT_TPL_ID=$(echo "${TPL_JSON}" | find_id "Deploy Vault Server")
 if [[ -z "${VAULT_TPL_ID}" ]]; then
-    VAULT_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
+    VAULT_TPL_ID=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{
@@ -389,7 +422,7 @@ fi
 
 GOLD_TPL_ID=$(echo "${TPL_JSON}" | find_id "Build Golden Image — Ubuntu 24.04")
 if [[ -z "${GOLD_TPL_ID}" ]]; then
-    GOLD_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
+    GOLD_TPL_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{
@@ -407,9 +440,10 @@ fi
 for GOLD in "Build Golden Image — Ubuntu 26.04|automation/packer/builds/ubuntu-2604-proxmox/build-ubuntu-2604-proxmox.sh|Packer-build a fresh Ubuntu 26.04 template on Proxmox." \
             "Build Golden Image — Windows 2025|automation/packer/builds/win2025-proxmox/build-win2025-proxmox.sh|Packer-build a Windows Server 2025 template. Requires the Windows ISO pre-uploaded and WINRM_PASSWORD in the variable group."; do
     G_NAME="${GOLD%%|*}"; G_REST="${GOLD#*|}"; G_PLAY="${G_REST%%|*}"; G_DESC="${G_REST#*|}"
+    case "${G_NAME}" in *"Windows"*) G_VIEW="${VIEW_WINDOWS_ID:-0}" ;; *) G_VIEW="${VIEW_LINUX_ID:-0}" ;; esac
     G_ID=$(echo "${TPL_JSON}" | find_id "${G_NAME}")
     if [[ -z "${G_ID}" ]]; then
-        G_ID=$(api POST "${P}/templates" "$(jq -n \
+        G_ID=$(post_template "${G_VIEW:-0}" "$(jq -n \
             --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
             --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
             --arg name "${G_NAME}" --arg play "${G_PLAY}" --arg desc "${G_DESC}" \
@@ -430,7 +464,7 @@ SEED_TPL() { # SEED_TPL <name> <playbook> <description> <survey-json>
     local T_ID
     T_ID=$(echo "${TPL_JSON}" | find_id "$1")
     if [[ -z "${T_ID}" ]]; then
-        T_ID=$(api POST "${P}/templates" "$(jq -n \
+        T_ID=$(post_template "${VIEW_ROLES_ID:-0}" "$(jq -n \
             --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
             --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
             --arg name "$1" --arg play "$2" --arg desc "$3" --argjson survey "$4" \
@@ -471,7 +505,7 @@ SEED_TPL "Configure Fail2Ban" \
 
 WEBMIN_TPL_ID=$(echo "${TPL_JSON}" | find_id "Deploy Webmin")
 if [[ -z "${WEBMIN_TPL_ID}" ]]; then
-    WEBMIN_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
+    WEBMIN_TPL_ID=$(post_template "${VIEW_ROLES_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{project_id: $pid, name: "Deploy Webmin", app: "ansible",
@@ -490,7 +524,7 @@ fi
 
 PROBE_TPL_ID=$(echo "${TPL_JSON}" | find_id "Diagnostics — Task Probe")
 if [[ -z "${PROBE_TPL_ID}" ]]; then
-    PROBE_TPL_ID=$(api POST "${P}/templates" "$(jq -n \
+    PROBE_TPL_ID=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{project_id: $pid, name: "Diagnostics — Task Probe", app: "bash",
