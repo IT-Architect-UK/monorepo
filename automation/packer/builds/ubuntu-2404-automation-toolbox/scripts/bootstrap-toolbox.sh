@@ -734,6 +734,17 @@ proxmox_iso_present() { # proxmox_iso_present <volid>
         | jq -e --arg v "${volid}" '.data[]? | select(.volid == $v)' >/dev/null 2>&1
 }
 
+# Add/update a plaintext KEY=VALUE in a Semaphore environment group without
+# touching its encrypted secrets (secrets are separate rows; PUTting env/json
+# leaves them intact). Returns non-zero if the API call fails.
+set_semaphore_env_var() { # set_semaphore_env_var <env_id> <key> <value>
+    local eid="$1" key="$2" val="$3" cur envstr body
+    cur=$(api GET "${P}/environment/${eid}" 2>/dev/null) || return 1
+    envstr=$(echo "${cur}" | jq -r '.env // "{}"' | jq -c --arg k "${key}" --arg v "${val}" '. + {($k):$v}' 2>/dev/null) || return 1
+    body=$(echo "${cur}" | jq -c --arg e "${envstr}" '{id, name, project_id, json: (.json // "{}"), env: $e}' 2>/dev/null) || return 1
+    api PUT "${P}/environment/${eid}" "${body}" >/dev/null 2>&1
+}
+
 if [[ "${BUILD_GOLDEN}" == "1" ]]; then
     start_golden "${GOLD_TPL_ID:-}"   "Ubuntu 24.04 golden image" "Build Golden Image — Ubuntu 24.04"
     start_golden "${GOLD26_TPL_ID:-}" "Ubuntu 26.04 golden image" "Build Golden Image — Ubuntu 26.04"
@@ -743,10 +754,32 @@ if [[ "${BUILD_GOLDEN}" == "1" ]]; then
         log "Windows ISO present on Proxmox (${WIN_ISO_VOLID}) — starting the Windows build."
         start_golden "${GOLDWIN_TPL_ID:-}" "Windows Server 2025 golden image" "Build Golden Image — Windows 2025"
     else
-        case "$?" in
-            2) warn "Windows auto-build skipped — a Proxmox API token is needed to verify the ISO. Upload the ISO, then run 'Build Golden Image — Windows 2025' in Semaphore." ;;
-            *) log  "Windows auto-build skipped — ISO '${WIN_ISO_VOLID:-unset}' not found on Proxmox storage. Upload it (see win2025-proxmox/README.md), then run 'Build Golden Image — Windows 2025' in Semaphore." ;;
-        esac
+        WRC=$?
+        if [[ "${NONINTERACTIVE}" == "1" ]]; then
+            case "${WRC}" in
+                2) warn "Windows auto-build skipped — a Proxmox API token is needed to verify the ISO. Upload the ISO, then run 'Build Golden Image — Windows 2025' in Semaphore." ;;
+                *) log  "Windows auto-build skipped — ISO '${WIN_ISO_VOLID:-unset}' not found on Proxmox storage. Upload it (see win2025-proxmox/README.md), then run 'Build Golden Image — Windows 2025' in Semaphore." ;;
+            esac
+        else
+            warn "Windows Server 2025 ISO '${WIN_ISO_VOLID:-unset}' was not found on Proxmox storage."
+            read -r -p "Enter the ISO volid to use (format storage:iso/name.iso), or press Enter to skip the Windows build: " USER_VOLID
+            if [[ -z "${USER_VOLID}" ]]; then
+                log "Windows golden image skipped — upload the ISO later and run 'Build Golden Image — Windows 2025'."
+            else
+                if proxmox_iso_present "${USER_VOLID}"; then VRC=0; else VRC=$?; fi
+                if [[ "${VRC}" == "0" || "${VRC}" == "2" ]]; then
+                    [[ "${VRC}" == "2" ]] && warn "Could not verify '${USER_VOLID}' (no API token) — trusting your input."
+                    if set_semaphore_env_var "${ENV_ID}" PKR_VAR_win_iso_file "${USER_VOLID}"; then
+                        log "Windows ISO set to ${USER_VOLID} (saved to the Proxmox variable group) — starting the build."
+                        start_golden "${GOLDWIN_TPL_ID:-}" "Windows Server 2025 golden image" "Build Golden Image — Windows 2025"
+                    else
+                        warn "Verified the ISO but could not save it to Semaphore — set PKR_VAR_win_iso_file=${USER_VOLID} in the Proxmox variable group, then run 'Build Golden Image — Windows 2025'."
+                    fi
+                else
+                    warn "'${USER_VOLID}' was not found on Proxmox storage either — skipping. Upload the ISO, then run 'Build Golden Image — Windows 2025'."
+                fi
+            fi
+        fi
     fi
 fi
 
