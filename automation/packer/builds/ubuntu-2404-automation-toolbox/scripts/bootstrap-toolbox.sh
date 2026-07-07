@@ -601,9 +601,13 @@ elif [[ ! -f "${PORTAINER_INSTALL}" ]]; then
     warn "Portainer installer not found (${PORTAINER_INSTALL}) — skipping Portainer setup."
 else
     P_URL="https://127.0.0.1:9443/api"
-    pcurl() { # pcurl <out-prefix> <curl args...> — never fails the script
-        local _pfx="$1"; shift; local resp code
-        resp=$(curl -sk --max-time 20 -w '\n%{http_code}' "$@" 2>/dev/null) || resp=$'\n000'
+    pcurl() { # pcurl <out-prefix> <METHOD> <curl args...> — never fails the script
+        # Method MUST go through -X. Passing it as a bare arg makes curl treat
+        # it as an extra URL to fetch, which pollutes the body (jq then fails)
+        # and can burn the --max-time budget — that is what stopped the local
+        # Docker environment from being created on a fresh deploy.
+        local _pfx="$1" _method="$2"; shift 2; local resp code
+        resp=$(curl -sk --max-time 20 -X "${_method}" -w '\n%{http_code}' "$@" 2>/dev/null) || resp=$'\n000'
         code="${resp##*$'\n'}"
         printf -v "${_pfx}_CODE" '%s' "${code}"
         printf -v "${_pfx}_BODY" '%s' "${resp%$'\n'*}"
