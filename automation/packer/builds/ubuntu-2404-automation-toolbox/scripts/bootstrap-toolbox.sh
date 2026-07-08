@@ -881,7 +881,9 @@ set_semaphore_env_var() { # set_semaphore_env_var <env_id> <key> <value>
 
 if [[ "${BUILD_GOLDEN}" == "1" ]]; then
     start_golden "${GOLD_TPL_ID:-}"   "Ubuntu 24.04 golden image" "Build Golden Image — Ubuntu 24.04"
+    sleep 20   # stagger: avoid concurrent 'packer init' plugin-download races
     start_golden "${GOLD26_TPL_ID:-}" "Ubuntu 26.04 golden image" "Build Golden Image — Ubuntu 26.04"
+    sleep 20
 
     WIN_ISO_VOLID="$(grep -E '^\s*win_iso_file\s*=' "${SITE_FILE}" 2>/dev/null | head -1 | sed -E 's/^[^=]*=\s*"?([^"#]*[^"# ])"?.*$/\1/')"
     if proxmox_iso_present "${WIN_ISO_VOLID}"; then

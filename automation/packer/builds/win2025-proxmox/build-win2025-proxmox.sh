@@ -154,10 +154,12 @@ log "Build log: ${LOG_FILE}"
 # Prefer /tmp when writable; otherwise a short .tmp at the repo root.
 if touch /tmp/.pkr-write-test 2>/dev/null; then
     rm -f /tmp/.pkr-write-test
-    PKR_TMP="/tmp"
+    # Unique per-run temp dir: concurrent golden builds otherwise collide on
+    # the shared plugin-download tempfile ("text file busy" at packer init).
+    # Stays short (~14 chars) to respect the 108-char unix-socket path limit.
+    PKR_TMP="$(mktemp -d /tmp/pkr.XXXXXX)"
 else
-    PKR_TMP="$(cd "${SCRIPT_DIR}/../../../.." && pwd)/.tmp"
-    mkdir -p "${PKR_TMP}"
+    PKR_TMP="$(mktemp -d "$(cd "${SCRIPT_DIR}/../../../.." && pwd)/.tmp.XXXXXX")"
 fi
 export TMPDIR="${PKR_TMP}"
 export PACKER_TMP_DIR="${PKR_TMP}"          # Packer's own temp-dir knob — takes precedence
