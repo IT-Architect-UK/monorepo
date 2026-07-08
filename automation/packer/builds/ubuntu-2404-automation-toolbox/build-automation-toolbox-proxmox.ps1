@@ -338,7 +338,8 @@ function Invoke-ToolboxBootstrap {
         [string]$SemaphorePassword, [string]$PveHost, [string]$PveUser,
         [string]$TokenId, [string]$TokenSecret, [string]$PvePassword,
         [string]$MgmtSubnet, [bool]$AutoBuildGolden = $false,
-        [string]$WinrmPassword = ""
+        [string]$WinrmPassword = "",
+        [string]$AdminUser = "", [string]$AdminPassword = ""
     )
 
     Write-Step "Waiting for the new VM to report an IP (guest agent)..."
@@ -360,6 +361,8 @@ function Invoke-ToolboxBootstrap {
     }
     if ($MgmtSubnet) { $lines += "MGMT_SUBNET=$(ConvertTo-ShellSingleQuoted $MgmtSubnet)" }
     if ($WinrmPassword) { $lines += "WINRM_PASSWORD=$(ConvertTo-ShellSingleQuoted $WinrmPassword)" }
+    if ($AdminUser)     { $lines += "DEPLOY_ADMIN_USER=$(ConvertTo-ShellSingleQuoted $AdminUser)" }
+    if ($AdminPassword) { $lines += "DEPLOY_ADMIN_PASSWORD=$(ConvertTo-ShellSingleQuoted $AdminPassword)" }
     if ($AutoBuildGolden) { $lines += "AUTO_BUILD_GOLDEN='1'" }
     $envContent = ($lines -join "`n") + "`n"
     $fwBody = "file=" + [uri]::EscapeDataString("/root/.bootstrap-env") + "&content=" + [uri]::EscapeDataString($envContent)
@@ -612,7 +615,9 @@ try {
                     -PvePassword       $proxmoxPassword `
                     -MgmtSubnet        $mgmtSubnet `
                     -AutoBuildGolden   $autoBuildGolden `
-                    -WinrmPassword     $winrmPassword | Out-Null
+                    -WinrmPassword     $winrmPassword `
+                    -AdminUser         $AdminUsername `
+                    -AdminPassword     $adminPassword | Out-Null
             } catch {
                 Write-Fail "Deployment failed: $($_.Exception.Message)"
                 Write-Host "  The template itself is unaffected. Retry: clone it in Proxmox, then run" -ForegroundColor DarkGray

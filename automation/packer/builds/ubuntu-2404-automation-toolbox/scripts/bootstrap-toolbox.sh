@@ -92,6 +92,9 @@ PVE_TOKEN_SECRET="${PROXMOX_TOKEN_SECRET:-}"
 PVE_PASSWORD="${PROXMOX_PASSWORD:-}"
 PVE_NODE="${PROXMOX_NODE:-}"
 MGMT_SUBNET="${MGMT_SUBNET:-}"
+# Default login for VMs deployed from goldens (passed from the build wrapper).
+DEPLOY_ADMIN_USER="${DEPLOY_ADMIN_USER:-it-admin}"
+DEPLOY_ADMIN_PASSWORD="${DEPLOY_ADMIN_PASSWORD:-}"
 
 require_or_prompt_secret() { # varname prompt
     local -n ref="$1"
@@ -291,14 +294,16 @@ if [[ -z "${ENV_ID}" ]]; then
         --arg tid "${PVE_TOKEN_ID}" --arg tsec "${PVE_TOKEN_SECRET}" --arg pw "${PVE_PASSWORD}" \
         --arg pub "${PROV_PUBKEY}" --arg winrm "${WINRM_PW}" \
         --arg surl "${SEMAPHORE_URL}" --arg spid "${PROJECT_ID}" --arg dtok "${DEPLOY_TOKEN}" \
+        --arg dauser "${DEPLOY_ADMIN_USER}" --arg dapass "${DEPLOY_ADMIN_PASSWORD}" \
         '{
           name: "Proxmox", project_id: $pid, json: "{}",
-          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub, SEMAPHORE_URL: $surl, SEMAPHORE_PROJECT_ID: $spid} | tojson),
+          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub, SEMAPHORE_URL: $surl, SEMAPHORE_PROJECT_ID: $spid, DEPLOY_ADMIN_USER: $dauser} | tojson),
           secrets: ([
             (if $tsec  != "" then {type: "env", name: "PROXMOX_TOKEN_SECRET", secret: $tsec,  operation: "create"} else empty end),
             (if $pw    != "" then {type: "env", name: "PROXMOX_PASSWORD",     secret: $pw,    operation: "create"} else empty end),
             (if $winrm != "" then {type: "env", name: "WINRM_PASSWORD",       secret: $winrm, operation: "create"} else empty end),
-            (if $dtok  != "" then {type: "env", name: "SEMAPHORE_API_TOKEN",  secret: $dtok,  operation: "create"} else empty end)
+            (if $dtok  != "" then {type: "env", name: "SEMAPHORE_API_TOKEN",  secret: $dtok,  operation: "create"} else empty end),
+            (if $dapass != "" then {type: "env", name: "DEPLOY_ADMIN_PASSWORD", secret: $dapass, operation: "create"} else empty end)
           ])
         }')
     ENV_ID=$(api POST "${P}/environment" "${ENV_BODY}" | jq -r '.id')

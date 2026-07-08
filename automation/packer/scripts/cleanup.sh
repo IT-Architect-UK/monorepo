@@ -30,6 +30,16 @@ section "Image Seal — Removing Machine-Unique Data"
 # Proxmox VM name (cloud_init=true in the Packer source block). For other
 # hypervisors, disable-cloud-init.sh already ran, so this is a no-op safety
 # net rather than something actively relied upon.
+# Ubuntu's autoinstall (subiquity) constrains cloud-init after install so it
+# won't reconfigure on boot — which stops Proxmox CLONES getting their identity
+# (hostname from the VM name, user/password/SSH key) from the Proxmox cloud-init
+# drive, leaving them as 'packer-build' with no login. Undo that here.
+log "Re-enabling cloud-init for clones (undo autoinstall constraints)..."
+sudo rm -f /etc/cloud/cloud-init.disabled
+sudo rm -f /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg
+sudo rm -f /etc/cloud/cloud.cfg.d/99-installer.cfg
+echo 'datasource_list: [ NoCloud, ConfigDrive ]' | sudo tee /etc/cloud/cloud.cfg.d/90-datasource.cfg >/dev/null
+
 log "Cleaning cloud-init cache..."
 sudo cloud-init clean --logs --seed
 sudo rm -rf /var/lib/cloud/
