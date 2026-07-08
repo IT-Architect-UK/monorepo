@@ -107,6 +107,10 @@ ansible-galaxy collection install \
 # Python libraries required by community.proxmox (proxmoxer) and
 # community.hashi_vault (hvac) modules on the control node
 apt-get install -y python3-proxmoxer python3-requests python3-hvac
+# community.proxmox modules (proxmox_kvm, proxmox_vm_info, ...) need
+# proxmoxer >= 2.3; Ubuntu's apt package is 2.0.x, so upgrade it via pip
+# (/usr/local takes precedence over /usr/lib on sys.path, so this wins).
+pip3 install --break-system-packages --upgrade "proxmoxer>=2.3"
 ok "$(ansible --version | head -1) installed"
 
 # ─── 7. Install AWS CLI v2 ────────────────────────────────────────────────────
