@@ -83,13 +83,11 @@ source "proxmox-iso" "win2025" {
   vm_name = local.image_name
 
   # ── Windows ISO (must be pre-uploaded to Proxmox) ────────────────────────
-  # boot_iso block (replaces the deprecated iso_file/iso_storage_pool args).
-  # win_iso_file format: "storage_pool:iso/filename.iso"
-  boot_iso {
-    type     = "ide"
-    iso_file = var.win_iso_file
-    unmount  = true
-  }
+  # iso_file format: "storage_pool:iso/filename.iso". (Reverted from a boot_iso
+  # block: that left the install ISO attached to CLONES, which then booted the
+  # DVD instead of the disk. iso_file detaches it cleanly on template seal.)
+  iso_file         = var.win_iso_file
+  iso_storage_pool = var.proxmox_iso_storage
 
   # ── Hardware ─────────────────────────────────────────────────────────────
   cores  = var.vm_cpu_count
@@ -118,7 +116,7 @@ source "proxmox-iso" "win2025" {
   # to the DVD and boots the installer. After install: sata0 is bootable, so
   # the reboot boots Windows and never reaches "Press any key". Missing
   # devices in the list are ignored.
-  boot = "order=sata0;ide0;ide1;ide2;ide3;net0"
+  boot = "order=sata0;ide2;ide0;ide3;net0"
 
   disks {
     disk_size    = "${var.vm_disk_gb}G"

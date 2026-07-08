@@ -153,6 +153,31 @@ try {
     Write-Warn "AppX cleanup had issues (non-critical): $($_.Exception.Message)"
 }
 
+# ── 8d. UEFI fallback bootloader (reliable clone boot) ───────────────────────
+# This template boots UEFI (OVMF). The "Windows Boot Manager" entry lives in
+# the firmware NVRAM (the Proxmox efidisk) and does NOT reliably survive a
+# clone/generalize, and Windows never installs the UEFI removable-media
+# fallback loader — so a fresh clone hits "BdsDxe: No bootable option or device
+# was found". Copying the Windows bootloader to \EFI\BOOT\BOOTX64.EFI makes the
+# disk self-bootable regardless of NVRAM state, which fixes clone boot.
+Write-Step "Install UEFI fallback bootloader (so clones boot reliably)"
+try {
+    cmd /c "mountvol S: /S" 2>$null
+    $bm = "S:\EFI\Microsoft\Boot\bootmgfw.efi"
+    $fbDir = "S:\EFI\BOOT"
+    if (Test-Path $bm) {
+        if (-not (Test-Path $fbDir)) { New-Item -ItemType Directory -Path $fbDir -Force | Out-Null }
+        Copy-Item $bm (Join-Path $fbDir "BOOTX64.EFI") -Force
+        Write-OK "UEFI fallback bootloader installed (\EFI\BOOT\BOOTX64.EFI)"
+    } else {
+        Write-Warn "bootmgfw.efi not found on the ESP — clones may not boot; check the EFI partition."
+    }
+    cmd /c "mountvol S: /D" 2>$null
+} catch {
+    Write-Warn "Could not install the UEFI fallback bootloader: $($_.Exception.Message)"
+    cmd /c "mountvol S: /D" 2>$null
+}
+
 # ── 9. Sysprep — generalize (Packer powers off) ─────────────────────────────────────
 Write-Step "Sysprep (generalize)"
 
