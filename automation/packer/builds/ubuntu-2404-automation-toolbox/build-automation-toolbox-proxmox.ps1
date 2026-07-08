@@ -406,6 +406,7 @@ Add-Content -Path $LogFile -Value @(
 
 # ── Resolve credentials ───────────────────────────────────────────────────────
 Write-Step "Resolving credentials..."
+$sharedPassword = ""
 
 $AdminUsername = Get-PkrVarValue `
     -FilePath "$TemplateDir\automation-toolbox.pkrvars.hcl" `
@@ -414,6 +415,28 @@ $AdminUsername = Get-PkrVarValue `
 
 try {
     $proxmoxPassword        = Resolve-RequiredVar "PKR_VAR_proxmox_password"         "What's the password for your Proxmox host (root or API user)?"
+
+    # Fast-path: one password for every account (Semaphore/Portainer, the VM
+    # admin, and WinRM). Handy for initial builds — rotate later with a secrets
+    # manager. Must be 12+ chars (Portainer's minimum). Skipped if the Semaphore
+    # password is already provided via PKR_VAR_semaphore_admin_password.
+    if (-not $env:PKR_VAR_semaphore_admin_password) {
+        Write-Host ""
+        $ans = Read-Host "  Use ONE password for ALL accounts (Semaphore/Portainer, $AdminUsername, WinRM)? (y/N)"
+        if ($ans -match '^[Yy]') {
+            while ($sharedPassword.Length -lt 12) {
+                $secure = Read-Host "  Shared password for all accounts (12+ chars, input hidden)" -AsSecureString
+                $sharedPassword = [System.Net.NetworkCredential]::new("", $secure).Password
+                if ($sharedPassword.Length -lt 12) { Write-Host "  12 or more characters required." -ForegroundColor Red }
+            }
+            Write-Host "  Using one shared password for all accounts." -ForegroundColor Green
+        }
+    }
+
+    if ($sharedPassword) {
+        $semaphoreAdminPassword = $sharedPassword
+        $adminPassword          = $sharedPassword
+    } else {
     # Semaphore + Portainer share this login; Portainer enforces 12+ chars.
     $semaphoreAdminPassword = $env:PKR_VAR_semaphore_admin_password
     while ([string]::IsNullOrWhiteSpace($semaphoreAdminPassword) -or $semaphoreAdminPassword.Length -lt 12) {
@@ -440,6 +463,7 @@ try {
         if ($ans -eq 'key-only') { break }
         $secure        = Read-Host "  Password for '$AdminUsername' (input hidden)" -AsSecureString
         $adminPassword = [System.Net.NetworkCredential]::new("", $secure).Password
+    }
     }
 } catch {
     Write-Fail $_.Exception.Message
@@ -510,8 +534,12 @@ if (-not $DryRun) {
             }
         }
         $mgmtSubnet = (Read-Host "  Management subnet for firewall lockdown, e.g. 192.168.4.0/24 (Enter = skip)").Trim()
-        $sec = Read-Host "  WinRM password for Windows golden builds (Enter = skip; injected into the unattended install automatically)" -AsSecureString
-        $winrmPassword = [System.Net.NetworkCredential]::new("", $sec).Password
+        if ($sharedPassword) {
+            $winrmPassword = $sharedPassword
+        } else {
+            $sec = Read-Host "  WinRM password for Windows golden builds (Enter = skip; injected into the unattended install automatically)" -AsSecureString
+            $winrmPassword = [System.Net.NetworkCredential]::new("", $sec).Password
+        }
         $ans = Read-Host "  Build the golden image templates right after bootstrap (Ubuntu 24.04 + 26.04, and Windows if its ISO is present)? (Y/n)"
         $autoBuildGolden = ($ans -notmatch '^[Nn]')
     }
