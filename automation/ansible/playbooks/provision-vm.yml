@@ -104,20 +104,17 @@
           environment. In Semaphore these come from the 'Proxmox' variable group.
 
     - name: "Resolve the golden template name from VMID {{ golden_vmid }}"
-      community.proxmox.proxmox_vm_info:
-        api_host: "{{ proxmox_api_host }}"
-        api_user: "{{ proxmox_api_user }}"
-        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
-        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
-        api_password: "{{ proxmox_api_password | default(omit, true) }}"
-        node: "{{ proxmox_node }}"
-        vmid: "{{ golden_vmid | int }}"
-      register: golden_lookup
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ golden_vmid }}/config"
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        validate_certs: false
+      register: golden_cfg
       when: golden_vmid | string | length > 0
 
     - name: "Use the golden template (VMID {{ golden_vmid }}) as the clone source"
       ansible.builtin.set_fact:
-        vm_template: "{{ golden_lookup.proxmox_vms[0].name }}"
+        vm_template: "{{ golden_cfg.json.data.name }}"
       when: golden_vmid | string | length > 0
 
     - name: "Clone template '{{ vm_template }}' to new VM '{{ vm_name }}'"
@@ -214,19 +211,20 @@
         state: started
 
     - name: "Look up the new VM's ID"
-      community.proxmox.proxmox_vm_info:
-        api_host: "{{ proxmox_api_host }}"
-        api_user: "{{ proxmox_api_user }}"
-        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
-        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
-        api_password: "{{ proxmox_api_password | default(omit, true) }}"
-        node: "{{ proxmox_node }}"
-        name: "{{ vm_name }}"
-      register: vm_info
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/cluster/resources?type=vm"
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        validate_certs: false
+      register: cluster_vms
+
+    - name: "Record the new VM's ID"
+      ansible.builtin.set_fact:
+        new_vmid: "{{ cluster_vms.json.data | selectattr('name', 'equalto', vm_name) | map(attribute='vmid') | first }}"
 
     - name: "Wait for the VM to report its IP (QEMU guest agent — up to 5 min)"
       ansible.builtin.uri:
-        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_info.proxmox_vms[0].vmid }}/agent/network-get-interfaces"
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/agent/network-get-interfaces"
         headers:
           Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
         validate_certs: false
