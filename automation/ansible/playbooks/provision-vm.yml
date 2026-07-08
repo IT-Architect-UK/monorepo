@@ -124,6 +124,7 @@
         api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
         api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        validate_certs: false
         node: "{{ proxmox_node }}"
         clone: "{{ vm_template }}"
         name: "{{ vm_name }}"
@@ -140,6 +141,7 @@
         api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
         api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        validate_certs: false
         node: "{{ proxmox_node }}"
         name: "{{ vm_name }}"
         cores: "{{ vm_vcpu | int }}"
@@ -163,6 +165,7 @@
         api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
         api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        validate_certs: false
         node: "{{ proxmox_node }}"
         name: "{{ vm_name }}"
         ipconfig:
@@ -179,6 +182,7 @@
         api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
         api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        validate_certs: false
         node: "{{ proxmox_node }}"
         name: "{{ vm_name }}"
         net:
@@ -193,6 +197,7 @@
         api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
         api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        validate_certs: false
         name: "{{ vm_name }}"
         disk: scsi0
         size: "{{ vm_disk_gb | int }}G"
@@ -206,6 +211,7 @@
         api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
         api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        validate_certs: false
         node: "{{ proxmox_node }}"
         name: "{{ vm_name }}"
         state: started
