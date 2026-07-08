@@ -321,8 +321,10 @@
         sleep: 10
     - name: Gather facts
       ansible.builtin.setup:
-  roles:
-    - role: common
+  tasks:
+    - name: Apply the common baseline (branding, tools, OS settings, firewall, fail2ban)
+      ansible.builtin.include_role:
+        name: common
   post_tasks:
     - name: Install Webmin (standard_webmin)
       ansible.builtin.script: ../../../applications/webmin/install-webmin.sh
