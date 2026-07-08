@@ -213,6 +213,14 @@ API_TOKEN=$(curl -fsS -b "${COOKIE_JAR}" -X POST \
     -H "Content-Type: application/json" -H "Accept: application/json" \
     "${SEMAPHORE_URL}/api/user/tokens" | jq -r '.id')
 [[ -n "${API_TOKEN}" && "${API_TOKEN}" != "null" ]] || fail "Could not obtain an API token"
+
+# Persistent token for the deploy playbooks to register hosts in per-OS
+# inventories. NOT revoked on exit (the API_TOKEN above is only for this run).
+# Stored as a secret in the Proxmox variable group below.
+DEPLOY_TOKEN=$(curl -fsS -b "${COOKIE_JAR}" -X POST \
+    -H "Content-Type: application/json" -H "Accept: application/json" \
+    "${SEMAPHORE_URL}/api/user/tokens" | jq -r '.id' 2>/dev/null) || DEPLOY_TOKEN=""
+[[ -n "${DEPLOY_TOKEN}" && "${DEPLOY_TOKEN}" != "null" ]] || { DEPLOY_TOKEN=""; warn "Could not mint a persistent deploy token — VM deploys will not auto-register in inventories."; }
 log "Authenticated."
 
 # ─── 1. Project ──────────────────────────────────────────────────────────────
@@ -282,13 +290,15 @@ if [[ -z "${ENV_ID}" ]]; then
         --arg host "${PVE_HOST}" --arg user "${PVE_USER}" --arg node "${PVE_NODE}" \
         --arg tid "${PVE_TOKEN_ID}" --arg tsec "${PVE_TOKEN_SECRET}" --arg pw "${PVE_PASSWORD}" \
         --arg pub "${PROV_PUBKEY}" --arg winrm "${WINRM_PW}" \
+        --arg surl "${SEMAPHORE_URL}" --arg spid "${PROJECT_ID}" --arg dtok "${DEPLOY_TOKEN}" \
         '{
           name: "Proxmox", project_id: $pid, json: "{}",
-          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub} | tojson),
+          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub, SEMAPHORE_URL: $surl, SEMAPHORE_PROJECT_ID: $spid} | tojson),
           secrets: ([
             (if $tsec  != "" then {type: "env", name: "PROXMOX_TOKEN_SECRET", secret: $tsec,  operation: "create"} else empty end),
             (if $pw    != "" then {type: "env", name: "PROXMOX_PASSWORD",     secret: $pw,    operation: "create"} else empty end),
-            (if $winrm != "" then {type: "env", name: "WINRM_PASSWORD",       secret: $winrm, operation: "create"} else empty end)
+            (if $winrm != "" then {type: "env", name: "WINRM_PASSWORD",       secret: $winrm, operation: "create"} else empty end),
+            (if $dtok  != "" then {type: "env", name: "SEMAPHORE_API_TOKEN",  secret: $dtok,  operation: "create"} else empty end)
           ])
         }')
     ENV_ID=$(api POST "${P}/environment" "${ENV_BODY}" | jq -r '.id')
@@ -332,6 +342,27 @@ if [[ -z "${LAB_INV_ID}" ]]; then
 else
     log "Inventory 'lab-hosts' already exists (id ${LAB_INV_ID})"
 fi
+
+# Per-OS host inventories — deploys register their new VM into the matching one,
+# so customisation templates can later target a whole OS group. Static (stored
+# in Semaphore); the Deploy VM templates append hosts via the API.
+seed_inv() { # seed_inv <name> — echoes the id (logs to stderr)
+    local name="$1" iid
+    iid=$(echo "${INV_JSON}" | find_id "${name}") || iid=""
+    if [[ -z "${iid}" ]]; then
+        iid=$(api POST "${P}/inventory" "$(jq -n --argjson pid "${PROJECT_ID}" --argjson kid "${PROV_KEY_ID}" --arg n "${name}" \
+            '{name:$n, project_id:$pid, type:"static", ssh_key_id:$kid,
+              inventory:("# " + $n + " — hosts are added automatically by the Deploy VM templates\n")}')" 2>/dev/null | jq -r '.id // empty') || iid=""
+        [[ -n "${iid}" ]] && echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO]  Inventory '${name}' created (id ${iid})" >&2 \
+                          || echo "$(date '+%Y-%m-%d %H:%M:%S') [WARN]  Could not create inventory '${name}'" >&2
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO]  Inventory '${name}' already exists (id ${iid})" >&2
+    fi
+    echo "${iid}"
+}
+INV_U2404_ID=$(seed_inv "Ubuntu 24.04 Hosts")
+INV_U2604_ID=$(seed_inv "Ubuntu 26.04 Hosts")
+INV_WIN_ID=$(seed_inv "Windows Hosts")
 
 # ─── 6. Job Templates ────────────────────────────────────────────────────────
 TPL_JSON=$(api GET "${P}/templates")
@@ -536,6 +567,56 @@ if [[ -z "${PROBE_TPL_ID}" ]]; then
 else
     log "Job template 'Diagnostics — Task Probe' already exists (id ${PROBE_TPL_ID})"
 fi
+
+# ─── 6b. Per-OS "Deploy VM" templates ────────────────────────────────────────
+# One-click deploy from each golden: clone by its fixed VMID, set the name and
+# (Linux) a static IP or DHCP, start it, and register it in the per-OS
+# inventory. Customisation is run separately against those inventories.
+# golden VMIDs match the golden build defaults (variables.pkr.hcl):
+#   9004 = Ubuntu 24.04, 9006 = Ubuntu 26.04, 9003 = Windows 2025.
+SURVEY_IP='[
+  {"name":"vm_name","title":"VM name (also the hostname)","type":"","required":true},
+  {"name":"vm_ip_cidr","title":"Static IP in CIDR, e.g. 192.168.4.50/24 (blank = DHCP)","type":"","required":false},
+  {"name":"vm_gateway","title":"Gateway (blank = .1 of the subnet)","type":"","required":false},
+  {"name":"vm_vcpu","title":"vCPU count (blank = 2)","type":"int","required":false},
+  {"name":"vm_memory_mb","title":"Memory MB (blank = 4096)","type":"int","required":false},
+  {"name":"vm_disk_gb","title":"Grow OS disk to GB (0 = keep template size)","type":"int","required":false}
+]'
+SURVEY_NOIP='[
+  {"name":"vm_name","title":"VM name (also the hostname)","type":"","required":true},
+  {"name":"vm_vcpu","title":"vCPU count (blank = 4)","type":"int","required":false},
+  {"name":"vm_memory_mb","title":"Memory MB (blank = 8192)","type":"int","required":false},
+  {"name":"vm_disk_gb","title":"Grow OS disk to GB (0 = keep template size)","type":"int","required":false}
+]'
+
+SEED_DEPLOY() { # SEED_DEPLOY <name> <golden_vmid> <inv_id> <os_label> <cloudinit_ip> <survey_json> <desc>
+    local name="$1" gvmid="$2" invid="$3" oslabel="$4" ciip="$5" survey="$6" desc="$7" tid args
+    tid=$(echo "${TPL_JSON}" | find_id "${name}") || tid=""
+    if [[ -z "${tid}" ]]; then
+        args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" \
+            '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)"]')
+        tid=$(api POST "${P}/templates" "$(jq -n \
+            --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
+            --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+            --argjson vid "${VIEW_TOOLBOX_ID:-0}" \
+            --arg name "${name}" --arg args "${args}" --argjson survey "${survey}" --arg desc "${desc}" \
+            '{project_id:$pid, name:$name, app:"ansible",
+              playbook:"automation/ansible/playbooks/provision-vm.yml",
+              inventory_id:$inv, repository_id:$rid, environment_id:$eid,
+              arguments:$args, type:"", survey_vars:$survey, description:$desc}
+             + (if $vid > 0 then {view_id:$vid} else {} end)')" 2>/dev/null | jq -r '.id // empty') || tid=""
+        [[ -n "${tid}" ]] && log "Job template '${name}' created (id ${tid})" \
+                          || warn "Could not create job template '${name}'"
+    else
+        log "Job template '${name}' already exists (id ${tid})"
+    fi
+}
+SEED_DEPLOY "Deploy Ubuntu 24.04 VM" 9004 "${INV_U2404_ID}" ubuntu-2404 true  "${SURVEY_IP}" \
+    "Clone the Ubuntu 24.04 golden into a new VM (name + optional static IP), start it, and register it in the Ubuntu 24.04 Hosts inventory."
+SEED_DEPLOY "Deploy Ubuntu 26.04 VM" 9006 "${INV_U2604_ID}" ubuntu-2604 true  "${SURVEY_IP}" \
+    "Clone the Ubuntu 26.04 golden into a new VM (name + optional static IP), start it, and register it in the Ubuntu 26.04 Hosts inventory."
+SEED_DEPLOY "Deploy Windows 2025 VM" 9003 "${INV_WIN_ID}"  windows     false "${SURVEY_NOIP}" \
+    "Clone the Windows Server 2025 golden into a new VM (DHCP; static IP arrives with cloudbase-init), start it, and register it in the Windows Hosts inventory."
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 # ─── 7. Finalise the Homepage dashboard ──────────────────────────────────────

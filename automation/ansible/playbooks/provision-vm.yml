@@ -71,6 +71,16 @@
     # bootstrap as PROVISION_SSH_PUBKEY) so follow-up playbooks can connect.
     vm_ssh_key: "{{ lookup('env', 'PROVISION_SSH_PUBKEY') }}"
     apply_standard: false
+    # ── Per-OS "Deploy VM" support (set by the Deploy <OS> VM templates) ──
+    golden_vmid: ""             # clone source by VMID (resolved to its name below)
+    vm_ip_cidr: ""              # static IP e.g. 192.168.4.50/24 (blank = DHCP)
+    vm_gateway: ""              # blank = .1 of the vm_ip_cidr subnet
+    cloudinit_ip: true          # false for images without cloud-init (Windows for now)
+    register_inventory_id: ""   # Semaphore inventory id to register the new host in
+    os_label: ""                # informational: ubuntu-2404 / ubuntu-2604 / windows
+    semaphore_url: "{{ lookup('env', 'SEMAPHORE_URL') | default('http://127.0.0.1:3000', true) }}"
+    semaphore_api_token: "{{ lookup('env', 'SEMAPHORE_API_TOKEN') }}"
+    semaphore_project_id: "{{ lookup('env', 'SEMAPHORE_PROJECT_ID') }}"
     vm_vcpu: 2
     vm_memory_mb: 4096
     vm_disk_gb: 0
@@ -84,7 +94,7 @@
       ansible.builtin.assert:
         that:
           - vm_name is defined and vm_name | length > 0
-          - vm_template is defined and vm_template | length > 0
+          - (vm_template is defined and vm_template | length > 0) or (golden_vmid | string | length > 0)
           - proxmox_api_host | length > 0
           - proxmox_node | length > 0
           - (proxmox_api_token_secret | length > 0) or (proxmox_api_password | length > 0)
@@ -92,6 +102,23 @@
           vm_name and vm_template must be set, and Proxmox connection details
           (PROXMOX_HOST plus token or password) must be present in the
           environment. In Semaphore these come from the 'Proxmox' variable group.
+
+    - name: "Resolve the golden template name from VMID {{ golden_vmid }}"
+      community.proxmox.proxmox_vm_info:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
+        api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ golden_vmid | int }}"
+      register: golden_lookup
+      when: golden_vmid | string | length > 0
+
+    - name: "Use the golden template (VMID {{ golden_vmid }}) as the clone source"
+      ansible.builtin.set_fact:
+        vm_template: "{{ golden_lookup.proxmox_vms[0].name }}"
+      when: golden_vmid | string | length > 0
 
     - name: "Clone template '{{ vm_template }}' to new VM '{{ vm_name }}'"
       community.proxmox.proxmox_kvm:
@@ -124,6 +151,29 @@
         cipassword: "{{ vm_password | default(omit, true) }}"
         sshkeys: "{{ vm_ssh_key | default(omit, true) }}"
         update: true
+
+    - name: "Compute the effective gateway (default: .1 of the subnet)"
+      ansible.builtin.set_fact:
+        vm_gw_effective: >-
+          {{ vm_gateway if (vm_gateway | length > 0)
+             else (vm_ip_cidr.split('/')[0].rsplit('.', 1)[0] ~ '.1') }}
+      when: vm_ip_cidr | length > 0
+
+    - name: "Set cloud-init network ({{ (vm_ip_cidr | length > 0) | ternary('static ' ~ vm_ip_cidr, 'DHCP') }})"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
+        api_password: "{{ proxmox_api_password | default(omit, true) }}"
+        node: "{{ proxmox_node }}"
+        name: "{{ vm_name }}"
+        ipconfig:
+          ipconfig0: >-
+            {{ ('ip=' ~ vm_ip_cidr ~ ',gw=' ~ vm_gw_effective)
+               if (vm_ip_cidr | length > 0) else 'ip=dhcp' }}
+        update: true
+      when: cloudinit_ip | bool
 
     - name: "Apply VLAN tag {{ vm_vlan_tag }} to net0"
       community.proxmox.proxmox_kvm:
@@ -204,6 +254,40 @@
              | reject('match', '^127\.') | first | default('') }}
       when: agent_net is not skipped
 
+    - name: "Register '{{ vm_name }}' in the per-OS Semaphore inventory (best-effort)"
+      when:
+        - register_inventory_id | string | length > 0
+        - (vm_ip | default('')) | length > 0
+        - semaphore_api_token | length > 0
+      block:
+        - name: "Fetch inventory {{ register_inventory_id }}"
+          ansible.builtin.uri:
+            url: "{{ semaphore_url }}/api/project/{{ semaphore_project_id }}/inventory/{{ register_inventory_id }}"
+            headers:
+              Authorization: "Bearer {{ semaphore_api_token }}"
+            validate_certs: false
+          register: _inv
+
+        - name: "Append {{ vm_name }} (skip if already present)"
+          ansible.builtin.uri:
+            url: "{{ semaphore_url }}/api/project/{{ semaphore_project_id }}/inventory/{{ register_inventory_id }}"
+            method: PUT
+            headers:
+              Authorization: "Bearer {{ semaphore_api_token }}"
+            body_format: json
+            body: >-
+              {{ _inv.json | combine({'inventory':
+                 ((_inv.json.inventory | default('')) | trim ~ '\n' ~ vm_name ~ ' ansible_host=' ~ vm_ip) | trim }) }}
+            status_code: [200, 204]
+            validate_certs: false
+          when: (vm_name ~ ' ansible_host=' ~ vm_ip) not in (_inv.json.inventory | default(''))
+        - name: "Registered in inventory"
+          ansible.builtin.debug:
+            msg: "{{ vm_name }} ({{ vm_ip }}) registered in Semaphore inventory {{ register_inventory_id }}."
+      rescue:
+        - ansible.builtin.debug:
+            msg: "Could not register {{ vm_name }} in inventory {{ register_inventory_id }} — add it by hand or check SEMAPHORE_API_TOKEN / SEMAPHORE_PROJECT_ID."
+
     - name: "Queue the standard build"
       ansible.builtin.add_host:
         name: "{{ vm_ip }}"
@@ -219,7 +303,8 @@
           - "vCPU: {{ vm_vcpu }}  Memory: {{ vm_memory_mb }} MB  Disk: {{ (vm_disk_gb | int > 0) | ternary(vm_disk_gb ~ 'G', 'template default') }}"
           - "Network: {{ (vm_vlan_tag | string | length > 0) | ternary('net0 on ' ~ vm_bridge ~ ' tag ' ~ vm_vlan_tag, 'template default') }}"
           - "Login: {{ (vm_user | length > 0) | ternary(vm_user ~ ' (set via cloud-init on first boot)', 'none set — pass vm_user/vm_password/vm_ssh_key to create one') }}"
-          - "IP address: {{ vm_ip | default('not yet reported — check the Proxmox console') }}"
+          - "IP address: {{ vm_ip | default('not yet reported — check the Proxmox console') }} ({{ (vm_ip_cidr | length > 0) | ternary('static', 'DHCP') if cloudinit_ip | bool else 'image default (no cloud-init)' }})"
+          - "Inventory: {{ (register_inventory_id | string | length > 0) | ternary('registered in Semaphore inventory ' ~ register_inventory_id, 'not registered') }}"
 
 # ── The standard build (only when apply_standard=true) ───────────────────────
 # Everything in inventory/group_vars/standard.yml, applied to the fresh VM.
