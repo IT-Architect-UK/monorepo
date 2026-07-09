@@ -134,6 +134,62 @@
         state: present
       register: clone_result
 
+    - name: "Look up the new VM's ID"
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/cluster/resources?type=vm"
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        validate_certs: false
+      register: cluster_vms
+
+    - name: "Record the new VM's ID"
+      ansible.builtin.set_fact:
+        new_vmid: "{{ cluster_vms.json.data | selectattr('name', 'equalto', vm_name) | map(attribute='vmid') | first }}"
+
+    # ── Move the cloud-init drive to SCSI ────────────────────────────────────
+    # Packer creates the template's cloud-init drive on IDE, which this machine
+    # type does NOT present to the guest — cloud-init then finds no datasource
+    # and disables itself (no hostname/user/password applied). Re-create it on
+    # SCSI, where it works. (Linux only; Windows has no cloud-init yet.)
+    - name: "Read the clone's config (find its cloud-init drive + disk storage)"
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        validate_certs: false
+      register: clone_cfg
+      when: cloudinit_ip | bool
+
+    - name: "Identify the inherited cloud-init drive and the disk's storage"
+      ansible.builtin.set_fact:
+        old_ci_key: "{{ (clone_cfg.json.data | dict2items | selectattr('value', 'string') | selectattr('value', 'search', 'cloudinit') | map(attribute='key') | list | first) | default('') }}"
+        ci_storage: "{{ (clone_cfg.json.data.scsi0 | default('') | regex_replace(':.*$', '')) | default(vm_storage, true) }}"
+      when: cloudinit_ip | bool
+
+    - name: "Remove the inherited (IDE) cloud-init drive"
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          delete: "{{ old_ci_key }}"
+        validate_certs: false
+      when: cloudinit_ip | bool and (old_ci_key | length > 0)
+
+    - name: "Attach the cloud-init drive on SCSI (scsi1)"
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          scsi1: "{{ ci_storage }}:cloudinit"
+        validate_certs: false
+      when: cloudinit_ip | bool
+
     - name: "Determine login account (survey, else DEPLOY_ADMIN_* / it-admin)"
       ansible.builtin.set_fact:
         eff_user: "{{ vm_user | default(lookup('env', 'DEPLOY_ADMIN_USER'), true) | default('it-admin', true) }}"
@@ -223,18 +279,6 @@
         node: "{{ proxmox_node }}"
         name: "{{ vm_name }}"
         state: started
-
-    - name: "Look up the new VM's ID"
-      ansible.builtin.uri:
-        url: "https://{{ proxmox_api_host }}:8006/api2/json/cluster/resources?type=vm"
-        headers:
-          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
-        validate_certs: false
-      register: cluster_vms
-
-    - name: "Record the new VM's ID"
-      ansible.builtin.set_fact:
-        new_vmid: "{{ cluster_vms.json.data | selectattr('name', 'equalto', vm_name) | map(attribute='vmid') | first }}"
 
     - name: "Wait for the VM to report its IP (QEMU guest agent — up to 5 min)"
       ansible.builtin.uri:
