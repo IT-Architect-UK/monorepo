@@ -253,19 +253,18 @@
         update: true
       when: cloudinit_ip | bool
 
+    # Set net0 via the raw API: idempotent (the golden may already carry this
+    # VLAN, and the module 500s with "no options specified" on a no-op update).
     - name: "Apply VLAN tag {{ vm_vlan_tag }} to net0"
-      community.proxmox.proxmox_kvm:
-        api_host: "{{ proxmox_api_host }}"
-        api_user: "{{ proxmox_api_user }}"
-        api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
-        api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
-        api_password: "{{ proxmox_api_password | default(omit, true) }}"
-        validate_certs: false
-        node: "{{ proxmox_node }}"
-        vmid: "{{ new_vmid }}"
-        net:
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        body_format: json
+        body:
           net0: "virtio,bridge={{ vm_bridge }},tag={{ vm_vlan_tag }}"
-        update: true
+        validate_certs: false
       when: vm_vlan_tag | string | length > 0
 
     - name: "Grow OS disk to {{ vm_disk_gb }}G"
