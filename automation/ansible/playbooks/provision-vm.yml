@@ -76,6 +76,7 @@
     vm_ip_cidr: ""              # static IP e.g. 192.168.4.50/24 (blank = DHCP)
     vm_gateway: ""              # blank = .1 of the vm_ip_cidr subnet
     cloudinit_ip: true          # false for images without cloud-init (Windows for now)
+    os_disk: "scsi0"            # OS disk bus to grow (Windows golden uses sata0)
     register_inventory_id: ""   # per-OS Semaphore inventory id to register the host in
     baseline_inventory_id: ""   # "Linux Baseline" inventory id (default build group)
     os_label: ""                # informational: ubuntu-2404 / ubuntu-2604 / windows
@@ -277,7 +278,7 @@
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
         validate_certs: false
         vmid: "{{ new_vmid }}"
-        disk: scsi0
+        disk: "{{ os_disk }}"
         size: "{{ vm_disk_gb | int }}G"
         state: resized
       when: vm_disk_gb | int > 0

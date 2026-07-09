@@ -630,11 +630,11 @@ SURVEY_NOIP='[
 ]'
 
 SEED_DEPLOY() { # SEED_DEPLOY <name> <golden_vmid> <inv_id> <os_label> <cloudinit_ip> <survey_json> <desc> [baseline_inv_id]
-    local name="$1" gvmid="$2" invid="$3" oslabel="$4" ciip="$5" survey="$6" desc="$7" binvid="${8:-0}" tid args
+    local name="$1" gvmid="$2" invid="$3" oslabel="$4" ciip="$5" survey="$6" desc="$7" binvid="${8:-0}" osdisk="${9:-scsi0}" tid args
     tid=$(echo "${TPL_JSON}" | find_id "${name}") || tid=""
     if [[ -z "${tid}" ]]; then
-        args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" --arg b "${binvid:-0}" \
-            '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","baseline_inventory_id=\($b)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)"]')
+        args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" --arg b "${binvid:-0}" --arg d "${osdisk}" \
+            '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","baseline_inventory_id=\($b)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)","-e","os_disk=\($d)"]')
         tid=$(api POST "${P}/templates" "$(jq -n \
             --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
             --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
@@ -658,7 +658,8 @@ SEED_DEPLOY "Deploy Ubuntu 26.04 VM" 9006 "${INV_U2604_ID}" ubuntu-2604 true  "$
     "Clone the Ubuntu 26.04 golden into a new VM (name + optional static IP), start it, register it in the Ubuntu 26.04 Hosts inventory, and apply the default build unless opted out." \
     "${INV_BASELINE_ID}"
 SEED_DEPLOY "Deploy Windows 2025 VM" 9003 "${INV_WIN_ID}"  windows     false "${SURVEY_NOIP}" \
-    "Clone the Windows Server 2025 golden into a new VM (DHCP; static IP arrives with cloudbase-init), start it, and register it in the Windows Hosts inventory."
+    "Clone the Windows Server 2025 golden into a new VM (DHCP; static IP arrives with cloudbase-init), start it, and register it in the Windows Hosts inventory." \
+    "" "sata0"
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 # ─── 7. Finalise the Homepage dashboard ──────────────────────────────────────
