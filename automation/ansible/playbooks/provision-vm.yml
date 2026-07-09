@@ -222,7 +222,7 @@
           Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
         body_format: form-urlencoded
         body:
-          sshkeys: "{{ eff_ssh_key }}"
+          sshkeys: "{{ eff_ssh_key | urlencode }}"
         validate_certs: false
       when: eff_ssh_key | length > 0
 
