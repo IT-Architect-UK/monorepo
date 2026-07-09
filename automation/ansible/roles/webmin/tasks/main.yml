@@ -1,0 +1,42 @@
+---
+# =============================================================================
+# roles/webmin/tasks/main.yml
+# =============================================================================
+# Installs Webmin from its OFFICIAL apt repository (no community role, no
+# hardcoded key). Mirrors Webmin's supported setup: configure the vendor repo
+# via webmin-setup-repo.sh, then apt-install and enable the service.
+# Idempotent — the repo step is guarded by `creates`.
+# =============================================================================
+
+- name: Download the official Webmin repo setup script
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/webmin/webmin/master/webmin-setup-repo.sh
+    dest: /usr/local/sbin/webmin-setup-repo.sh
+    mode: "0755"
+  tags: webmin
+
+- name: Configure the official Webmin apt repository
+  ansible.builtin.shell: "echo y | bash /usr/local/sbin/webmin-setup-repo.sh"
+  args:
+    creates: /etc/apt/sources.list.d/webmin.list
+  tags: webmin
+
+- name: Install Webmin
+  ansible.builtin.apt:
+    name: webmin
+    state: present
+    update_cache: true
+    install_recommends: true
+  tags: webmin
+
+- name: Ensure Webmin is enabled and running
+  ansible.builtin.service:
+    name: webmin
+    state: started
+    enabled: true
+  tags: webmin
+
+- name: Webmin access details
+  ansible.builtin.debug:
+    msg: "Webmin ready — https://{{ ansible_default_ipv4.address | default(inventory_hostname) }}:10000"
+  tags: webmin

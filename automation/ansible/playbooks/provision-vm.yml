@@ -76,7 +76,8 @@
     vm_ip_cidr: ""              # static IP e.g. 192.168.4.50/24 (blank = DHCP)
     vm_gateway: ""              # blank = .1 of the vm_ip_cidr subnet
     cloudinit_ip: true          # false for images without cloud-init (Windows for now)
-    register_inventory_id: ""   # Semaphore inventory id to register the new host in
+    register_inventory_id: ""   # per-OS Semaphore inventory id to register the host in
+    baseline_inventory_id: ""   # "Linux Baseline" inventory id (default build group)
     os_label: ""                # informational: ubuntu-2404 / ubuntu-2604 / windows
     semaphore_url: "{{ lookup('env', 'SEMAPHORE_URL') | default('http://127.0.0.1:3000', true) }}"
     semaphore_api_token: "{{ lookup('env', 'SEMAPHORE_API_TOKEN') }}"
@@ -323,45 +324,30 @@
              | reject('match', '^127\.') | first | default('') }}
       when: agent_net is not skipped
 
-    - name: "Register '{{ vm_name }}' in the per-OS Semaphore inventory (best-effort)"
+    # Register the host in its per-OS inventory (always) and — unless the
+    # default build was opted out — the "Linux Baseline" inventory too, so the
+    # "Apply Baseline (Linux)" template can re-apply the default build to it.
+    - name: "Register '{{ vm_name }}' in Semaphore inventories (best-effort)"
       when:
-        - register_inventory_id | string | length > 0
         - (vm_ip | default('')) | length > 0
         - semaphore_api_token | length > 0
       block:
-        - name: "Fetch inventory {{ register_inventory_id }}"
-          ansible.builtin.uri:
-            url: "{{ semaphore_url }}/api/project/{{ semaphore_project_id }}/inventory/{{ register_inventory_id }}"
-            headers:
-              Authorization: "Bearer {{ semaphore_api_token }}"
-            validate_certs: false
-          register: _inv
-
-        - name: "Append {{ vm_name }} (skip if already present)"
-          ansible.builtin.uri:
-            url: "{{ semaphore_url }}/api/project/{{ semaphore_project_id }}/inventory/{{ register_inventory_id }}"
-            method: PUT
-            headers:
-              Authorization: "Bearer {{ semaphore_api_token }}"
-            body_format: json
-            body: >-
-              {{ _inv.json | combine({'inventory':
-                 ((_inv.json.inventory | default('')) | trim ~ '\n' ~ vm_name ~ ' ansible_host=' ~ vm_ip) | trim }) }}
-            status_code: [200, 204]
-            validate_certs: false
-          when: (vm_name ~ ' ansible_host=' ~ vm_ip) not in (_inv.json.inventory | default(''))
-        - name: "Registered in inventory"
-          ansible.builtin.debug:
-            msg: "{{ vm_name }} ({{ vm_ip }}) registered in Semaphore inventory {{ register_inventory_id }}."
+        - name: "Register in each target inventory"
+          ansible.builtin.include_tasks: includes/register-in-inventory.yml
+          loop: "{{ [register_inventory_id | default(''),
+                     (apply_standard | default(false) | bool) | ternary(baseline_inventory_id | default(''), '')]
+                    | map('string') | reject('equalto', '') | unique | list }}"
+          loop_control:
+            loop_var: reg_inv_id
       rescue:
         - ansible.builtin.debug:
-            msg: "Could not register {{ vm_name }} in inventory {{ register_inventory_id }} — add it by hand or check SEMAPHORE_API_TOKEN / SEMAPHORE_PROJECT_ID."
+            msg: "Could not register {{ vm_name }} in one or more inventories — add it by hand or check SEMAPHORE_API_TOKEN / SEMAPHORE_PROJECT_ID."
 
     - name: "Queue the standard build"
       ansible.builtin.add_host:
         name: "{{ vm_ip }}"
         groups: standard
-        ansible_user: "{{ vm_user | default('sysadmin', true) }}"
+        ansible_user: "{{ eff_user | default('it-admin', true) }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
       when: apply_standard | bool and (vm_ip | default('')) | length > 0
 
@@ -382,6 +368,7 @@
   become: true
   gather_facts: false
   vars_files:
+    - ../inventory/group_vars/all.yml
     - ../inventory/group_vars/standard.yml
   pre_tasks:
     - name: Wait for the VM to accept SSH (cloud-init may still be creating the login)
@@ -396,8 +383,9 @@
         name: common
   post_tasks:
     - name: Install Webmin (standard_webmin)
-      ansible.builtin.script: ../../../applications/webmin/install-webmin.sh
-      when: standard_webmin | default(false) | bool
+      ansible.builtin.include_role:
+        name: webmin
+      when: standard_webmin | default(true) | bool
 
     - name: Standard build summary
       ansible.builtin.debug:

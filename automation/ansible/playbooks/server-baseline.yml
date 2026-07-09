@@ -1,55 +1,82 @@
 ---
 # =============================================================================
-# server-baseline.yml
+# server-baseline.yml  —  THE DEFAULT BUILD
 # =============================================================================
-# Applies a security-hardened baseline configuration to Linux servers.
+# The canonical "default build" applied to every managed Linux server:
+#   - common role: package update/upgrade, common utilities, timezone/NTP,
+#     SSH hardening, iptables default-drop firewall, fail2ban, optional branding
+#   - Webmin (web admin UI on :10000) when standard_webmin is true
+#   - (extend below — future default-build items go here)
 #
-# What this playbook does:
-#   - Updates all packages to latest versions
-#   - Configures the hostname
-#   - Hardens SSH (disables root login, enforces key auth, changes default port)
-#   - Configures UFW firewall rules
-#   - Sets up automatic security updates (unattended-upgrades)
-#   - Creates a standard admin user with sudo privileges
-#   - Installs common utilities (curl, git, vim, jq, htop, etc.)
-#   - Configures timezone and NTP synchronisation
-#   - Disables unused services
+# What it applies is driven by toggles in group_vars/standard.yml, so "the
+# default build" has ONE definition used both inline at deploy time
+# (provision-vm.yml) and by the "Apply Baseline (Linux)" Semaphore template.
 #
-# Usage:
+# Two ways to target hosts:
+#   * Inventory mode (Semaphore template bound to the "Linux Baseline"
+#     inventory): leave target_host unset — applies to all hosts in the
+#     inventory (or a subset via target_hosts).
+#   * Single-host mode (survey): set target_host to an IP/FQDN.
+#
+# Usage (CLI):
 #   ansible-playbook -i inventory/hosts.yml playbooks/server-baseline.yml
-#   ansible-playbook -i inventory/hosts.yml playbooks/server-baseline.yml --limit web_servers
+#   ansible-playbook playbooks/server-baseline.yml -e target_host=192.168.4.60
 #
-# Variables (set in group_vars/all.yml or pass via -e):
-#   See group_vars/all.yml for all configurable variables and their defaults.
-#
-# Cloud equivalents:
-#   AWS    → EC2 User Data script / AWS Systems Manager (SSM) State Manager
-#   Azure  → Custom Script Extension / Azure Automation DSC
-#   GCP    → Startup Script / OS Configuration
-#
+# Variables (group_vars/all.yml + group_vars/standard.yml, or -e):
+#   target_host       single IP/FQDN to target (optional)
+#   target_ssh_user   SSH user for single-host mode (default: it-admin)
+#   target_hosts      inventory group to target (default: all)
+#   standard_webmin   install Webmin as part of the default build (default: true)
 # =============================================================================
 
-- name: Apply server baseline
-  hosts: "{{ target_hosts | default('all') }}"
-  become: true   # Run as root (equivalent to sudo)
+- name: "Register single target (survey mode only)"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Add target_host to the baseline_target group
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: baseline_target
+        ansible_user: "{{ target_ssh_user | default('it-admin', true) }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+      when: target_host is defined and (target_host | length > 0)
 
-  # Import the common role — this is where the actual tasks live
-  # Roles help keep playbooks clean by separating tasks into reusable units
+- name: Apply the default build (baseline + Webmin)
+  hosts: >-
+    {{ (target_host is defined and (target_host | length > 0))
+       | ternary('baseline_target', target_hosts | default('all')) }}
+  become: true
+  gather_facts: true
+  # Semaphore does not auto-load the inventory group_vars, so load them
+  # explicitly — the common role needs common_packages, system_timezone, etc.
+  vars_files:
+    - ../inventory/group_vars/all.yml
+    - ../inventory/group_vars/standard.yml
+
   roles:
     - role: common
 
-  # Post-role tasks that run after the role completes
   post_tasks:
+    - name: Install Webmin (standard_webmin)
+      ansible.builtin.include_role:
+        name: webmin
+      when: standard_webmin | default(true) | bool
+
+    # -- Extend the default build here ------------------------------------
+    # Add further default-build roles/tasks below, each gated by a toggle in
+    # group_vars/standard.yml, so every managed host picks them up on the next
+    # run of this playbook (redeploy or the "Apply Baseline (Linux)" template).
+
     - name: Verify SSH is running
       ansible.builtin.service:
         name: ssh
         state: started
         enabled: true
 
-    - name: Display connection info
+    - name: Default build summary
       ansible.builtin.debug:
-        msg: |
-          ✔ Baseline applied to {{ inventory_hostname }}
-          SSH Port : {{ ssh_port | default(22) }}
-          Admin    : {{ admin_user | default('sysadmin') }}
-          Hostname : {{ ansible_hostname }}
+        msg: >-
+          Default build applied to {{ inventory_hostname }}{{
+          (standard_webmin | default(true) | bool)
+          | ternary(' — Webmin https://' ~ inventory_hostname ~ ':10000', '') }}

@@ -368,6 +368,10 @@ seed_inv() { # seed_inv <name> — echoes the id (logs to stderr)
 INV_U2404_ID=$(seed_inv "Ubuntu 24.04 Hosts")
 INV_U2604_ID=$(seed_inv "Ubuntu 26.04 Hosts")
 INV_WIN_ID=$(seed_inv "Windows Hosts")
+# Default-build group: every Linux VM deployed from a template is added here
+# (unless the deploy survey opts out) so it picks up — and can re-pick-up — the
+# default build via the "Apply Baseline (Linux)" template.
+INV_BASELINE_ID=$(seed_inv "Linux Baseline")
 
 # ─── 6. Job Templates ────────────────────────────────────────────────────────
 TPL_JSON=$(api GET "${P}/templates")
@@ -558,6 +562,28 @@ else
     log "Job template 'Deploy Webmin' already exists (id ${WEBMIN_TPL_ID})"
 fi
 
+# The default build as a re-runnable template, bound to the Linux Baseline
+# inventory (the group Deploy VM adds hosts to). Leave the survey blank to apply
+# to every baseline host, or set target_host to re-apply to a single server.
+BASELINE_TPL_ID=$(echo "${TPL_JSON}" | find_id "Apply Baseline (Linux)")
+if [[ -z "${BASELINE_TPL_ID}" ]]; then
+    BASELINE_TPL_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
+        --argjson pid "${PROJECT_ID}" --argjson inv "${INV_BASELINE_ID:-0}" \
+        --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+        '{project_id: $pid, name: "Apply Baseline (Linux)", app: "ansible",
+          playbook: "automation/ansible/playbooks/server-baseline.yml",
+          inventory_id: $inv, repository_id: $rid, environment_id: $eid,
+          arguments: "[]", type: "",
+          description: "Apply the default build (baseline + Webmin) to the Linux Baseline group. Blank survey = all baseline hosts; set a host to re-apply to one server.",
+          survey_vars: [
+            {name: "target_host",     title: "Single Server IP/FQDN (blank = all hosts in Linux Baseline)", type: "", required: false},
+            {name: "target_ssh_user", title: "SSH user for single-host mode (default it-admin)",            type: "", required: false}
+          ]}')" | jq -r '.id')
+    log "Job template 'Apply Baseline (Linux)' created (id ${BASELINE_TPL_ID})"
+else
+    log "Job template 'Apply Baseline (Linux)' already exists (id ${BASELINE_TPL_ID})"
+fi
+
 PROBE_TPL_ID=$(echo "${TPL_JSON}" | find_id "Diagnostics — Task Probe")
 if [[ -z "${PROBE_TPL_ID}" ]]; then
     PROBE_TPL_ID=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
@@ -581,6 +607,7 @@ fi
 #   9004 = Ubuntu 24.04, 9006 = Ubuntu 26.04, 9003 = Windows 2025.
 SURVEY_IP='[
   {"name":"vm_name","title":"VM name (also the hostname)","type":"","required":true},
+  {"name":"apply_standard","title":"Apply the default build (baseline + Webmin) and add to the Linux Baseline group? Leave Yes unless you want a bare VM.","type":"enum","required":false,"default_value":"true","values":[{"name":"Yes","value":"true"},{"name":"No","value":"false"}]},
   {"name":"vm_ip_cidr","title":"IP address: blank = DHCP, or static CIDR e.g. 192.168.4.50/24","type":"","required":false},
   {"name":"vm_gateway","title":"Gateway (blank = .1 of the subnet)","type":"","required":false},
   {"name":"vm_vlan_tag","title":"VLAN tag (blank = template default)","type":"","required":false},
@@ -602,12 +629,12 @@ SURVEY_NOIP='[
   {"name":"vm_disk_gb","title":"Grow OS disk to GB (0 = keep template size)","type":"int","required":false}
 ]'
 
-SEED_DEPLOY() { # SEED_DEPLOY <name> <golden_vmid> <inv_id> <os_label> <cloudinit_ip> <survey_json> <desc>
-    local name="$1" gvmid="$2" invid="$3" oslabel="$4" ciip="$5" survey="$6" desc="$7" tid args
+SEED_DEPLOY() { # SEED_DEPLOY <name> <golden_vmid> <inv_id> <os_label> <cloudinit_ip> <survey_json> <desc> [baseline_inv_id]
+    local name="$1" gvmid="$2" invid="$3" oslabel="$4" ciip="$5" survey="$6" desc="$7" binvid="${8:-0}" tid args
     tid=$(echo "${TPL_JSON}" | find_id "${name}") || tid=""
     if [[ -z "${tid}" ]]; then
-        args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" \
-            '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)"]')
+        args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" --arg b "${binvid:-0}" \
+            '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","baseline_inventory_id=\($b)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)"]')
         tid=$(api POST "${P}/templates" "$(jq -n \
             --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
             --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
@@ -625,9 +652,11 @@ SEED_DEPLOY() { # SEED_DEPLOY <name> <golden_vmid> <inv_id> <os_label> <cloudini
     fi
 }
 SEED_DEPLOY "Deploy Ubuntu 24.04 VM" 9004 "${INV_U2404_ID}" ubuntu-2404 true  "${SURVEY_IP}" \
-    "Clone the Ubuntu 24.04 golden into a new VM (name + optional static IP), start it, and register it in the Ubuntu 24.04 Hosts inventory."
+    "Clone the Ubuntu 24.04 golden into a new VM (name + optional static IP), start it, register it in the Ubuntu 24.04 Hosts inventory, and apply the default build unless opted out." \
+    "${INV_BASELINE_ID}"
 SEED_DEPLOY "Deploy Ubuntu 26.04 VM" 9006 "${INV_U2604_ID}" ubuntu-2604 true  "${SURVEY_IP}" \
-    "Clone the Ubuntu 26.04 golden into a new VM (name + optional static IP), start it, and register it in the Ubuntu 26.04 Hosts inventory."
+    "Clone the Ubuntu 26.04 golden into a new VM (name + optional static IP), start it, register it in the Ubuntu 26.04 Hosts inventory, and apply the default build unless opted out." \
+    "${INV_BASELINE_ID}"
 SEED_DEPLOY "Deploy Windows 2025 VM" 9003 "${INV_WIN_ID}"  windows     false "${SURVEY_NOIP}" \
     "Clone the Windows Server 2025 golden into a new VM (DHCP; static IP arrives with cloudbase-init), start it, and register it in the Windows Hosts inventory."
 
@@ -932,7 +961,8 @@ echo ""
 log "Bootstrap complete."
 log "  Semaphore     : http://${IP}/  (login: admin)"
 log "  Project       : ${PROJECT_NAME}"
-log "  Job templates : Provision VM, Deploy Vault, ITA Linux Customisations, IPTables, Fail2Ban, Webmin, Build Golden Image (x3)"
+log "  Job templates : Provision VM, Deploy Ubuntu 24/26, Deploy Windows 2025, Apply Baseline (Linux), Deploy Vault, ITA Linux Customisations, IPTables, Fail2Ban, Webmin, Build Golden Image (x3)"
+log "  Inventories   : per-OS Hosts + Linux Baseline (default-build group)"
 log "  Portainer     : https://${SERVER_IP}:9443/  (admin)"
 log ""
 log "To provision your first VM:"

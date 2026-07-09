@@ -39,10 +39,9 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Run the standard Webmin installer from this repo
-      ansible.builtin.script: ../../../applications/webmin/install-webmin.sh
-      register: webmin_install
-      changed_when: true
+    - name: Install Webmin from the official apt repository
+      ansible.builtin.include_role:
+        name: webmin
 
     - name: Access details
       ansible.builtin.debug:

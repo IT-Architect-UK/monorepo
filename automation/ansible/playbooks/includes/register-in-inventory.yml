@@ -1,0 +1,38 @@
+---
+# =============================================================================
+# includes/register-in-inventory.yml
+# =============================================================================
+# Registers "<vm_name> ansible_host=<vm_ip> ..." into the Semaphore inventory
+# whose id is {{ reg_inv_id }}. Idempotent: skips if the host is already there.
+# Included (looped) from provision-vm.yml. Expects: reg_inv_id, vm_name, vm_ip,
+# eff_user, semaphore_url, semaphore_project_id, semaphore_api_token.
+# =============================================================================
+
+- name: "Fetch inventory {{ reg_inv_id }}"
+  ansible.builtin.uri:
+    url: "{{ semaphore_url }}/api/project/{{ semaphore_project_id }}/inventory/{{ reg_inv_id }}"
+    headers:
+      Authorization: "Bearer {{ semaphore_api_token }}"
+    validate_certs: false
+  register: _inv
+
+- name: "Append {{ vm_name }} to inventory {{ reg_inv_id }} (skip if present)"
+  ansible.builtin.uri:
+    url: "{{ semaphore_url }}/api/project/{{ semaphore_project_id }}/inventory/{{ reg_inv_id }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ semaphore_api_token }}"
+    body_format: json
+    body: >-
+      {{ _inv.json | combine({'inventory':
+         ((_inv.json.inventory | default('')) | trim ~ '\n'
+          ~ vm_name ~ ' ansible_host=' ~ vm_ip
+          ~ ' ansible_user=' ~ (eff_user | default('it-admin', true))
+          ~ " ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'") | trim }) }}
+    status_code: [200, 204]
+    validate_certs: false
+  when: (vm_name ~ ' ansible_host=' ~ vm_ip) not in (_inv.json.inventory | default(''))
+
+- name: "Registered in inventory {{ reg_inv_id }}"
+  ansible.builtin.debug:
+    msg: "{{ vm_name }} ({{ vm_ip }}) registered in Semaphore inventory {{ reg_inv_id }}."
