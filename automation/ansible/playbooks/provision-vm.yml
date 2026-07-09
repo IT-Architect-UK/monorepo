@@ -214,15 +214,18 @@
         cipassword: "{{ eff_password | default(omit, true) }}"
         update: true
 
-    - name: "Set cloud-init SSH key (raw API — module mis-encodes it)"
+    - name: "Set cloud-init SSH key (raw API — module + form encoder mangle it)"
       ansible.builtin.uri:
         url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
         method: PUT
         headers:
           Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
-        body_format: form-urlencoded
-        body:
-          sshkeys: "{{ eff_ssh_key | trim | urlencode }}"
+          Content-Type: "application/x-www-form-urlencoded"
+        # Proxmox wants sshkeys pre-URL-encoded; it URL-decodes the form body
+        # once, so we double-encode and send a raw body (Ansible's form encoder
+        # appends a stray newline that Proxmox rejects).
+        body: "sshkeys={{ eff_ssh_key | trim | urlencode | urlencode }}"
+        body_format: raw
         validate_certs: false
       when: eff_ssh_key | length > 0
 
