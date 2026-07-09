@@ -138,6 +138,9 @@
       ansible.builtin.set_fact:
         eff_user: "{{ vm_user | default(lookup('env', 'DEPLOY_ADMIN_USER'), true) | default('it-admin', true) }}"
         eff_password: "{{ vm_password | default(lookup('env', 'DEPLOY_ADMIN_PASSWORD'), true) }}"
+        # Toolbox provisioning key is ALWAYS included (so Semaphore can SSH in
+        # for follow-up customisation), plus any key the user supplied.
+        eff_ssh_key: "{{ [lookup('env', 'PROVISION_SSH_PUBKEY'), (vm_ssh_key | default(''))] | select('ne', '') | join('\n') }}"
 
     - name: "Set vCPU and memory on '{{ vm_name }}'"
       community.proxmox.proxmox_kvm:
@@ -153,7 +156,7 @@
         memory: "{{ vm_memory_mb | int }}"
         ciuser: "{{ eff_user | default(omit, true) }}"
         cipassword: "{{ eff_password | default(omit, true) }}"
-        sshkeys: "{{ vm_ssh_key | default(omit, true) }}"
+        sshkeys: "{{ eff_ssh_key | default(omit, true) }}"
         update: true
 
     - name: "Compute the effective gateway (default: .1 of the subnet)"

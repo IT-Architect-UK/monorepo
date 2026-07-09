@@ -586,7 +586,7 @@ SURVEY_IP='[
   {"name":"vm_vlan_tag","title":"VLAN tag (blank = template default)","type":"","required":false},
   {"name":"vm_user","title":"Login account to create (e.g. it-admin; blank = none)","type":"","required":false},
   {"name":"vm_password","title":"Password for that account","type":"secret","required":false},
-  {"name":"vm_ssh_key","title":"SSH public key for that account (blank = toolbox key only)","type":"","required":false},
+  {"name":"vm_ssh_key","title":"Extra SSH public key for the account (the toolbox key is always added)","type":"","required":false},
   {"name":"vm_vcpu","title":"vCPU count (blank = 2)","type":"int","required":false},
   {"name":"vm_memory_mb","title":"Memory MB (blank = 4096)","type":"int","required":false},
   {"name":"vm_disk_gb","title":"Grow OS disk to GB (0 = keep template size)","type":"int","required":false}
@@ -595,7 +595,7 @@ SURVEY_NOIP='[
   {"name":"vm_name","title":"VM name (also the hostname)","type":"","required":true},
   {"name":"vm_user","title":"Login account to create (e.g. it-admin; blank = none)","type":"","required":false},
   {"name":"vm_password","title":"Password for that account","type":"secret","required":false},
-  {"name":"vm_ssh_key","title":"SSH public key for that account (blank = toolbox key only)","type":"","required":false},
+  {"name":"vm_ssh_key","title":"Extra SSH public key for the account (the toolbox key is always added)","type":"","required":false},
   {"name":"vm_vlan_tag","title":"VLAN tag (blank = template default)","type":"","required":false},
   {"name":"vm_vcpu","title":"vCPU count (blank = 4)","type":"int","required":false},
   {"name":"vm_memory_mb","title":"Memory MB (blank = 8192)","type":"int","required":false},
