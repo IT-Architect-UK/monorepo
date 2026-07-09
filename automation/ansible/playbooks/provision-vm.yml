@@ -144,7 +144,7 @@
 
     - name: "Record the new VM's ID"
       ansible.builtin.set_fact:
-        new_vmid: "{{ cluster_vms.json.data | selectattr('name', 'equalto', vm_name) | map(attribute='vmid') | first }}"
+        new_vmid: "{{ cluster_vms.json.data | selectattr('name', 'equalto', vm_name) | map(attribute='vmid') | map('int') | max }}"
 
     # ── Move the cloud-init drive to SCSI ────────────────────────────────────
     # Packer creates the template's cloud-init drive on IDE, which this machine
@@ -207,7 +207,7 @@
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
         validate_certs: false
         node: "{{ proxmox_node }}"
-        name: "{{ vm_name }}"
+        vmid: "{{ new_vmid }}"
         cores: "{{ vm_vcpu | int }}"
         memory: "{{ vm_memory_mb | int }}"
         ciuser: "{{ eff_user | default(omit, true) }}"
@@ -242,7 +242,7 @@
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
         validate_certs: false
         node: "{{ proxmox_node }}"
-        name: "{{ vm_name }}"
+        vmid: "{{ new_vmid }}"
         ipconfig:
           ipconfig0: >-
             {{ ('ip=' ~ vm_ip_cidr ~ ',gw=' ~ vm_gw_effective)
@@ -259,7 +259,7 @@
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
         validate_certs: false
         node: "{{ proxmox_node }}"
-        name: "{{ vm_name }}"
+        vmid: "{{ new_vmid }}"
         net:
           net0: "virtio,bridge={{ vm_bridge }},tag={{ vm_vlan_tag }}"
         update: true
@@ -273,7 +273,7 @@
         api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
         validate_certs: false
-        name: "{{ vm_name }}"
+        vmid: "{{ new_vmid }}"
         disk: scsi0
         size: "{{ vm_disk_gb | int }}G"
         state: resized
@@ -288,7 +288,7 @@
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
         validate_certs: false
         node: "{{ proxmox_node }}"
-        name: "{{ vm_name }}"
+        vmid: "{{ new_vmid }}"
         state: started
 
     - name: "Wait for the VM to report its IP (QEMU guest agent — up to 5 min)"
