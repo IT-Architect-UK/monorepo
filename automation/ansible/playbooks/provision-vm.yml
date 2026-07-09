@@ -220,11 +220,11 @@
         method: PUT
         headers:
           Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
-        # Proxmox wants sshkeys pre-URL-encoded. A JSON body delivers the
-        # string verbatim (no form-decode, no trailing-newline appended to the
-        # last param), so a single urlencode is exactly what Proxmox expects.
+        # Proxmox wants sshkeys as a FULLY URL-encoded string. Jinja's
+        # urlencode leaves "/" unescaped, which Proxmox rejects, so also encode
+        # "/" -> %2F. JSON body delivers the value verbatim (no form re-encode).
         body:
-          sshkeys: "{{ eff_ssh_key | trim | urlencode }}"
+          sshkeys: "{{ eff_ssh_key | trim | urlencode | replace('/', '%2F') }}"
         body_format: json
         validate_certs: false
       when: eff_ssh_key | length > 0
