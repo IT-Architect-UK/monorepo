@@ -212,8 +212,19 @@
         memory: "{{ vm_memory_mb | int }}"
         ciuser: "{{ eff_user | default(omit, true) }}"
         cipassword: "{{ eff_password | default(omit, true) }}"
-        sshkeys: "{{ eff_ssh_key | default(omit, true) }}"
         update: true
+
+    - name: "Set cloud-init SSH key (raw API — module mis-encodes it)"
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          sshkeys: "{{ eff_ssh_key }}"
+        validate_certs: false
+      when: eff_ssh_key | length > 0
 
     - name: "Compute the effective gateway (default: .1 of the subnet)"
       ansible.builtin.set_fact:
