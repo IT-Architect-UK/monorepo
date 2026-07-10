@@ -14,8 +14,9 @@
 #      QEMU Guest Agent (needed for Proxmox 'qm agent' and live migration)
 #   5. Waits for WinRM to become available (autounattend.xml enables it)
 #   6. Runs provision-windows.ps1 — hardening, RDP, guest agent
-#   7. Runs cleanup-windows.ps1 — seals image and calls sysprep
-#   8. Sysprep shuts down the VM; Packer converts it to a Proxmox template
+#   7. Runs install-cloudbase-init.ps1 — Windows cloud-init (ConfigDrive2)
+#   8. Runs cleanup-windows.ps1 — seals image and calls sysprep
+#   9. Sysprep shuts down the VM; Packer converts it to a Proxmox template
 #
 # Pre-requisites:
 #   1. Upload Windows Server 2025 ISO to Proxmox storage:
@@ -216,8 +217,14 @@ build {
     script = abspath("${path.root}/../../scripts/provision-windows.ps1")
   }
 
-  # Step 2: Seal the image — clears logs/temp, removes build account, runs sysprep
-  # Sysprep shuts down the VM; Packer detects the disconnect and converts to template
+  # Step 2: Install + configure Cloudbase-Init (Windows cloud-init) so clones
+  # pick up hostname/network/user/SSH from the Proxmox ConfigDrive on first boot
+  provisioner "powershell" {
+    script = abspath("${path.root}/../../scripts/install-cloudbase-init.ps1")
+  }
+
+  # Step 3: Seal the image — clears logs/temp, removes build account, runs sysprep
+  # (sysprep picks up the Cloudbase-Init Unattend.xml staged in step 2)
   provisioner "powershell" {
     script = abspath("${path.root}/../../scripts/cleanup-windows.ps1")
   }
