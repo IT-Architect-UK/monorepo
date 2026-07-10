@@ -160,7 +160,15 @@
           Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
         validate_certs: false
       register: clone_cfg
-      when: cloudinit_ip | bool
+
+    - name: "Detect the OS disk bus (Windows=sata0, Linux=scsi0; not the cloud-init/cdrom)"
+      ansible.builtin.set_fact:
+        os_disk_eff: "{{ (clone_cfg.json.data | dict2items
+                          | selectattr('key', 'match', '^(scsi|sata|virtio|ide)[0-9]+$')
+                          | selectattr('value', 'string')
+                          | rejectattr('value', 'search', 'media=cdrom')
+                          | rejectattr('value', 'search', 'cloudinit')
+                          | map(attribute='key') | list | first) | default(os_disk, true) }}"
 
     - name: "Identify the inherited cloud-init drive and the disk's storage"
       ansible.builtin.set_fact:
@@ -278,7 +286,7 @@
         api_password: "{{ proxmox_api_password | default(omit, true) }}"
         validate_certs: false
         vmid: "{{ new_vmid }}"
-        disk: "{{ os_disk }}"
+        disk: "{{ os_disk_eff | default(os_disk, true) }}"
         size: "{{ vm_disk_gb | int }}G"
         state: resized
       when: vm_disk_gb | int > 0
