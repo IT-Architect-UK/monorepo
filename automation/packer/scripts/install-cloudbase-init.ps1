@@ -73,6 +73,7 @@ plugins=cloudbaseinit.plugins.common.mtu.MTUPlugin,
  cloudbaseinit.plugins.common.setuserpassword.SetUserPasswordPlugin,
  cloudbaseinit.plugins.common.sshpublickeys.SetUserSSHPublicKeysPlugin,
  cloudbaseinit.plugins.common.networkconfig.NetworkConfigPlugin,
+ cloudbaseinit.plugins.windows.extendvolumes.ExtendVolumesPlugin,
  cloudbaseinit.plugins.common.userdata.UserDataPlugin
 allow_reboot=false
 stop_service_on_exit=false

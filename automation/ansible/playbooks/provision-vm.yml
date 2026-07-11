@@ -77,6 +77,8 @@
     vm_gateway: ""              # blank = .1 of the vm_ip_cidr subnet
     cloudinit_ip: true          # false for images without cloud-init (Windows for now)
     os_disk: "scsi0"            # OS disk bus to grow (Windows golden uses sata0)
+    ci_bus: "scsi1"             # bus for the cloud-init drive (Windows uses sata1)
+    ci_type: ""                 # cloud-init type: "" = Proxmox default (nocloud); Windows = configdrive2
     register_inventory_id: ""   # per-OS Semaphore inventory id to register the host in
     baseline_inventory_id: ""   # "Linux Baseline" inventory id (default build group)
     os_label: ""                # informational: ubuntu-2404 / ubuntu-2604 / windows
@@ -173,7 +175,7 @@
     - name: "Identify the inherited cloud-init drive and the disk's storage"
       ansible.builtin.set_fact:
         old_ci_key: "{{ (clone_cfg.json.data | dict2items | selectattr('value', 'string') | selectattr('value', 'search', 'cloudinit') | map(attribute='key') | list | first) | default('') }}"
-        ci_storage: "{{ (clone_cfg.json.data.scsi0 | default('') | regex_replace(':.*$', '')) | default(vm_storage, true) }}"
+        ci_storage: "{{ (clone_cfg.json.data[os_disk_eff] | default('') | regex_replace(':.*$', '')) | default(vm_storage, true) }}"
       when: cloudinit_ip | bool
 
     - name: "Remove the inherited (IDE) cloud-init drive"
@@ -188,7 +190,18 @@
         validate_certs: false
       when: cloudinit_ip | bool and (old_ci_key | length > 0)
 
-    - name: "Attach the cloud-init drive on SCSI (scsi1)"
+    - name: "Attach the cloud-init drive on {{ ci_bus }} (IDE does not present to the guest)"
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        body_format: form-urlencoded
+        body: "{{ {ci_bus: ci_storage ~ ':cloudinit'} }}"
+        validate_certs: false
+      when: cloudinit_ip | bool
+
+    - name: "Set citype to {{ ci_type }} (Windows ConfigDrive2 for cloudbase-init)"
       ansible.builtin.uri:
         url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
         method: PUT
@@ -196,9 +209,9 @@
           Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
         body_format: form-urlencoded
         body:
-          scsi1: "{{ ci_storage }}:cloudinit"
+          citype: "{{ ci_type }}"
         validate_certs: false
-      when: cloudinit_ip | bool
+      when: cloudinit_ip | bool and (ci_type | length > 0)
 
     - name: "Determine login account (survey, else DEPLOY_ADMIN_* / it-admin)"
       ansible.builtin.set_fact:
