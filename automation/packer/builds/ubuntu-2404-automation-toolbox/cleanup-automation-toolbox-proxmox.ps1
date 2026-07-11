@@ -11,6 +11,8 @@
 #      and the golden image templates (VM IDs 9003/9004/9006 by default)
 #   3. Shows exactly what it found and asks for confirmation
 #   4. Stops any running VM, then deletes every confirmed target
+#   5. Purges local build artefacts (manifest, packer_cache/, .tmp/, logs/)
+#      so the next build starts clean
 #
 # SCOPE / SAFETY: only the specific VM IDs above and the named clone are ever
 # touched. Your other VMs and templates are never selected. A golden ID is only
@@ -194,5 +196,25 @@ foreach ($vm in $targets) {
     Wait-PveTask $upid
     Write-Host "  Deleted." -ForegroundColor Green
 }
+
+# ── Purge local build artefacts (manifest, cache, temp, logs) ────────────────
+# Logs are reviewed before cleanup, so a fresh build starts with fresh logs.
+Write-Host "`nPurging local build artefacts..." -ForegroundColor Cyan
+$artefacts = @(
+    "packer-manifest-automation-toolbox.json",
+    "packer-manifest-automation-toolbox.json.lock",
+    "packer_cache",
+    ".tmp",
+    "logs"
+) | ForEach-Object { Join-Path $PSScriptRoot $_ }
+$purged = 0
+foreach ($a in $artefacts) {
+    if (Test-Path $a) {
+        try { Remove-Item $a -Recurse -Force -ErrorAction Stop
+              Write-Host "  Removed $a" -ForegroundColor DarkGray; $purged++ }
+        catch { Write-Host "  Could not remove $a : $($_.Exception.Message)" -ForegroundColor Yellow }
+    }
+}
+Write-Host "  $purged artefact(s) purged." -ForegroundColor DarkGray
 
 Write-Host "`nCleanup complete — ready for a fresh build." -ForegroundColor Green
