@@ -153,6 +153,21 @@ try {
     Write-Warn "AppX cleanup had issues (non-critical): $($_.Exception.Message)"
 }
 
+# DesktopAppInstaller (winget) is the #1 0x80073CF2 generalize blocker: a per-user
+# version newer than the provisioned one. Remove it explicitly and loudly.
+foreach ($pkg in 'Microsoft.DesktopAppInstaller','Microsoft.Winget.Source') {
+    Get-AppxPackage -AllUsers -Name $pkg -ErrorAction SilentlyContinue | ForEach-Object {
+        try { Remove-AppxPackage -AllUsers -Package $_.PackageFullName -ErrorAction Stop
+              Write-OK "Removed $($_.PackageFullName)" }
+        catch { Write-Warn "Could not remove $($_.PackageFullName): $($_.Exception.Message)" }
+    }
+    Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $pkg } | ForEach-Object {
+        try { Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction Stop | Out-Null
+              Write-OK "Deprovisioned $pkg" }
+        catch { Write-Warn "Could not deprovision $pkg: $($_.Exception.Message)" }
+    }
+}
+
 # ── 8d. UEFI fallback bootloader (reliable clone boot) ───────────────────────
 # This template boots UEFI (OVMF). The "Windows Boot Manager" entry lives in
 # the firmware NVRAM (the Proxmox efidisk) and does NOT reliably survive a
@@ -197,4 +212,14 @@ $unattend = "C:\Windows\System32\sysprep\unattend.xml"
 $sysprepArgs = @('/generalize','/oobe','/quit','/quiet')
 if (Test-Path $unattend) { $sysprepArgs += "/unattend:$unattend" }
 & $sysprep @sysprepArgs
-Write-OK "Sysprep generalize complete — Packer will power off and seal the template"
+$rc = $LASTEXITCODE
+
+# Fail the build if generalize failed — otherwise Packer seals a NON-generalized
+# template (build account + hostname survive, SID errors on clones). /quit alone
+# never surfaced this. Surface setuperr.log so the cause is in the Packer output.
+$errLog = "C:\Windows\System32\Sysprep\Panther\setuperr.log"
+if ($rc -ne 0) {
+    if (Test-Path $errLog) { Write-Host "----- setuperr.log -----"; Get-Content $errLog -Tail 40 | Write-Host }
+    throw "Sysprep generalize FAILED (exit code $rc). Template NOT sealed — fix the blocker above and rebuild."
+}
+Write-OK "Sysprep generalize succeeded — Packer will power off and seal the template"
