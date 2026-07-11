@@ -216,6 +216,8 @@ function Invoke-ProxmoxCloneAndStart {
     # collide with your existing scheme), full-clone, then start it.
     # cloud-init (see cloud_init=true in the .pkr.hcl source block) sets the
     # guest hostname to match $NewVmName automatically on first boot.
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', '',
+        Justification = 'Value must be plaintext for the Proxmox REST body / bootstrap env-file; it is collected securely via Read-Host -AsSecureString upstream.')]
     param(
         [string]$ProxmoxUrl,
         [string]$ProxmoxNode,
@@ -332,6 +334,8 @@ function Invoke-ToolboxBootstrap {
     # the QEMU guest agent: waits for an IP, delivers the answers as a
     # root-only env file (deleted by the guest as it runs), executes the
     # bootstrap non-interactively, and streams its output back.
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', '',
+        Justification = 'Value must be plaintext for the Proxmox REST body / bootstrap env-file; it is collected securely via Read-Host -AsSecureString upstream.')]
     param(
         [string]$ProxmoxUrl, [string]$ProxmoxNode, [int]$VmId,
         [hashtable]$WriteHeaders, [hashtable]$AuthHeaders,
