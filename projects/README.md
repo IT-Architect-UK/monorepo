@@ -21,3 +21,16 @@ Self-contained project deployments — currently blockchain node infrastructure.
 ## World Mobile — `blockchain/world-mobile/`
 
 `aya-testnet/` contains a numbered deployment sequence — run in order (`0.` info file first), plus `aya-testnet-monitor-blocks.sh` for block monitoring. `wmc/docker-node.sh` deploys a WMC Docker node.
+
+## Trading — `trading/wmtx-arbitrage/`
+
+Read-only WMTX (World Mobile Token) arbitrage monitor between Cardano
+(Minswap) and Base (Aerodrome). Models executable prices at a configured
+trade size from live pool reserves, nets off fees, logs spreads to CSV,
+and alerts on capturable gaps. No keys, no execution — see the project
+README for scope and roadmap.
+
+| File | Purpose |
+|------|---------|
+| `src/wmtx_monitor.py` | Spread monitor CLI (poll · model · log · alert) |
+| `tests/test_monitor.py` | Offline pipeline tests (mocked market data) |
