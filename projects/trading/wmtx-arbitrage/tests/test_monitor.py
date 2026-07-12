@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from unittest.mock import patch, MagicMock
@@ -79,7 +80,7 @@ c2b = a["car_to_base"]
 check("pnl consistency", abs(c2b["profit_usd"] - c2b["net_pct"]/100*1000) < 0.01)
 
 # 4. Full run_once with mocked HTTP + CSV output + alert
-csv_path = "/tmp/test_spreads.csv"
+csv_path = os.path.join(tempfile.gettempdir(), "test_spreads.csv")
 if os.path.exists(csv_path):
     os.remove(csv_path)
 resp = MagicMock(); resp.json.return_value = MOCK; resp.raise_for_status.return_value = None

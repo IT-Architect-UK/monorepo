@@ -195,9 +195,9 @@ def run_once(session, usd_size, alert_pct, csv_path) -> bool:
 
     print(f"[{ts()}] Cardano ${a['spot_cardano']:.5f} | Base ${a['spot_base']:.5f} "
           f"| spot gap {a['spot_gap_pct']:+.2f}%")
-    print(f"  Cardano→Base: net {c2b['net_pct']:+.2f}% (${c2b['profit_usd']:+.2f}) "
+    print(f"  Cardano->Base: net {c2b['net_pct']:+.2f}% (${c2b['profit_usd']:+.2f}) "
           f"buy@{c2b['buy_eff_px']:.5f} sell@{c2b['sell_eff_px']:.5f}")
-    print(f"  Base→Cardano: net {b2c['net_pct']:+.2f}% (${b2c['profit_usd']:+.2f}) "
+    print(f"  Base->Cardano: net {b2c['net_pct']:+.2f}% (${b2c['profit_usd']:+.2f}) "
           f"buy@{b2c['buy_eff_px']:.5f} sell@{b2c['sell_eff_px']:.5f}")
     if alert:
         print(f"  *** ALERT: net spread {best:+.2f}% >= {alert_pct}% threshold ***\a")
