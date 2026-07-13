@@ -2,7 +2,6 @@
 import json
 import os
 import sys
-import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from unittest.mock import patch, MagicMock
@@ -80,11 +79,13 @@ c2b = a["car_to_base"]
 check("pnl consistency", abs(c2b["profit_usd"] - c2b["net_pct"]/100*1000) < 0.01)
 
 # 4. Full run_once with mocked HTTP + CSV output + alert
-csv_path = os.path.join(tempfile.gettempdir(), "test_spreads.csv")
+csv_path = "/tmp/test_spreads.csv" if os.name != "nt" else os.path.join(
+    os.environ.get("TEMP", "."), "test_spreads.csv")
 if os.path.exists(csv_path):
     os.remove(csv_path)
 resp = MagicMock(); resp.json.return_value = MOCK; resp.raise_for_status.return_value = None
 sess = MagicMock(); sess.get.return_value = resp
+m._last_snapshot.clear()
 alert = m.run_once(sess, 1000, 1.5, csv_path)
 check("alert fires on big spread", alert is True)
 with open(csv_path) as f:
@@ -97,6 +98,32 @@ alert2 = m.run_once(MagicMock(get=MagicMock(return_value=MagicMock(
     json=MagicMock(return_value={"pairs": MOCK["pairs"][:2]}),
     raise_for_status=MagicMock()))), 1000, 1.5, csv_path)
 check("missing chain handled gracefully", alert2 is False)
+
+# 6. v0.2: staleness detector, new CSV fields, cache-busting
+m._last_snapshot.clear()
+csv_path2 = csv_path.replace("test_spreads", "test_spreads_v2")
+if os.path.exists(csv_path2):
+    os.remove(csv_path2)
+resp2 = MagicMock(); resp2.json.return_value = MOCK; resp2.raise_for_status.return_value = None
+sess2 = MagicMock(); sess2.get.return_value = resp2
+m.run_once(sess2, 1000, 1.5, csv_path2)          # first poll: fresh
+m.run_once(sess2, 1000, 1.5, csv_path2)          # identical data: stale
+kwargs = sess2.get.call_args.kwargs
+check("cache-busting param sent", "_ts" in (kwargs.get("params") or {}))
+check("no-cache header sent", (kwargs.get("headers") or {}).get("Cache-Control") == "no-cache")
+with open(csv_path2) as f:
+    rows2 = list(__import__("csv").DictReader(f))
+check("stale flag: first fresh, second stale",
+      rows2[0]["stale"] == "False" and rows2[1]["stale"] == "True")
+check("pair addresses logged", rows2[0]["cardano_pair"].startswith("f5808c"))
+check("small-size column logged", "small_best_net_pct" in rows2[0] and rows2[0]["small_size_usd"] == "500.0",
+      f"small net {rows2[0]['small_best_net_pct']}%")
+# Correct invariant: smaller trades suffer LESS slippage (fee-free AMM legs)
+_, eff_small = m.buy_wmtx(pools["cardano"], 500)
+_, eff_big = m.buy_wmtx(pools["cardano"], 2000)
+check("less slippage at smaller size", eff_small < eff_big,
+      f"eff@500 {eff_small:.6f} < eff@2000 {eff_big:.6f}")
+check("data age column present", "cardano_data_age_s" in rows2[0])
 
 print(f"\n{'ALL TESTS PASSED' if fails == 0 else f'{fails} FAILURES'}")
 raise SystemExit(1 if fails else 0)

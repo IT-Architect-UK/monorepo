@@ -1,0 +1,1 @@
+connector write test 2026-07-13 — safe to delete

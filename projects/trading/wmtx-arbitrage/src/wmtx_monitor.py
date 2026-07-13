@@ -56,11 +56,14 @@ class Pool:
     quote_price_usd: float    # USD price of the quote token (ADA, WETH, USDC...)
     liquidity_usd: float
     volume_h24: float
+    updated_at_ms: int = 0   # DexScreener pairCreatedAt/updatedAt when present
 
 
 def fetch_pools(session: requests.Session) -> dict:
     """Fetch WMTX pairs and return the deepest pool per target chain."""
-    r = session.get(DEXSCREENER_SEARCH, timeout=15)
+    r = session.get(DEXSCREENER_SEARCH, timeout=15,
+                    params={"_ts": int(time.time() * 1000)},
+                    headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
     r.raise_for_status()
     pairs = r.json().get("pairs") or []
     return select_pools(pairs)
@@ -95,6 +98,7 @@ def select_pools(pairs: list) -> dict:
                 quote_price_usd=price_usd / price_native,
                 liquidity_usd=liq_usd,
                 volume_h24=float((p.get("volume") or {}).get("h24") or 0),
+                updated_at_ms=int(p.get("updatedAt") or 0),
             )
             if pool.reserve_wmtx <= 0 or pool.reserve_quote <= 0:
                 continue
@@ -169,7 +173,10 @@ CSV_FIELDS = ["utc_time", "spot_cardano", "spot_base", "spot_gap_pct",
               "size_usd",
               "car_to_base_net_pct", "car_to_base_profit_usd",
               "base_to_car_net_pct", "base_to_car_profit_usd",
-              "cardano_liq_usd", "base_liq_usd", "alert"]
+              "small_size_usd", "small_best_net_pct",
+              "cardano_pair", "base_pair",
+              "cardano_data_age_s", "base_data_age_s",
+              "cardano_liq_usd", "base_liq_usd", "stale", "alert"]
 
 
 def log_csv(path: str, row: dict):
@@ -181,7 +188,18 @@ def log_csv(path: str, row: dict):
         w.writerow(row)
 
 
-def run_once(session, usd_size, alert_pct, csv_path) -> bool:
+_last_snapshot = {}
+
+
+def data_age_s(pool: Pool) -> float:
+    """Seconds since DexScreener last updated this pair (-1 if unknown)."""
+    if pool.updated_at_ms <= 0:
+        return -1.0
+    return round(time.time() - pool.updated_at_ms / 1000, 1)
+
+
+def run_once(session, usd_size, alert_pct, csv_path, small_size=500.0) -> bool:
+    global _last_snapshot
     pools = fetch_pools(session)
     missing = [c for c in ("cardano", "base") if c not in pools]
     if missing:
@@ -193,17 +211,46 @@ def run_once(session, usd_size, alert_pct, csv_path) -> bool:
     best = max(c2b["net_pct"], b2c["net_pct"])
     alert = best >= alert_pct
 
+    # Small-size comparison (slippage sanity check at lower capital)
+    a_small = analyse(pools, small_size)
+    small_best = max(a_small["car_to_base"]["net_pct"],
+                     a_small["base_to_car"]["net_pct"])
+
+    # Staleness detector: identical reserves+prices to previous poll = stale
+    snapshot = tuple((p.chain, p.price_usd, p.reserve_wmtx, p.reserve_quote)
+                     for p in sorted(pools.values(), key=lambda x: x.chain))
+    stale = snapshot == _last_snapshot.get("snap")
+    _last_snapshot["snap"] = snapshot
+    if stale:
+        _last_snapshot["count"] = _last_snapshot.get("count", 0) + 1
+    else:
+        _last_snapshot["count"] = 0
+    stale_runs = _last_snapshot["count"]
+
     print(f"[{ts()}] Cardano ${a['spot_cardano']:.5f} | Base ${a['spot_base']:.5f} "
           f"| spot gap {a['spot_gap_pct']:+.2f}%")
-    print(f"  Cardano->Base: net {c2b['net_pct']:+.2f}% (${c2b['profit_usd']:+.2f}) "
+    print(f"  Cardano→Base: net {c2b['net_pct']:+.2f}% (${c2b['profit_usd']:+.2f}) "
           f"buy@{c2b['buy_eff_px']:.5f} sell@{c2b['sell_eff_px']:.5f}")
-    print(f"  Base->Cardano: net {b2c['net_pct']:+.2f}% (${b2c['profit_usd']:+.2f}) "
+    print(f"  Base→Cardano: net {b2c['net_pct']:+.2f}% (${b2c['profit_usd']:+.2f}) "
           f"buy@{b2c['buy_eff_px']:.5f} sell@{b2c['sell_eff_px']:.5f}")
     if alert:
         print(f"  *** ALERT: net spread {best:+.2f}% >= {alert_pct}% threshold ***\a")
+    print(f"  @${small_size:.0f}: best net {small_best:+.2f}% | "
+          f"data age car {data_age_s(pools['cardano'])}s / base {data_age_s(pools['base'])}s"
+          + (f" | STALE x{stale_runs} — identical data since last poll" if stale else ""))
+    if stale and stale_runs in (3, 15, 45, 90):
+        print(f"  !!! WARNING: market data unchanged for {stale_runs} consecutive polls — "
+              f"DexScreener may be serving cached/stale data !!!")
 
     log_csv(csv_path, {
         "utc_time": ts(),
+        "small_size_usd": small_size,
+        "small_best_net_pct": round(small_best, 3),
+        "cardano_pair": pools["cardano"].pair_address[:24],
+        "base_pair": pools["base"].pair_address[:24],
+        "cardano_data_age_s": data_age_s(pools["cardano"]),
+        "base_data_age_s": data_age_s(pools["base"]),
+        "stale": stale,
         "spot_cardano": round(a["spot_cardano"], 6),
         "spot_base": round(a["spot_base"], 6),
         "spot_gap_pct": round(a["spot_gap_pct"], 3),
@@ -239,7 +286,7 @@ def main():
     print("Read-only. No keys, no execution.\n")
 
     session = requests.Session()
-    session.headers["User-Agent"] = "wmtx-monitor/0.1"
+    session.headers["User-Agent"] = "wmtx-monitor/0.2"
 
     while True:
         try:
