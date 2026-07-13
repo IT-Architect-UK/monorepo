@@ -164,7 +164,7 @@ foreach ($pkg in 'Microsoft.DesktopAppInstaller','Microsoft.Winget.Source') {
     Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $pkg } | ForEach-Object {
         try { Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction Stop | Out-Null
               Write-OK "Deprovisioned $pkg" }
-        catch { Write-Warn "Could not deprovision $pkg: $($_.Exception.Message)" }
+        catch { Write-Warn "Could not deprovision ${pkg}: $($_.Exception.Message)" }
     }
 }
 
