@@ -76,7 +76,7 @@ jobs:
               cat /tmp/ans_err
               FAIL=$((FAIL + 1))
             fi
-          done < <(find automation/ansible/playbooks -name "*.yml" | sort)
+          done < <(find automation/ansible/playbooks -name "*.yml" -not -path "*/includes/*" | sort)
           echo ""
           echo "Failed: $FAIL"
           exit $FAIL
