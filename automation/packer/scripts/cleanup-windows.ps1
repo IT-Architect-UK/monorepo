@@ -141,31 +141,28 @@ if (Test-Path "C:\Windows.old") {
 # provisioned for all users, then de-provision the store payload. All wrapped
 # so a single stubborn package can never abort the build.
 Write-Step "Sysprep pre-flight — clear AppX generalize blockers"
+# 0x80073CF2 ("installed for a user, but not provisioned for all users") is
+# caused by a per-user AppX (e.g. DesktopAppInstaller/winget) that is newer
+# than the provisioned copy. Microsoft's fix (KB2769827): remove the package
+# FOR THE USER RUNNING SYSPREP (this account — no -AllUsers) AND deprovision.
+# -AllUsers removal alone fails on that package, which is why generalize kept
+# failing while the build still went green.
 try {
+    # a) remove every AppX for the CURRENT user (the account sysprep runs as)
+    Get-AppxPackage | ForEach-Object {
+        try { Remove-AppxPackage -Package $_.PackageFullName -ErrorAction Stop } catch {}
+    }
+    # b) best-effort removal for any other user profiles
     Get-AppxPackage -AllUsers | ForEach-Object {
         try { Remove-AppxPackage -Package $_.PackageFullName -AllUsers -ErrorAction SilentlyContinue } catch {}
     }
+    # c) deprovision so nothing is staged back for new profiles
     Get-AppxProvisionedPackage -Online | ForEach-Object {
         try { Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue | Out-Null } catch {}
     }
-    Write-OK "Provisioned AppX packages cleared (removes the common sysprep hang)"
+    Write-OK "AppX removed for the current user and deprovisioned (0x80073CF2 fix)"
 } catch {
     Write-Warn "AppX cleanup had issues (non-critical): $($_.Exception.Message)"
-}
-
-# DesktopAppInstaller (winget) is the #1 0x80073CF2 generalize blocker: a per-user
-# version newer than the provisioned one. Remove it explicitly and loudly.
-foreach ($pkg in 'Microsoft.DesktopAppInstaller','Microsoft.Winget.Source') {
-    Get-AppxPackage -AllUsers -Name $pkg -ErrorAction SilentlyContinue | ForEach-Object {
-        try { Remove-AppxPackage -AllUsers -Package $_.PackageFullName -ErrorAction Stop
-              Write-OK "Removed $($_.PackageFullName)" }
-        catch { Write-Warn "Could not remove $($_.PackageFullName): $($_.Exception.Message)" }
-    }
-    Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $pkg } | ForEach-Object {
-        try { Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction Stop | Out-Null
-              Write-OK "Deprovisioned $pkg" }
-        catch { Write-Warn "Could not deprovision ${pkg}: $($_.Exception.Message)" }
-    }
 }
 
 # ── 8d. UEFI fallback bootloader (reliable clone boot) ───────────────────────
@@ -218,8 +215,15 @@ $rc = $LASTEXITCODE
 # template (build account + hostname survive, SID errors on clones). /quit alone
 # never surfaced this. Surface setuperr.log so the cause is in the Packer output.
 $errLog = "C:\Windows\System32\Sysprep\Panther\setuperr.log"
-if ($rc -ne 0) {
-    if (Test-Path $errLog) { Write-Host "----- setuperr.log -----"; Get-Content $errLog -Tail 40 | Write-Host }
-    throw "Sysprep generalize FAILED (exit code $rc). Template NOT sealed — fix the blocker above and rebuild."
+# sysprep /quit returns exit code 0 even when generalize validation FAILS, so
+# trust the error log, not the exit code. A fresh Packer VM has only this
+# build's sysprep run in setuperr.log, so any failure signature => not sealed.
+$generalizeFailed = $false
+if (Test-Path $errLog) {
+    $generalizeFailed = Select-String -Path $errLog -Quiet -Pattern '0x80073cf2', 'SysprepGeneralizeValidate', 'Failed to remove apps', 'Hit failure while'
 }
-Write-OK "Sysprep generalize succeeded — Packer will power off and seal the template"
+if ($rc -ne 0 -or $generalizeFailed) {
+    if (Test-Path $errLog) { Write-Host "----- setuperr.log (tail) -----"; Get-Content $errLog -Tail 40 | ForEach-Object { Write-Host $_ } }
+    throw "Sysprep generalize FAILED (exit=$rc, errors in setuperr.log). Template NOT sealed — fix the blocker above and rebuild."
+}
+Write-OK "Sysprep generalize succeeded — no errors in setuperr.log"
