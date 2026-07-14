@@ -359,29 +359,16 @@ try {
     L "extended C: to $max bytes"
 } catch { L "disk extend error: $($_.Exception.Message)" }
 
-# 2b. Label C: as OS
-try { Set-Volume -DriveLetter C -NewFileSystemLabel 'OS' -ErrorAction SilentlyContinue; L "labelled C: as OS" } catch { L "C: label error: $($_.Exception.Message)" }
-
-# 2c. Move the CD/DVD drive to Z: (frees D: for the data disk)
+# 2b. Drive letters must be set in the FINAL booted state — a reboot/sysprep can
+# revert the CD/DVD back to D:. Register a one-shot startup task to run
+# Finalize-Disks.ps1 AFTER the hostname reboot below (CD -> Z: then data -> D:).
 try {
-    Get-CimInstance -ClassName Win32_Volume -Filter "DriveType=5 AND DriveLetter IS NOT NULL" | ForEach-Object {
-        if ($_.DriveLetter -ne 'Z:') {
-            Set-CimInstance -InputObject $_ -Property @{ DriveLetter = 'Z:' } | Out-Null
-            L "moved CD/DVD to Z:"
-        }
-    }
-} catch { L "CD/DVD letter error: $($_.Exception.Message)" }
-
-# 2d. Initialise the data disk as D: labelled 'Apps & Data'
-try {
-    $raw = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | Select-Object -First 1
-    if ($raw) {
-        Initialize-Disk -Number $raw.Number -PartitionStyle GPT -PassThru |
-            New-Partition -DriveLetter D -UseMaximumSize |
-            Format-Volume -FileSystem NTFS -NewFileSystemLabel 'Apps & Data' -Confirm:$false | Out-Null
-        L "data disk initialised as D: (Apps & Data)"
-    } else { L "no raw data disk present" }
-} catch { L "data disk error: $($_.Exception.Message)" }
+    $act = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File "C:\Scripts\Finalize-Disks.ps1"'
+    $trg = New-ScheduledTaskTrigger -AtStartup
+    $prn = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+    Register-ScheduledTask -TaskName 'ToolboxFinalizeDisks' -Action $act -Trigger $trg -Principal $prn -Force | Out-Null
+    L "registered ToolboxFinalizeDisks (runs on next boot)"
+} catch { L "finalize-task registration error: $($_.Exception.Message)" }
 
 # 3. Set the hostname ourselves (cloudbase sets it pending, but its reboot
 # timing races the deploy, so it may never apply). Rename explicitly, then boot.
@@ -392,6 +379,47 @@ if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
 L "rebooting to apply hostname/account"
 Restart-Computer -Force
 '@
+    $finalizeDisks = @'
+$log = 'C:\Scripts\post-clone.log'
+function L($m) { "$(Get-Date -Format 's') [finalize] $m" | Tee-Object -FilePath $log -Append }
+L "finalize starting (COMPUTERNAME=$env:COMPUTERNAME)"
+
+# 1. CD/DVD -> Z: (reclaim D: if the optical drive grabbed it after reboot)
+try {
+    Get-CimInstance -ClassName Win32_Volume -Filter "DriveType=5 AND DriveLetter IS NOT NULL" | ForEach-Object {
+        if ($_.DriveLetter -ne 'Z:') {
+            $was = $_.DriveLetter
+            Set-CimInstance -InputObject $_ -Property @{ DriveLetter = 'Z:' } | Out-Null
+            L "moved CD/DVD $was -> Z:"
+        }
+    }
+} catch { L "CD/DVD letter error: $($_.Exception.Message)" }
+
+# 2. Data disk -> D: labelled 'Apps & Data' (D: is free now the CD is on Z:)
+try {
+    $raw = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | Select-Object -First 1
+    if ($raw) {
+        Initialize-Disk -Number $raw.Number -PartitionStyle GPT -PassThru |
+            New-Partition -DriveLetter D -UseMaximumSize |
+            Format-Volume -FileSystem NTFS -NewFileSystemLabel 'Apps & Data' -Confirm:$false | Out-Null
+        L "data disk initialised as D: (Apps & Data)"
+    } else {
+        $vol = Get-Volume | Where-Object { $_.FileSystemLabel -eq 'Apps & Data' -and -not $_.DriveLetter } | Select-Object -First 1
+        if ($vol) {
+            Get-Partition | Where-Object { $_.AccessPaths -contains $vol.Path } | Select-Object -First 1 | Set-Partition -NewDriveLetter D -ErrorAction SilentlyContinue
+            L "assigned existing data volume -> D:"
+        } else { L "no raw data disk present" }
+    }
+} catch { L "data disk error: $($_.Exception.Message)" }
+
+# 3. Ensure C: label
+try { Set-Volume -DriveLetter C -NewFileSystemLabel 'OS' -ErrorAction SilentlyContinue; L "labelled C: as OS" } catch {}
+
+# 4. Run once only
+try { Unregister-ScheduledTask -TaskName 'ToolboxFinalizeDisks' -Confirm:$false -ErrorAction SilentlyContinue; L "removed ToolboxFinalizeDisks task" } catch {}
+L "finalize done"
+'@
+    Set-Content -Path "C:\Scripts\Finalize-Disks.ps1" -Value $finalizeDisks -Encoding UTF8
     Set-Content -Path "C:\Scripts\Invoke-WindowsPostClone.ps1" -Value $postClone -Encoding UTF8
     Write-OK "Invoke-WindowsPostClone.ps1 staged (deploy runs it after clone)"
 } catch {
