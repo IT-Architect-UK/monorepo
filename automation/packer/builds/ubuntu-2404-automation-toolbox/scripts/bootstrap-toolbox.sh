@@ -401,17 +401,24 @@ VIEW_ROLES_ID=$(seed_view "Server Roles" 4)
 
 # POST a template, adding view_id only when a valid (>0) view id is supplied,
 # so template creation is unaffected if views weren't available.
-post_template() { # post_template <view_id> <template-json>
-    local vid="$1" json="$2"
+post_template() { # post_template <view_id> <template-json> — create OR update by name (upsert)
+    local vid="$1" json="$2" name tid
+    name=$(echo "${json}" | jq -r '.name')
     if [[ -n "${vid}" && "${vid}" != "0" ]]; then
         json=$(echo "${json}" | jq -c --argjson v "${vid}" '. + {view_id: $v}')
     fi
-    api POST "${P}/templates" "${json}"
+    tid=$(echo "${TPL_JSON}" | find_id "${name}")
+    if [[ -z "${tid}" ]]; then
+        api POST "${P}/templates" "${json}"
+    else
+        # Update in place so survey/args/description changes propagate without
+        # deleting the template. PUT returns no body, so echo the id ourselves.
+        api PUT "${P}/templates/${tid}" "$(echo "${json}" | jq -c --argjson id "${tid}" '. + {id: $id}')" >/dev/null 2>&1 || true
+        echo "{\"id\": ${tid}}"
+    fi
 }
 
-PROV_TPL_ID=$(echo "${TPL_JSON}" | find_id "Provision VM (Proxmox)")
-if [[ -z "${PROV_TPL_ID}" ]]; then
-    PROV_TPL_ID=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
+PROV_TPL_ID=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{
@@ -434,10 +441,7 @@ if [[ -z "${PROV_TPL_ID}" ]]; then
             {name: "vm_vlan_tag",  title: "VLAN tag (empty = keep)",        type: "",    required: false}
           ]
         }')" | jq -r '.id')
-    log "Job template 'Provision VM (Proxmox)' created (id ${PROV_TPL_ID})"
-else
-    log "Job template 'Provision VM (Proxmox)' already exists (id ${PROV_TPL_ID})"
-fi
+log "Job template 'Provision VM (Proxmox)' upserted (id ${PROV_TPL_ID})"
 
 VAULT_TPL_ID=$(echo "${TPL_JSON}" | find_id "Deploy Vault Server")
 if [[ -z "${VAULT_TPL_ID}" ]]; then
@@ -502,19 +506,14 @@ done
 
 SEED_TPL() { # SEED_TPL <name> <playbook> <description> <survey-json>
     local T_ID
-    T_ID=$(echo "${TPL_JSON}" | find_id "$1")
-    if [[ -z "${T_ID}" ]]; then
-        T_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
-            --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
-            --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
-            --arg name "$1" --arg play "$2" --arg desc "$3" --argjson survey "$4" \
-            '{project_id: $pid, name: $name, app: "ansible", playbook: $play,
-              inventory_id: $inv, repository_id: $rid, environment_id: $eid,
-              arguments: "[]", type: "", description: $desc, survey_vars: $survey}')" | jq -r '.id')
-        log "Job template '$1' created (id ${T_ID})"
-    else
-        log "Job template '$1' already exists (id ${T_ID})"
-    fi
+    T_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
+        --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
+        --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+        --arg name "$1" --arg play "$2" --arg desc "$3" --argjson survey "$4" \
+        '{project_id: $pid, name: $name, app: "ansible", playbook: $play,
+          inventory_id: $inv, repository_id: $rid, environment_id: $eid,
+          arguments: "[]", type: "", description: $desc, survey_vars: $survey}')" | jq -r '.id')
+    log "Job template '$1' upserted (id ${T_ID})"
 }
 
 TARGET_FIELDS='[{"name":"target_host","title":"Server IP/FQDN","type":"","required":true},
@@ -543,9 +542,7 @@ SEED_TPL "Configure Fail2Ban" \
         '$t + [{name:"fail2ban_maxretry", title:"Failed attempts before ban (default 5)", type:"int", required:false},
                {name:"fail2ban_bantime", title:"Ban duration seconds (default 3600)", type:"int", required:false}]')"
 
-WEBMIN_TPL_ID=$(echo "${TPL_JSON}" | find_id "Deploy Webmin")
-if [[ -z "${WEBMIN_TPL_ID}" ]]; then
-    WEBMIN_TPL_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
+WEBMIN_TPL_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{project_id: $pid, name: "Deploy Webmin", app: "ansible",
@@ -557,17 +554,12 @@ if [[ -z "${WEBMIN_TPL_ID}" ]]; then
             {name: "target_host",     title: "Server IP/FQDN",              type: "", required: true},
             {name: "target_ssh_user", title: "SSH user (default sysadmin)", type: "", required: false}
           ]}')" | jq -r '.id')
-    log "Job template 'Deploy Webmin' created (id ${WEBMIN_TPL_ID})"
-else
-    log "Job template 'Deploy Webmin' already exists (id ${WEBMIN_TPL_ID})"
-fi
+log "Job template 'Deploy Webmin' upserted (id ${WEBMIN_TPL_ID})"
 
 # The default build as a re-runnable template, bound to the Linux Baseline
 # inventory (the group Deploy VM adds hosts to). Leave the survey blank to apply
 # to every baseline host, or set target_host to re-apply to a single server.
-BASELINE_TPL_ID=$(echo "${TPL_JSON}" | find_id "Apply Baseline (Linux)")
-if [[ -z "${BASELINE_TPL_ID}" ]]; then
-    BASELINE_TPL_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
+BASELINE_TPL_ID=$(post_template "${VIEW_LINUX_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${INV_BASELINE_ID:-0}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         '{project_id: $pid, name: "Apply Baseline (Linux)", app: "ansible",
@@ -579,10 +571,7 @@ if [[ -z "${BASELINE_TPL_ID}" ]]; then
             {name: "target_host",     title: "Single Server IP/FQDN (blank = all hosts in Linux Baseline)", type: "", required: false},
             {name: "target_ssh_user", title: "SSH user for single-host mode (default it-admin)",            type: "", required: false}
           ]}')" | jq -r '.id')
-    log "Job template 'Apply Baseline (Linux)' created (id ${BASELINE_TPL_ID})"
-else
-    log "Job template 'Apply Baseline (Linux)' already exists (id ${BASELINE_TPL_ID})"
-fi
+log "Job template 'Apply Baseline (Linux)' upserted (id ${BASELINE_TPL_ID})"
 
 PROBE_TPL_ID=$(echo "${TPL_JSON}" | find_id "Diagnostics — Task Probe")
 if [[ -z "${PROBE_TPL_ID}" ]]; then
@@ -632,25 +621,18 @@ SURVEY_NOIP='[
 
 SEED_DEPLOY() { # SEED_DEPLOY <name> <golden_vmid> <inv_id> <os_label> <cloudinit_ip> <survey_json> <desc> [baseline_inv_id]
     local name="$1" gvmid="$2" invid="$3" oslabel="$4" ciip="$5" survey="$6" desc="$7" binvid="${8:-0}" osdisk="${9:-scsi0}" cibus="${10:-scsi1}" citype="${11:-}" tid args
-    tid=$(echo "${TPL_JSON}" | find_id "${name}") || tid=""
-    if [[ -z "${tid}" ]]; then
-        args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" --arg b "${binvid:-0}" --arg d "${osdisk}" --arg cb "${cibus}" --arg ct "${citype}" \
-            '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","baseline_inventory_id=\($b)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)","-e","os_disk=\($d)","-e","ci_bus=\($cb)","-e","ci_type=\($ct)"]')
-        tid=$(api POST "${P}/templates" "$(jq -n \
-            --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
-            --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
-            --argjson vid "${VIEW_TOOLBOX_ID:-0}" \
-            --arg name "${name}" --arg args "${args}" --argjson survey "${survey}" --arg desc "${desc}" \
-            '{project_id:$pid, name:$name, app:"ansible",
-              playbook:"automation/ansible/playbooks/provision-vm.yml",
-              inventory_id:$inv, repository_id:$rid, environment_id:$eid,
-              arguments:$args, type:"", survey_vars:$survey, description:$desc}
-             + (if $vid > 0 then {view_id:$vid} else {} end)')" 2>/dev/null | jq -r '.id // empty') || tid=""
-        [[ -n "${tid}" ]] && log "Job template '${name}' created (id ${tid})" \
-                          || warn "Could not create job template '${name}'"
-    else
-        log "Job template '${name}' already exists (id ${tid})"
-    fi
+    args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" --arg b "${binvid:-0}" --arg d "${osdisk}" --arg cb "${cibus}" --arg ct "${citype}" \
+        '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","baseline_inventory_id=\($b)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)","-e","os_disk=\($d)","-e","ci_bus=\($cb)","-e","ci_type=\($ct)"]')
+    tid=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
+        --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
+        --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+        --arg name "${name}" --arg args "${args}" --argjson survey "${survey}" --arg desc "${desc}" \
+        '{project_id:$pid, name:$name, app:"ansible",
+          playbook:"automation/ansible/playbooks/provision-vm.yml",
+          inventory_id:$inv, repository_id:$rid, environment_id:$eid,
+          arguments:$args, type:"", survey_vars:$survey, description:$desc}')" | jq -r '.id // empty')
+    [[ -n "${tid}" ]] && log "Job template '${name}' upserted (id ${tid})" \
+                      || warn "Could not upsert job template '${name}'"
 }
 SEED_DEPLOY "Deploy Ubuntu 24.04 VM" 9004 "${INV_U2404_ID}" ubuntu-2404 true  "${SURVEY_IP}" \
     "Clone the Ubuntu 24.04 golden into a new VM (name + optional static IP), start it, register it in the Ubuntu 24.04 Hosts inventory, and apply the default build unless opted out." \
