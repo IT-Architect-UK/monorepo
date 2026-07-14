@@ -620,6 +620,7 @@ SURVEY_IP='[
 ]'
 SURVEY_NOIP='[
   {"name":"vm_name","title":"VM name (also the hostname)","type":"","required":true},
+  {"name":"vm_data_disk_gb","title":"Data disk size GB for D: (Apps & Data); 0 = none","type":"int","required":false,"default_value":"50"},
   {"name":"vm_user","title":"Login account to create (e.g. it-admin; blank = none)","type":"","required":false},
   {"name":"vm_password","title":"Password for that account","type":"secret","required":false},
   {"name":"vm_ssh_key","title":"Extra SSH public key for the account (the toolbox key is always added)","type":"","required":false},

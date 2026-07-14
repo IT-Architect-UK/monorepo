@@ -345,6 +345,30 @@ try {
     L "extended C: to $max bytes"
 } catch { L "disk extend error: $($_.Exception.Message)" }
 
+# 2b. Label C: as OS
+try { Set-Volume -DriveLetter C -NewFileSystemLabel 'OS' -ErrorAction SilentlyContinue; L "labelled C: as OS" } catch { L "C: label error: $($_.Exception.Message)" }
+
+# 2c. Move the CD/DVD drive to Z: (frees D: for the data disk)
+try {
+    Get-CimInstance -ClassName Win32_Volume -Filter "DriveType=5 AND DriveLetter IS NOT NULL" | ForEach-Object {
+        if ($_.DriveLetter -ne 'Z:') {
+            Set-CimInstance -InputObject $_ -Property @{ DriveLetter = 'Z:' } | Out-Null
+            L "moved CD/DVD to Z:"
+        }
+    }
+} catch { L "CD/DVD letter error: $($_.Exception.Message)" }
+
+# 2d. Initialise the data disk as D: labelled 'Apps & Data'
+try {
+    $raw = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | Select-Object -First 1
+    if ($raw) {
+        Initialize-Disk -Number $raw.Number -PartitionStyle GPT -PassThru |
+            New-Partition -DriveLetter D -UseMaximumSize |
+            Format-Volume -FileSystem NTFS -NewFileSystemLabel 'Apps & Data' -Confirm:$false | Out-Null
+        L "data disk initialised as D: (Apps & Data)"
+    } else { L "no raw data disk present" }
+} catch { L "data disk error: $($_.Exception.Message)" }
+
 # 3. Set the hostname ourselves (cloudbase sets it pending, but its reboot
 # timing races the deploy, so it may never apply). Rename explicitly, then boot.
 if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
