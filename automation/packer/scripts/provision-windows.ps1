@@ -327,6 +327,20 @@ if ($AdminPassword) {
     } catch { L "account error: $($_.Exception.Message)" }
 }
 
+# 1b. Remove the Packer build account (it survives sysprep generalize; this
+# script runs as SYSTEM via the guest agent, so it can delete it).
+foreach ($bu in @('packer')) {
+    try {
+        if (Get-LocalUser -Name $bu -ErrorAction SilentlyContinue) {
+            Remove-LocalUser -Name $bu -ErrorAction SilentlyContinue
+            L "removed build account $bu"
+        }
+        Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue |
+            Where-Object { $_.LocalPath -like "*\$bu" } |
+            ForEach-Object { Remove-CimInstance -InputObject $_ -ErrorAction SilentlyContinue }
+    } catch { L "build account removal error: $($_.Exception.Message)" }
+}
+
 # 2. Remove the trailing recovery partition and extend C: into the resized disk.
 # Windows Setup places a WinRE recovery partition AFTER C:, which blocks the
 # extend. Disable WinRE, delete any partition after C:, then grow C: to fill.
