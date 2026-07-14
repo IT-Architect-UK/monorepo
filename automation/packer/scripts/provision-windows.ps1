@@ -32,6 +32,15 @@ Set-ItemProperty -Path $auPath -Name "NoAutoUpdate" -Value 1 -Type DWord
 Set-ItemProperty -Path $auPath -Name "AUOptions"     -Value 1 -Type DWord
 Write-OK "Automatic updates disabled (re-enable after deploying from template)"
 
+# Prevent the Microsoft Store from auto-updating inbox AppX (DesktopAppInstaller,
+# etc.) during the build. Those per-user AppX updates are what break sysprep
+# generalize on Windows Server 2025 (0x80073CF2). Disable this EARLY, before
+# anything (internet access later in this script) can trigger an update.
+$storePath = "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore"
+New-Item -Path $storePath -Force | Out-Null
+Set-ItemProperty -Path $storePath -Name "AutoDownload" -Value 2 -Type DWord
+Write-OK "Microsoft Store app auto-update disabled (sysprep generalize protection)"
+
 # Disable Windows Search indexing (reduces I/O on template disk)
 Set-Service -Name WSearch -StartupType Disabled -ErrorAction SilentlyContinue
 Stop-Service  -Name WSearch -ErrorAction SilentlyContinue
