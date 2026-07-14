@@ -335,10 +335,11 @@ foreach ($bu in @('packer')) {
             Remove-LocalUser -Name $bu -ErrorAction SilentlyContinue
             L "removed build account $bu"
         }
-        Get-CimInstance Win32_UserProfile -ErrorAction SilentlyContinue |
-            Where-Object { $_.LocalPath -like "*\$bu" } |
-            ForEach-Object { Remove-CimInstance -InputObject $_ -ErrorAction SilentlyContinue }
     } catch { L "build account removal error: $($_.Exception.Message)" }
+    # Best-effort profile dir cleanup. NB: do NOT use Remove-CimInstance on
+    # Win32_UserProfile here — it can hang the whole script (it did, stopping
+    # post-clone before the disk/rename steps). Remove-Item just skips locks.
+    Remove-Item -Path "C:\Users\$bu" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 # 2. Remove the trailing recovery partition and extend C: into the resized disk.
