@@ -303,7 +303,8 @@ try {
     $postClone = @'
 param(
     [string]$AdminUser = 'it-admin',
-    [string]$AdminPassword = ''
+    [string]$AdminPassword = '',
+    [string]$Hostname = ''
 )
 $ErrorActionPreference = 'Continue'
 $log = 'C:\Scripts\post-clone.log'
@@ -344,8 +345,13 @@ try {
     L "extended C: to $max bytes"
 } catch { L "disk extend error: $($_.Exception.Message)" }
 
-# 3. Reboot to apply the hostname cloudbase-init set (pending; allow_reboot=false)
-L "rebooting to apply hostname"
+# 3. Set the hostname ourselves (cloudbase sets it pending, but its reboot
+# timing races the deploy, so it may never apply). Rename explicitly, then boot.
+if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
+    try { Rename-Computer -NewName $Hostname -Force -ErrorAction Stop; L "renamed to $Hostname" }
+    catch { L "rename error: $($_.Exception.Message)" }
+}
+L "rebooting to apply hostname/account"
 Restart-Computer -Force
 '@
     Set-Content -Path "C:\Scripts\Invoke-WindowsPostClone.ps1" -Value $postClone -Encoding UTF8

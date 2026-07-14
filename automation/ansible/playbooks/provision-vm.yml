@@ -373,6 +373,8 @@
                 - "{{ eff_user | default('it-admin', true) }}"
                 - -AdminPassword
                 - "{{ eff_password | default('', true) }}"
+                - -Hostname
+                - "{{ vm_name }}"
             validate_certs: false
           register: win_postclone
           retries: 20
