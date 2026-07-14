@@ -291,4 +291,67 @@ try {
 }
 
 # ── Done ──────────────────────────────────────────────────────────────────────
+# ── 11. Post-clone script (triggered by the deploy via the QEMU guest agent) ──
+# cloudbase-init handles hostname + network on Proxmox, but it CANNOT apply the
+# user/password (Proxmox writes those as cloud-config user-data, unsupported by
+# cloudbase). So the deploy runs this script via the guest agent to: set the
+# admin account + password, remove the trailing recovery partition and extend
+# C: into the resized disk, then reboot (which applies the pending hostname).
+Write-Step "Stage post-clone script (account + disk + hostname reboot)"
+try {
+    if (-not (Test-Path "C:\Scripts")) { New-Item -ItemType Directory -Path "C:\Scripts" -Force | Out-Null }
+    $postClone = @'
+param(
+    [string]$AdminUser = 'it-admin',
+    [string]$AdminPassword = ''
+)
+$ErrorActionPreference = 'Continue'
+$log = 'C:\Scripts\post-clone.log'
+function L($m) { "$(Get-Date -Format 's') $m" | Tee-Object -FilePath $log -Append }
+L "post-clone starting (user=$AdminUser)"
+
+# 1. Admin account — password is supplied by the deploy (guest agent)
+if ($AdminPassword) {
+    try {
+        $sec = ConvertTo-SecureString $AdminPassword -AsPlainText -Force
+        if (Get-LocalUser -Name $AdminUser -ErrorAction SilentlyContinue) {
+            Set-LocalUser -Name $AdminUser -Password $sec
+            L "reset password for $AdminUser"
+        } else {
+            New-LocalUser -Name $AdminUser -Password $sec -FullName $AdminUser -AccountNeverExpires -PasswordNeverExpires -ErrorAction SilentlyContinue | Out-Null
+            L "created $AdminUser"
+        }
+        Add-LocalGroupMember -Group 'Administrators' -Member $AdminUser -ErrorAction SilentlyContinue
+        L "$AdminUser added to local Administrators"
+    } catch { L "account error: $($_.Exception.Message)" }
+}
+
+# 2. Remove the trailing recovery partition and extend C: into the resized disk.
+# Windows Setup places a WinRE recovery partition AFTER C:, which blocks the
+# extend. Disable WinRE, delete any partition after C:, then grow C: to fill.
+try {
+    $cPart = Get-Partition -DriveLetter C
+    $disk  = $cPart.DiskNumber
+    reagentc /disable 2>&1 | Out-Null
+    Get-Partition -DiskNumber $disk |
+        Where-Object { $_.PartitionNumber -gt $cPart.PartitionNumber } |
+        ForEach-Object {
+            Remove-Partition -DiskNumber $disk -PartitionNumber $_.PartitionNumber -Confirm:$false -ErrorAction SilentlyContinue
+            L "removed partition $($_.PartitionNumber) (freed space after C:)"
+        }
+    $max = (Get-PartitionSupportedSize -DriveLetter C).SizeMax
+    Resize-Partition -DriveLetter C -Size $max -ErrorAction SilentlyContinue
+    L "extended C: to $max bytes"
+} catch { L "disk extend error: $($_.Exception.Message)" }
+
+# 3. Reboot to apply the hostname cloudbase-init set (pending; allow_reboot=false)
+L "rebooting to apply hostname"
+Restart-Computer -Force
+'@
+    Set-Content -Path "C:\Scripts\Invoke-WindowsPostClone.ps1" -Value $postClone -Encoding UTF8
+    Write-OK "Invoke-WindowsPostClone.ps1 staged (deploy runs it after clone)"
+} catch {
+    Write-Warn "Could not stage post-clone script (non-critical): $($_.Exception.Message)"
+}
+
 Write-Host "`n✔  provision-windows.ps1 complete" -ForegroundColor Green

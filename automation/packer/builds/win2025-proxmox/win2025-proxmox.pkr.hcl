@@ -86,9 +86,11 @@ source "proxmox-iso" "win2025" {
   # ── Windows ISO (must be pre-uploaded to Proxmox) ────────────────────────
   # iso_file format: "storage_pool:iso/filename.iso". (Reverted from a boot_iso
   # block: that left the install ISO attached to CLONES, which then booted the
-  # DVD instead of the disk. iso_file detaches it cleanly on template seal.)
+  # DVD instead of the disk.) unmount_iso removes the install DVD from the VM
+  # before it is sealed, so clones do not carry the Windows install ISO.
   iso_file         = var.win_iso_file
   iso_storage_pool = var.proxmox_iso_storage
+  unmount_iso      = true
 
   # ── Hardware ─────────────────────────────────────────────────────────────
   cores  = var.vm_cpu_count

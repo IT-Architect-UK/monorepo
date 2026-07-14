@@ -346,6 +346,45 @@
              | reject('match', '^127\.') | first | default('') }}
       when: agent_net is not skipped
 
+    # Windows: cloudbase-init can't apply the user/password from Proxmox, so run
+    # the baked post-clone script via the guest agent to set the admin account +
+    # password, extend C: past the recovery partition, and reboot (applies the
+    # pending hostname). Linux does all this via cloud-init, so it is skipped.
+    - name: "Windows: apply account + disk via guest agent (post-clone)"
+      when:
+        - os_label == 'windows'
+        - proxmox_api_token_secret | length > 0
+      block:
+        - name: "Trigger Invoke-WindowsPostClone.ps1 through the QEMU guest agent"
+          ansible.builtin.uri:
+            url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/agent/exec"
+            method: POST
+            headers:
+              Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+            body_format: json
+            body:
+              command:
+                - powershell.exe
+                - -ExecutionPolicy
+                - Bypass
+                - -File
+                - 'C:\Scripts\Invoke-WindowsPostClone.ps1'
+                - -AdminUser
+                - "{{ eff_user | default('it-admin', true) }}"
+                - -AdminPassword
+                - "{{ eff_password | default('', true) }}"
+            validate_certs: false
+          register: win_postclone
+          retries: 20
+          delay: 15
+          until: win_postclone.status == 200
+        - name: "Windows post-clone triggered"
+          ansible.builtin.debug:
+            msg: "{{ vm_name }}: post-clone started (it-admin + disk extend + hostname reboot)."
+      rescue:
+        - ansible.builtin.debug:
+            msg: "Could not trigger post-clone on {{ vm_name }} — run C:\\Scripts\\Invoke-WindowsPostClone.ps1 in the guest by hand."
+
     # Register the host in its per-OS inventory (always) and — unless the
     # default build was opted out — the "Linux Baseline" inventory too, so the
     # "Apply Baseline (Linux)" template can re-apply the default build to it.
