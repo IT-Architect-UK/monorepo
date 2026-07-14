@@ -406,6 +406,22 @@
         - ansible.builtin.debug:
             msg: "Could not register {{ vm_name }} in one or more inventories — add it by hand or check SEMAPHORE_API_TOKEN / SEMAPHORE_PROJECT_ID."
 
+    # Eject the cloud-init ConfigDrive now that config is applied. The drive
+    # holds the admin password + SSH keys in cleartext, and this is a deploy-once
+    # / Ansible-managed model, so there's no reason to leave it mounted.
+    - name: "Eject the cloud-init ConfigDrive ({{ ci_bus }})"
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          delete: "{{ ci_bus }}"
+        validate_certs: false
+      when: cloudinit_ip | bool
+      failed_when: false
+
     - name: "Queue the standard build"
       ansible.builtin.add_host:
         name: "{{ vm_ip }}"
