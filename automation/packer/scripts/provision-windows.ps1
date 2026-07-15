@@ -337,18 +337,21 @@ foreach ($bu in @('packer')) {
     Remove-Item -Path "C:\Users\$bu" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# 2. Remove the trailing recovery partition and extend C: to fill the disk
+# 2. Remove the trailing recovery partition and extend C: to fill the disk.
+# Done via diskpart, not the Storage cmdlets: Get-PartitionSupportedSize /
+# Resize-Partition HANG when run headless right after a partition delete.
 try {
     $cPart = Get-Partition -DriveLetter C
     $disk  = $cPart.DiskNumber
     reagentc /disable 2>&1 | Out-Null
-    Get-Partition -DiskNumber $disk | Where-Object { $_.PartitionNumber -gt $cPart.PartitionNumber } | ForEach-Object {
-        Remove-Partition -DiskNumber $disk -PartitionNumber $_.PartitionNumber -Confirm:$false -ErrorAction SilentlyContinue
-        L "removed partition $($_.PartitionNumber) (freed space after C:)"
-    }
-    $max = (Get-PartitionSupportedSize -DriveLetter C).SizeMax
-    Resize-Partition -DriveLetter C -Size $max -ErrorAction SilentlyContinue
-    L "extended C: to $max bytes"
+    $recov = Get-Partition -DiskNumber $disk | Where-Object { $_.PartitionNumber -gt $cPart.PartitionNumber }
+    $dp = @("select disk $disk")
+    foreach ($r in $recov) { $dp += "select partition $($r.PartitionNumber)"; $dp += "delete partition override" }
+    $dp += "select volume c"; $dp += "extend"; $dp += "exit"
+    $dpFile = Join-Path $env:TEMP "extend.txt"
+    Set-Content -Path $dpFile -Value $dp -Encoding Ascii
+    diskpart /s $dpFile | Out-Null
+    L "removed recovery partition + extended C: (diskpart)"
 } catch { L "disk extend error: $($_.Exception.Message)" }
 
 # 3. CD/DVD -> Z: FIRST, so D: is free for the data disk
@@ -358,11 +361,22 @@ try {
     }
 } catch { L "CD/DVD letter error: $($_.Exception.Message)" }
 
-# 4. Data disk -> D: labelled 'Apps & Data'
+# 4. Data disk -> D: labelled 'Apps & Data' (diskpart, same reason as above)
 try {
     $raw = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | Select-Object -First 1
     if ($raw) {
-        Initialize-Disk -Number $raw.Number -PartitionStyle GPT -PassThru | New-Partition -DriveLetter D -UseMaximumSize | Format-Volume -FileSystem NTFS -NewFileSystemLabel 'Apps & Data' -Confirm:$false | Out-Null
+        $dp = @(
+            "select disk $($raw.Number)",
+            "clean",
+            "convert gpt",
+            "create partition primary",
+            "format fs=ntfs quick label=`"Apps & Data`"",
+            "assign letter=D",
+            "exit"
+        )
+        $dpFile = Join-Path $env:TEMP "datadisk.txt"
+        Set-Content -Path $dpFile -Value $dp -Encoding Ascii
+        diskpart /s $dpFile | Out-Null
         L "data disk initialised as D: (Apps & Data)"
     } else { L "no raw data disk present" }
 } catch { L "data disk error: $($_.Exception.Message)" }
