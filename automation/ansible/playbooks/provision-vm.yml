@@ -368,28 +368,6 @@
         - os_label == 'windows'
         - proxmox_api_token_secret | length > 0
       block:
-        - name: "Windows: eject the cloud-init ConfigDrive ({{ ci_bus }}) before post-clone"
-          ansible.builtin.uri:
-            url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
-            method: PUT
-            headers:
-              Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
-            body_format: form-urlencoded
-            body:
-              delete: "{{ ci_bus }}"
-            validate_certs: false
-          failed_when: false
-        - name: "Windows: add an empty DVD drive (sata3) to become Z:"
-          ansible.builtin.uri:
-            url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
-            method: PUT
-            headers:
-              Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
-            body_format: form-urlencoded
-            body:
-              sata3: "none,media=cdrom"
-            validate_certs: false
-          failed_when: false
         - name: "Trigger Invoke-WindowsPostClone.ps1 through the QEMU guest agent"
           ansible.builtin.uri:
             url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/agent/exec"
@@ -444,6 +422,21 @@
     # Eject the cloud-init ConfigDrive now that config is applied. The drive
     # holds the admin password + SSH keys in cleartext, and this is a deploy-once
     # / Ansible-managed model, so there's no reason to leave it mounted.
+    # Windows: empty the ConfigDrive (removes the cleartext creds) but KEEP the
+    # drive so it remains an empty CD/DVD at Z:. Linux: delete it outright.
+    - name: "Empty the cloud-init ConfigDrive ({{ ci_bus }}) — Windows (keeps Z:)"
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          "{{ ci_bus }}": "none,media=cdrom"
+        validate_certs: false
+      when: cloudinit_ip | bool and os_label == 'windows'
+      failed_when: false
+
     - name: "Eject the cloud-init ConfigDrive ({{ ci_bus }}) — Linux"
       ansible.builtin.uri:
         url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/config"

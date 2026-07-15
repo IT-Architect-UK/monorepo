@@ -297,7 +297,7 @@ try {
 # cloudbase). So the deploy runs this script via the guest agent to: set the
 # admin account + password, remove the trailing recovery partition and extend
 # C: into the resized disk, then reboot (which applies the pending hostname).
-Write-Step "Stage post-clone script (account + disk + hostname reboot)"
+Write-Step "Stage post-clone script (account + disk + hostname)"
 try {
     if (-not (Test-Path "C:\Scripts")) { New-Item -ItemType Directory -Path "C:\Scripts" -Force | Out-Null }
     $postClone = @'
@@ -307,17 +307,18 @@ param(
     [string]$Hostname = ''
 )
 $ErrorActionPreference = 'Continue'
-$log = 'C:\Scripts\post-clone.log'
-function L($m) { "$(Get-Date -Format 's') $m" | Tee-Object -FilePath $log -Append }
-L "post-clone starting (user=$AdminUser)"
+$logDir = 'C:\Logs'
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+$log = Join-Path $logDir 'post-clone.log'
+function L($m) { Add-Content -Path $log -Value ("$(Get-Date -Format 's') $m") }
+L "post-clone starting (user=$AdminUser host=$Hostname)"
 
-# 1. Admin account — password is supplied by the deploy (guest agent)
+# 1. Admin account (password from the deploy via the guest agent)
 if ($AdminPassword) {
     try {
         $sec = ConvertTo-SecureString $AdminPassword -AsPlainText -Force
         if (Get-LocalUser -Name $AdminUser -ErrorAction SilentlyContinue) {
-            Set-LocalUser -Name $AdminUser -Password $sec
-            L "reset password for $AdminUser"
+            Set-LocalUser -Name $AdminUser -Password $sec; L "reset password for $AdminUser"
         } else {
             New-LocalUser -Name $AdminUser -Password $sec -FullName $AdminUser -AccountNeverExpires -PasswordNeverExpires -ErrorAction SilentlyContinue | Out-Null
             L "created $AdminUser"
@@ -327,100 +328,56 @@ if ($AdminPassword) {
     } catch { L "account error: $($_.Exception.Message)" }
 }
 
-# 1b. Remove the Packer build account (it survives sysprep generalize; this
-# script runs as SYSTEM via the guest agent, so it can delete it).
+# 1b. Remove the Packer build account (survives sysprep; we run as SYSTEM).
+# NB: no Remove-CimInstance on Win32_UserProfile here — it hangs the script.
 foreach ($bu in @('packer')) {
     try {
-        if (Get-LocalUser -Name $bu -ErrorAction SilentlyContinue) {
-            Remove-LocalUser -Name $bu -ErrorAction SilentlyContinue
-            L "removed build account $bu"
-        }
+        if (Get-LocalUser -Name $bu -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $bu -ErrorAction SilentlyContinue; L "removed build account $bu" }
     } catch { L "build account removal error: $($_.Exception.Message)" }
-    # Best-effort profile dir cleanup. NB: do NOT use Remove-CimInstance on
-    # Win32_UserProfile here — it can hang the whole script (it did, stopping
-    # post-clone before the disk/rename steps). Remove-Item just skips locks.
     Remove-Item -Path "C:\Users\$bu" -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# 2. Remove the trailing recovery partition and extend C: into the resized disk.
-# Windows Setup places a WinRE recovery partition AFTER C:, which blocks the
-# extend. Disable WinRE, delete any partition after C:, then grow C: to fill.
+# 2. Remove the trailing recovery partition and extend C: to fill the disk
 try {
     $cPart = Get-Partition -DriveLetter C
     $disk  = $cPart.DiskNumber
     reagentc /disable 2>&1 | Out-Null
-    Get-Partition -DiskNumber $disk |
-        Where-Object { $_.PartitionNumber -gt $cPart.PartitionNumber } |
-        ForEach-Object {
-            Remove-Partition -DiskNumber $disk -PartitionNumber $_.PartitionNumber -Confirm:$false -ErrorAction SilentlyContinue
-            L "removed partition $($_.PartitionNumber) (freed space after C:)"
-        }
+    Get-Partition -DiskNumber $disk | Where-Object { $_.PartitionNumber -gt $cPart.PartitionNumber } | ForEach-Object {
+        Remove-Partition -DiskNumber $disk -PartitionNumber $_.PartitionNumber -Confirm:$false -ErrorAction SilentlyContinue
+        L "removed partition $($_.PartitionNumber) (freed space after C:)"
+    }
     $max = (Get-PartitionSupportedSize -DriveLetter C).SizeMax
     Resize-Partition -DriveLetter C -Size $max -ErrorAction SilentlyContinue
     L "extended C: to $max bytes"
 } catch { L "disk extend error: $($_.Exception.Message)" }
 
-# 2b. Drive letters must be set in the FINAL booted state — a reboot/sysprep can
-# revert the CD/DVD back to D:. Register a one-shot startup task to run
-# Finalize-Disks.ps1 AFTER the hostname reboot below (CD -> Z: then data -> D:).
-try {
-    $act = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File "C:\Scripts\Finalize-Disks.ps1"'
-    $trg = New-ScheduledTaskTrigger -AtStartup
-    $prn = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
-    Register-ScheduledTask -TaskName 'ToolboxFinalizeDisks' -Action $act -Trigger $trg -Principal $prn -Force | Out-Null
-    L "registered ToolboxFinalizeDisks (runs on next boot)"
-} catch { L "finalize-task registration error: $($_.Exception.Message)" }
-
-# 3. Set the hostname ourselves (cloudbase sets it pending, but its reboot
-# timing races the deploy, so it may never apply). Rename explicitly, then boot.
-if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
-    try { Rename-Computer -NewName $Hostname -Force -ErrorAction Stop; L "renamed to $Hostname" }
-    catch { L "rename error: $($_.Exception.Message)" }
-}
-L "rebooting to apply hostname/account"
-Restart-Computer -Force
-'@
-    $finalizeDisks = @'
-$log = 'C:\Scripts\post-clone.log'
-function L($m) { "$(Get-Date -Format 's') [finalize] $m" | Tee-Object -FilePath $log -Append }
-L "finalize starting (COMPUTERNAME=$env:COMPUTERNAME)"
-
-# 1. CD/DVD -> Z: (reclaim D: if the optical drive grabbed it after reboot)
+# 3. CD/DVD -> Z: FIRST, so D: is free for the data disk
 try {
     Get-CimInstance -ClassName Win32_Volume -Filter "DriveType=5 AND DriveLetter IS NOT NULL" | ForEach-Object {
-        if ($_.DriveLetter -ne 'Z:') {
-            $was = $_.DriveLetter
-            Set-CimInstance -InputObject $_ -Property @{ DriveLetter = 'Z:' } | Out-Null
-            L "moved CD/DVD $was -> Z:"
-        }
+        if ($_.DriveLetter -ne 'Z:') { $was = $_.DriveLetter; Set-CimInstance -InputObject $_ -Property @{ DriveLetter = 'Z:' } | Out-Null; L "moved CD/DVD $was -> Z:" }
     }
 } catch { L "CD/DVD letter error: $($_.Exception.Message)" }
 
-# 2. Data disk -> D: labelled 'Apps & Data' (D: is free now the CD is on Z:)
+# 4. Data disk -> D: labelled 'Apps & Data'
 try {
     $raw = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | Select-Object -First 1
     if ($raw) {
-        Initialize-Disk -Number $raw.Number -PartitionStyle GPT -PassThru |
-            New-Partition -DriveLetter D -UseMaximumSize |
-            Format-Volume -FileSystem NTFS -NewFileSystemLabel 'Apps & Data' -Confirm:$false | Out-Null
+        Initialize-Disk -Number $raw.Number -PartitionStyle GPT -PassThru | New-Partition -DriveLetter D -UseMaximumSize | Format-Volume -FileSystem NTFS -NewFileSystemLabel 'Apps & Data' -Confirm:$false | Out-Null
         L "data disk initialised as D: (Apps & Data)"
-    } else {
-        $vol = Get-Volume | Where-Object { $_.FileSystemLabel -eq 'Apps & Data' -and -not $_.DriveLetter } | Select-Object -First 1
-        if ($vol) {
-            Get-Partition | Where-Object { $_.AccessPaths -contains $vol.Path } | Select-Object -First 1 | Set-Partition -NewDriveLetter D -ErrorAction SilentlyContinue
-            L "assigned existing data volume -> D:"
-        } else { L "no raw data disk present" }
-    }
+    } else { L "no raw data disk present" }
 } catch { L "data disk error: $($_.Exception.Message)" }
 
-# 3. Ensure C: label
+# 5. Label C: as OS
 try { Set-Volume -DriveLetter C -NewFileSystemLabel 'OS' -ErrorAction SilentlyContinue; L "labelled C: as OS" } catch {}
 
-# 4. Run once only
-try { Unregister-ScheduledTask -TaskName 'ToolboxFinalizeDisks' -Confirm:$false -ErrorAction SilentlyContinue; L "removed ToolboxFinalizeDisks task" } catch {}
-L "finalize done"
+# 6. Set the hostname, then reboot to apply it
+if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
+    try { Rename-Computer -NewName $Hostname -Force -ErrorAction Stop; L "renamed to $Hostname" } catch { L "rename error: $($_.Exception.Message)" }
+}
+L "post-clone done; rebooting to apply hostname"
+Start-Sleep -Seconds 3
+Restart-Computer -Force
 '@
-    Set-Content -Path "C:\Scripts\Finalize-Disks.ps1" -Value $finalizeDisks -Encoding UTF8
     Set-Content -Path "C:\Scripts\Invoke-WindowsPostClone.ps1" -Value $postClone -Encoding UTF8
     Write-OK "Invoke-WindowsPostClone.ps1 staged (deploy runs it after clone)"
 } catch {
