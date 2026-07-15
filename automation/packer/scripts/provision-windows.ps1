@@ -384,13 +384,22 @@ try {
 # 5. Label C: as OS
 try { Set-Volume -DriveLetter C -NewFileSystemLabel 'OS' -ErrorAction SilentlyContinue; L "labelled C: as OS" } catch {}
 
-# 6. Set the hostname, then reboot to apply it
+# 6. Set the hostname via the registry — Rename-Computer HANGS headless (same
+# class of stall as the Storage cmdlets). Then reboot with shutdown.exe.
 if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
-    try { Rename-Computer -NewName $Hostname -Force -ErrorAction Stop; L "renamed to $Hostname" } catch { L "rename error: $($_.Exception.Message)" }
+    try {
+        $cn = "HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName"
+        Set-ItemProperty -Path "$cn\ComputerName"       -Name "ComputerName" -Value $Hostname
+        Set-ItemProperty -Path "$cn\ActiveComputerName" -Name "ComputerName" -Value $Hostname
+        $tcp = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+        Set-ItemProperty -Path $tcp -Name "Hostname"    -Value $Hostname
+        Set-ItemProperty -Path $tcp -Name "NV Hostname" -Value $Hostname
+        L "set hostname to $Hostname (registry)"
+    } catch { L "rename error: $($_.Exception.Message)" }
 }
 L "post-clone done; rebooting to apply hostname"
 Start-Sleep -Seconds 3
-Restart-Computer -Force
+shutdown /r /t 5 /f /c "toolbox post-clone" | Out-Null
 '@
     Set-Content -Path "C:\Scripts\Invoke-WindowsPostClone.ps1" -Value $postClone -Encoding UTF8
     Write-OK "Invoke-WindowsPostClone.ps1 staged (deploy runs it after clone)"
