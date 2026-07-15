@@ -354,11 +354,16 @@ try {
     L "removed recovery partition + extended C: (diskpart)"
 } catch { L "disk extend error: $($_.Exception.Message)" }
 
-# 3. CD/DVD -> Z: FIRST, so D: is free for the data disk
+# 3. CD/DVD -> Z: FIRST, so D: is free for the data disk. Use diskpart —
+# Set-CimInstance on Win32_Volume HANGS headless (same class as the Storage
+# cmdlets). On a fresh clone the cloud-init CD is at D: (C: is C:, the data
+# disk is still raw/unlettered), so move D: -> Z:.
 try {
-    Get-CimInstance -ClassName Win32_Volume -Filter "DriveType=5 AND DriveLetter IS NOT NULL" | ForEach-Object {
-        if ($_.DriveLetter -ne 'Z:') { $was = $_.DriveLetter; Set-CimInstance -InputObject $_ -Property @{ DriveLetter = 'Z:' } | Out-Null; L "moved CD/DVD $was -> Z:" }
-    }
+    $dp = @("select volume D", "assign letter=Z", "exit")
+    $dpFile = Join-Path $env:TEMP "cdrom.txt"
+    Set-Content -Path $dpFile -Value $dp -Encoding Ascii
+    diskpart /s $dpFile | Out-Null
+    L "moved CD/DVD D: -> Z: (diskpart)"
 } catch { L "CD/DVD letter error: $($_.Exception.Message)" }
 
 # 4. Data disk -> D: labelled 'Apps & Data' (diskpart, same reason as above)
