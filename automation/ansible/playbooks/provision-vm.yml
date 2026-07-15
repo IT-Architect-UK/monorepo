@@ -251,7 +251,10 @@
           sshkeys: "{{ eff_ssh_key | trim | urlencode | replace('/', '%2F') }}"
         body_format: json
         validate_certs: false
-      when: eff_ssh_key | length > 0
+      # Linux only: cloudbase-init does NOT apply cloud-init SSH keys on Windows
+      # (Proxmox writes them as cloud-config, unsupported), and configdrive2
+      # sshkeys validation 500s. Windows key injection is handled post-clone.
+      when: (eff_ssh_key | length > 0) and (os_label != 'windows')
 
     - name: "Compute the effective gateway (default: .1 of the subnet)"
       ansible.builtin.set_fact:
