@@ -307,104 +307,113 @@ param(
     [string]$Hostname = ''
 )
 $ErrorActionPreference = 'Continue'
+$ProgressPreference    = 'SilentlyContinue'
+
 $logDir = 'C:\Logs'
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
 $log = Join-Path $logDir 'post-clone.log'
-function L($m) { Add-Content -Path $log -Value ("$(Get-Date -Format 's') $m") }
-L "post-clone starting (user=$AdminUser host=$Hostname)"
+function L([string]$m) { Add-Content -Path $log -Value ('{0}  {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $m) }
 
-# 1. Admin account (password from the deploy via the guest agent)
+# Run a scriptblock with a hard timeout in a background job, so a hung cmdlet
+# can NEVER block the rest of the script. Returns output, or $null on timeout.
+function Guard([string]$name, [scriptblock]$sb, [object[]]$jobArgs = @(), [int]$sec = 90) {
+    $t0 = Get-Date
+    $j  = Start-Job -ScriptBlock $sb -ArgumentList $jobArgs
+    if (Wait-Job $j -Timeout $sec) {
+        $r = Receive-Job $j 2>&1
+        L ("{0}: ok in {1}s" -f $name, [int]((Get-Date) - $t0).TotalSeconds)
+        Remove-Job $j -Force -ErrorAction SilentlyContinue
+        return $r
+    }
+    Stop-Job $j -ErrorAction SilentlyContinue; Remove-Job $j -Force -ErrorAction SilentlyContinue
+    L ("{0}: TIMEOUT after {1}s (continuing)" -f $name, $sec)
+    return $null
+}
+
+# Run a diskpart script from a temp file and log its output (diskpart is a
+# separate process and does NOT hang the way the in-box Storage/CIM cmdlets do).
+function Diskpart([string]$name, [string[]]$cmds) {
+    try {
+        $f = Join-Path $env:TEMP ("dp_{0}.txt" -f $name)
+        Set-Content -Path $f -Value $cmds -Encoding Ascii
+        $o = (& diskpart.exe /s $f 2>&1 | Out-String).Trim()
+        L ("diskpart:{0} -> {1}" -f $name, (($o -replace '\r?\n', ' | ') -replace '\s{2,}', ' '))
+    } catch { L ("diskpart:{0} ERROR {1}" -f $name, $_.Exception.Message) }
+}
+
+L '================= post-clone start ================='
+L ("user=$AdminUser host=$Hostname current=$env:COMPUTERNAME")
+
+# Let the storage/WMI stack finish coming up. Running too early is what makes
+# the in-box Storage/CIM cmdlets hang.
+Start-Sleep -Seconds 15
+L 'settle wait complete'
+
+# --- 1. admin account ---
 if ($AdminPassword) {
     try {
         $sec = ConvertTo-SecureString $AdminPassword -AsPlainText -Force
         if (Get-LocalUser -Name $AdminUser -ErrorAction SilentlyContinue) {
-            Set-LocalUser -Name $AdminUser -Password $sec; L "reset password for $AdminUser"
+            Set-LocalUser -Name $AdminUser -Password $sec; L "account: reset $AdminUser"
         } else {
             New-LocalUser -Name $AdminUser -Password $sec -FullName $AdminUser -AccountNeverExpires -PasswordNeverExpires -ErrorAction SilentlyContinue | Out-Null
-            L "created $AdminUser"
+            L "account: created $AdminUser"
         }
         Add-LocalGroupMember -Group 'Administrators' -Member $AdminUser -ErrorAction SilentlyContinue
-        L "$AdminUser added to local Administrators"
-    } catch { L "account error: $($_.Exception.Message)" }
+        L "account: $AdminUser is a local Administrator"
+    } catch { L "account ERROR: $($_.Exception.Message)" }
+} else { L 'account: skipped (no password supplied)' }
+
+# --- 1b. remove the Packer build account ---
+try {
+    if (Get-LocalUser -Name 'packer' -ErrorAction SilentlyContinue) { Remove-LocalUser -Name 'packer' -ErrorAction SilentlyContinue; L 'packer: account removed' }
+    Remove-Item -Path 'C:\Users\packer' -Recurse -Force -ErrorAction SilentlyContinue
+    L 'packer: profile cleaned'
+} catch { L "packer ERROR: $($_.Exception.Message)" }
+
+# --- 2. remove trailing recovery partition + extend C: (diskpart) ---
+try { reagentc /disable 2>&1 | Out-Null; L 'reagentc: WinRE disabled' } catch {}
+$cnum = Guard 'read C: disk/partition' { $p = Get-Partition -DriveLetter C; "$($p.DiskNumber):$($p.PartitionNumber)" } @() 60
+if ($cnum) {
+    $bits = $cnum.Trim().Split(':'); $cdisk = [int]$bits[0]; $cpart = [int]$bits[1]
+    $trailing = Guard 'read trailing partitions' { param($d, $n) @(Get-Partition -DiskNumber $d | Where-Object { $_.PartitionNumber -gt $n } | ForEach-Object { $_.PartitionNumber }) } @($cdisk, $cpart) 60
+    $cmds = @("select disk $cdisk")
+    foreach ($tp in @($trailing)) { if ($tp) { $cmds += "select partition $tp"; $cmds += 'delete partition override' } }
+    $cmds += 'select volume c'; $cmds += 'extend'; $cmds += 'exit'
+    Diskpart 'extend' $cmds
+} else {
+    L 'extend: could not read C: partition; trying a blind extend'
+    Diskpart 'extend-blind' @('select volume c', 'extend', 'exit')
 }
 
-# 1b. Remove the Packer build account (survives sysprep; we run as SYSTEM).
-# NB: no Remove-CimInstance on Win32_UserProfile here — it hangs the script.
-foreach ($bu in @('packer')) {
-    try {
-        if (Get-LocalUser -Name $bu -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $bu -ErrorAction SilentlyContinue; L "removed build account $bu" }
-    } catch { L "build account removal error: $($_.Exception.Message)" }
-    Remove-Item -Path "C:\Users\$bu" -Recurse -Force -ErrorAction SilentlyContinue
-}
+# --- 3. CD/DVD -> Z: FIRST (frees D:). The cloud-init CD is at D: on a clone ---
+Diskpart 'cd-to-z' @('select volume D', 'assign letter=Z', 'exit')
 
-# 2. Remove the trailing recovery partition and extend C: to fill the disk.
-# Done via diskpart, not the Storage cmdlets: Get-PartitionSupportedSize /
-# Resize-Partition HANG when run headless right after a partition delete.
-try {
-    $cPart = Get-Partition -DriveLetter C
-    $disk  = $cPart.DiskNumber
-    reagentc /disable 2>&1 | Out-Null
-    $recov = Get-Partition -DiskNumber $disk | Where-Object { $_.PartitionNumber -gt $cPart.PartitionNumber }
-    $dp = @("select disk $disk")
-    foreach ($r in $recov) { $dp += "select partition $($r.PartitionNumber)"; $dp += "delete partition override" }
-    $dp += "select volume c"; $dp += "extend"; $dp += "exit"
-    $dpFile = Join-Path $env:TEMP "extend.txt"
-    Set-Content -Path $dpFile -Value $dp -Encoding Ascii
-    diskpart /s $dpFile | Out-Null
-    L "removed recovery partition + extended C: (diskpart)"
-} catch { L "disk extend error: $($_.Exception.Message)" }
+# --- 4. data disk -> D: labelled 'Apps & Data' ---
+$rawnum = Guard 'find raw data disk' { (@(Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | ForEach-Object { $_.Number }))[0] } @() 60
+if ($null -ne $rawnum -and "$rawnum" -ne '') {
+    Diskpart 'data-disk' @("select disk $rawnum", 'clean', 'convert gpt', 'create partition primary', "format fs=ntfs quick label=`"Apps & Data`"", 'assign letter=D', 'exit')
+} else { L 'data disk: no raw disk found (or timeout)' }
 
-# 3. CD/DVD -> Z: FIRST, so D: is free for the data disk. Use diskpart —
-# Set-CimInstance on Win32_Volume HANGS headless (same class as the Storage
-# cmdlets). On a fresh clone the cloud-init CD is at D: (C: is C:, the data
-# disk is still raw/unlettered), so move D: -> Z:.
-try {
-    $dp = @("select volume D", "assign letter=Z", "exit")
-    $dpFile = Join-Path $env:TEMP "cdrom.txt"
-    Set-Content -Path $dpFile -Value $dp -Encoding Ascii
-    diskpart /s $dpFile | Out-Null
-    L "moved CD/DVD D: -> Z: (diskpart)"
-} catch { L "CD/DVD letter error: $($_.Exception.Message)" }
+# --- 5. label C: as OS (label.exe; Set-Volume can hang headless) ---
+try { & cmd.exe /c 'label C: OS' 2>&1 | Out-Null; L 'label: C: -> OS' } catch { L "label ERROR: $($_.Exception.Message)" }
 
-# 4. Data disk -> D: labelled 'Apps & Data' (diskpart, same reason as above)
-try {
-    $raw = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | Select-Object -First 1
-    if ($raw) {
-        $dp = @(
-            "select disk $($raw.Number)",
-            "clean",
-            "convert gpt",
-            "create partition primary",
-            "format fs=ntfs quick label=`"Apps & Data`"",
-            "assign letter=D",
-            "exit"
-        )
-        $dpFile = Join-Path $env:TEMP "datadisk.txt"
-        Set-Content -Path $dpFile -Value $dp -Encoding Ascii
-        diskpart /s $dpFile | Out-Null
-        L "data disk initialised as D: (Apps & Data)"
-    } else { L "no raw data disk present" }
-} catch { L "data disk error: $($_.Exception.Message)" }
-
-# 5. Label C: as OS
-try { Set-Volume -DriveLetter C -NewFileSystemLabel 'OS' -ErrorAction SilentlyContinue; L "labelled C: as OS" } catch {}
-
-# 6. Set the hostname via the registry — Rename-Computer HANGS headless (same
-# class of stall as the Storage cmdlets). Then reboot with shutdown.exe.
+# --- 6. hostname via the registry (Rename-Computer hangs headless) ---
 if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
     try {
-        $cn = "HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName"
-        Set-ItemProperty -Path "$cn\ComputerName"       -Name "ComputerName" -Value $Hostname
-        Set-ItemProperty -Path "$cn\ActiveComputerName" -Name "ComputerName" -Value $Hostname
-        $tcp = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
-        Set-ItemProperty -Path $tcp -Name "Hostname"    -Value $Hostname
-        Set-ItemProperty -Path $tcp -Name "NV Hostname" -Value $Hostname
-        L "set hostname to $Hostname (registry)"
-    } catch { L "rename error: $($_.Exception.Message)" }
-}
-L "post-clone done; rebooting to apply hostname"
+        $cn = 'HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName'
+        Set-ItemProperty -Path "$cn\ComputerName"       -Name 'ComputerName' -Value $Hostname
+        Set-ItemProperty -Path "$cn\ActiveComputerName" -Name 'ComputerName' -Value $Hostname
+        $tcp = 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters'
+        Set-ItemProperty -Path $tcp -Name 'Hostname'    -Value $Hostname
+        Set-ItemProperty -Path $tcp -Name 'NV Hostname' -Value $Hostname
+        L "hostname: set to $Hostname (registry)"
+    } catch { L "hostname ERROR: $($_.Exception.Message)" }
+} else { L "hostname: no change needed (current=$env:COMPUTERNAME)" }
+
+L '================= post-clone COMPLETE - rebooting ================='
 Start-Sleep -Seconds 3
-shutdown /r /t 5 /f /c "toolbox post-clone" | Out-Null
+& shutdown.exe /r /t 5 /f /c 'toolbox post-clone' | Out-Null
 '@
     Set-Content -Path "C:\Scripts\Invoke-WindowsPostClone.ps1" -Value $postClone -Encoding UTF8
     Write-OK "Invoke-WindowsPostClone.ps1 staged (deploy runs it after clone)"
