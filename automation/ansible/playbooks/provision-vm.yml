@@ -392,13 +392,37 @@
                 - -Hostname
                 - "{{ vm_name }}"
             validate_certs: false
-          register: win_postclone
-          retries: 20
-          delay: 15
-          until: win_postclone.status == 200
-        - name: "Windows post-clone triggered"
+          register: pc_exec
+          retries: 30
+          delay: 10
+          until: pc_exec.status == 200 and (pc_exec.json.data.pid is defined)
+        - name: "Wait for post-clone to finish (guest agent exec-status)"
+          ansible.builtin.uri:
+            url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/agent/exec-status?pid={{ pc_exec.json.data.pid }}"
+            headers:
+              Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+            validate_certs: false
+          register: pc_status
+          retries: 60
+          delay: 10
+          until: (pc_status.json.data.exited | default(0) | int) == 1
+        - name: "Post-clone log (captured from the guest)"
           ansible.builtin.debug:
-            msg: "{{ vm_name }}: post-clone started (it-admin + disk extend + hostname reboot)."
+            msg: "{{ (pc_status.json.data['out-data'] | default('')).split('\n') }}"
+        - name: "Post-clone exit code"
+          ansible.builtin.debug:
+            msg: "{{ vm_name }}: post-clone exit code = {{ pc_status.json.data.exitcode | default('unknown') }}"
+        - name: "Reboot Windows to apply the new hostname"
+          community.proxmox.proxmox_kvm:
+            api_host: "{{ proxmox_api_host }}"
+            api_user: "{{ proxmox_api_user }}"
+            api_token_id: "{{ proxmox_api_token_id | default(omit, true) }}"
+            api_token_secret: "{{ proxmox_api_token_secret | default(omit, true) }}"
+            api_password: "{{ proxmox_api_password | default(omit, true) }}"
+            validate_certs: false
+            node: "{{ proxmox_node }}"
+            vmid: "{{ new_vmid }}"
+            state: restarted
       rescue:
         - ansible.builtin.debug:
             msg: "Could not trigger post-clone on {{ vm_name }} — run C:\\Scripts\\Invoke-WindowsPostClone.ps1 in the guest by hand."
