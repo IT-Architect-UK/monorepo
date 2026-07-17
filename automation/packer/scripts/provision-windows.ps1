@@ -307,97 +307,83 @@ param(
     [string]$Hostname = ''
 )
 $ErrorActionPreference = 'Continue'
-$ProgressPreference    = 'SilentlyContinue'
-
 $logDir = 'C:\Logs'
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
 $log = Join-Path $logDir 'post-clone.log'
-# Log to the file AND stdout, so the deploy (guest-agent exec-status) captures
-# the whole run in the Semaphore output — no VM login needed to diagnose.
-function L([string]$m) {
-    $line = '{0}  {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $m
-    Add-Content -Path $log -Value $line
-    Write-Output $line
-}
-# diskpart is a separate process; it does NOT hang like the in-box Storage/CIM
-# cmdlets do headless. One script file per operation, output logged.
-function Diskpart([string]$name, [string[]]$cmds) {
-    try {
-        $f = Join-Path $env:TEMP ('dp_{0}.txt' -f $name)
-        Set-Content -Path $f -Value $cmds -Encoding Ascii
-        $o = (& diskpart.exe /s $f 2>&1 | Out-String).Trim()
-        L ('diskpart:' + $name + ' -> ' + (($o -replace '\r?\n', ' | ') -replace '\s{2,}', ' '))
-    } catch { L ('diskpart:' + $name + ' ERROR ' + $_.Exception.Message) }
-}
+function L($m) { $line = "$(Get-Date -Format 's') $m"; Add-Content -Path $log -Value $line; Write-Output $line }
 
-L '==== post-clone start ===='
-L ("params user=$AdminUser host=$Hostname current=$env:COMPUTERNAME")
+L "post-clone starting (user=$AdminUser host=$Hostname current=$env:COMPUTERNAME)"
 Start-Sleep -Seconds 15
-L 'settle wait complete'
+L "settle wait complete"
 
 # 1. admin account
 if ($AdminPassword) {
     try {
         $sec = ConvertTo-SecureString $AdminPassword -AsPlainText -Force
         if (Get-LocalUser -Name $AdminUser -ErrorAction SilentlyContinue) {
-            Set-LocalUser -Name $AdminUser -Password $sec; L "account: reset $AdminUser"
+            Set-LocalUser -Name $AdminUser -Password $sec; L "reset password for $AdminUser"
         } else {
             New-LocalUser -Name $AdminUser -Password $sec -FullName $AdminUser -AccountNeverExpires -PasswordNeverExpires -ErrorAction SilentlyContinue | Out-Null
-            L "account: created $AdminUser"
+            L "created $AdminUser"
         }
         Add-LocalGroupMember -Group 'Administrators' -Member $AdminUser -ErrorAction SilentlyContinue
-        L "account: $AdminUser is a local Administrator"
-    } catch { L "account ERROR: $($_.Exception.Message)" }
-} else { L 'account: skipped (no password supplied)' }
+        L "$AdminUser added to local Administrators"
+    } catch { L "account error: $($_.Exception.Message)" }
+} else { L "account: no password supplied, skipped" }
 
-# 1b. remove the Packer build account
+# 1b. remove Packer build account
 try {
-    if (Get-LocalUser -Name 'packer' -ErrorAction SilentlyContinue) { Remove-LocalUser -Name 'packer' -ErrorAction SilentlyContinue; L 'packer: account removed' }
-    Remove-Item -Path 'C:\Users\packer' -Recurse -Force -ErrorAction SilentlyContinue
-    L 'packer: profile cleaned'
-} catch { L "packer ERROR: $($_.Exception.Message)" }
+    if (Get-LocalUser -Name 'packer' -ErrorAction SilentlyContinue) { Remove-LocalUser -Name 'packer' -ErrorAction SilentlyContinue; L "removed build account packer" }
+} catch { L "packer error: $($_.Exception.Message)" }
+Remove-Item -Path 'C:\Users\packer' -Recurse -Force -ErrorAction SilentlyContinue
 
-# 2. remove trailing recovery partition + extend C: (diskpart)
-try { reagentc /disable 2>&1 | Out-Null; L 'reagentc: WinRE disabled' } catch {}
+# 2. remove trailing recovery partition + extend C: (inline diskpart)
 try {
     $cPart = Get-Partition -DriveLetter C
-    $cmds  = @("select disk $($cPart.DiskNumber)")
-    Get-Partition -DiskNumber $cPart.DiskNumber | Where-Object { $_.PartitionNumber -gt $cPart.PartitionNumber } | ForEach-Object {
-        $cmds += "select partition $($_.PartitionNumber)"; $cmds += 'delete partition override'
-    }
-    $cmds += 'select volume c'; $cmds += 'extend'; $cmds += 'exit'
-    Diskpart 'extend' $cmds
-} catch { L "extend ERROR: $($_.Exception.Message)" }
+    reagentc /disable 2>&1 | Out-Null
+    $cmds = @("select disk $($cPart.DiskNumber)")
+    Get-Partition -DiskNumber $cPart.DiskNumber | Where-Object { $_.PartitionNumber -gt $cPart.PartitionNumber } | ForEach-Object { $cmds += "select partition $($_.PartitionNumber)"; $cmds += "delete partition override" }
+    $cmds += "select volume c"; $cmds += "extend"; $cmds += "exit"
+    $f = Join-Path $env:TEMP "dp_extend.txt"; Set-Content -Path $f -Value $cmds -Encoding Ascii
+    diskpart /s $f | Out-Null
+    L "removed recovery partition + extended C: (diskpart)"
+} catch { L "extend error: $($_.Exception.Message)" }
 
-# 3. CD/DVD -> Z: FIRST (frees D:). The cloud-init CD is at D: on a fresh clone.
-Diskpart 'cd-to-z' @('select volume D', 'assign letter=Z', 'exit')
+# 3. CD/DVD -> Z: (inline diskpart; cloud-init CD is at D: on a fresh clone)
+try {
+    $f = Join-Path $env:TEMP "dp_cd.txt"; Set-Content -Path $f -Value @("select volume D", "assign letter=Z", "exit") -Encoding Ascii
+    diskpart /s $f | Out-Null
+    L "moved CD/DVD D: -> Z: (diskpart)"
+} catch { L "cd error: $($_.Exception.Message)" }
 
-# 4. data disk -> D: labelled 'Apps & Data'
+# 4. data disk -> D: 'Apps & Data' (inline diskpart)
 try {
     $raw = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | Select-Object -First 1
     if ($raw) {
-        Diskpart 'data-disk' @("select disk $($raw.Number)", 'clean', 'convert gpt', 'create partition primary', "format fs=ntfs quick label=`"Apps & Data`"", 'assign letter=D', 'exit')
-    } else { L 'data disk: no raw disk found' }
-} catch { L "data disk ERROR: $($_.Exception.Message)" }
+        $dcmds = @("select disk $($raw.Number)", "clean", "convert gpt", "create partition primary", "format fs=ntfs quick label=`"Apps & Data`"", "assign letter=D", "exit")
+        $f = Join-Path $env:TEMP "dp_data.txt"; Set-Content -Path $f -Value $dcmds -Encoding Ascii
+        diskpart /s $f | Out-Null
+        L "data disk initialised as D: (Apps & Data)"
+    } else { L "no raw data disk present" }
+} catch { L "data disk error: $($_.Exception.Message)" }
 
-# 5. label C: as OS (label.exe; Set-Volume can hang headless)
-try { & cmd.exe /c 'label C: OS' 2>&1 | Out-Null; L 'label: C: -> OS' } catch { L "label ERROR: $($_.Exception.Message)" }
+# 5. label C: as OS
+try { cmd /c "label C: OS" 2>&1 | Out-Null; L "labelled C: as OS" } catch { L "label error: $($_.Exception.Message)" }
 
-# 6. hostname via the registry (Rename-Computer hangs headless). The DEPLOY
-# reboots the VM after this script exits, which applies the new name.
+# 6. hostname via registry (Rename-Computer hangs headless); deploy reboots
 if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
     try {
-        $cn = 'HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName'
-        Set-ItemProperty -Path "$cn\ComputerName"       -Name 'ComputerName' -Value $Hostname
-        Set-ItemProperty -Path "$cn\ActiveComputerName" -Name 'ComputerName' -Value $Hostname
-        $tcp = 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters'
-        Set-ItemProperty -Path $tcp -Name 'Hostname'    -Value $Hostname
-        Set-ItemProperty -Path $tcp -Name 'NV Hostname' -Value $Hostname
-        L "hostname: set to $Hostname (registry)"
-    } catch { L "hostname ERROR: $($_.Exception.Message)" }
+        $cn = "HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName"
+        Set-ItemProperty -Path "$cn\ComputerName" -Name "ComputerName" -Value $Hostname
+        Set-ItemProperty -Path "$cn\ActiveComputerName" -Name "ComputerName" -Value $Hostname
+        $tcp = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters"
+        Set-ItemProperty -Path $tcp -Name "Hostname" -Value $Hostname
+        Set-ItemProperty -Path $tcp -Name "NV Hostname" -Value $Hostname
+        L "set hostname to $Hostname (registry)"
+    } catch { L "hostname error: $($_.Exception.Message)" }
 } else { L "hostname: no change needed (current=$env:COMPUTERNAME)" }
 
-L '==== post-clone COMPLETE ===='
+L "post-clone COMPLETE"
 
 '@
     Set-Content -Path "C:\Scripts\Invoke-WindowsPostClone.ps1" -Value $postClone -Encoding UTF8
