@@ -1,0 +1,8 @@
+vm=W25-VM vmid=107 os=windows ip=192.168.4.89
+template=t-win2025-20260717-0131 time=2026-07-17T16:45:09+01:00
+--- post-clone log ---
+2026-07-17T15:44:01 post-clone starting (user=it-admin host=W25-VM current=WIN-U9M0HE9LQLH)
+2026-07-17T15:44:16 created it-admin
+2026-07-17T15:44:16 it-admin added to local Administrators
+2026-07-17T15:44:16 removed build account packer
+
