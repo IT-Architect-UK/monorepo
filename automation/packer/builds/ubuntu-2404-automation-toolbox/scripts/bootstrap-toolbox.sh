@@ -690,7 +690,11 @@ SEED_DEPLOY() { # SEED_DEPLOY <name> <golden_vmid> <inv_id> <os_label> <cloudini
     local name="$1" gvmid="$2" invid="$3" oslabel="$4" ciip="$5" survey="$6" desc="$7" binvid="${8:-0}" osdisk="${9:-scsi0}" cibus="${10:-scsi1}" citype="${11:-}" tid args
     args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" --arg b "${binvid:-0}" --arg d "${osdisk}" --arg cb "${cibus}" --arg ct "${citype}" \
         '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","baseline_inventory_id=\($b)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)","-e","os_disk=\($d)","-e","ci_bus=\($cb)","-e","ci_type=\($ct)"]')
-    tid=$(post_template "${VIEW_TOOLBOX_ID:-0}" "$(jq -n \
+    # Deploy templates live in the per-OS Tasks view (Deployment Toolbox is
+    # reserved for golden/template-image builds).
+    local dview="${VIEW_LINUX_ID:-0}"
+    [[ "${oslabel}" == windows* ]] && dview="${VIEW_WINDOWS_ID:-0}"
+    tid=$(post_template "${dview}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${LOCAL_INV_ID}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
         --arg name "${name}" --arg args "${args}" --argjson survey "${survey}" --arg desc "${desc}" \
