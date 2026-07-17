@@ -396,22 +396,43 @@
           retries: 30
           delay: 10
           until: pc_exec.status == 200 and (pc_exec.json.data.pid is defined)
+        # Poll until the script exits. A 500 "PID does not exist" means the
+        # guest agent restarted — i.e. the VM REBOOTED mid-run, which counts as
+        # finished (the reboot is the script's last effect). Don't fail on it.
         - name: "Wait for post-clone to finish (guest agent exec-status)"
           ansible.builtin.uri:
             url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/agent/exec-status?pid={{ pc_exec.json.data.pid }}"
             headers:
               Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
             validate_certs: false
+            status_code: [200, 500]
           register: pc_status
           retries: 60
           delay: 10
-          until: (pc_status.json.data.exited | default(0) | int) == 1
-        - name: "Post-clone log (captured from the guest)"
+          until: >-
+            (pc_status.status == 500) or
+            ((pc_status.json.data.exited | default(0) | int) == 1)
+        - name: "Post-clone run outcome"
           ansible.builtin.debug:
-            msg: "{{ (pc_status.json.data['out-data'] | default('')).split('\n') }}"
-        - name: "Post-clone exit code"
+            msg: >-
+              {{ (pc_status.status == 500)
+                 | ternary(vm_name ~ ': VM rebooted during post-clone (PID gone) — fetching the log from disk.',
+                           vm_name ~ ': post-clone exit code = ' ~ (pc_status.json.data.exitcode | default('unknown'))) }}
+        # The log on disk is the source of truth (survives the reboot).
+        - name: "Fetch C:\\Logs\\post-clone.log from the guest"
+          ansible.builtin.uri:
+            url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ new_vmid }}/agent/file-read?file=C%3A%5CLogs%5Cpost-clone.log"
+            headers:
+              Authorization: "PVEAPIToken={{ proxmox_api_user }}!{{ proxmox_api_token_id }}={{ proxmox_api_token_secret }}"
+            validate_certs: false
+            status_code: [200, 500]
+          register: pc_log
+          retries: 30
+          delay: 10
+          until: pc_log.status == 200
+        - name: "Post-clone log (from C:\\Logs\\post-clone.log)"
           ansible.builtin.debug:
-            msg: "{{ vm_name }}: post-clone exit code = {{ pc_status.json.data.exitcode | default('unknown') }}"
+            msg: "{{ (pc_log.json.data.content | default('log not readable')).split('\n') }}"
         - name: "Reboot Windows to apply the new hostname"
           community.proxmox.proxmox_kvm:
             api_host: "{{ proxmox_api_host }}"
