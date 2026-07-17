@@ -552,13 +552,20 @@ seed_app_tpl() { # seed_app_tpl <display-name> <choco-package>
         "Install ${1} via Chocolatey (installs Chocolatey first if missing)." \
         "${WIN_TARGET}" "" "$(jq -nc --arg p "$2" '["-e","choco_packages=\($p)"]')"
 }
+# Baseline apps (each also individually installable)
 seed_app_tpl "PowerShell Core" powershell-core
 seed_app_tpl "PuTTY"           putty
-seed_app_tpl "WinRAR"          winrar
+seed_app_tpl "7-Zip"           7zip
+seed_app_tpl "Sysinternals"    sysinternals
 seed_app_tpl ".NET Framework"  dotnetfx
 seed_app_tpl "Git"             git
 seed_app_tpl "Terraform"       terraform
 seed_app_tpl "Notepad++"       notepadplusplus
+# Opt-in apps (NOT part of the baseline)
+seed_app_tpl "WinSCP"          winscp
+seed_app_tpl "Wireshark"       wireshark
+seed_app_tpl "Azure CLI"       azure-cli
+seed_app_tpl "AWS CLI"         awscli
 
 SEED_WTPL "ITA Windows Customisations" \
     "automation/ansible/playbooks/ita-windows-customisations.yml" \
@@ -572,7 +579,7 @@ SEED_WTPL "Configure Windows Backup" \
 
 SEED_WTPL "Apply Baseline (Windows)" \
     "automation/ansible/playbooks/windows-baseline.yml" \
-    "The Windows default build: disks, Chocolatey + standard apps (powershell-core, putty, winrar, dotnetfx, git, terraform, notepadplusplus), branding, Backup feature. Blank host = whole Windows Baseline group. Opt-outs use the individual templates instead." \
+    "The Windows default build: disks, Chocolatey + standard apps (powershell-core, putty, 7zip, sysinternals, dotnetfx, git, terraform, notepadplusplus), branding, Backup feature. Blank host = whole Windows Baseline group. Opt-outs use the individual templates instead." \
     "${WIN_TARGET}" \
     "${INV_WINBASE_ID:-0}"
 

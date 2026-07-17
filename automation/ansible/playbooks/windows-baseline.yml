@@ -8,7 +8,7 @@
 # instead — this playbook is deliberately not a menu.
 #
 # Standard apps (override with choco_packages):
-#   powershell-core, putty, winrar, dotnetfx, git, terraform, notepadplusplus
+#   powershell-core, putty, 7zip, sysinternals, dotnetfx, git, terraform, notepadplusplus
 # =============================================================================
 
 - name: Register single target (survey mode)
@@ -32,7 +32,7 @@
     ansible_port: 5985
     ansible_winrm_transport: ntlm
     ansible_winrm_server_cert_validation: ignore
-    win_choco_packages: "{{ (choco_packages | default('powershell-core,putty,winrar,dotnetfx,git,terraform,notepadplusplus', true)).split(',') | map('trim') | list }}"
+    win_choco_packages: "{{ (choco_packages | default('powershell-core,putty,7zip,sysinternals,dotnetfx,git,terraform,notepadplusplus', true)).split(',') | map('trim') | list }}"
   tasks:
     - name: Disk layout
       ansible.builtin.include_tasks: includes/windows/disks.yml
