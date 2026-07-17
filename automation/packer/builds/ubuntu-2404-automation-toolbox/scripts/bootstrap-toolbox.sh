@@ -97,6 +97,7 @@ DEPLOY_ADMIN_USER="${DEPLOY_ADMIN_USER:-it-admin}"
 DEPLOY_ADMIN_PASSWORD="${DEPLOY_ADMIN_PASSWORD:-}"
 # Optional: GitHub PAT for shipping deploy logs to the build-logs branch
 GITHUB_LOGS_TOKEN="${GITHUB_LOGS_TOKEN:-}"
+if [[ -n "${GITHUB_LOGS_TOKEN}" ]]; then log "GITHUB_LOGS_TOKEN received — deploy logs will ship to the build-logs branch"; else warn "GITHUB_LOGS_TOKEN NOT set — deploy logs will not ship (set \$env:GITHUB_LOGS_TOKEN before the wrapper, or add it in Semaphore > Environment > Proxmox)"; fi
 
 require_or_prompt_secret() { # varname prompt
     local -n ref="$1"
