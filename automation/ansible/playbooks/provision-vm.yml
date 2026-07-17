@@ -504,7 +504,9 @@
         groups: standard
         ansible_user: "{{ eff_user | default('it-admin', true) }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
-      when: apply_standard | bool and (vm_ip | default('')) | length > 0
+      # Linux only — the SSH-based standard build cannot run against Windows;
+      # Windows gets its baseline via the 'Apply Baseline (Windows)' template.
+      when: apply_standard | bool and (vm_ip | default('')) | length > 0 and os_label != 'windows'
 
     # ── Ship this run's log to GitHub (build-logs branch) ────────────────────
     # Lets the toolbox maintainers review deploy results remotely without
