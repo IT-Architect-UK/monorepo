@@ -102,6 +102,9 @@ ansible-galaxy collection install \
     community.proxmox \
     community.hashi_vault \
     ansible.posix \
+    ansible.windows \
+    community.windows \
+    chocolatey.chocolatey \
     amazon.aws \
     --force
 # Python libraries required by community.proxmox (proxmoxer) and
@@ -111,6 +114,8 @@ apt-get install -y python3-proxmoxer python3-requests python3-hvac
 # proxmoxer >= 2.3; Ubuntu's apt package is 2.0.x, so upgrade it via pip
 # (/usr/local takes precedence over /usr/lib on sys.path, so this wins).
 pip3 install --break-system-packages --upgrade "proxmoxer>=2.3"
+# WinRM transport for the Windows task templates (ansible.windows over winrm)
+pip3 install --break-system-packages --upgrade "pywinrm>=0.4"
 ok "$(ansible --version | head -1) installed"
 
 # ─── 7. Install AWS CLI v2 ────────────────────────────────────────────────────

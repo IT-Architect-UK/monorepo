@@ -506,6 +506,35 @@
         ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
       when: apply_standard | bool and (vm_ip | default('')) | length > 0
 
+    # ── Ship this run's log to GitHub (build-logs branch) ────────────────────
+    # Lets the toolbox maintainers review deploy results remotely without
+    # console access. Best-effort; set GITHUB_LOGS_TOKEN in the Semaphore
+    # variable group to enable.
+    - name: "Ship deploy log to GitHub build-logs branch (best-effort)"
+      ansible.builtin.shell: |
+        set -e
+        d=$(mktemp -d)
+        git clone -q --depth 1 --branch build-logs \
+          "https://x-access-token:${GITHUB_LOGS_TOKEN}@github.com/IT-Architect-UK/monorepo" "$d"
+        mkdir -p "$d/logs/{{ os_label | default('misc', true) }}"
+        f="$d/logs/{{ os_label | default('misc', true) }}/$(date +%Y%m%d-%H%M%S)-{{ vm_name }}.log"
+        {
+          echo "vm={{ vm_name }} vmid={{ new_vmid | default('?') }} os={{ os_label }} ip={{ vm_ip | default('unknown') }}"
+          echo "template={{ vm_template | default('?') }} time=$(date -Is)"
+          echo "--- post-clone log ---"
+          cat <<'EOFLOG'
+        {{ (pc_log.json.data.content | default('(no post-clone log — Linux deploy or log unavailable)')) }}
+        EOFLOG
+        } > "$f"
+        cd "$d"
+        git -c user.name="toolbox" -c user.email="toolbox@it-architect.uk" add -A
+        git -c user.name="toolbox" -c user.email="toolbox@it-architect.uk" commit -q -m "log: {{ vm_name }} ({{ os_label }}) $(date -Is)"
+        git push -q origin build-logs
+      environment:
+        GITHUB_LOGS_TOKEN: "{{ lookup('env', 'GITHUB_LOGS_TOKEN') }}"
+      when: lookup('env', 'GITHUB_LOGS_TOKEN') | length > 0
+      failed_when: false
+
     - name: Provisioning summary
       ansible.builtin.debug:
         msg:

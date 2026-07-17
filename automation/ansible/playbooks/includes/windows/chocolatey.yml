@@ -1,0 +1,8 @@
+---
+# Chocolatey + standard applications. win_chocolatey bootstraps choco itself
+# on first use. Package list comes from win_choco_packages.
+
+- name: "Install Chocolatey packages"
+  chocolatey.chocolatey.win_chocolatey:
+    name: "{{ win_choco_packages }}"
+    state: present

@@ -1,0 +1,38 @@
+---
+# =============================================================================
+# configure-windows-disks.yml
+# =============================================================================
+# Disk layout: extend C:, CD/DVD to Z:, data disk to D: 'Apps & Data', label C: 'OS'.
+# Runs over WinRM (transparent per-task output in Semaphore). Target either a
+# single host (target_host survey) or the whole Windows Baseline inventory.
+#
+# Optional variables:
+#   target_host        IP/FQDN of one server (blank = all inventory hosts)
+#   target_user        WinRM user   (default: DEPLOY_ADMIN_USER env / it-admin)
+#   target_password    WinRM password (default: DEPLOY_ADMIN_PASSWORD env)
+# =============================================================================
+
+- name: Register single target (survey mode)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Add target_host to the win_target group
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: win_target
+      when: target_host is defined and (target_host | length > 0)
+
+- name: "Configure Windows disks (extend C, CD to Z, data to D)"
+  hosts: "{{ (target_host is defined and (target_host | length > 0)) | ternary('win_target', target_hosts | default('all')) }}"
+  gather_facts: false
+  vars:
+    ansible_user: "{{ target_user | default(lookup('env', 'DEPLOY_ADMIN_USER'), true) | default('it-admin', true) }}"
+    ansible_password: "{{ target_password | default(lookup('env', 'DEPLOY_ADMIN_PASSWORD'), true) }}"
+    ansible_connection: winrm
+    ansible_port: 5985
+    ansible_winrm_transport: ntlm
+    ansible_winrm_server_cert_validation: ignore
+  tasks:
+    - name: Apply
+      ansible.builtin.include_tasks: includes/windows/disks.yml

@@ -367,6 +367,7 @@ function Invoke-ToolboxBootstrap {
     if ($WinrmPassword) { $lines += "WINRM_PASSWORD=$(ConvertTo-ShellSingleQuoted $WinrmPassword)" }
     if ($AdminUser)     { $lines += "DEPLOY_ADMIN_USER=$(ConvertTo-ShellSingleQuoted $AdminUser)" }
     if ($AdminPassword) { $lines += "DEPLOY_ADMIN_PASSWORD=$(ConvertTo-ShellSingleQuoted $AdminPassword)" }
+    if ($env:GITHUB_LOGS_TOKEN) { $lines += "GITHUB_LOGS_TOKEN=$(ConvertTo-ShellSingleQuoted $env:GITHUB_LOGS_TOKEN)" }
     if ($AutoBuildGolden) { $lines += "AUTO_BUILD_GOLDEN='1'" }
     $envContent = ($lines -join "`n") + "`n"
     $fwBody = "file=" + [uri]::EscapeDataString("/root/.bootstrap-env") + "&content=" + [uri]::EscapeDataString($envContent)

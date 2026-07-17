@@ -95,6 +95,8 @@ MGMT_SUBNET="${MGMT_SUBNET:-}"
 # Default login for VMs deployed from goldens (passed from the build wrapper).
 DEPLOY_ADMIN_USER="${DEPLOY_ADMIN_USER:-it-admin}"
 DEPLOY_ADMIN_PASSWORD="${DEPLOY_ADMIN_PASSWORD:-}"
+# Optional: GitHub PAT for shipping deploy logs to the build-logs branch
+GITHUB_LOGS_TOKEN="${GITHUB_LOGS_TOKEN:-}"
 
 require_or_prompt_secret() { # varname prompt
     local -n ref="$1"
@@ -295,6 +297,7 @@ if [[ -z "${ENV_ID}" ]]; then
         --arg pub "${PROV_PUBKEY}" --arg winrm "${WINRM_PW}" \
         --arg surl "${SEMAPHORE_URL}" --arg spid "${PROJECT_ID}" --arg dtok "${DEPLOY_TOKEN}" \
         --arg dauser "${DEPLOY_ADMIN_USER}" --arg dapass "${DEPLOY_ADMIN_PASSWORD}" \
+        --arg glt "${GITHUB_LOGS_TOKEN}" \
         '{
           name: "Proxmox", project_id: $pid, json: "{}",
           env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub, SEMAPHORE_URL: $surl, SEMAPHORE_PROJECT_ID: $spid, DEPLOY_ADMIN_USER: $dauser} | tojson),
@@ -303,7 +306,8 @@ if [[ -z "${ENV_ID}" ]]; then
             (if $pw    != "" then {type: "env", name: "PROXMOX_PASSWORD",     secret: $pw,    operation: "create"} else empty end),
             (if $winrm != "" then {type: "env", name: "WINRM_PASSWORD",       secret: $winrm, operation: "create"} else empty end),
             (if $dtok  != "" then {type: "env", name: "SEMAPHORE_API_TOKEN",  secret: $dtok,  operation: "create"} else empty end),
-            (if $dapass != "" then {type: "env", name: "DEPLOY_ADMIN_PASSWORD", secret: $dapass, operation: "create"} else empty end)
+            (if $dapass != "" then {type: "env", name: "DEPLOY_ADMIN_PASSWORD", secret: $dapass, operation: "create"} else empty end),
+            (if $glt   != "" then {type: "env", name: "GITHUB_LOGS_TOKEN",     secret: $glt,   operation: "create"} else empty end)
           ])
         }')
     ENV_ID=$(api POST "${P}/environment" "${ENV_BODY}" | jq -r '.id')
@@ -372,6 +376,7 @@ INV_WIN_ID=$(seed_inv "Windows Hosts")
 # (unless the deploy survey opts out) so it picks up — and can re-pick-up — the
 # default build via the "Apply Baseline (Linux)" template.
 INV_BASELINE_ID=$(seed_inv "Linux Baseline")
+INV_WINBASE_ID=$(seed_inv "Windows Baseline")
 
 # ─── 6. Job Templates ────────────────────────────────────────────────────────
 TPL_JSON=$(api GET "${P}/templates")
@@ -516,6 +521,58 @@ SEED_TPL() { # SEED_TPL <name> <playbook> <description> <survey-json>
     log "Job template '$1' upserted (id ${T_ID})"
 }
 
+SEED_WTPL() { # SEED_WTPL <name> <playbook> <description> <survey-json> [inventory_id]
+    local T_ID inv="${5:-${LOCAL_INV_ID}}"
+    T_ID=$(post_template "${VIEW_WINDOWS_ID:-0}" "$(jq -n \
+        --argjson pid "${PROJECT_ID}" --argjson inv "${inv}" \
+        --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
+        --arg name "$1" --arg play "$2" --arg desc "$3" --argjson survey "$4" \
+        '{project_id: $pid, name: $name, app: "ansible", playbook: $play,
+          inventory_id: $inv, repository_id: $rid, environment_id: $eid,
+          arguments: "[]", type: "", description: $desc, survey_vars: $survey}')" | jq -r '.id')
+    log "Job template '$1' upserted (id ${T_ID})"
+}
+
+WIN_TARGET='[{"name":"target_host","title":"Server IP/FQDN (blank = all Windows Baseline hosts)","type":"","required":false},
+             {"name":"target_user","title":"WinRM user (blank = it-admin)","type":"","required":false},
+             {"name":"target_password","title":"WinRM password (blank = deploy default)","type":"secret","required":false}]'
+WYESNO='{"type":"enum","required":false,"values":[{"name":"Yes","value":"true"},{"name":"No","value":"false"}]}'
+
+SEED_WTPL "Configure Windows Disks" \
+    "automation/ansible/playbooks/configure-windows-disks.yml" \
+    "Extend C: past the recovery partition, CD/DVD to Z:, data disk to D: (Apps & Data), label C: OS." \
+    "${WIN_TARGET}"
+
+SEED_WTPL "Install Windows Apps (Chocolatey)" \
+    "automation/ansible/playbooks/install-windows-apps.yml" \
+    "Chocolatey + standard applications. Edit the package list to taste." \
+    "$(jq -n --argjson t "${WIN_TARGET}" \
+        '$t + [{name:"choco_packages", title:"Packages (comma-separated; blank = notepadplusplus,putty,sysinternals,7zip)", type:"", required:false}]')"
+
+SEED_WTPL "ITA Windows Customisations" \
+    "automation/ansible/playbooks/ita-windows-customisations.yml" \
+    "IT-Architect branding: registered organisation + logon notice." \
+    "${WIN_TARGET}"
+
+SEED_WTPL "Configure Windows Backup" \
+    "automation/ansible/playbooks/configure-windows-backup.yml" \
+    "Windows Server Backup feature + optional daily schedule." \
+    "$(jq -n --argjson t "${WIN_TARGET}" \
+        '$t + [{name:"backup_target", title:"Backup target (e.g. \\\\nas\\backups or E:) — blank = feature only", type:"", required:false},
+               {name:"backup_time",   title:"Daily backup time (blank = 21:00)", type:"", required:false}]')"
+
+SEED_WTPL "Apply Baseline (Windows)" \
+    "automation/ansible/playbooks/windows-baseline.yml" \
+    "The Windows default build as a menu: disks, Chocolatey apps, branding, backup — each optional. Blank host = whole Windows Baseline group." \
+    "$(jq -n --argjson t "${WIN_TARGET}" --argjson yn "${WYESNO}" \
+        '$t + [($yn + {name:"do_disks",    title:"Configure disks (C:/Z:/D:)? (blank = Yes)"}),
+               ($yn + {name:"do_apps",     title:"Install Chocolatey apps? (blank = Yes)"}),
+               ($yn + {name:"do_branding", title:"Apply branding? (blank = Yes)"}),
+               ($yn + {name:"do_backup",   title:"Configure Windows Backup? (blank = No)"}),
+               {name:"choco_packages", title:"Choco packages (blank = default set)", type:"", required:false},
+               {name:"backup_target",  title:"Backup target (needed if backup = Yes)", type:"", required:false}]')" \
+    "${INV_WINBASE_ID:-0}"
+
 TARGET_FIELDS='[{"name":"target_host","title":"Server IP/FQDN","type":"","required":true},
                 {"name":"target_ssh_user","title":"SSH user (default sysadmin)","type":"","required":false}]'
 YESNO='{"type":"enum","required":true,"values":[{"name":"Yes","value":"true"},{"name":"No","value":"false"}]}'
@@ -609,6 +666,7 @@ SURVEY_IP='[
 ]'
 SURVEY_NOIP='[
   {"name":"vm_name","title":"VM name (also the hostname)","type":"","required":true},
+  {"name":"apply_standard","title":"Add to the Windows Baseline group (run Apply Baseline later / fleet-wide)? Leave Yes unless you want a bare VM.","type":"enum","required":false,"default_value":"true","values":[{"name":"Yes","value":"true"},{"name":"No","value":"false"}]},
   {"name":"vm_user","title":"Login account to create (e.g. it-admin; blank = none)","type":"","required":false},
   {"name":"vm_password","title":"Password for that account","type":"secret","required":false},
   {"name":"vm_vlan_tag","title":"VLAN tag (blank = template default)","type":"","required":false},
@@ -641,7 +699,7 @@ SEED_DEPLOY "Deploy Ubuntu 26.04 VM" 9006 "${INV_U2604_ID}" ubuntu-2604 true  "$
     "${INV_BASELINE_ID}"
 SEED_DEPLOY "Deploy Windows 2025 VM" 9003 "${INV_WIN_ID}"  windows     true  "${SURVEY_NOIP}" \
     "Clone the Windows Server 2025 golden into a new VM, attach a ConfigDrive2 drive so cloudbase-init applies hostname/user/network on first boot, start it, and register it in the Windows Hosts inventory." \
-    "" "sata0" "sata1" "configdrive2"
+    "${INV_WINBASE_ID}" "sata0" "sata1" "configdrive2"
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 # ─── 7. Finalise the Homepage dashboard ──────────────────────────────────────

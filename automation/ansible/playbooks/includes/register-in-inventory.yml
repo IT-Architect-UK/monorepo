@@ -28,7 +28,9 @@
          ((_inv.json.inventory | default('')) | trim ~ '\n'
           ~ vm_name ~ ' ansible_host=' ~ vm_ip
           ~ ' ansible_user=' ~ (eff_user | default('it-admin', true))
-          ~ " ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'") | trim }) }}
+          ~ ((os_label == 'windows')
+             | ternary(' ansible_connection=winrm ansible_port=5985 ansible_winrm_transport=ntlm ansible_winrm_server_cert_validation=ignore',
+                       " ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'"))) | trim }) }}
     status_code: [200, 204]
     validate_certs: false
   when: (vm_name ~ ' ansible_host=' ~ vm_ip) not in (_inv.json.inventory | default(''))

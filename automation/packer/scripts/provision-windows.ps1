@@ -306,6 +306,9 @@ param(
     [string]$AdminPassword = '',
     [string]$Hostname = ''
 )
+# IDENTITY ONLY. Disk layout, apps, branding and backup are applied by the
+# Ansible task templates over WinRM (Windows Tasks view) — transparent and
+# optional, keeping the golden and this script lean.
 $ErrorActionPreference = 'Continue'
 $logDir = 'C:\Logs'
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
@@ -313,8 +316,7 @@ $log = Join-Path $logDir 'post-clone.log'
 function L($m) { $line = "$(Get-Date -Format 's') $m"; Add-Content -Path $log -Value $line; Write-Output $line }
 
 L "post-clone starting (user=$AdminUser host=$Hostname current=$env:COMPUTERNAME)"
-Start-Sleep -Seconds 15
-L "settle wait complete"
+Start-Sleep -Seconds 10
 
 # 1. admin account
 if ($AdminPassword) {
@@ -331,46 +333,21 @@ if ($AdminPassword) {
     } catch { L "account error: $($_.Exception.Message)" }
 } else { L "account: no password supplied, skipped" }
 
-# 1b. remove Packer build account
+# 2. remove Packer build account
 try {
     if (Get-LocalUser -Name 'packer' -ErrorAction SilentlyContinue) { Remove-LocalUser -Name 'packer' -ErrorAction SilentlyContinue; L "removed build account packer" }
 } catch { L "packer error: $($_.Exception.Message)" }
 Remove-Item -Path 'C:\Users\packer' -Recurse -Force -ErrorAction SilentlyContinue
 
-# 2. remove trailing recovery partition + extend C: (inline diskpart)
+# 3. ensure WinRM is up for the Ansible task templates
 try {
-    $cPart = Get-Partition -DriveLetter C
-    reagentc /disable 2>&1 | Out-Null
-    $cmds = @("select disk $($cPart.DiskNumber)")
-    Get-Partition -DiskNumber $cPart.DiskNumber | Where-Object { $_.PartitionNumber -gt $cPart.PartitionNumber } | ForEach-Object { $cmds += "select partition $($_.PartitionNumber)"; $cmds += "delete partition override" }
-    $cmds += "select volume c"; $cmds += "extend"; $cmds += "exit"
-    $f = Join-Path $env:TEMP "dp_extend.txt"; Set-Content -Path $f -Value $cmds -Encoding Ascii
-    diskpart /s $f | Out-Null
-    L "removed recovery partition + extended C: (diskpart)"
-} catch { L "extend error: $($_.Exception.Message)" }
+    sc.exe config WinRM start= auto | Out-Null
+    net start WinRM 2>&1 | Out-Null
+    netsh advfirewall firewall add rule name="WinRM 5985 (Ansible)" dir=in action=allow protocol=TCP localport=5985 2>&1 | Out-Null
+    L "WinRM enabled (auto-start + firewall 5985)"
+} catch { L "winrm error: $($_.Exception.Message)" }
 
-# 3. CD/DVD -> Z: (inline diskpart; cloud-init CD is at D: on a fresh clone)
-try {
-    $f = Join-Path $env:TEMP "dp_cd.txt"; Set-Content -Path $f -Value @("select volume D", "assign letter=Z", "exit") -Encoding Ascii
-    diskpart /s $f | Out-Null
-    L "moved CD/DVD D: -> Z: (diskpart)"
-} catch { L "cd error: $($_.Exception.Message)" }
-
-# 4. data disk -> D: 'Apps & Data' (inline diskpart)
-try {
-    $raw = Get-Disk | Where-Object { $_.PartitionStyle -eq 'RAW' } | Sort-Object Number | Select-Object -First 1
-    if ($raw) {
-        $dcmds = @("select disk $($raw.Number)", "clean", "convert gpt", "create partition primary", "format fs=ntfs quick label=`"Apps & Data`"", "assign letter=D", "exit")
-        $f = Join-Path $env:TEMP "dp_data.txt"; Set-Content -Path $f -Value $dcmds -Encoding Ascii
-        diskpart /s $f | Out-Null
-        L "data disk initialised as D: (Apps & Data)"
-    } else { L "no raw data disk present" }
-} catch { L "data disk error: $($_.Exception.Message)" }
-
-# 5. label C: as OS
-try { cmd /c "label C: OS" 2>&1 | Out-Null; L "labelled C: as OS" } catch { L "label error: $($_.Exception.Message)" }
-
-# 6. hostname via registry (Rename-Computer hangs headless); deploy reboots
+# 4. hostname via registry (Rename-Computer hangs headless); deploy reboots
 if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
     try {
         $cn = "HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName"
@@ -381,7 +358,7 @@ if ($Hostname -and $env:COMPUTERNAME -ne $Hostname) {
         Set-ItemProperty -Path $tcp -Name "NV Hostname" -Value $Hostname
         L "set hostname to $Hostname (registry)"
     } catch { L "hostname error: $($_.Exception.Message)" }
-} else { L "hostname: no change needed (current=$env:COMPUTERNAME)" }
+} else { L "hostname: no change needed" }
 
 L "post-clone COMPLETE"
 

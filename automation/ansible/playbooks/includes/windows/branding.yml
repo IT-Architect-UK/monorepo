@@ -1,0 +1,22 @@
+---
+# IT-Architect branding: registered org + logon notice.
+
+- name: "Set registered organisation/owner"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion
+    name: "{{ item.name }}"
+    data: "{{ item.data }}"
+    type: string
+  loop:
+    - { name: RegisteredOrganization, data: "{{ branding_company | default('IT-Architect') }}" }
+    - { name: RegisteredOwner,        data: "{{ branding_company | default('IT-Architect') }}" }
+
+- name: "Set logon legal notice"
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: "{{ item.name }}"
+    data: "{{ item.data }}"
+    type: string
+  loop:
+    - { name: legalnoticecaption, data: "{{ branding_caption | default('Managed by IT-Architect') }}" }
+    - { name: legalnoticetext,    data: "{{ branding_text | default('Authorised access only. This server is managed by the Deployment Toolbox.') }}" }

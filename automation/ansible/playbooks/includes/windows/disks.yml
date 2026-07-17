@@ -1,0 +1,58 @@
+---
+# Windows disk layout: extend C: past the recovery partition, CD/DVD -> Z:,
+# initialise the data disk as D: 'Apps & Data', label C: 'OS'.
+# Each step is its own task so the run is fully visible in Semaphore.
+
+- name: "Disable WinRE (frees the recovery partition for removal)"
+  ansible.windows.win_shell: reagentc /disable
+  failed_when: false
+
+- name: "Remove partitions after C: and extend C: (diskpart)"
+  ansible.windows.win_shell: |
+    $c = Get-Partition -DriveLetter C
+    $cmds = @("select disk $($c.DiskNumber)")
+    Get-Partition -DiskNumber $c.DiskNumber | Where-Object { $_.PartitionNumber -gt $c.PartitionNumber } |
+      ForEach-Object { $cmds += "select partition $($_.PartitionNumber)"; $cmds += "delete partition override" }
+    $cmds += "select volume c"; $cmds += "extend"; $cmds += "exit"
+    Set-Content -Path $env:TEMP\dp_extend.txt -Value $cmds -Encoding Ascii
+    diskpart /s $env:TEMP\dp_extend.txt
+  register: dp_extend
+  changed_when: "'DiskPart successfully' in (dp_extend.stdout | default(''))"
+  failed_when: false
+
+- name: "Move the CD/DVD drive to Z: (diskpart)"
+  ansible.windows.win_shell: |
+    $cd = Get-CimInstance Win32_Volume -Filter "DriveType=5 AND DriveLetter IS NOT NULL" | Select-Object -First 1
+    if ($cd -and $cd.DriveLetter -ne 'Z:') {
+      Set-Content -Path $env:TEMP\dp_cd.txt -Value @("select volume $($cd.DriveLetter[0])", "assign letter=Z", "exit") -Encoding Ascii
+      diskpart /s $env:TEMP\dp_cd.txt
+    } else { "no CD/DVD to move (or already Z:)" }
+  register: dp_cd
+  changed_when: "'DiskPart successfully' in (dp_cd.stdout | default(''))"
+  failed_when: false
+
+- name: "Initialise the raw data disk as D: 'Apps & Data' (diskpart)"
+  ansible.windows.win_shell: |
+    $raw = Get-Disk | Where-Object PartitionStyle -eq 'RAW' | Sort-Object Number | Select-Object -First 1
+    if ($raw) {
+      $cmds = @("select disk $($raw.Number)", "clean", "convert gpt", "create partition primary",
+                'format fs=ntfs quick label="Apps & Data"', "assign letter=D", "exit")
+      Set-Content -Path $env:TEMP\dp_data.txt -Value $cmds -Encoding Ascii
+      diskpart /s $env:TEMP\dp_data.txt
+    } else { "no raw data disk present" }
+  register: dp_data
+  changed_when: "'DiskPart successfully' in (dp_data.stdout | default(''))"
+  failed_when: false
+
+- name: "Label C: as OS"
+  ansible.windows.win_shell: label C:\ OS
+  failed_when: false
+
+- name: "Disk layout result"
+  ansible.windows.win_shell: Get-Volume | Sort-Object DriveLetter | Format-Table DriveLetter, FileSystemLabel, @{n='SizeGB';e={[math]::Round($_.Size/1GB,1)}} -AutoSize | Out-String
+  register: vol_result
+  changed_when: false
+
+- name: "Show volumes"
+  ansible.builtin.debug:
+    msg: "{{ vol_result.stdout_lines }}"
