@@ -522,15 +522,15 @@ SEED_TPL() { # SEED_TPL <name> <playbook> <description> <survey-json>
     log "Job template '$1' upserted (id ${T_ID})"
 }
 
-SEED_WTPL() { # SEED_WTPL <name> <playbook> <description> <survey-json> [inventory_id]
-    local T_ID inv="${5:-${LOCAL_INV_ID}}"
+SEED_WTPL() { # SEED_WTPL <name> <playbook> <description> <survey-json> [inventory_id] [args-json]
+    local T_ID inv="${5:-${LOCAL_INV_ID}}" args="${6:-[]}"
     T_ID=$(post_template "${VIEW_WINDOWS_ID:-0}" "$(jq -n \
         --argjson pid "${PROJECT_ID}" --argjson inv "${inv}" \
         --argjson rid "${REPO_ID}" --argjson eid "${ENV_ID}" \
-        --arg name "$1" --arg play "$2" --arg desc "$3" --argjson survey "$4" \
+        --arg name "$1" --arg play "$2" --arg desc "$3" --argjson survey "$4" --arg args "${args}" \
         '{project_id: $pid, name: $name, app: "ansible", playbook: $play,
           inventory_id: $inv, repository_id: $rid, environment_id: $eid,
-          arguments: "[]", type: "", description: $desc, survey_vars: $survey}')" | jq -r '.id')
+          arguments: $args, type: "", description: $desc, survey_vars: $survey}')" | jq -r '.id')
     log "Job template '$1' upserted (id ${T_ID})"
 }
 
@@ -544,11 +544,21 @@ SEED_WTPL "Configure Windows Disks" \
     "Extend C: past the recovery partition, CD/DVD to Z:, data disk to D: (Apps & Data), label C: OS." \
     "${WIN_TARGET}"
 
-SEED_WTPL "Install Windows Apps (Chocolatey)" \
-    "automation/ansible/playbooks/install-windows-apps.yml" \
-    "Chocolatey + standard applications. Edit the package list to taste." \
-    "$(jq -n --argjson t "${WIN_TARGET}" \
-        '$t + [{name:"choco_packages", title:"Packages (comma-separated; blank = notepadplusplus,putty,sysinternals,7zip)", type:"", required:false}]')"
+# One task template per standard application (all use the generic installer;
+# Chocolatey itself is installed automatically if missing).
+seed_app_tpl() { # seed_app_tpl <display-name> <choco-package>
+    SEED_WTPL "Install ${1}" \
+        "automation/ansible/playbooks/install-windows-apps.yml" \
+        "Install ${1} via Chocolatey (installs Chocolatey first if missing)." \
+        "${WIN_TARGET}" "" "$(jq -nc --arg p "$2" '["-e","choco_packages=\($p)"]')"
+}
+seed_app_tpl "PowerShell Core" powershell-core
+seed_app_tpl "PuTTY"           putty
+seed_app_tpl "WinRAR"          winrar
+seed_app_tpl ".NET Framework"  dotnetfx
+seed_app_tpl "Git"             git
+seed_app_tpl "Terraform"       terraform
+seed_app_tpl "Notepad++"       notepadplusplus
 
 SEED_WTPL "ITA Windows Customisations" \
     "automation/ansible/playbooks/ita-windows-customisations.yml" \
@@ -557,21 +567,13 @@ SEED_WTPL "ITA Windows Customisations" \
 
 SEED_WTPL "Configure Windows Backup" \
     "automation/ansible/playbooks/configure-windows-backup.yml" \
-    "Windows Server Backup feature + optional daily schedule." \
-    "$(jq -n --argjson t "${WIN_TARGET}" \
-        '$t + [{name:"backup_target", title:"Backup target (e.g. \\\\nas\\backups or E:) — blank = feature only", type:"", required:false},
-               {name:"backup_time",   title:"Daily backup time (blank = 21:00)", type:"", required:false}]')"
+    "Install the Windows Server Backup feature (targets/jobs are configured per server later)." \
+    "${WIN_TARGET}"
 
 SEED_WTPL "Apply Baseline (Windows)" \
     "automation/ansible/playbooks/windows-baseline.yml" \
-    "The Windows default build as a menu: disks, Chocolatey apps, branding, backup — each optional. Blank host = whole Windows Baseline group." \
-    "$(jq -n --argjson t "${WIN_TARGET}" --argjson yn "${WYESNO}" \
-        '$t + [($yn + {name:"do_disks",    title:"Configure disks (C:/Z:/D:)? (blank = Yes)"}),
-               ($yn + {name:"do_apps",     title:"Install Chocolatey apps? (blank = Yes)"}),
-               ($yn + {name:"do_branding", title:"Apply branding? (blank = Yes)"}),
-               ($yn + {name:"do_backup",   title:"Configure Windows Backup? (blank = No)"}),
-               {name:"choco_packages", title:"Choco packages (blank = default set)", type:"", required:false},
-               {name:"backup_target",  title:"Backup target (needed if backup = Yes)", type:"", required:false}]')" \
+    "The Windows default build: disks, Chocolatey + standard apps (powershell-core, putty, winrar, dotnetfx, git, terraform, notepadplusplus), branding, Backup feature. Blank host = whole Windows Baseline group. Opt-outs use the individual templates instead." \
+    "${WIN_TARGET}" \
     "${INV_WINBASE_ID:-0}"
 
 TARGET_FIELDS='[{"name":"target_host","title":"Server IP/FQDN","type":"","required":true},

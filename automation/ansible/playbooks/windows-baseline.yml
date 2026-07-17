@@ -2,15 +2,13 @@
 # =============================================================================
 # windows-baseline.yml — THE WINDOWS DEFAULT BUILD (menu)
 # =============================================================================
-# Applies the selected customisations to Windows servers over WinRM. Each item
-# is an individual toggle so repo users can opt out of any of them. Targets a
-# single host (target_host) or the whole Windows Baseline inventory.
+# Applies THE default build to Windows servers over WinRM: disk layout,
+# Chocolatey + the standard app set, branding, and the Windows Server Backup
+# feature. Users wanting only some items run the individual task templates
+# instead — this playbook is deliberately not a menu.
 #
-# Toggles (all default true except backup, which needs a target):
-#   do_disks      extend C:, CD->Z:, data disk D: 'Apps & Data', label C: 'OS'
-#   do_apps       Chocolatey + choco_packages (default Notepad++, PuTTY, ...)
-#   do_branding   registered org + logon notice
-#   do_backup     Windows Server Backup (+ schedule when backup_target set)
+# Standard apps (override with choco_packages):
+#   powershell-core, putty, winrar, dotnetfx, git, terraform, notepadplusplus
 # =============================================================================
 
 - name: Register single target (survey mode)
@@ -34,17 +32,13 @@
     ansible_port: 5985
     ansible_winrm_transport: ntlm
     ansible_winrm_server_cert_validation: ignore
-    win_choco_packages: "{{ (choco_packages | default('notepadplusplus,putty,sysinternals,7zip', true)).split(',') | map('trim') | list }}"
+    win_choco_packages: "{{ (choco_packages | default('powershell-core,putty,winrar,dotnetfx,git,terraform,notepadplusplus', true)).split(',') | map('trim') | list }}"
   tasks:
     - name: Disk layout
       ansible.builtin.include_tasks: includes/windows/disks.yml
-      when: do_disks | default(true) | bool
     - name: Chocolatey + applications
       ansible.builtin.include_tasks: includes/windows/chocolatey.yml
-      when: do_apps | default(true) | bool
     - name: Branding
       ansible.builtin.include_tasks: includes/windows/branding.yml
-      when: do_branding | default(true) | bool
-    - name: Windows Server Backup
+    - name: Windows Server Backup feature
       ansible.builtin.include_tasks: includes/windows/backup.yml
-      when: do_backup | default(false) | bool

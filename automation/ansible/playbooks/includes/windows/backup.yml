@@ -1,22 +1,8 @@
 ---
-# Windows Server Backup: install the feature; schedule a daily backup when a
-# target is provided (backup_target e.g. \\nas\backups or E:).
+# Windows Server Backup — install the FEATURE only. Backup targets/jobs are a
+# per-server decision made later, not part of the baseline.
 
 - name: "Install the Windows Server Backup feature"
   ansible.windows.win_feature:
     name: Windows-Server-Backup
     state: present
-
-- name: "Schedule daily backup to {{ backup_target }}"
-  ansible.windows.win_shell: >
-    wbadmin enable backup -backupTarget:{{ backup_target }} -allCritical
-    -schedule:{{ backup_time | default('21:00') }} -quiet
-  when: backup_target | default('') | length > 0
-  register: wb_out
-  changed_when: true
-  failed_when: false
-
-- name: "Backup schedule output"
-  ansible.builtin.debug:
-    msg: "{{ (wb_out.stdout_lines | default(['feature installed; no backup_target set — schedule skipped'])) }}"
-  when: true

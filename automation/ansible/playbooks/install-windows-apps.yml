@@ -33,7 +33,7 @@
     ansible_port: 5985
     ansible_winrm_transport: ntlm
     ansible_winrm_server_cert_validation: ignore
-    win_choco_packages: "{{ (choco_packages | default('notepadplusplus,putty,sysinternals,7zip', true)).split(',') | map('trim') | list }}"
+    win_choco_packages: "{{ (choco_packages | default('powershell-core,putty,winrar,dotnetfx,git,terraform,notepadplusplus', true)).split(',') | map('trim') | list }}"
   tasks:
     - name: Apply
       ansible.builtin.include_tasks: includes/windows/chocolatey.yml

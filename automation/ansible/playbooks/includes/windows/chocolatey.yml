@@ -1,8 +1,13 @@
 ---
-# Chocolatey + standard applications. win_chocolatey bootstraps choco itself
-# on first use. Package list comes from win_choco_packages.
+# Chocolatey + applications. The first task guarantees Chocolatey itself is
+# present (installs it if missing), so every app template can depend on it.
 
-- name: "Install Chocolatey packages"
+- name: "Ensure Chocolatey is installed"
+  chocolatey.chocolatey.win_chocolatey:
+    name: chocolatey
+    state: present
+
+- name: "Install applications: {{ win_choco_packages | join(', ') }}"
   chocolatey.chocolatey.win_chocolatey:
     name: "{{ win_choco_packages }}"
     state: present
