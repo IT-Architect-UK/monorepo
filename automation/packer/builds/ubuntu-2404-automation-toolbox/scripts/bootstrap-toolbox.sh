@@ -705,13 +705,13 @@ SEED_DEPLOY() { # SEED_DEPLOY <name> <golden_vmid> <inv_id> <os_label> <cloudini
     [[ -n "${tid}" ]] && log "Job template '${name}' upserted (id ${tid})" \
                       || warn "Could not upsert job template '${name}'"
 }
-SEED_DEPLOY "Deploy Ubuntu 24.04 VM" 9004 "${INV_U2404_ID}" ubuntu-2404 true  "${SURVEY_IP}" \
+SEED_DEPLOY "* Deploy Ubuntu 24.04 VM" 9004 "${INV_U2404_ID}" ubuntu-2404 true  "${SURVEY_IP}" \
     "Clone the Ubuntu 24.04 golden into a new VM (name + optional static IP), start it, register it in the Ubuntu 24.04 Hosts inventory, and apply the default build unless opted out." \
     "${INV_BASELINE_ID}"
-SEED_DEPLOY "Deploy Ubuntu 26.04 VM" 9006 "${INV_U2604_ID}" ubuntu-2604 true  "${SURVEY_IP}" \
+SEED_DEPLOY "* Deploy Ubuntu 26.04 VM" 9006 "${INV_U2604_ID}" ubuntu-2604 true  "${SURVEY_IP}" \
     "Clone the Ubuntu 26.04 golden into a new VM (name + optional static IP), start it, register it in the Ubuntu 26.04 Hosts inventory, and apply the default build unless opted out." \
     "${INV_BASELINE_ID}"
-SEED_DEPLOY "Deploy Windows 2025 VM" 9003 "${INV_WIN_ID}"  windows     true  "${SURVEY_NOIP}" \
+SEED_DEPLOY "* Deploy Windows 2025 VM" 9003 "${INV_WIN_ID}"  windows     true  "${SURVEY_NOIP}" \
     "Clone the Windows Server 2025 golden into a new VM, attach a ConfigDrive2 drive so cloudbase-init applies hostname/user/network on first boot, start it, and register it in the Windows Hosts inventory." \
     "${INV_WINBASE_ID}" "sata0" "sata1" "configdrive2"
 
