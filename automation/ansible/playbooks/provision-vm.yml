@@ -507,6 +507,42 @@
       # Windows gets its baseline via the 'Apply Baseline (Windows)' template.
       when: apply_standard | bool and (vm_ip | default('')) | length > 0 and os_label != 'windows'
 
+    # Auto-run the Windows default build: queue the Apply Baseline (Windows)
+    # task against this VM (it waits for WinRM itself). Its output appears as
+    # its own Semaphore task — transparent and re-runnable.
+    - name: "Queue Apply Baseline (Windows) for {{ vm_name }} (best-effort)"
+      when:
+        - os_label == 'windows'
+        - apply_standard | default(false) | bool
+        - (vm_ip | default('')) | length > 0
+        - semaphore_api_token | length > 0
+      block:
+        - name: "Find the Apply Baseline (Windows) template"
+          ansible.builtin.uri:
+            url: "{{ semaphore_url }}/api/project/{{ semaphore_project_id }}/templates"
+            headers:
+              Authorization: "Bearer {{ semaphore_api_token }}"
+            validate_certs: false
+          register: _tpls
+        - name: "Launch the baseline task"
+          ansible.builtin.uri:
+            url: "{{ semaphore_url }}/api/project/{{ semaphore_project_id }}/tasks"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ semaphore_api_token }}"
+            body_format: json
+            body:
+              template_id: "{{ (_tpls.json | selectattr('name', 'equalto', 'Apply Baseline (Windows)') | map(attribute='id') | first) }}"
+              environment: "{{ {'target_host': vm_ip} | to_json }}"
+            status_code: [200, 201]
+            validate_certs: false
+        - name: "Baseline queued"
+          ansible.builtin.debug:
+            msg: "{{ vm_name }}: Apply Baseline (Windows) queued against {{ vm_ip }} — watch its own task for progress."
+      rescue:
+        - ansible.builtin.debug:
+            msg: "Could not auto-queue Apply Baseline (Windows) for {{ vm_name }} — run it from the Windows Tasks view."
+
     # ── Ship this run's log to GitHub (build-logs branch) ────────────────────
     # Lets the toolbox maintainers review deploy results remotely without
     # console access. Best-effort; set GITHUB_LOGS_TOKEN in the Semaphore

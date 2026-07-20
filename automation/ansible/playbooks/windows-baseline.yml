@@ -34,6 +34,11 @@
     ansible_winrm_server_cert_validation: ignore
     win_choco_packages: "{{ (choco_packages | default('powershell-core,putty,7zip,sysinternals,dotnetfx,git,terraform,notepadplusplus', true)).split(',') | map('trim') | list }}"
   tasks:
+    - name: Wait for WinRM (the VM may still be rebooting after deploy)
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+        sleep: 10
+
     - name: Disk layout
       ansible.builtin.include_tasks: includes/windows/disks.yml
     - name: Chocolatey + applications
