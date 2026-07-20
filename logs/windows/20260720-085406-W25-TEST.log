@@ -1,0 +1,11 @@
+vm=W25-TEST vmid=106 os=windows ip=192.168.4.16
+template=t-win2025-20260717-0823 time=2026-07-20T08:54:06+01:00
+--- post-clone log ---
+2026-07-20T07:53:07 post-clone starting (user=it-admin host=W25-TEST current=WIN-G3R0JUMLD9S)
+2026-07-20T07:53:20 created it-admin
+2026-07-20T07:53:20 it-admin added to local Administrators
+2026-07-20T07:53:20 removed build account packer
+2026-07-20T07:53:28 WinRM enabled (auto-start + firewall 5985)
+2026-07-20T07:53:28 set hostname to W25-TEST (registry)
+2026-07-20T07:53:28 post-clone COMPLETE
+
