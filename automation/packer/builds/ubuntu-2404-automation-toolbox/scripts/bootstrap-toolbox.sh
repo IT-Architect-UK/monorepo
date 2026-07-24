@@ -687,9 +687,9 @@ SURVEY_NOIP='[
 ]'
 
 SEED_DEPLOY() { # SEED_DEPLOY <name> <golden_vmid> <inv_id> <os_label> <cloudinit_ip> <survey_json> <desc> [baseline_inv_id]
-    local name="$1" gvmid="$2" invid="$3" oslabel="$4" ciip="$5" survey="$6" desc="$7" binvid="${8:-0}" osdisk="${9:-scsi0}" cibus="${10:-scsi1}" citype="${11:-}" tid args
-    args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" --arg b "${binvid:-0}" --arg d "${osdisk}" --arg cb "${cibus}" --arg ct "${citype}" \
-        '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","baseline_inventory_id=\($b)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)","-e","os_disk=\($d)","-e","ci_bus=\($cb)","-e","ci_type=\($ct)"]')
+    local name="$1" gvmid="$2" invid="$3" oslabel="$4" ciip="$5" survey="$6" desc="$7" binvid="${8:-0}" osdisk="${9:-scsi0}" cibus="${10:-scsi1}" citype="${11:-}" dvcpu="${12:-2}" dmem="${13:-4096}" tid args
+    args=$(jq -nc --arg g "${gvmid}" --arg i "${invid:-0}" --arg o "${oslabel}" --arg c "${ciip}" --arg b "${binvid:-0}" --arg d "${osdisk}" --arg cb "${cibus}" --arg ct "${citype}" --arg dv "${dvcpu}" --arg dm "${dmem}" \
+        '["-e","golden_vmid=\($g)","-e","register_inventory_id=\($i)","-e","baseline_inventory_id=\($b)","-e","os_label=\($o)","-e","cloudinit_ip=\($c)","-e","os_disk=\($d)","-e","ci_bus=\($cb)","-e","ci_type=\($ct)","-e","default_vcpu=\($dv)","-e","default_memory_mb=\($dm)"]')
     # Deploy templates live in the per-OS Tasks view (Deployment Toolbox is
     # reserved for golden/template-image builds).
     local dview="${VIEW_LINUX_ID:-0}"
@@ -713,7 +713,7 @@ SEED_DEPLOY "* Deploy Ubuntu 26.04 VM" 9006 "${INV_U2604_ID}" ubuntu-2604 true  
     "${INV_BASELINE_ID}"
 SEED_DEPLOY "* Deploy Windows 2025 VM" 9003 "${INV_WIN_ID}"  windows     true  "${SURVEY_NOIP}" \
     "Clone the Windows Server 2025 golden into a new VM, attach a ConfigDrive2 drive so cloudbase-init applies hostname/user/network on first boot, start it, and register it in the Windows Hosts inventory." \
-    "${INV_WINBASE_ID}" "sata0" "sata1" "configdrive2"
+    "${INV_WINBASE_ID}" "sata0" "sata1" "configdrive2" 4 8192
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 # ─── 7. Finalise the Homepage dashboard ──────────────────────────────────────
