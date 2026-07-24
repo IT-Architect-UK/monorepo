@@ -232,8 +232,10 @@
         validate_certs: false
         node: "{{ proxmox_node }}"
         vmid: "{{ new_vmid }}"
-        cores: "{{ vm_vcpu | int }}"
-        memory: "{{ vm_memory_mb | int }}"
+        # Blank survey answers arrive as '' and would become 0 — fall back to
+        # sane defaults ('or' treats 0/empty as falsy).
+        cores: "{{ (vm_vcpu | default(2, true) | int) or 2 }}"
+        memory: "{{ (vm_memory_mb | default(4096, true) | int) or 4096 }}"
         ciuser: "{{ eff_user | default(omit, true) }}"
         cipassword: "{{ eff_password | default(omit, true) }}"
         update: true
