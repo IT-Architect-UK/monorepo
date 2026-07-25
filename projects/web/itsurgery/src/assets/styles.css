@@ -307,6 +307,21 @@ input:focus-visible, textarea:focus-visible {
 .cta-panel h2 { margin: 0 0 0.5rem; font-size: 1.3rem; }
 .cta-panel p { margin: 0; font-size: 1rem; }
 
+/* ---------- AI callout (home) ---------- */
+.ai-callout { padding: 2rem 0; border-top: 1px solid var(--line); }
+.ai-flag {
+  display: inline-block; margin: 0 0 0.5rem;
+  background: var(--brand); color: var(--white);
+  font-family: var(--font-head); font-weight: 700;
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.15rem 0.6rem; border-radius: 4px;
+}
+.ai-callout h2 { margin: 0 0 0.5rem; }
+.ai-text { margin: 0 0 0.75rem; max-width: 70ch; }
+.ai-links { margin: 0; font-weight: 700; }
+.ai-links a { margin-right: 0.35rem; }
+.ai-links span { margin-right: 0.35rem; color: var(--muted); }
+
 /* ---------- Service areas ---------- */
 .areas {
   list-style: none; margin: 0 0 1.25rem; padding: 0;

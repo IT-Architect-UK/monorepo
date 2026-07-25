@@ -1,5 +1,39 @@
 [
   {
+    "slug": "ai-for-business",
+    "title": "AI for Business",
+    "group": "business",
+    "summary": "Practical AI that saves your team real time — chosen, set up and made safe.",
+    "rateNote": "AI work is usually quoted per project rather than by the hour, so you know the cost up front. Ask for a quote and we will talk it through first.",
+    "intro": "Most small businesses are in one of two camps: paying for AI tools that nobody really uses, or steering clear because no one knows where to start. Both are expensive in their own way. We help you work out where AI genuinely saves time in your business, set it up properly, and make sure your team can actually use it.",
+    "body": "We are not here to sell you the hype. Some jobs are perfect for AI and some are not, and we will tell you plainly which is which. Where it does fit, the savings are real — hours a week on quoting, email, reports and data entry are common. Crucially, we set it up so your commercial and customer data stays where it should.",
+    "points": [
+      "Choosing the right tools for your business — Claude, ChatGPT, Microsoft Copilot, Gemini or Grok",
+      "Accounts, licences and rollout, including Claude Code and Claude Desktop for technical teams",
+      "Practical staff training so the tools are actually used, not just paid for",
+      "Automating repetitive work — quotes, email triage, reports, summarising documents, data entry",
+      "Connecting AI to the systems you already use, so it works with your data instead of guessing",
+      "Agent orchestration and self-hosted agents such as Hermes Agent and OpenClaw, running on your own infrastructure",
+      "Data protection and safety — what should never be pasted into a public chatbot, and how to avoid it"
+    ]
+  },
+  {
+    "slug": "ai-help",
+    "title": "AI Help & Training",
+    "group": "personal",
+    "summary": "What all the AI fuss is about — explained patiently, in plain English.",
+    "intro": "AI is suddenly everywhere and it is genuinely hard to tell what is useful, what is hype, and what is a scam. We will sit down with you, explain it without jargon, and show you the parts that might actually make your life easier.",
+    "body": "There are no silly questions here. Whether you are curious, sceptical, or worried about being caught out, we will go at your pace and be straight with you about what these tools can and cannot do — including when the honest answer is that you do not need them.",
+    "points": [
+      "A friendly, jargon-free introduction to what AI can and cannot do",
+      "Setting up ChatGPT, Claude or Gemini on your computer, phone or tablet",
+      "Using it for real things — letters, forms, holiday planning, making sense of documents",
+      "Help with photos, recipes, hobbies and learning something new",
+      "Staying safe: what not to share, and how to spot AI-generated scams, fake voices and images",
+      "Honest advice on whether a paid subscription is worth it for you, or whether the free version is plenty"
+    ]
+  },
+  {
     "slug": "business-network",
     "title": "Business Network Services",
     "group": "business",

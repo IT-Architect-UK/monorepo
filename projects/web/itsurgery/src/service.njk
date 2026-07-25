@@ -34,7 +34,13 @@ eleventyComputed:
           Call <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a>,
           <a href="https://wa.me/{{ site.whatsapp }}" rel="noopener">message us on WhatsApp</a>,
           or <a href="/quote/">request a quote</a>.
-          Our rate is £{{ site.hourlyRate }} an hour, and if we can't fix it you don't pay.
+          {# Services can override the standard hourly line — project work is
+             quoted rather than charged by the hour. #}
+          {% if service.rateNote %}
+            {{ service.rateNote }}
+          {% else %}
+            Our rate is £{{ site.hourlyRate }} an hour, and if we can't fix it you don't pay.
+          {% endif %}
         </p>
       </div>
 
