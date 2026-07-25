@@ -1,0 +1,25 @@
+# Netlify configuration for the IT Surgery website.
+#
+# In the Netlify site settings set "Base directory" to:
+#   projects/web/itsurgery
+# Netlify then reads this file from that base and runs the Eleventy build.
+
+[build]
+  command = "npm run build"
+  publish = "_site"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Sensible security headers for a static marketing site.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"

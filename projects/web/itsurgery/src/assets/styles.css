@@ -1,0 +1,453 @@
+/* IT Surgery — brand identity carried over from the original site:
+     Accent / brand red : #990000
+     Headings           : Poppins, #222222
+     Body text          : system stack, #333333
+     Dark panel         : #3f444b
+   Accessibility-first: large type, high contrast, visible focus, WCAG 2.1 AA. */
+
+:root {
+  --brand: #990000;
+  --brand-dark: #7a0000;
+  --brand-tint: #f7eeee;
+  --heading: #222222;
+  --ink: #333333;
+  --muted: #5a6068;
+  --dark: #3f444b;
+  --dark-deep: #2f3338;
+  --tint: #f4f5f7;
+  --line: #dcdfe3;
+  --white: #ffffff;
+  --focus: #0b57d0;
+
+  --font-head: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --maxw: 1140px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1rem;      /* matches the original site; users can zoom */
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--white);
+  /* Keeps small text crisp rather than slightly soft on some displays. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+
+h1, h2, h3, .brand-name, .price-figure {
+  font-family: var(--font-head);
+  font-weight: 600;
+  color: var(--heading);
+}
+
+a { color: var(--brand); }
+
+.container { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
+.container.narrow { max-width: 820px; }
+
+/* ---------- Accessibility helpers ---------- */
+.skip-link {
+  position: absolute; left: -999px; top: 0;
+  background: var(--heading); color: var(--white);
+  padding: 0.75rem 1rem; z-index: 200;
+}
+.skip-link:focus { left: 0; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+a:focus-visible, .btn:focus-visible, button:focus-visible,
+input:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Utility bar (secondary links + all contact actions) ---------- */
+.utility-bar {
+  background: var(--dark-deep);
+  color: var(--white);
+  font-size: 0.95rem;
+}
+.utility-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding-top: 0.4rem; padding-bottom: 0.4rem;
+}
+.utility-links { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.utility-links a { color: #e9ebed; text-decoration: none; font-weight: 600; }
+.utility-links a:hover { text-decoration: underline; }
+.utility-links a[aria-current="page"] { text-decoration: underline; }
+
+.utility-contact { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+/* All contact actions share one size and one style. White on the dark bar so
+   each button has a clear boundary — brand red on near-black reads as muddy. */
+.ubtn {
+  display: inline-block;
+  padding: 0.3rem 0.85rem;
+  min-width: 7.5rem;
+  text-align: center;
+  background: var(--white);
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: 5px;
+  border: 1px solid var(--white);
+  white-space: nowrap;
+}
+.ubtn:hover { background: var(--brand-tint); }
+
+/* ---------- Header + main menu ---------- */
+.site-header {
+  background: var(--white);
+  border-bottom: 3px solid var(--brand);
+  position: sticky; top: 0; z-index: 100;
+}
+.header-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding-top: 0.6rem; padding-bottom: 0.6rem;
+}
+.brand { display: inline-flex; align-items: center; gap: 0.7rem; text-decoration: none; }
+.brand-cross { width: 2.5rem; height: 2.5rem; flex: none; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-name { font-size: 1.5rem; color: var(--brand); font-weight: 700; letter-spacing: 0.01em; }
+.brand-tag {
+  font-size: 0.9rem; color: var(--muted);
+  font-family: var(--font-body); font-weight: 500;
+}
+
+.menu-toggle {
+  display: none;
+  font-family: var(--font-head); font-weight: 700; font-size: 1.05rem;
+  background: var(--brand); color: var(--white);
+  border: none; border-radius: 6px; padding: 0.6rem 1.1rem; cursor: pointer;
+}
+
+/* Direct child only. A descendant selector here would also match the nested
+   submenu <ul> and, being more specific than `.submenu`, would force it
+   permanently visible. */
+.main-nav > ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.25rem; }
+.main-nav .submenu { list-style: none; margin: 0; padding: 0; }
+.main-nav li { position: relative; }
+.main-nav a {
+  display: block; padding: 0.6rem 0.9rem;
+  text-decoration: none; color: var(--heading);
+  font-family: var(--font-head); font-weight: 600; font-size: 1.05rem;
+  border-radius: 6px;
+}
+.main-nav a:hover { background: var(--brand-tint); color: var(--brand); }
+.main-nav a[aria-current="page"] {
+  color: var(--brand);
+  box-shadow: inset 0 -3px 0 var(--brand);
+}
+.caret { font-size: 0.8em; display: inline-block; }
+.has-children.open > .dropdown-toggle .caret { transform: rotate(180deg); }
+
+/* Dropdowns are closed by default and opened by hover (pointer devices),
+   keyboard focus, or an explicit tap/click which sets .open via JS. */
+.submenu {
+  display: none;
+  position: absolute; left: 0; top: 100%;
+  min-width: 16rem;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--brand);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.13);
+  padding: 0.35rem;
+  flex-direction: column;
+  z-index: 120;
+}
+/* Hover only where hovering is actually possible — otherwise touch devices
+   get a menu that opens on the first tap and navigates on the second. */
+@media (hover: hover) and (min-width: 961px) {
+  .has-children:hover > .submenu { display: flex; }
+}
+.has-children:focus-within > .submenu,
+.has-children.open > .submenu { display: flex; }
+.submenu a { font-size: 1rem; font-weight: 500; padding: 0.5rem 0.75rem; }
+
+/* ---------- Page head ---------- */
+.page-head {
+  background: linear-gradient(180deg, var(--brand-tint), var(--white));
+  padding: 2.25rem 0 1.75rem;
+  border-bottom: 1px solid var(--line);
+}
+.page-head h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); margin: 0; }
+.standfirst { font-size: 1.1rem; margin: 0.75rem 0 0; max-width: 70ch; color: var(--ink); }
+
+/* ---------- Hero (home) ---------- */
+.hero { background: linear-gradient(180deg, var(--brand-tint), var(--white)); padding: 3rem 0 1.5rem; }
+/* The lead is the last thing in the hero, so drop its trailing margin to avoid
+   a large empty band above the pricing banner. */
+.hero .lead:last-child { margin-bottom: 0; }
+.eyebrow {
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
+  color: var(--brand); margin: 0 0 0.5rem; font-size: 0.95rem;
+}
+.hero h1 { font-size: clamp(2rem, 5vw, 2.9rem); line-height: 1.15; margin: 0 0 1rem; max-width: 24ch; }
+.lead { font-size: 1.1rem; max-width: 70ch; margin: 0 0 1.5rem; }
+
+/* ---------- Prominent pricing banner ---------- */
+.price-banner { background: var(--brand); color: var(--white); padding: 1.5rem 0; }
+.price-banner-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1.25rem; flex-wrap: wrap;
+}
+.price-banner h2 {
+  color: var(--white); margin: 0;
+  font-size: clamp(1.8rem, 4vw, 2.4rem); line-height: 1;
+}
+.price-banner p { margin: 0.4rem 0 0; font-size: 1rem; max-width: 60ch; }
+.btn-onDark {
+  background: var(--white); color: var(--brand); border-color: var(--white);
+}
+.btn-onDark:hover { background: var(--brand-tint); }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-block; padding: 0.85rem 1.5rem; border-radius: 8px;
+  font-weight: 700; font-size: 1.05rem; text-decoration: none;
+  border: 2px solid transparent; font-family: var(--font-head); cursor: pointer;
+}
+.btn-primary { background: var(--brand); color: var(--white); }
+.btn-primary:hover { background: var(--brand-dark); }
+.btn-secondary { background: var(--white); color: var(--brand); border-color: var(--brand); }
+.btn-secondary:hover { background: var(--brand-tint); }
+
+/* ---------- Promises strip ---------- */
+.promises { background: var(--heading); color: var(--white); padding: 1.75rem 0; }
+/* Explicit column counts rather than auto-fit: auto-fit produced a 3 + 1
+   split at some widths, leaving one promise stranded on its own row. */
+.promise-list {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 1.25rem;
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1000px) { .promise-list { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px)  { .promise-list { grid-template-columns: 1fr; } }
+.promise-list li { display: flex; flex-direction: column; gap: 0.2rem; }
+.promise-title { font-family: var(--font-head); font-weight: 700; font-size: 1.1rem; color: var(--white); }
+.promise-detail { font-size: 0.98rem; color: #e2e4e7; }
+
+/* ---------- Sections and cards ---------- */
+.section { padding: 2.75rem 0; }
+.section-tint { background: var(--tint); }
+.section h2 { font-size: clamp(1.5rem, 3.2vw, 2rem); margin: 0 0 1.25rem; }
+.section h2 + .cards, .section h2 + .ticks { margin-top: 0; }
+
+.cards { display: grid; gap: 1.25rem; }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.cards.three { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: 10px; padding: 1.5rem;
+  display: flex; flex-direction: column;
+}
+.card h2, .card h3 { margin: 0 0 0.6rem; font-size: 1.2rem; }
+.card h3 a { text-decoration: none; }
+.card h3 a:hover { text-decoration: underline; }
+.card p { margin: 0 0 0.75rem; }
+.card.feature { border-top: 4px solid var(--brand); }
+.card .btn { margin-top: auto; align-self: flex-start; }
+.card .ticks { flex-grow: 1; }
+
+.ticks { list-style: none; margin: 0.5rem 0 1rem; padding: 0; }
+.ticks li { position: relative; padding-left: 1.75rem; margin-bottom: 0.5rem; }
+.ticks li::before {
+  content: "✓"; position: absolute; left: 0; top: 0;
+  color: var(--brand); font-weight: 900;
+}
+.ticks.wide { max-width: 75ch; }
+
+.plain-list { list-style: none; margin: 0; padding: 0; }
+.plain-list li { margin-bottom: 0.5rem; }
+
+/* ---------- Service pages ---------- */
+.service-body { max-width: 78ch; }
+.sibling-nav { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.sibling-nav h2 { font-size: 1.2rem; }
+.sibling-nav ul { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+
+/* ---------- Pricing page ---------- */
+.pricing-wrap {
+  display: grid; gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-bottom: 2rem;
+}
+.price-block {
+  background: var(--dark); color: var(--white);
+  border-radius: 10px; padding: 1.75rem;
+}
+.price-figure { font-size: 2.8rem; margin: 0 0 0.5rem; color: var(--white); line-height: 1; }
+.price-unit { font-size: 1.05rem; font-weight: 500; margin-left: 0.5rem; font-family: var(--font-body); }
+.price-note { margin: 0; color: #eceef0; }
+
+/* ---------- Call-to-action panel ---------- */
+.cta-panel {
+  background: var(--tint); border-left: 5px solid var(--brand);
+  border-radius: 8px; padding: 1.5rem; margin-top: 2rem;
+  max-width: 78ch;
+}
+.cta-panel h2 { margin: 0 0 0.5rem; font-size: 1.3rem; }
+.cta-panel p { margin: 0; font-size: 1rem; }
+
+/* ---------- Service areas ---------- */
+.areas {
+  list-style: none; margin: 0 0 1.25rem; padding: 0;
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.areas li {
+  background: var(--brand); color: var(--white);
+  font-family: var(--font-head); font-weight: 600; font-size: 1.4rem;
+  text-align: center; padding: 1.1rem 1rem; border-radius: 10px;
+}
+.area-note { margin: 0; font-size: 1rem; max-width: 70ch; }
+
+/* ---------- Forms ---------- */
+.contact-alt { font-size: 1.05rem; margin: 0 0 1.75rem; max-width: 72ch; }
+.contact-alt a { font-weight: 700; }
+
+.form-wrap {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: 10px; padding: 1.75rem; margin-bottom: 1.5rem;
+  max-width: 720px;
+}
+.form-wrap h2 { margin: 0 0 1.25rem; font-size: 1.3rem; }
+.field { margin-bottom: 1.1rem; border: 0; padding: 0; }
+.field > label, .field legend {
+  display: block; font-weight: 600; margin-bottom: 0.35rem; color: var(--heading);
+  padding: 0;
+}
+.optional { font-weight: 400; color: var(--muted); }
+.field input[type="text"], .field input[type="tel"], .field input[type="email"], .field textarea {
+  width: 100%; padding: 0.8rem 0.9rem;
+  font-family: var(--font-body); font-size: 1rem; color: var(--ink);
+  background: var(--white);
+  /* --muted is 6.4:1 on white, satisfying WCAG 1.4.11 for UI components. */
+  border: 2px solid var(--muted); border-radius: 8px;
+}
+.field textarea { resize: vertical; }
+.radio { display: block; font-weight: 500; margin-bottom: 0.4rem; }
+.radio input { margin-right: 0.4rem; }
+.form-note { margin: 1rem 0 0; color: var(--muted); font-size: 0.98rem; }
+.hidden-field { position: absolute; left: -9999px; }
+
+.booking-placeholder {
+  border: 2px dashed var(--line); border-radius: 10px;
+  padding: 1.75rem; text-align: center; color: var(--muted); background: var(--white);
+  max-width: 720px;
+}
+
+.contact-card {
+  font-style: normal; background: var(--tint);
+  border-left: 5px solid var(--brand); border-radius: 8px;
+  padding: 1.25rem; margin: 1rem 0; max-width: 32rem;
+}
+
+/* ---------- Footer ---------- */
+.site-footer { background: var(--dark-deep); color: #e4e6e8; padding: 2.5rem 0 1.5rem; }
+/* Explicit columns so the four footer blocks never split 3 + 1. */
+.footer-grid {
+  display: grid; gap: 1.75rem 1.5rem;
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1000px) { .footer-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px)  { .footer-grid { grid-template-columns: 1fr; } }
+.footer-col h2 {
+  color: var(--white); font-size: 1.05rem; margin: 0 0 0.75rem;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.footer-col ul { list-style: none; margin: 0; padding: 0; }
+.footer-col li { margin-bottom: 0.4rem; }
+.footer-col a { color: #cfe0ee; text-decoration: none; }
+.footer-col a:hover { text-decoration: underline; color: var(--white); }
+.footer-brand {
+  font-family: var(--font-head); font-weight: 700; font-size: 1.4rem;
+  margin: 0; color: var(--white);
+}
+.footer-tag { margin: 0 0 0.5rem; color: #ffb3b3; font-weight: 600; }
+.footer-small { color: #c9cdd1; font-size: 0.95rem; margin: 0; }
+.footer-address { font-style: normal; color: #c9cdd1; margin-top: 0.75rem; font-size: 0.95rem; }
+.footer-legal {
+  margin-top: 1.75rem; padding-top: 1rem;
+  border-top: 1px solid #4a4f55;
+}
+.footer-legal p { margin: 0; font-size: 0.92rem; color: #c9cdd1; }
+
+/* ---------- Responsive ---------- */
+
+/* Collapse the menu to a button before it can crowd the logo. */
+@media (max-width: 960px) {
+  .menu-toggle { display: block; }
+  .main-nav.is-collapsible { display: none; width: 100%; }
+  .main-nav.is-collapsible.is-open { display: block; }
+  /* The full menu is ~22 rows once a section is expanded, so let it scroll
+     within the viewport instead of pushing the page content out of the way. */
+  .main-nav.is-collapsible.is-open {
+    max-height: calc(100vh - 9rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .main-nav > ul { flex-direction: column; gap: 0; }
+  .main-nav a {
+    padding: 0.8rem 0.5rem; border-radius: 0;
+    border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .main-nav a[aria-current="page"] { box-shadow: inset 4px 0 0 var(--brand); }
+  /* Submenus sit inline rather than floating — but stay collapsed until tapped. */
+  .submenu {
+    position: static; box-shadow: none;
+    border: none; border-radius: 0; min-width: 0; padding: 0;
+    background: var(--tint);
+  }
+  .has-children.open > .submenu { display: block; }
+  .submenu a { padding-left: 1.75rem; }
+}
+
+@media (max-width: 640px) {
+  .utility-inner { justify-content: center; }
+  /* Phone gets a full-width row of its own (it is the primary action and the
+     longest label); WhatsApp and Email share the row beneath. Stops the number
+     wrapping onto two lines inside its button. */
+  .utility-contact {
+    width: 100%;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem;
+  }
+  .utility-contact .ubtn:first-child { grid-column: 1 / -1; }
+  .ubtn { min-width: 0; }
+  .hero { padding: 2.25rem 0 1.75rem; }
+  .section { padding: 2rem 0; }
+  .page-head { padding: 1.75rem 0 1.25rem; }
+  .price-banner-inner { flex-direction: column; align-items: flex-start; }
+  .btn { width: 100%; text-align: center; }
+  .card .btn { align-self: stretch; }
+  .form-wrap, .booking-placeholder { padding: 1.25rem; }
+  .areas li { font-size: 1.2rem; padding: 0.9rem; }
+  .price-figure { font-size: 2.3rem; }
+}
+
+/* Only drop the tagline on genuinely tiny screens — most phones are 375px+
+   and the tagline is part of the brand. */
+@media (max-width: 340px) {
+  .brand-tag { display: none; }
+  .brand-name { font-size: 1.25rem; }
+  .brand-cross { width: 1.9rem; height: 1.9rem; }
+}

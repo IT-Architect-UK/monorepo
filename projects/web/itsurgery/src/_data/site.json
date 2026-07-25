@@ -1,0 +1,30 @@
+{
+  "name": "IT Surgery",
+  "tagline": "Curing IT Headaches",
+  "legalName": "IT Solution Architecture Limited",
+  "url": "https://itsurgery.me",
+  "phoneDisplay": "07775 580371",
+  "phoneLink": "+447775580371",
+  "whatsapp": "447775580371",
+  "email": "Help@ITSurgery.me",
+  "address": {
+    "street": "8 Beechwood Close",
+    "locality": "Sully",
+    "town": "Penarth",
+    "postcode": "CF64 5WW"
+  },
+  "areas": ["Penarth", "Barry", "Cardiff"],
+  "hourlyRate": "30",
+  "bookingFee": "20",
+  "nav": [
+    { "text": "Home", "url": "/" },
+    { "text": "Business IT", "url": "/business-it/", "group": "business" },
+    { "text": "Personal IT", "url": "/personal-it/", "group": "personal" },
+    { "text": "Pricing", "url": "/pricing/" },
+    { "text": "Site Map", "url": "/site-map/" }
+  ],
+  "utilityNav": [
+    { "text": "About Us", "url": "/about-us/" },
+    { "text": "Quote Request", "url": "/quote/" }
+  ]
+}

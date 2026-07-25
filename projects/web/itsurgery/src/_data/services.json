@@ -1,0 +1,228 @@
+[
+  {
+    "slug": "business-network",
+    "title": "Business Network Services",
+    "group": "business",
+    "summary": "Secure, robust networks — designed, installed and maintained.",
+    "intro": "We bring years of experience, technical expertise and modern solutions together to keep your network running at its best. Our work with firewall and switch technologies means your data is not just connected, but properly protected.",
+    "body": "Whether your network sits on your premises, in the cloud, or across both, we understand the differences and tailor the design to suit you. We build secure, resilient network infrastructure that stands up to the demands placed on a modern business.",
+    "points": [
+      "Network design and installation",
+      "Firewalls and switch configuration",
+      "On-premise, cloud and hybrid networks",
+      "Wi-Fi coverage and performance",
+      "Ongoing monitoring and maintenance"
+    ]
+  },
+  {
+    "slug": "business-web-services",
+    "title": "Business Web Services",
+    "group": "business",
+    "summary": "Websites, hosting and domains — set up properly and kept running.",
+    "intro": "We provide web services designed to strengthen your online presence. Whether you are launching a first website or improving one you already have, we have the expertise to deliver it.",
+    "body": "We can host your site on a platform that fits your needs, whether that is a self-hosted server or a cloud service, and we will look after the domains, certificates and backups that keep it online and secure.",
+    "points": [
+      "Website design and build",
+      "Web server deployment, self-hosted or cloud",
+      "Domain and DNS management",
+      "TLS certificates and renewals",
+      "Backups and ongoing maintenance"
+    ]
+  },
+  {
+    "slug": "cloud-it-services",
+    "title": "Cloud IT Services",
+    "group": "business",
+    "summary": "Azure, Microsoft 365 and AWS — planned, migrated and managed.",
+    "intro": "We are cloud specialists working across Microsoft Azure, Microsoft 365 and AWS. We help businesses move to the cloud sensibly, at a pace that suits them, without disruption.",
+    "body": "Moving to the cloud should reduce your costs and your worries, not add to them. We plan the migration properly, keep your data safe throughout, and make sure you understand what you are paying for afterwards.",
+    "points": [
+      "Cloud readiness assessment and planning",
+      "Microsoft Azure and AWS deployments",
+      "Migration from on-premise servers",
+      "Cost review and right-sizing",
+      "Ongoing cloud management"
+    ]
+  },
+  {
+    "slug": "cyber-security",
+    "title": "Cyber Security",
+    "group": "business",
+    "summary": "Practical protection against real threats — not scare tactics.",
+    "intro": "Security should be proportionate and understandable. We assess where you are genuinely exposed, fix what matters most first, and explain the risks in plain English so you can make informed decisions.",
+    "body": "From firewalls and endpoint protection to staff awareness and backup testing, we focus on the measures that actually reduce your risk rather than selling you products you do not need.",
+    "points": [
+      "Security review and risk assessment",
+      "Firewall and endpoint protection",
+      "Patching and vulnerability management",
+      "Backup and recovery testing",
+      "Staff awareness and phishing guidance"
+    ]
+  },
+  {
+    "slug": "office-365-business",
+    "title": "Office 365 Business",
+    "group": "business",
+    "summary": "Microsoft 365 set up, migrated and running smoothly.",
+    "intro": "Microsoft 365 gives small businesses enterprise-grade email, file storage and collaboration tools. We set it up correctly from the start so it is secure, licensed sensibly and easy for your team to use.",
+    "body": "We handle migrations from older email systems, configure security settings that are often left at their weak defaults, and make sure your data is backed up rather than simply assumed to be safe.",
+    "points": [
+      "Microsoft 365 setup and licensing advice",
+      "Email migration with no loss of mail",
+      "SharePoint and OneDrive file storage",
+      "Teams setup and configuration",
+      "Security hardening and multi-factor authentication"
+    ]
+  },
+  {
+    "slug": "it-disposal",
+    "title": "Secure IT Disposal",
+    "group": "business",
+    "summary": "Old equipment removed, data destroyed, disposed of responsibly.",
+    "intro": "Old computers and drives hold more data than most people realise. We make sure equipment leaving your business is wiped properly, disposed of responsibly, and documented so you have a record.",
+    "body": "Deleting files is not the same as destroying data. We use recognised methods to make sure information cannot be recovered, and recycle hardware in line with environmental obligations.",
+    "points": [
+      "Secure data erasure to recognised standards",
+      "Physical destruction where required",
+      "Certificates of destruction for your records",
+      "Environmentally responsible recycling",
+      "Collection from your premises"
+    ]
+  },
+  {
+    "slug": "virtual-desktops",
+    "title": "Virtual Desktops",
+    "group": "business",
+    "summary": "Desktops your staff can reach securely from anywhere.",
+    "intro": "Virtual desktops let your team work from any location while your data stays centrally controlled and backed up. They can simplify support and reduce what you spend on end-user hardware.",
+    "body": "We design and deploy virtual desktop environments sized to your actual needs, and make sure performance is good enough that people genuinely want to use them.",
+    "points": [
+      "Virtual desktop design and sizing",
+      "Secure remote access for staff",
+      "Centralised data and backup",
+      "Reduced spend on end-user hardware",
+      "Simplified support and updates"
+    ]
+  },
+  {
+    "slug": "virtualisation-platforms",
+    "title": "Virtualisation Platforms",
+    "group": "business",
+    "summary": "Server virtualisation built for reliability and easy recovery.",
+    "intro": "Virtualisation lets you run more workloads on less hardware, with far better resilience. We design, build and maintain virtualisation platforms that are straightforward to run and quick to recover.",
+    "body": "We have deep experience with enterprise virtualisation and bring that same discipline to smaller environments — proper capacity planning, sensible backups, and recovery you have actually tested.",
+    "points": [
+      "Platform design and capacity planning",
+      "Build and migration of existing servers",
+      "High availability and resilience",
+      "Backup, replication and tested recovery",
+      "Ongoing maintenance and patching"
+    ]
+  },
+
+  {
+    "slug": "pc-repair-maintenance",
+    "title": "PC Repair & Maintenance",
+    "group": "personal",
+    "summary": "Slow, crashing or broken? We diagnose the real cause and fix it.",
+    "intro": "Whether you are facing hardware faults, software problems, or a computer that has simply become painfully slow, we can help. We diagnose the actual cause rather than guessing, and tell you honestly whether a repair is worth it.",
+    "body": "Problems with your computer are frustrating and disruptive. We work to get you back up and running quickly, explain what went wrong in plain English, and show you how to avoid it happening again.",
+    "points": [
+      "Slow or freezing computers made usable again",
+      "Computers that will not start or keep crashing",
+      "Hardware faults, replacements and upgrades",
+      "Software problems and Windows issues",
+      "Health checks and preventative maintenance"
+    ]
+  },
+  {
+    "slug": "new-device-setup",
+    "title": "New Device Setup",
+    "group": "personal",
+    "summary": "New computer, phone or tablet set up properly — and your files moved across.",
+    "intro": "A new device should be a pleasure, not a puzzle. We set everything up properly, move your files, photos and email across from the old one, and make sure it works the way you want before we leave.",
+    "body": "We will also take the time to show you what has changed, so the new machine feels familiar rather than daunting.",
+    "points": [
+      "New computers, laptops, phones and tablets",
+      "Files, photos and email transferred across",
+      "Printers and devices connected",
+      "Accounts, passwords and backups configured",
+      "A walk-through so you know your way around"
+    ]
+  },
+  {
+    "slug": "home-networking",
+    "title": "Home Networking",
+    "group": "personal",
+    "summary": "Wi-Fi that reaches every room and stops dropping out.",
+    "intro": "Poor Wi-Fi is one of the most common frustrations we are called out for. We find out why your connection is weak or unreliable and put in a fix that actually holds.",
+    "body": "That might mean repositioning equipment, replacing an ageing router, or adding mesh units to cover the parts of your home that have never had a decent signal.",
+    "points": [
+      "Wi-Fi drop-outs and weak signal resolved",
+      "Full-home coverage with mesh systems",
+      "Router replacement and configuration",
+      "Smart TVs, speakers and devices connected",
+      "Guest networks and parental controls"
+    ]
+  },
+  {
+    "slug": "malware-protection-recovery",
+    "title": "Malware Protection & Recovery",
+    "group": "personal",
+    "summary": "Viruses and scam pop-ups removed, and protection put in place.",
+    "intro": "If your computer is covered in pop-ups, behaving oddly, or showing alarming warnings, we can clean it up. We will also tell you honestly whether a warning you have seen is genuine or a scam.",
+    "body": "Once your machine is clean, we put sensible protection in place and show you the signs to look out for, so you feel confident rather than anxious online.",
+    "points": [
+      "Virus and malware removal",
+      "Scam pop-ups and fake warnings dealt with",
+      "Suspicious email and message checks",
+      "Protection installed and configured",
+      "Plain-English advice on staying safe"
+    ]
+  },
+  {
+    "slug": "data-recovery",
+    "title": "Data Recovery",
+    "group": "personal",
+    "summary": "Lost photos, documents or files? We will try to get them back.",
+    "intro": "From accidental deletions to failed drives, our data recovery work covers a wide range of situations. We use proven tools and techniques to recover what can be recovered.",
+    "body": "We will always be straight with you about the chances of success before you commit to anything, and about whether specialist lab recovery would give you a better outcome.",
+    "points": [
+      "Accidentally deleted files and photos",
+      "Failing or failed hard drives and SSDs",
+      "Memory cards and USB drives",
+      "Honest assessment of the likely outcome",
+      "Backups set up so it does not happen again"
+    ]
+  },
+  {
+    "slug": "it-training",
+    "title": "IT Training",
+    "group": "personal",
+    "summary": "Patient one-to-one help so you can do it yourself next time.",
+    "intro": "Sometimes you would rather learn than simply be fixed. We will sit with you and go through whatever you want to understand, at your pace, for as long as it takes.",
+    "body": "There is no such thing as a silly question here. Whether it is email, video calls with family, online shopping and banking safely, or getting to grips with a new device, we will explain it clearly and without jargon.",
+    "points": [
+      "One-to-one sessions in your own home",
+      "Email, internet and video calling",
+      "Shopping and banking online safely",
+      "Getting comfortable with a new device",
+      "Notes to refer back to afterwards"
+    ]
+  },
+  {
+    "slug": "custom-pcs",
+    "title": "Custom PCs",
+    "group": "personal",
+    "summary": "A computer specified and built around what you actually need.",
+    "intro": "Off-the-shelf computers are a compromise. We can specify and build a machine around what you genuinely need it for, whether that is everyday use, photo and video work, or gaming.",
+    "body": "You get components chosen on merit rather than margin, a machine that is straightforward to upgrade later, and someone local to call if you ever need help with it.",
+    "points": [
+      "Specified around your budget and use",
+      "Quality components chosen on merit",
+      "Built, tested and delivered set up",
+      "Straightforward to upgrade later",
+      "Local support afterwards"
+    ]
+  }
+]

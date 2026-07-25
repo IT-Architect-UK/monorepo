@@ -34,3 +34,12 @@ README for scope and roadmap.
 |------|---------|
 | `src/wmtx_monitor.py` | Spread monitor CLI (poll · model · log · alert) |
 | `tests/test_monitor.py` | Offline pipeline tests (mocked market data) |
+
+## Web — `web/`
+
+Static websites for the business's trading brands, deployed to Netlify from this
+repo. See `web/README.md` for conventions.
+
+| Project | Purpose |
+|---------|---------|
+| `web/itsurgery/` | IT Surgery — local IT support site for Penarth, Barry and Cardiff. Eleventy; 22 pages generated from shared layouts and structured data. |

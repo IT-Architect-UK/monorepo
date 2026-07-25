@@ -1,0 +1,39 @@
+---
+layout: layouts/base.njk
+title: Personal IT
+heading: Personal IT
+standfirst: Friendly, patient help with any IT problem — in your own home, at your own pace.
+description: Personal IT help from IT Surgery — PC repair, new device setup, home Wi-Fi, virus removal, data recovery and one-to-one training in Penarth, Barry and Cardiff.
+---
+
+<section class="section">
+  <div class="container">
+    <p class="lead">
+      We are here to help with any IT challenge you come up against, so you feel
+      properly supported rather than stuck. Our approach is grounded in honesty,
+      patience and plain English. The services below are the ones we are asked
+      for most — but our expertise is not limited to these, so if your problem
+      isn't listed, please still ask.
+    </p>
+
+    <h2>Our personal services</h2>
+    <div class="cards three">
+      {% for s in services %}{% if s.group == "personal" %}
+      <article class="card">
+        <h3><a href="/{{ s.slug }}/">{{ s.title }}</a></h3>
+        <p>{{ s.summary }}</p>
+      </article>
+      {% endif %}{% endfor %}
+    </div>
+
+    <div class="cta-panel">
+      <h2>Not sure what you need?</h2>
+      <p>
+        Call <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a>,
+        <a href="https://wa.me/{{ site.whatsapp }}" rel="noopener">message us on WhatsApp</a>,
+        or <a href="/quote/">ask us to call you back</a>. We are happy to talk it
+        through before you commit to anything.
+      </p>
+    </div>
+  </div>
+</section>

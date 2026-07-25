@@ -1,0 +1,58 @@
+<footer class="site-footer">
+  <div class="container footer-grid">
+
+    <div class="footer-col">
+      <p class="footer-brand">{{ site.name }}</p>
+      <p class="footer-tag">{{ site.tagline }}</p>
+      <p class="footer-small">
+        Friendly IT help for homes and small businesses in
+        {{ site.areas | join(", ") }}.
+      </p>
+    </div>
+
+    <div class="footer-col">
+      <h2>Business IT</h2>
+      <ul>
+        <li><a href="/business-it/">Business IT overview</a></li>
+        {% for s in services %}{% if s.group == "business" %}
+        <li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>
+        {% endif %}{% endfor %}
+      </ul>
+    </div>
+
+    <div class="footer-col">
+      <h2>Personal IT</h2>
+      <ul>
+        <li><a href="/personal-it/">Personal IT overview</a></li>
+        {% for s in services %}{% if s.group == "personal" %}
+        <li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>
+        {% endif %}{% endfor %}
+      </ul>
+    </div>
+
+    <div class="footer-col">
+      <h2>Get in touch</h2>
+      <ul class="footer-contact">
+        <li><a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a></li>
+        <li><a href="https://wa.me/{{ site.whatsapp }}" rel="noopener">WhatsApp us</a></li>
+        <li><a href="mailto:{{ site.email }}">{{ site.email }}</a></li>
+        <li><a href="/quote/">Quote Request</a></li>
+        <li><a href="/pricing/">Pricing</a></li>
+        <li><a href="/about-us/">About Us</a></li>
+        <li><a href="/site-map/">Site Map</a></li>
+      </ul>
+      <address class="footer-address">
+        {{ site.address.street }}<br />
+        {{ site.address.locality }}, {{ site.address.town }}<br />
+        {{ site.address.postcode }}
+      </address>
+    </div>
+
+  </div>
+
+  <div class="container footer-legal">
+    <p>
+      &copy; {% year %} {{ site.name }} — a trading name of {{ site.legalName }}.
+    </p>
+  </div>
+</footer>

@@ -1,0 +1,77 @@
+---
+layout: layouts/base.njk
+title: Quote Request
+heading: Quote Request
+standfirst: Tell us what you need and we'll come back to you with a clear price. Not sure how to describe it? Just ask for a callback.
+description: Request a quote or a callback from IT Surgery — friendly IT help for homes and small businesses in Penarth, Barry and Cardiff. No obligation.
+---
+
+<section class="section">
+  <div class="container">
+    <p class="lead">
+      Please complete the form with as much information as you can. We are happy
+      to quote for any task or project. If you are not sure how to describe what
+      you need, simply ask for a callback and we will phone you to talk it
+      through, then provide a quote.
+    </p>
+
+    <p class="contact-alt">
+      Rather talk now? Call <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a>,
+      <a href="https://wa.me/{{ site.whatsapp }}?text=Hello%2C%20I%27d%20like%20some%20help%20with%20an%20IT%20problem" rel="noopener">message us on WhatsApp</a>
+      — you can even send a photo of the error message — or email
+      <a href="mailto:{{ site.email }}">{{ site.email }}</a>.
+    </p>
+
+    {# Handled by Netlify Forms — no server or backend needed. #}
+    <div class="form-wrap">
+      <h2>Request a quote or callback</h2>
+      <form name="quote" method="POST" data-netlify="true" data-netlify-honeypot="bot-field">
+        <p class="hidden-field">
+          <label>Don't fill this in if you're human: <input name="bot-field" /></label>
+        </p>
+
+        <div class="field">
+          <label for="name">Your name</label>
+          <input id="name" name="name" type="text" autocomplete="name" required />
+        </div>
+
+        <div class="field">
+          <label for="phone">Phone number</label>
+          <input id="phone" name="phone" type="tel" autocomplete="tel" required />
+        </div>
+
+        <div class="field">
+          <label for="email">Email <span class="optional">(optional)</span></label>
+          <input id="email" name="email" type="email" autocomplete="email" />
+        </div>
+
+        <fieldset class="field">
+          <legend>What do you need help with?</legend>
+          <label class="radio"><input type="radio" name="type" value="personal" checked /> Home / personal IT</label>
+          <label class="radio"><input type="radio" name="type" value="business" /> Business IT</label>
+        </fieldset>
+
+        <div class="field">
+          <label for="problem">How can we help?</label>
+          <textarea id="problem" name="problem" rows="5"
+            placeholder="A sentence or two is plenty — for example: my laptop has become very slow."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="when">Best time to call you <span class="optional">(optional)</span></label>
+          <input id="when" name="when" type="text" placeholder="e.g. weekday mornings" />
+        </div>
+
+        <button class="btn btn-primary" type="submit">Send request</button>
+        <p class="form-note">
+          We'll only use your details to get back to you about your enquiry.
+        </p>
+      </form>
+    </div>
+
+    <div class="booking-placeholder">
+      <p><strong>Prefer to pick your own slot?</strong></p>
+      <p>Online booking is coming shortly.</p>
+    </div>
+  </div>
+</section>

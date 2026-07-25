@@ -1,0 +1,58 @@
+---
+# One template generates every service page from src/_data/services.json,
+# so the 15 service pages share a single layout and cannot drift apart.
+layout: layouts/base.njk
+pagination:
+  data: services
+  size: 1
+  alias: service
+permalink: "/{{ service.slug }}/"
+eleventyComputed:
+  # `| safe` prevents double-escaping: this front matter is itself rendered as a
+  # template, so an unescaped "&" would become "&amp;" here and "&amp;amp;" when
+  # the layout outputs it. Escaping happens once, at output.
+  title: "{{ service.title | safe }}"
+  heading: "{{ service.title | safe }}"
+  standfirst: "{{ service.summary | safe }}"
+  description: "{{ service.title | safe }} from IT Surgery — {{ service.summary | safe }} Serving Penarth, Barry and Cardiff."
+---
+
+<section class="section">
+  <div class="container">
+    <div class="service-body">
+      <p class="lead">{{ service.intro }}</p>
+      <p>{{ service.body }}</p>
+
+      <h2>What this covers</h2>
+      <ul class="ticks wide">
+        {% for p in service.points %}<li>{{ p }}</li>{% endfor %}
+      </ul>
+
+      <div class="cta-panel">
+        <h2>Talk to us about {{ service.title }}</h2>
+        <p>
+          Call <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a>,
+          <a href="https://wa.me/{{ site.whatsapp }}" rel="noopener">message us on WhatsApp</a>,
+          or <a href="/quote/">request a quote</a>.
+          Our rate is £{{ site.hourlyRate }} an hour, and if we can't fix it you don't pay.
+        </p>
+      </div>
+
+      <nav class="sibling-nav" aria-label="Related services">
+        <h2>Other {{ "business" if service.group == "business" else "personal" }} services</h2>
+        <ul>
+          {% for s in services %}
+            {% if s.group == service.group and s.slug != service.slug %}
+            <li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+        <p>
+          <a href="{{ '/business-it/' if service.group == 'business' else '/personal-it/' }}">
+            Back to {{ "Business IT" if service.group == "business" else "Personal IT" }}
+          </a>
+        </p>
+      </nav>
+    </div>
+  </div>
+</section>

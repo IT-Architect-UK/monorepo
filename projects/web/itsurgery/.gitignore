@@ -1,0 +1,13 @@
+# Build output
+_site/
+
+# Dependencies
+node_modules/
+
+# Netlify local
+.netlify/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,56 @@
+---
+layout: layouts/base.njk
+title: About Us
+heading: About Us
+standfirst: Local, experienced IT help built on honesty and plain English.
+description: About IT Surgery — local IT support for homes and small businesses in Penarth, Barry and Cardiff, based in Sully. Decades of IT experience, delivered in plain English.
+---
+
+<section class="section">
+  <div class="container narrow">
+    <p class="lead">
+      IT Surgery provides friendly, practical IT help to homes and small
+      businesses across Penarth, Barry and Cardiff. We are local, we come to you,
+      and we explain things in language that makes sense.
+    </p>
+
+    <h2>Decades of experience, applied to real problems</h2>
+    <p>
+      Behind IT Surgery is a career spent designing and running IT
+      infrastructure for demanding environments — networks, servers, cloud
+      platforms and security. That same discipline goes into fixing a slow laptop
+      as into building a business network.
+    </p>
+    <p>
+      It also means we can tell the difference between a problem worth spending
+      money on and one that isn't. You will always get a straight answer.
+    </p>
+
+    <h2>How we work</h2>
+    <ul class="ticks wide">
+      <li><strong>Honesty and transparency.</strong> Clear prices, clear explanations, no surprises.</li>
+      <li><strong>Patience.</strong> We never rush you and never make you feel silly for asking.</li>
+      <li><strong>Plain English.</strong> No jargon, and no talking down to you either.</li>
+      <li><strong>Long-term relationships.</strong> We would rather earn repeat custom than make a quick sale.</li>
+    </ul>
+
+    <h2>Where to find us</h2>
+    <p>
+      We visit customers throughout Penarth, Barry, Cardiff and the surrounding
+      Vale of Glamorgan. Please call or email if you would like to discuss a
+      requirement.
+    </p>
+    <address class="contact-card">
+      <strong>{{ site.name }}</strong><br />
+      {{ site.address.street }}<br />
+      {{ site.address.locality }}<br />
+      {{ site.address.town }}<br />
+      {{ site.address.postcode }}<br /><br />
+      Tel: <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a><br />
+      Email: <a href="mailto:{{ site.email }}">{{ site.email }}</a>
+    </address>
+    <p class="footer-small">
+      {{ site.name }} is a trading name of {{ site.legalName }}.
+    </p>
+  </div>
+</section>

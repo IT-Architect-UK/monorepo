@@ -1,0 +1,58 @@
+{# Utility bar: About Us / Quote Request plus all contact actions, matched size. #}
+<div class="utility-bar">
+  <div class="container utility-inner">
+    <nav class="utility-links" aria-label="Secondary">
+      {% for item in site.utilityNav %}
+      <a href="{{ item.url }}"{% if page.url == item.url %} aria-current="page"{% endif %}>{{ item.text }}</a>
+      {% endfor %}
+    </nav>
+    <nav class="utility-contact" aria-label="Contact us">
+      <a class="ubtn" href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a>
+      <a class="ubtn" href="https://wa.me/{{ site.whatsapp }}?text=Hello%2C%20I%27d%20like%20some%20help%20with%20an%20IT%20problem" rel="noopener">WhatsApp</a>
+      <a class="ubtn" href="mailto:{{ site.email }}">Email</a>
+    </nav>
+  </div>
+</div>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="/" aria-label="{{ site.name }} — home">
+      {# Inline SVG cross: crisp at every size and on every screen. #}
+      <svg class="brand-cross" viewBox="0 0 40 40" role="img" aria-hidden="true" focusable="false">
+        <path fill="#990000" d="M15 2h10v13h13v10H25v13H15V25H2V15h13z" />
+      </svg>
+      <span class="brand-text">
+        <span class="brand-name">{{ site.name }}</span>
+        <span class="brand-tag">{{ site.tagline }}</span>
+      </span>
+    </a>
+
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" hidden>
+      <span class="menu-toggle-text">Menu</span>
+    </button>
+
+    <nav class="main-nav" id="main-nav" aria-label="Main">
+      <ul>
+        {% for item in site.nav %}
+          {% if item.group %}
+          <li class="has-children">
+            <a class="dropdown-toggle" href="{{ item.url }}" aria-expanded="false"{% if page.url == item.url %} aria-current="page"{% endif %}>
+              {{ item.text }} <span class="caret" aria-hidden="true">▾</span>
+            </a>
+            <ul class="submenu">
+              <li><a href="{{ item.url }}">{{ item.text }} overview</a></li>
+              {% for s in services %}
+                {% if s.group == item.group %}
+                <li><a href="/{{ s.slug }}/"{% if page.url == "/" + s.slug + "/" %} aria-current="page"{% endif %}>{{ s.title }}</a></li>
+                {% endif %}
+              {% endfor %}
+            </ul>
+          </li>
+          {% else %}
+          <li><a href="{{ item.url }}"{% if page.url == item.url %} aria-current="page"{% endif %}>{{ item.text }}</a></li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </nav>
+  </div>
+</header>

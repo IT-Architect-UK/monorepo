@@ -1,0 +1,107 @@
+---
+layout: layouts/base.njk
+title: Friendly IT Help in Penarth, Barry & Cardiff
+description: Friendly, patient IT help for homes and small businesses in Penarth, Barry and Cardiff. £30 an hour, plain English, no fix no fee. Call 07775 580371.
+hidePageTitle: true
+---
+
+<section class="hero">
+  <div class="container">
+    <p class="eyebrow">{{ site.areas | join(" · ") }}</p>
+    <h1>Whatever your IT problem, we'll sort it</h1>
+    <p class="lead">
+      Computers, phones, printers, Wi-Fi, email — if it plugs in, switches on or
+      connects to the internet, we can help. We come to you, explain everything
+      in plain English, and never make you feel silly for asking.
+    </p>
+  </div>
+</section>
+
+{# Pricing raised right up the page, per the brief. #}
+<section class="price-banner" aria-labelledby="price-banner-title">
+  <div class="container price-banner-inner">
+    <div class="price-banner-main">
+      <h2 id="price-banner-title">£{{ site.hourlyRate }} an hour</h2>
+      <p>
+        £{{ site.bookingFee }} to book, taken off your first hour — and refunded
+        in full if we can't fix the problem. <strong>No fix, no fee.</strong>
+      </p>
+    </div>
+    <a class="btn btn-onDark" href="/pricing/">See full pricing</a>
+  </div>
+</section>
+
+<section class="promises" aria-labelledby="promises-title">
+  <div class="container">
+    <h2 id="promises-title" class="visually-hidden">Our promises to you</h2>
+    <ul class="promise-list">
+      <li>
+        <span class="promise-title">No fix, no fee</span>
+        <span class="promise-detail">Can't solve it? You get your booking fee back.</span>
+      </li>
+      <li>
+        <span class="promise-title">We come to you</span>
+        <span class="promise-detail">Help in your own home or business premises.</span>
+      </li>
+      <li>
+        <span class="promise-title">Plain English, always</span>
+        <span class="promise-detail">No jargon, no talking down to you.</span>
+      </li>
+      <li>
+        <span class="promise-title">Local &amp; fast</span>
+        <span class="promise-detail">Based nearby, quick to respond.</span>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="who-title">
+  <div class="container">
+    <h2 id="who-title">How can we help you?</h2>
+    <div class="cards two">
+      <article class="card feature">
+        <h3>Personal IT</h3>
+        <p>
+          Navigating technology can be daunting, but we're here to help. Our
+          friendly, patient service makes technology easy to understand — solving
+          your tech troubles and helping you get the most from your devices.
+        </p>
+        <ul class="ticks">
+          <li>Repairs, slow computers and crashes</li>
+          <li>New devices set up and files moved over</li>
+          <li>Wi-Fi, printers and smart devices</li>
+          <li>Patient one-to-one training</li>
+        </ul>
+        <a class="btn btn-primary" href="/personal-it/">Personal IT services</a>
+      </article>
+      <article class="card feature">
+        <h3>Business IT</h3>
+        <p>
+          Your one-stop solution for comprehensive business IT. We take pride in
+          honesty and transparency, prioritising positive outcomes and long-term
+          relationships over quick wins.
+        </p>
+        <ul class="ticks">
+          <li>Networks, firewalls and Wi-Fi</li>
+          <li>Cloud, Azure and Microsoft 365</li>
+          <li>Cyber security and backups</li>
+          <li>Virtualisation and virtual desktops</li>
+        </ul>
+        <a class="btn btn-primary" href="/business-it/">Business IT services</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tint" aria-labelledby="area-title">
+  <div class="container">
+    <h2 id="area-title">Where we work</h2>
+    <ul class="areas">
+      {% for a in site.areas %}<li>{{ a }}</li>{% endfor %}
+    </ul>
+    <p class="area-note">
+      Plus the surrounding areas of the Vale of Glamorgan. Not sure if we cover
+      you? Just ask — we'll tell you straight away.
+    </p>
+  </div>
+</section>

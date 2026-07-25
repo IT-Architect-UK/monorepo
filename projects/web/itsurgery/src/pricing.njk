@@ -1,0 +1,54 @@
+---
+layout: layouts/base.njk
+title: Pricing
+heading: Simple, honest pricing
+standfirst: £30 an hour, a £20 booking fee that comes off your first hour, and no charge at all if we can't fix it.
+description: IT Surgery pricing — £30 per hour for home and small business IT help in Penarth, Barry and Cardiff. £20 booking fee deducted from your first hour, refunded if we cannot fix the problem.
+---
+
+<section class="section">
+  <div class="container">
+    <div class="pricing-wrap">
+      <div class="price-block">
+        <p class="price-figure">£{{ site.hourlyRate }}<span class="price-unit">per hour</span></p>
+        <p class="price-note">
+          Our straightforward rate for home and small-business work, charged for
+          the time we actually spend.
+        </p>
+      </div>
+      <div class="price-block">
+        <p class="price-figure">£{{ site.bookingFee }}<span class="price-unit">to book</span></p>
+        <p class="price-note">
+          Secures your appointment and comes straight off your first hour, so it
+          is not an extra charge. If we can't fix your problem, you get it back.
+        </p>
+      </div>
+    </div>
+
+    <h2>What that means in practice</h2>
+    <ul class="ticks wide">
+      <li>You pay £20 to book a visit at a time that suits you.</li>
+      <li>We arrive, diagnose the problem and tell you what is wrong.</li>
+      <li>Before we go any further, you know what it will cost.</li>
+      <li>The £20 is deducted from your first hour — so an hour's work is £30 in total, not £50.</li>
+      <li>If we cannot fix the problem, the £20 is refunded in full.</li>
+    </ul>
+
+    <h2>Things worth knowing</h2>
+    <ul class="ticks wide">
+      <li>No call-out charge on top — travel within our service area is included.</li>
+      <li>Parts and hardware are quoted separately, and always agreed with you first.</li>
+      <li>We will tell you honestly if a repair is not worth the money.</li>
+      <li>Business work can be quoted as a fixed price for a project — just ask.</li>
+    </ul>
+
+    <div class="cta-panel">
+      <h2>Ready to get started?</h2>
+      <p>
+        Call us on <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a>,
+        <a href="https://wa.me/{{ site.whatsapp }}" rel="noopener">message us on WhatsApp</a>,
+        or <a href="/quote/">request a quote or callback</a>.
+      </p>
+    </div>
+  </div>
+</section>
