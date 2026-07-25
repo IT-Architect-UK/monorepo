@@ -32,7 +32,7 @@ eleventyComputed:
         <h2>Talk to us about {{ service.title }}</h2>
         <p>
           Call <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a>,
-          <a href="https://wa.me/{{ site.whatsapp }}" rel="noopener">message us on WhatsApp</a>,
+          <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>,
           or <a href="/quote/">request a quote</a>.
           {# Services can override the standard hourly line — project work is
              quoted rather than charged by the hour. #}
