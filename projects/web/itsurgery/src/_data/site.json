@@ -72,10 +72,6 @@
     {
       "text": "Support Plans",
       "url": "/support-plans/"
-    },
-    {
-      "text": "Site Map",
-      "url": "/site-map/"
     }
   ],
   "utilityNav": [
@@ -87,5 +83,6 @@
       "text": "Quote Request",
       "url": "/quote/"
     }
-  ]
+  ],
+  "privacyUpdated": "July 2026"
 }
