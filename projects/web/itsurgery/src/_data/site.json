@@ -19,8 +19,14 @@
   "planHomeRate": "25",
   "planBusinessRate": "40",
   "bookingFee": "20",
-  "introOfferEnds": "31 October 2026",
-  "introHoldMonths": "3",
+  "introStarts": "1 August 2026",
+  "introEnds": "31 October 2026",
+  "standardFrom": "1 November 2026",
+  "plans": {
+    "essentials": { "intro": "35", "standard": "45" },
+    "standard": { "intro": "55", "standard": "70" },
+    "home": { "intro": "12", "standard": "15" }
+  },
   "nav": [
     { "text": "Home", "url": "/" },
     { "text": "Business IT", "url": "/business-it/", "group": "business" },

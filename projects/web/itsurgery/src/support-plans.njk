@@ -15,12 +15,14 @@ description: Monthly IT support plans for small businesses and home users in Pen
     </p>
 
     <div class="intro-offer">
-      <p class="intro-flag">Introductory pricing</p>
+      <p class="intro-flag">Launch pricing</p>
       <p>
-        Start a plan before <strong>{{ site.introOfferEnds }}</strong> and the
-        prices below are held for your first
-        <strong>{{ site.introHoldMonths }} months</strong>. After that we will
-        give you a month's notice of any change, and you can cancel at any time.
+        The prices below are our introductory rates, running from
+        <strong>{{ site.introStarts }}</strong> to
+        <strong>{{ site.introEnds }}</strong>. From
+        <strong>{{ site.standardFrom }}</strong> our standard prices apply —
+        they are shown alongside each plan, so there are no surprises. You can
+        cancel at any time with a month's notice.
       </p>
     </div>
 
@@ -33,7 +35,8 @@ description: Monthly IT support plans for small businesses and home users in Pen
     <div class="plans">
       <article class="plan">
         <h3>Essentials</h3>
-        <p class="plan-price">£35<span class="plan-unit">per user / month</span></p>
+        <p class="plan-price">£{{ site.plans.essentials.intro }}<span class="plan-unit">per user / month</span></p>
+        <p class="plan-after">£{{ site.plans.essentials.standard }} from {{ site.standardFrom }}</p>
         <ul class="ticks">
           <li>Next working day response</li>
           <li>Remote support during working hours</li>
@@ -46,11 +49,12 @@ description: Monthly IT support plans for small businesses and home users in Pen
       <article class="plan plan-featured">
         <p class="plan-flag">Most popular</p>
         <h3>Standard</h3>
-        <p class="plan-price">£55<span class="plan-unit">per user / month</span></p>
+        <p class="plan-price">£{{ site.plans.standard.intro }}<span class="plan-unit">per user / month</span></p>
+        <p class="plan-after">£{{ site.plans.standard.standard }} from {{ site.standardFrom }}</p>
         <ul class="ticks">
           <li>Everything in Essentials</li>
           <li>Priority — you go to the front of the queue</li>
-          <li>On-site visits included (fair use)</li>
+          <li>Up to two on-site visits a month included, then £{{ site.planBusinessRate }} an hour</li>
           <li>Microsoft 365 accounts and security managed</li>
           <li>Backup and security monitoring</li>
           <li>A quarterly review of what's working and what isn't</li>
@@ -74,7 +78,8 @@ description: Monthly IT support plans for small businesses and home users in Pen
     <div class="plans">
       <article class="plan plan-home">
         <h3>Peace of Mind</h3>
-        <p class="plan-price">£12<span class="plan-unit">per month</span></p>
+        <p class="plan-price">£{{ site.plans.home.intro }}<span class="plan-unit">per month</span></p>
+        <p class="plan-after">£{{ site.plans.home.standard }} from {{ site.standardFrom }}</p>
         <ul class="ticks">
           <li>Next working day response when something goes wrong</li>
           <li>An annual health check to keep your computer running sweetly</li>
@@ -102,6 +107,8 @@ description: Monthly IT support plans for small businesses and home users in Pen
     <ul class="ticks wide">
       <li>No long tie-in. One month's notice and you can stop whenever you like.</li>
       <li>Billed monthly in advance. Business plans are billed per user, per month.</li>
+      <li>Introductory prices run to {{ site.introEnds }}; standard prices apply from {{ site.standardFrom }} and are shown on every plan above.</li>
+      <li>On-site visits beyond what your plan includes are charged at the discounted plan rate, never the full hourly rate.</li>
       <li>Hardware, parts and third-party licences are charged separately and always agreed with you first.</li>
       <li>We cover Penarth, Barry, Cardiff and the surrounding Vale of Glamorgan for on-site visits. Remote support can go anywhere.</li>
       <li>Response times are working hours, Monday to Friday. We are a small local business, not a 24-hour call centre — and we would rather promise what we can genuinely deliver.</li>
