@@ -1,0 +1,50 @@
+[
+  {
+    "group": "Virtualisation & compute",
+    "items": "VMware vSphere (v3 to v8), Hyper-V, Proxmox, server and storage platform design"
+  },
+  {
+    "group": "Storage & backup",
+    "items": "NetApp (SAN/NAS), HPE, TrueNAS, Synology, Symantec NetBackup"
+  },
+  {
+    "group": "Cloud platforms",
+    "items": "AWS (IAM, EC2, S3, RDS), Azure (VMs, Entra ID, networking), hybrid cloud"
+  },
+  {
+    "group": "Infrastructure as code",
+    "items": "Terraform, Ansible, AWX / Ansible Controller, ARM, CloudFormation, PowerShell, Packer"
+  },
+  {
+    "group": "Networking",
+    "items": "Cisco, HPE, Fortinet, OPNsense, AWS and Azure networking, routing, switching, firewalls, segmentation"
+  },
+  {
+    "group": "Operating systems",
+    "items": "Windows Server (all versions), Ubuntu, RHEL, Amazon Linux"
+  },
+  {
+    "group": "Enterprise services",
+    "items": "Active Directory / ADDS, Citrix XenApp, MOVEit Transfer & Automation, MobileIron MDM"
+  },
+  {
+    "group": "Identity & access",
+    "items": "CyberArk, SailPoint, Entra ID, AWS IAM, Active Directory, zero-trust access, MFA, PKI"
+  },
+  {
+    "group": "Security tooling",
+    "items": "Splunk, QRadar, HP ArcSight, Qualys, Nessus, Tripwire, Symantec Endpoint Protection"
+  },
+  {
+    "group": "Monitoring",
+    "items": "Grafana, Zabbix, SolarWinds, ScienceLogic, MS Operations Manager"
+  },
+  {
+    "group": "Containers & CI/CD",
+    "items": "Docker, Kubernetes, Git, GitHub Actions pipelines"
+  },
+  {
+    "group": "AI & agent automation",
+    "items": "Claude, OpenAI and Grok APIs, agent orchestration, LLM-assisted IaC, self-hosted LLM deployment"
+  }
+]

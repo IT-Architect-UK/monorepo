@@ -4,65 +4,95 @@
     "role": "Technical Integration Lead",
     "period": "2024 – present",
     "engagement": "Permanent",
-    "summary": "Technical lead on enterprise integration and security projects across major client environments, applying AI agent tooling to accelerate delivery and reduce manual overhead.",
+    "summary": "Technical lead on enterprise integration and security projects across major client environments, applying AI-assisted tooling to accelerate delivery.",
     "points": [
-      "File integrity monitoring and compliance hardening deployed across client estates",
-      "Windows and Linux infrastructure hardened with Ansible against CIS baselines",
-      "Custom monitoring content built for SIEM and other monitoring platforms",
-      "Risk-rated security findings and remediation roadmaps presented to senior stakeholders",
+      "File integrity monitoring deployed across client estates to strengthen compliance posture",
+      "Managed file transfer designed and implemented for secure, automated data movement",
+      "Windows and Linux infrastructure hardened with Ansible, Group Policy and vendor security baselines",
+      "Penetration testing and vulnerability remediation, with risk reduction reported to senior stakeholders",
       "Escalation point for complex problems blocking project delivery"
     ]
   },
   {
-    "sector": "Global airline group",
-    "role": "IT Infrastructure Security Architect",
-    "period": "2021 – 2023",
-    "engagement": "Contract",
-    "summary": "Architected a zero-trust cloud access solution and led the migration of a substantial on-premises estate into AWS.",
+    "sector": "Independent practice",
+    "role": "Infrastructure Architect — AI & Automation SME",
+    "period": "2023 – present",
+    "engagement": "Own consultancy",
+    "summary": "Infrastructure architecture, automation and applied AI delivered directly to clients through IT Solution Architecture Limited, backed by a private hybrid cloud lab.",
     "points": [
-      "50+ on-premises servers migrated to AWS",
+      "Private hybrid cloud lab designed and operated for proof-of-concept work and continuous research",
+      "Production AI agent orchestration pipelines built on Claude, OpenAI and Grok APIs, with tool use, memory and structured output",
+      "LLM-assisted Terraform and Ansible generation, and AI triage of vulnerability scan output",
+      "Self-hosted LLM environments on private infrastructure with network segmentation and scripted policy",
+      "Reference implementations published publicly on GitHub"
+    ]
+  },
+  {
+    "sector": "Security consultancy, delivering for a global airline group",
+    "role": "IT Infrastructure Security Architect",
+    "period": "2021 – 2024",
+    "engagement": "Contract",
+    "summary": "Architected a zero-trust cloud access solution and led migration of an on-premises estate into AWS.",
+    "points": [
       "Zero-trust access implemented with Entra ID and AWS IAM, MFA enforced across all workloads",
-      "Approximately 60% reduction in manual provisioning through Terraform and Ansible automation",
-      "SIEM and vulnerability scanning deployed for full visibility of the cloud estate",
-      "Security architecture documentation and change records produced to audit standard"
+      "50+ on-premises servers migrated to AWS",
+      "SIEM and vulnerability scanning deployed for real-time visibility of the cloud estate",
+      "Security configuration automated with Terraform and Ansible, cutting manual provisioning time by roughly 60%",
+      "AI-assisted infrastructure-as-code generation and review introduced into the delivery pipeline"
     ]
   },
   {
     "sector": "UK life and pensions provider",
-    "role": "Senior Infrastructure Architect",
+    "role": "IT Infrastructure Architect",
     "period": "2021 – 2022",
     "engagement": "Contract",
-    "summary": "Led the secure migration of on-premises managed file transfer into a multi-region AWS design.",
+    "summary": "Led the secure migration of on-premises managed file transfer into a multi-region cloud design.",
     "points": [
-      "10TB of sensitive financial data migrated and protected in transit and at rest",
-      "Multi-region AWS architecture with encrypted private networking",
-      "Managed file transfer automation rebuilt for resilience and auditability",
-      "Delivered within the controls expected of a regulated financial environment"
+      "10TB of sensitive financial data migrated, encrypted in transit and at rest",
+      "Multi-region architecture with encrypted private networking",
+      "Endpoint protection and firewall policy rolled out across the migrated estate",
+      "Vulnerability remediation carried out throughout, completed with zero data loss"
     ]
   },
   {
-    "sector": "Security consultancy",
+    "sector": "Global IT services provider, delivering for a global airline group",
     "role": "IT Infrastructure Security Architect",
-    "period": "2023 – 2024",
+    "period": "2020 – 2021",
     "engagement": "Contract",
-    "summary": "Security architecture and automation across client estates, with an emphasis on measurable risk reduction.",
+    "summary": "Delivered a global identity and access transformation for 65,000 users across a hybrid cloud estate.",
     "points": [
-      "Real-time monitoring and vulnerability scanning deployed to mitigate critical risks",
-      "Security configuration automated with Terraform and Ansible, cutting provisioning time",
-      "Security documentation and change management reporting aligned to industry standards"
+      "65,000-user privileged access and identity governance programme delivered",
+      "Thousands of servers hardened across multiple regions with policy, patching, firewalls and monitoring",
+      "Enterprise SIEM implemented for centralised logging and real-time threat detection",
+      "Security policy enforcement automated across the estate with Terraform and PowerShell"
     ]
   },
   {
-    "sector": "Independent practice",
-    "role": "IT Infrastructure Architect — AI & Automation SME",
-    "period": "2023 – present",
-    "engagement": "Own consultancy",
-    "summary": "Infrastructure architecture, automation and applied AI delivered directly to clients through IT Solution Architecture Limited.",
+    "sector": "Global IT services provider, delivering for a global energy major",
+    "role": "IT Infrastructure Architect",
+    "period": "2015 – 2019",
+    "engagement": "Contract",
+    "summary": "Designed and deployed secure hybrid cloud infrastructure globally, and ran the exit of four legacy data centres.",
     "points": [
-      "Cloud and on-premises architecture for small and mid-sized organisations",
-      "Infrastructure as code, golden images and CI-validated builds",
-      "Applied AI and agent automation, including self-hosted deployments",
-      "Reference implementations published publicly on GitHub"
+      "Four legacy data centres decommissioned with zero data loss",
+      "2,000 servers migrated to hybrid cloud during a vSphere platform upgrade, under strict access controls",
+      "Vulnerability scanning, SIEM and endpoint protection deployed across 25 global gas facilities",
+      "Network segmentation and hardening implemented across the estate",
+      "Engineering teams mentored on secure migration practice"
+    ]
+  },
+  {
+    "sector": "Global consultancies, delivering for a multinational energy group",
+    "role": "Infrastructure Architect & Build SME",
+    "period": "2001 – 2014",
+    "engagement": "Contract",
+    "summary": "Thirteen years as a global infrastructure architect and build SME for an energy group operating in more than 50 countries — data centre build, platform design and large-scale migration.",
+    "points": [
+      "Data centres built and commissioned for remote offices worldwide, plus new enterprise data centres in the UK",
+      "Thousands of virtual machines and business applications migrated, including energy trading systems",
+      "Core infrastructure services deployed end to end — Active Directory, Citrix XenApp, VMware vSphere, NetApp storage, NetBackup, endpoint protection, Linux and managed file transfer",
+      "Server, storage and virtualisation platforms designed for estates spanning 50+ countries",
+      "Mobile device management and vulnerability scanning rolled out across a global mobile and server estate"
     ]
   }
 ]

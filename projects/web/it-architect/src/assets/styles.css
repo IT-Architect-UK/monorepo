@@ -177,6 +177,18 @@ input:focus-visible, textarea:focus-visible {
 
 .cols { display: grid; gap: 1.5rem 2rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
+/* ---------- Technology breadth ---------- */
+.tech-heading { margin: 2rem 0 1rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.tech-grid {
+  display: grid; gap: 1rem 2rem; margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.tech-group dt {
+  font-family: var(--font-head); font-weight: 600; font-size: 0.95rem;
+  color: var(--ink); margin-bottom: 0.15rem;
+}
+.tech-group dd { margin: 0; font-size: 0.94rem; color: var(--muted); }
+
 /* ---------- Prose ---------- */
 .prose h2 { margin-top: 1.75rem; }
 .prose-note { color: var(--muted); font-size: 0.94rem; }

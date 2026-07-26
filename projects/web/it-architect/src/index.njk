@@ -1,19 +1,21 @@
 ---
 layout: layouts/base.njk
 title: IT Infrastructure, Security & AI Automation
-description: Infrastructure and security architecture with 25 years of enterprise delivery — cloud migration, infrastructure as code, zero-trust security and applied AI automation. UK-based consultancy.
+description: 25 years of enterprise infrastructure — data centre build and exit, migration of thousands of workloads, cloud architecture, infrastructure as code, zero-trust security and applied AI automation. UK-based consultancy.
 hidePageTitle: true
 ---
 
 <section class="hero">
   <div class="container">
     <p class="eyebrow">{{ site.yearsExperience }} years · enterprise infrastructure</p>
-    <h1>Infrastructure that can be rebuilt, secured and proven</h1>
+    <h1>Data centres built, estates migrated, infrastructure proven</h1>
     <p class="lead">
-      I design and deliver cloud and on-premises infrastructure for organisations
-      that cannot afford it to go wrong — then automate it so it is reproducible,
-      hardened and documented. Increasingly, that includes putting AI to work on
-      the parts of delivery that repeat.
+      I have built data centres, decommissioned them, and moved thousands of
+      workloads between the two — across estates spanning more than 50 countries.
+      Today I design and deliver cloud and on-premises infrastructure for
+      organisations that cannot afford it to go wrong, then automate it so it is
+      reproducible, hardened and documented. Increasingly that includes putting
+      AI to work on the parts of delivery that repeat.
     </p>
     <div class="hero-actions">
       <a class="btn btn-primary" href="/services/">What I do</a>
@@ -24,10 +26,12 @@ hidePageTitle: true
 
 <section class="strip">
   <div class="container strip-inner">
-    <div><span class="strip-figure">{{ site.yearsExperience }}</span><span class="strip-label">years in enterprise IT</span></div>
-    <div><span class="strip-figure">50+</span><span class="strip-label">servers migrated to AWS on one programme</span></div>
-    <div><span class="strip-figure">~60%</span><span class="strip-label">less manual provisioning through automation</span></div>
-    <div><span class="strip-figure">10TB</span><span class="strip-label">of regulated financial data migrated securely</span></div>
+    {# Career-scale figures, not single-project ones. Every number here is
+       traceable to a specific engagement on the experience page. #}
+    <div><span class="strip-figure">65,000</span><span class="strip-label">users in a single global identity transformation</span></div>
+    <div><span class="strip-figure">2,000</span><span class="strip-label">servers migrated to hybrid cloud on one programme</span></div>
+    <div><span class="strip-figure">4</span><span class="strip-label">data centres decommissioned with zero data loss</span></div>
+    <div><span class="strip-figure">50+</span><span class="strip-label">countries covered by estates I have designed for</span></div>
   </div>
 </section>
 
@@ -45,6 +49,54 @@ hidePageTitle: true
       </article>
       {% endfor %}
     </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2>Infrastructure at scale</h2>
+    <p class="section-intro">
+      Before cloud was the default, the work was racks, storage, virtualisation
+      and migration windows. That grounding is why the cloud work holds up.
+    </p>
+    <div class="cols">
+      <div>
+        <h3>Data centre build and exit</h3>
+        <p>
+          Data centres built and commissioned for remote offices worldwide and
+          new enterprise facilities in the UK — and, later, four legacy data
+          centres decommissioned with zero data loss. I have seen the full
+          lifecycle from empty room to switch-off.
+        </p>
+      </div>
+      <div>
+        <h3>Migration at volume</h3>
+        <p>
+          Thousands of virtual machines and business applications migrated,
+          including energy trading systems, plus 2,000 servers moved to hybrid
+          cloud during a platform upgrade. Large migrations are a planning and
+          rollback problem long before they are a technical one.
+        </p>
+      </div>
+      <div>
+        <h3>Global estates</h3>
+        <p>
+          Thirteen years as a global infrastructure architect for an energy group
+          operating in more than 50 countries, followed by security and identity
+          programmes reaching 65,000 users across hybrid cloud.
+        </p>
+      </div>
+    </div>
+
+    <h3 class="tech-heading">Technologies I have delivered with</h3>
+    <dl class="tech-grid">
+      {% for t in technologies %}
+      <div class="tech-group">
+        <dt>{{ t.group }}</dt>
+        <dd>{{ t.items }}</dd>
+      </div>
+      {% endfor %}
+    </dl>
   </div>
 </section>
 

@@ -12,7 +12,7 @@
       "Migration runbooks, rehearsal and rollback planning",
       "Post-migration cost review and right-sizing"
     ],
-    "proof": "Recent work included migrating 50+ on-premises servers into AWS for a global airline group, and moving secure file transfer to a multi-region AWS design for a UK life and pensions provider."
+    "proof": "Career migration volume runs to thousands of workloads: 2,000 servers moved to hybrid cloud for a global energy major during a vSphere platform upgrade, thousands of virtual machines and business applications migrated for a multinational energy group, and a 50+ server AWS migration for a global airline group."
   },
   {
     "slug": "infrastructure-as-code-automation",
@@ -27,7 +27,7 @@
       "CI validation pipelines so broken infrastructure code never merges",
       "Documentation written for the engineer who inherits it"
     ],
-    "proof": "Automation of provisioning and security configuration with Terraform and Ansible cut manual provisioning effort by roughly 60% on a large airline cloud estate."
+    "proof": "Terraform and Ansible automation of provisioning and security configuration cut manual provisioning effort by roughly 60% on a large airline cloud estate. Security policy enforcement was automated across a 65,000-user hybrid estate with Terraform and PowerShell."
   },
   {
     "slug": "security-architecture",
@@ -43,7 +43,7 @@
       "SIEM integration, custom detection content and monitoring",
       "Risk-rated findings and remediation roadmaps for senior stakeholders"
     ],
-    "proof": "Delivered zero-trust cloud access with Entra ID and AWS IAM, MFA across all workloads, and full estate visibility through SIEM and vulnerability scanning for a global airline group."
+    "proof": "A 65,000-user privileged access and identity governance programme delivered across a global hybrid cloud estate. Zero-trust cloud access with Entra ID and AWS IAM, MFA on all workloads, and thousands of servers hardened across multiple regions with enterprise SIEM for centralised detection."
   },
   {
     "slug": "ai-agent-automation",
@@ -74,6 +74,6 @@
       "Monitoring and observability included, not bolted on later",
       "Greenfield platform design for new sites and new businesses"
     ],
-    "proof": "A public reference implementation — Packer templates, Ansible roles and CI validation — is available in the GitHub monorepo linked from the evidence page."
+    "proof": "Data centres built and commissioned for remote offices worldwide and new enterprise facilities in the UK, and four legacy data centres later decommissioned with zero data loss — the full lifecycle. A public reference implementation of the current toolchain (Packer, Ansible, CI validation) is in the GitHub monorepo linked from the evidence page."
   }
 ]
