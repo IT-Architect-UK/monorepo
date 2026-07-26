@@ -79,7 +79,9 @@ description: Monthly IT support plans for small businesses and home users in Pen
       <article class="plan plan-home">
         <h3>Peace of Mind</h3>
         <p class="plan-price">£{{ site.plans.home.intro }}<span class="plan-unit">per month {{ site.vatIncLabel }}</span></p>
+        {%- if site.plans.home.standard != site.plans.home.intro %}
         <p class="plan-after">£{{ site.plans.home.standard }} from {{ site.standardFrom }}</p>
+        {%- endif %}
         <ul class="ticks">
           <li>Next working day response when something goes wrong</li>
           <li>An annual health check to keep your computer running sweetly</li>
