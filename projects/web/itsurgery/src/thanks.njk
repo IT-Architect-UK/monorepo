@@ -1,0 +1,33 @@
+---
+layout: layouts/base.njk
+title: Thank you
+heading: Thank you — we've got your request
+standfirst: We'll come back to you shortly.
+description: Your enquiry has been received by IT Surgery. We will get back to you shortly.
+---
+
+<section class="section">
+  <div class="container narrow">
+    <p class="lead">
+      Thanks for getting in touch. Your request has come through and we will get
+      back to you as soon as we can — usually the same working day.
+    </p>
+
+    <div class="cta-panel">
+      <h2>Need us sooner?</h2>
+      <p>
+        If it's urgent, please call
+        <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a> or
+        <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
+        rather than waiting for us to ring you.
+      </p>
+    </div>
+
+    <h2>While you're here</h2>
+    <ul class="ticks wide">
+      <li><a href="/pricing/">What we charge</a> — no surprises, and no fee if we can't fix it</li>
+      <li><a href="/remote-support/">Remote support</a> — many problems are sorted the same day without a visit</li>
+      <li><a href="/support-plans/">Support plans</a> — ongoing cover from £{{ site.plans.home.intro }} a month</li>
+    </ul>
+  </div>
+</section>

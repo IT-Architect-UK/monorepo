@@ -35,6 +35,11 @@ module.exports = function (eleventyConfig) {
   // Current year, for the footer copyright line.
   eleventyConfig.addShortcode("year", () => `${new Date().getFullYear()}`);
 
+  // ISO date for sitemap.xml <lastmod>.
+  eleventyConfig.addFilter("dateISO", (d) =>
+    (d instanceof Date ? d : new Date()).toISOString().slice(0, 10)
+  );
+
   return {
     dir: {
       input: "src",

@@ -6,6 +6,10 @@ pagination:
   data: services
   size: 1
   alias: service
+  # Without this Eleventy only puts the FIRST paginated page into
+  # collections.all, so 14 of the 15 service pages were missing from
+  # sitemap.xml.
+  addAllPagesToCollections: true
 permalink: "/{{ service.slug }}/"
 eleventyComputed:
   # `| safe` prevents double-escaping: this front matter is itself rendered as a

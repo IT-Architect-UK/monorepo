@@ -463,9 +463,16 @@ input:focus-visible, textarea:focus-visible {
    grey is only 1.6:1 on white. */
 .small-print { color: var(--muted); font-size: 0.95rem; }
 .footer-address { font-style: normal; color: #c9cdd1; margin-top: 0.75rem; font-size: 0.95rem; }
-.footer-legal {
-  margin-top: 1.75rem; padding-top: 1rem;
+.footer-links {
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem;
+  margin-top: 1.75rem; padding-top: 1.25rem;
   border-top: 1px solid #4a4f55;
+}
+.footer-links a { color: #cfe0ee; text-decoration: none; font-weight: 600; font-size: 0.95rem; }
+.footer-links a:hover { text-decoration: underline; color: var(--white); }
+
+.footer-legal {
+  margin-top: 1.25rem; padding-top: 1rem;
 }
 .footer-legal p { margin: 0; font-size: 0.92rem; color: #c9cdd1; }
 

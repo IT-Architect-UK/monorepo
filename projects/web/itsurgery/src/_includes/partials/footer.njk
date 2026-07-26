@@ -30,23 +30,27 @@
       </ul>
     </div>
 
+    {# Contact methods only. Page links live in the bar below so this column
+       does what its heading says. #}
     <div class="footer-col">
       <h2>Get in touch</h2>
       <ul class="footer-contact">
         <li><a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a></li>
         <li><a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">WhatsApp us<span class="visually-hidden"> (opens in a new tab)</span></a></li>
         <li><a href="mailto:{{ site.email }}">{{ site.email }}</a></li>
-        <li><a href="/quote/">Quote Request</a></li>
-        <li><a href="/pricing/">Pricing</a></li>
-        <li><a href="/support-plans/">Support Plans</a></li>
-        <li><a href="/remote-support/">Remote Support</a></li>
-        <li><a href="/about-us/">About Us</a></li>
-        <li><a href="/privacy/">Privacy Policy</a></li>
-        <li><a href="/site-map/">Site Map</a></li>
+        <li><a href="/quote/">Request a quote or callback</a></li>
       </ul>
     </div>
 
   </div>
+
+  <nav class="container footer-links" aria-label="More pages">
+    <a href="/pricing/">Pricing</a>
+    <a href="/support-plans/">Support Plans</a>
+    <a href="/remote-support/">Remote Support</a>
+    <a href="/about-us/">About Us</a>
+    <a href="/privacy/">Privacy Policy</a>
+  </nav>
 
   <div class="container footer-legal">
     {# Companies Act 2006 trading disclosures: a company trading under a

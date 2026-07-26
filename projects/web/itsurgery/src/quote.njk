@@ -25,7 +25,17 @@ description: Request a quote or a callback from IT Surgery — friendly IT help 
     {# Handled by Netlify Forms — no server or backend needed. #}
     <div class="form-wrap">
       <h2>Request a quote or callback</h2>
-      <form name="quote" method="POST" data-netlify="true" data-netlify-honeypot="bot-field">
+      {#
+        Netlify Forms. Two things are required for this to work:
+        1. "Enable form detection" must be turned on in the Netlify UI
+           (Forms > Usage and configuration). It is opt-in. Without it Netlify
+           never registers the form and the POST returns a 404.
+        2. This form must be present in the built static HTML, which it is.
+        When detection is working, Netlify strips data-netlify from the
+        deployed markup and injects a hidden form-name input — that is how you
+        can tell from the page source whether it is switched on.
+      #}
+      <form name="quote" method="POST" action="/thanks/" data-netlify="true" data-netlify-honeypot="bot-field">
         <p class="hidden-field">
           <label>Don't fill this in if you're human: <input name="bot-field" /></label>
         </p>

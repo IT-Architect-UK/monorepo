@@ -1,47 +1,8 @@
 ---
-layout: layouts/base.njk
-title: Site Map
-heading: Site Map
-standfirst: Every page on this website, in one place.
-description: Site map for IT Surgery — all pages listed, covering personal and business IT services in Penarth, Barry and Cardiff.
+# Retired. The HTML site map duplicated the footer, which already lists every
+# service page. Search engines are served by /sitemap.xml instead, which is what
+# they actually read. permalink:false stops this building — the file can be
+# deleted outright whenever convenient.
+permalink: false
+eleventyExcludeFromCollections: true
 ---
-
-<section class="section">
-  <div class="container">
-    <div class="cards three">
-      <article class="card">
-        <h2>Main pages</h2>
-        <ul class="plain-list">
-          <li><a href="/">Home</a></li>
-          <li><a href="/pricing/">Pricing</a></li>
-          <li><a href="/support-plans/">Support Plans</a></li>
-          <li><a href="/remote-support/">Remote Support</a></li>
-          <li><a href="/about-us/">About Us</a></li>
-          <li><a href="/quote/">Quote Request</a></li>
-          <li><a href="/privacy/">Privacy Policy</a></li>
-          <li><a href="/site-map/">Site Map</a></li>
-        </ul>
-      </article>
-
-      <article class="card">
-        <h2>Business IT</h2>
-        <ul class="plain-list">
-          <li><a href="/business-it/">Business IT overview</a></li>
-          {% for s in services %}{% if s.group == "business" %}
-          <li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>
-          {% endif %}{% endfor %}
-        </ul>
-      </article>
-
-      <article class="card">
-        <h2>Personal IT</h2>
-        <ul class="plain-list">
-          <li><a href="/personal-it/">Personal IT overview</a></li>
-          {% for s in services %}{% if s.group == "personal" %}
-          <li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>
-          {% endif %}{% endfor %}
-        </ul>
-      </article>
-    </div>
-  </div>
-</section>
