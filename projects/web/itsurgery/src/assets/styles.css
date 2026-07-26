@@ -300,6 +300,9 @@ input:focus-visible, textarea:focus-visible {
 .price-figure { font-size: 2.8rem; margin: 0 0 0.5rem; color: var(--white); line-height: 1; }
 .price-unit { font-size: 1.05rem; font-weight: 500; margin-left: 0.5rem; font-family: var(--font-body); }
 .price-note { margin: 0; color: #eceef0; }
+/* Dark panel — the default red link colour is ~1.1:1 here and unreadable. */
+.price-block a { color: var(--white); text-decoration: underline; font-weight: 700; }
+.price-block a:hover { text-decoration: none; }
 
 /* ---------- Call-to-action panel ---------- */
 .cta-panel {
