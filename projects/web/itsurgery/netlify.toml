@@ -23,3 +23,23 @@
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=86400"
+
+# Netlify serves .webmanifest as application/octet-stream. Because
+# X-Content-Type-Options: nosniff is set above, the browser will not fall back
+# to sniffing, so the manifest has to be given its correct type explicitly.
+[[headers]]
+  for = "/site.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=604800"
+
+# Icons change rarely and are content-stable; a week is safe.
+[[headers]]
+  for = "/*.ico"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/apple-touch-icon.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
