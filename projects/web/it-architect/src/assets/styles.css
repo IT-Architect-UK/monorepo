@@ -84,7 +84,9 @@ input:focus-visible, textarea:focus-visible {
   padding-top: 0.75rem; padding-bottom: 0.75rem;
 }
 .brand { display: inline-flex; align-items: center; text-decoration: none; }
-.brand img { width: auto; height: 2.6rem; display: block; }
+/* The logo is wide (2.4:1) and carries a small tagline, so it needs height to
+   stay legible. At 2.6rem the tagline was unreadable. */
+.brand img { width: auto; height: 3.4rem; display: block; }
 
 .menu-toggle {
   display: none;
@@ -284,6 +286,6 @@ input:focus-visible, textarea:focus-visible {
   .btn { width: 100%; text-align: center; padding: 0.7rem 1.15rem; }
   .strip-inner { grid-template-columns: 1fr; gap: 0.85rem; }
   .footer-grid { grid-template-columns: 1fr; }
-  .brand img { height: 2.2rem; }
+  .brand img { height: 2.6rem; }
   .form-wrap { padding: 1.15rem; }
 }
