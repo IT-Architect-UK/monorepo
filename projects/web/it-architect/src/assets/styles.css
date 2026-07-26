@@ -83,12 +83,14 @@ input:focus-visible, textarea:focus-visible {
 .header-inner {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1.5rem; flex-wrap: wrap;
-  padding-top: 0.75rem; padding-bottom: 0.75rem;
+  padding-top: 0.35rem; padding-bottom: 0.35rem;
 }
 .brand { display: inline-flex; align-items: center; text-decoration: none; }
-/* The logo is wide (2.4:1) and carries a small tagline, so it needs height to
-   stay legible. At 2.6rem the tagline was unreadable. */
-.brand img { width: auto; height: 4.6rem; display: block; }
+/* The logo carries a small "IT Solution Experts" tagline that has to stay
+   readable, so the mark needs height. The PNG is trimmed to its artwork — it
+   used to carry 13% transparent margin, which wasted rendered height. Height
+   is up and header padding is down, so the row barely grows. */
+.brand img { width: auto; height: 5.4rem; display: block; }
 
 .menu-toggle {
   display: none;
@@ -287,6 +289,6 @@ input:focus-visible, textarea:focus-visible {
   .section { padding: 2rem 0; }
   .btn { width: 100%; text-align: center; padding: 0.7rem 1.1rem; }
   .footer-grid { grid-template-columns: 1fr; }
-  .brand img { height: 3.4rem; }
+  .brand img { height: 4rem; }
   .form-wrap { padding: 1.15rem; }
 }
