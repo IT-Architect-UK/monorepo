@@ -1,10 +1,29 @@
 <header class="site-header">
   <div class="container header-inner">
     <a class="brand" href="/" aria-label="{{ site.name }} — home">
-      <img src="/assets/logo.png" alt="{{ site.name }} — {{ site.tagline }}" width="900" height="377" />
+      {# Intrinsic size must match the file, or the browser reserves the wrong
+         box and the header shifts as the image loads. #}
+      <img src="/assets/logo.png" alt="{{ site.name }} — {{ site.tagline }}" width="858" height="327" />
     </a>
 
-    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" hidden>Menu</button>
+    <div class="header-controls">
+      {# aria-pressed carries the state, so the accessible name stays constant
+         ("Dark mode") rather than flipping between two labels. #}
+      <button class="theme-toggle" type="button" aria-pressed="false" hidden>
+        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4.5" />
+          <g stroke-width="2" stroke-linecap="round">
+            <path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M19.8 4.2l-2.1 2.1M6.3 17.7l-2.1 2.1" />
+          </g>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M20.5 14.5A8.6 8.6 0 0 1 9.5 3.5a8.7 8.7 0 1 0 11 11z" />
+        </svg>
+        <span class="visually-hidden">Dark mode</span>
+      </button>
+
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" hidden>Menu</button>
+    </div>
 
     <nav class="main-nav" id="main-nav" aria-label="Main">
       <ul>

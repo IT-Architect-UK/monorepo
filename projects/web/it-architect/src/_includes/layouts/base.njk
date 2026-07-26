@@ -8,6 +8,23 @@
   <meta name="theme-color" content="#1c2430" />
   <link rel="canonical" href="{{ site.url }}{{ page.url }}" />
 
+  {# Theme must be resolved BEFORE first paint. Inline and blocking on purpose:
+     from an external file this runs after the stylesheet has already painted,
+     and a dark-mode visitor gets a white flash on every navigation. #}
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("theme");
+        var dark = saved
+          ? saved === "dark"
+          : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (dark) document.documentElement.setAttribute("data-theme", "dark");
+      } catch (e) {
+        /* Storage blocked (private mode). Light is a safe default. */
+      }
+    })();
+  </script>
+
   {# Favicons. The monitor mark from the logo, white on a slate tile — the tile
      supplies its own background so the icon holds up on both light and dark
      browser tab strips. The full logo mark (tower + monitor) is unreadable at
@@ -72,6 +89,43 @@
         btn.setAttribute('aria-expanded', open ? 'true' : 'false');
         btn.textContent = open ? 'Close' : 'Menu';
       });
+    })();
+
+    // Theme toggle. Revealed only with JS — a control that cannot work should
+    // not be shown at all.
+    (function () {
+      var btn = document.querySelector('.theme-toggle');
+      if (!btn) return;
+      var root = document.documentElement;
+      var meta = document.querySelector('meta[name="theme-color"]');
+      var LIGHT = '#1c2430', DARK = '#0f141b';
+
+      function sync() {
+        var dark = root.getAttribute('data-theme') === 'dark';
+        btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+        if (meta) meta.setAttribute('content', dark ? DARK : LIGHT);
+      }
+
+      btn.hidden = false;
+      sync();
+
+      btn.addEventListener('click', function () {
+        var dark = root.getAttribute('data-theme') === 'dark';
+        if (dark) root.removeAttribute('data-theme');
+        else root.setAttribute('data-theme', 'dark');
+        try { localStorage.setItem('theme', dark ? 'light' : 'dark'); } catch (e) {}
+        sync();
+      });
+
+      // Follow the OS only while the visitor has expressed no preference.
+      try {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+          if (localStorage.getItem('theme')) return;
+          if (e.matches) root.setAttribute('data-theme', 'dark');
+          else root.removeAttribute('data-theme');
+          sync();
+        });
+      } catch (e) {}
     })();
   </script>
 </body>

@@ -10,6 +10,20 @@
       <a class="ubtn" href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a>
       <a class="ubtn" href="https://wa.me/{{ site.whatsapp }}?text=Hello%2C%20I%27d%20like%20some%20help%20with%20an%20IT%20problem" target="_blank" rel="noopener">WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
       <a class="ubtn" href="mailto:{{ site.email }}">Email</a>
+      {# aria-pressed carries the state, so the accessible name stays constant
+         ("Dark mode") instead of flipping between two labels. #}
+      <button class="theme-toggle" type="button" aria-pressed="false" hidden>
+        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="4.5" />
+          <g stroke-width="2" stroke-linecap="round">
+            <path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M19.8 4.2l-2.1 2.1M6.3 17.7l-2.1 2.1" />
+          </g>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M20.5 14.5A8.6 8.6 0 0 1 9.5 3.5a8.7 8.7 0 1 0 11 11z" />
+        </svg>
+        <span class="visually-hidden">Dark mode</span>
+      </button>
     </nav>
   </div>
 </div>

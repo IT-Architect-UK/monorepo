@@ -2,24 +2,54 @@
    Shares both the logo red (#990000) and the typography with IT Surgery, so the
    two brands read as one business. They are separated by surface and register
    instead: a dark slate palette and a senior, outcome-focused tone.
-   Accessibility-first: WCAG 2.1 AA contrast, visible focus, keyboard operable. */
+   Accessibility-first: WCAG 2.1 AA contrast, visible focus, keyboard operable.
+
+   COLOUR TOKENS ARE NAMED BY ROLE, NOT APPEARANCE.
+   A token called --white cannot be re-pointed for a dark theme without the name
+   becoming a lie, so surfaces and text are named for what they do. Dark values
+   are overridden wholesale in the [data-theme="dark"] block below; no rule
+   outside these two blocks should contain a raw colour.
+
+   "invert" means a surface deliberately opposite to the page — the hero, page
+   heads, the dark band and the footer. In light mode those are dark on white.
+   In dark mode the page goes darker than they are, so they become raised
+   panels and still separate from their surroundings. */
 
 :root {
-  --brand: #990000;          /* sampled from the logo */
-  /* Brand red is unusable as text on the dark slate (2.8:1). This lighter tint
-     reaches 7.3:1 while still reading as the brand. */
-  --brand-light: #ef9a9a;
-  --focus-dark: #7cb0ff;     /* #0b57d0 is only 2.5:1 on slate */
-  --slate: #1c2430;          /* dominant dark surface */
-  --slate-deep: #141b24;
-  --slate-mid: #2a3644;
-  --ink: #23293a;
-  --body: #3d4451;
-  --muted: #5c636f;          /* 5.6:1 on white */
-  --line: #dfe3e8;
-  --wash: #f5f7f9;
-  --white: #ffffff;
+  color-scheme: light;
+
+  /* Surfaces */
+  --surface: #ffffff;
+  --surface-sunken: #f5f7f9;        /* proof and CTA panels */
+  --surface-invert: #1c2430;        /* hero, page head, dark band */
+  --surface-invert-deep: #141b24;   /* footer */
+  --surface-invert-mid: #2a3644;    /* CTA inside the dark band */
+
+  /* Text */
+  --text: #3d4451;
+  --text-strong: #23293a;           /* headings, labels */
+  --text-muted: #5c636f;            /* 5.6:1 on white; also input borders, so
+                                       it must stay >=3:1 for WCAG 1.4.11 */
+  --on-invert-strong: #ffffff;      /* headings on invert surfaces */
+  --text-on-invert: #d7dce2;
+  --text-on-invert-dim: #c3cad3;    /* footer body */
+  --text-on-invert-faint: #b9c0c9;  /* footer legal */
+  --link-on-invert: #cbd8e4;
+
+  /* Lines */
+  --border: #dfe3e8;
+  --border-invert: #333e4b;
+
+  /* Brand. Two roles: a solid fill that always carries white text, and an
+     accent used for links, bullets and rules. The accent has to change in dark
+     mode — #990000 is only 2.8:1 on a dark surface. */
+  --brand-solid: #990000;
+  --brand-solid-hover: #7d0000;
+  --brand-accent: #990000;
+  --brand-on-invert: #ef9a9a;       /* 7.3:1 on the slate */
+
   --focus: #0b57d0;
+  --focus-invert: #7cb0ff;          /* #0b57d0 is only 2.5:1 on slate */
 
   /* Same typography as itsurgery.me so the two brands read as one business. */
   --font-head: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -27,6 +57,33 @@
                "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --maxw: 1140px;
   --panel: 40rem;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface: #0f141b;
+  --surface-sunken: #171f29;
+  --surface-invert: #243040;        /* LIGHTER than the page, so the hero and
+                                       dark band still read as distinct surfaces
+                                       (1.38:1 against the page) */
+  --surface-invert-deep: #171f29;
+  --surface-invert-mid: #2a3644;
+
+  --text: #c3ccd6;
+  --text-strong: #eef2f6;
+  --text-muted: #98a3b0;
+
+  --border: #2b3542;
+  --border-invert: #3a4655;
+
+  /* A #990000 fill turns to mud on a near-black page, so the solid brightens.
+     White on #b31414 is still comfortably past 4.5:1. */
+  --brand-solid: #b31414;
+  --brand-solid-hover: #cc2020;
+  --brand-accent: #ef9a9a;
+
+  --focus: #7cb0ff;
 }
 
 * { box-sizing: border-box; }
@@ -37,8 +94,8 @@ body {
   font-family: var(--font-body);
   font-size: 1rem;
   line-height: 1.65;
-  color: var(--body);
-  background: var(--white);
+  color: var(--text);
+  background: var(--surface);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -47,15 +104,15 @@ body {
   * { transition: none !important; animation: none !important; }
 }
 
-h1, h2, h3 { font-family: var(--font-head); color: var(--ink); font-weight: 600; line-height: 1.25; }
-a { color: var(--brand); }
+h1, h2, h3 { font-family: var(--font-head); color: var(--text-strong); font-weight: 600; line-height: 1.25; }
+a { color: var(--brand-accent); }
 
 .container { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
 
 /* ---------- Accessibility ---------- */
 .skip-link {
   position: absolute; left: -999px; top: 0; z-index: 200;
-  background: var(--ink); color: var(--white); padding: 0.75rem 1rem;
+  background: var(--surface-invert); color: var(--on-invert-strong); padding: 0.75rem 1rem;
 }
 .skip-link:focus { left: 0; }
 
@@ -71,13 +128,13 @@ input:focus-visible, textarea:focus-visible {
 /* Dark surfaces need a lighter ring to stay visible. */
 .hero :focus-visible, .page-head :focus-visible,
 .section-dark :focus-visible, .site-footer :focus-visible {
-  outline-color: var(--focus-dark);
+  outline-color: var(--focus-invert);
 }
 
 /* ---------- Header ---------- */
 .site-header {
-  background: var(--white);
-  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 100;
 }
 .header-inner {
@@ -92,38 +149,59 @@ input:focus-visible, textarea:focus-visible {
    is up and header padding is down, so the row barely grows. */
 .brand img { width: auto; height: 5.4rem; display: block; }
 
+.header-controls { display: flex; align-items: center; gap: 0.6rem; }
+
 .menu-toggle {
   display: none;
   font-family: var(--font-head); font-weight: 700; font-size: 1.05rem;
-  background: var(--ink); color: var(--white); border: none;
+  background: var(--text-strong); color: var(--surface); border: none;
   border-radius: 5px; padding: 0.5rem 1rem; cursor: pointer;
 }
+
+/* ---------- Theme toggle ---------- */
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  /* 44px meets the WCAG 2.5.8 minimum target size. */
+  width: 44px; height: 44px;
+  background: transparent; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-strong);
+}
+.theme-toggle:hover { background: var(--surface-sunken); border-color: var(--text-muted); }
+.theme-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.icon-moon { fill: currentColor; stroke: none; }
+
+/* Show the icon for the theme the button switches TO, so it reads as an action
+   rather than as a status light. */
+.icon-sun { display: none; }
+[data-theme="dark"] .icon-sun { display: block; }
+[data-theme="dark"] .icon-moon { display: none; }
 
 .main-nav > ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.15rem; }
 .main-nav a {
   display: block; padding: 0.55rem 0.8rem; border-radius: 6px;
-  text-decoration: none; color: var(--ink);
+  text-decoration: none; color: var(--text-strong);
   font-family: var(--font-head); font-weight: 600; font-size: 1rem;
 }
-.main-nav a:hover { background: var(--wash); color: var(--brand); }
-.main-nav a[aria-current="page"] { color: var(--brand); box-shadow: inset 0 -2px 0 var(--brand); }
+.main-nav a:hover { background: var(--surface-sunken); color: var(--brand-accent); }
+.main-nav a[aria-current="page"] { color: var(--brand-accent); box-shadow: inset 0 -2px 0 var(--brand-accent); }
 
 /* ---------- Page head ---------- */
 .page-head {
-  background: var(--slate); color: var(--white);
+  background: var(--surface-invert); color: var(--on-invert-strong);
   padding: 2.25rem 0 1.75rem;
 }
-.page-head h1 { color: var(--white); font-size: clamp(1.6rem, 3vw, 2rem); margin: 0; }
-.page-head .eyebrow { color: var(--brand-light); }
-.standfirst { font-size: 1.05rem; margin: 0.75rem 0 0; color: #d3d8de; }
+.page-head h1 { color: var(--on-invert-strong); font-size: clamp(1.6rem, 3vw, 2rem); margin: 0; }
+.page-head .eyebrow { color: var(--brand-on-invert); }
+.standfirst { font-size: 1.05rem; margin: 0.75rem 0 0; color: var(--text-on-invert); }
 
 /* ---------- Hero ---------- */
-.hero { background: var(--slate); color: var(--white); padding: 3.25rem 0 2.75rem; }
-.hero h1 { color: var(--white); font-size: clamp(1.75rem, 3.4vw, 2.25rem); line-height: 1.2; margin: 0 0 0.85rem; }
-.hero .lead { color: #d7dce2; }
+.hero { background: var(--surface-invert); color: var(--on-invert-strong); padding: 3.25rem 0 2.75rem; }
+.hero h1 { color: var(--on-invert-strong); font-size: clamp(1.75rem, 3.4vw, 2.25rem); line-height: 1.2; margin: 0 0 0.85rem; }
+.hero .lead { color: var(--text-on-invert); }
 .eyebrow {
   text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
-  font-size: 0.8rem; color: var(--brand-light); margin: 0 0 0.65rem;
+  font-size: 0.8rem; color: var(--brand-on-invert); margin: 0 0 0.65rem;
 }
 .lead { font-size: 1.05rem; margin: 0 0 1.5rem; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
@@ -135,25 +213,25 @@ input:focus-visible, textarea:focus-visible {
   border: 2px solid transparent; font-family: var(--font-head);
   cursor: pointer; line-height: 1.4;
 }
-.btn-primary { background: var(--brand); color: var(--white); }
-.btn-primary:hover { background: #7d0000; }
-.btn-ghost { background: transparent; color: var(--white); border-color: rgba(255,255,255,0.55); }
+.btn-primary { background: var(--brand-solid); color: #ffffff; }
+.btn-primary:hover { background: var(--brand-solid-hover); }
+.btn-ghost { background: transparent; color: var(--on-invert-strong); border-color: rgba(255,255,255,0.55); }
 .btn-ghost:hover { background: rgba(255,255,255,0.12); }
 
 /* ---------- Sections ---------- */
 .section { padding: 2.25rem 0; }
 .section h2 { font-size: clamp(1.25rem, 2.2vw, 1.55rem); margin: 0 0 1rem; }
 .section h3 { font-size: 1.05rem; margin: 0 0 0.4rem; }
-.section-intro { color: var(--muted); margin: 0 0 1.5rem; }
+.section-intro { color: var(--text-muted); margin: 0 0 1.5rem; }
 
-.section-dark { background: var(--slate); color: #d7dce2; }
-.section-dark h2, .section-dark h3 { color: var(--white); }
+.section-dark { background: var(--surface-invert); color: var(--text-on-invert); }
+.section-dark h2, .section-dark h3 { color: var(--on-invert-strong); }
 
 /* ---------- Cards ---------- */
 .cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
 .card {
-  background: var(--white); border: 1px solid var(--line);
-  border-top: 3px solid var(--brand);
+  background: var(--surface); border: 1px solid var(--border);
+  border-top: 3px solid var(--brand-accent);
   border-radius: 6px; padding: 1.25rem;
 }
 .card h2, .card h3 { margin: 0 0 0.5rem; font-size: 1.08rem; }
@@ -167,38 +245,38 @@ input:focus-visible, textarea:focus-visible {
 .cols { display: grid; gap: 1.5rem 2rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
 /* ---------- Technology breadth ---------- */
-.tech-heading { margin: 2rem 0 1rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.tech-heading { margin: 2rem 0 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
 .tech-grid {
   display: grid; gap: 1rem 2rem; margin: 0;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 .tech-group dt {
   font-family: var(--font-head); font-weight: 600; font-size: 0.95rem;
-  color: var(--ink); margin-bottom: 0.15rem;
+  color: var(--text-strong); margin-bottom: 0.15rem;
 }
-.tech-group dd { margin: 0; font-size: 0.94rem; color: var(--muted); }
+.tech-group dd { margin: 0; font-size: 0.94rem; color: var(--text-muted); }
 
 /* ---------- Prose ---------- */
 .prose h2 { margin-top: 1.75rem; }
-.prose-note { color: var(--muted); font-size: 0.94rem; }
-.tech { color: var(--body); margin: 0 0 1rem; }
+.prose-note { color: var(--text-muted); font-size: 0.94rem; }
+.tech { color: var(--text); margin: 0 0 1rem; }
 
 .ticks { list-style: none; margin: 0.4rem 0 1rem; padding: 0; }
 .ticks li { position: relative; padding-left: 1.4rem; margin-bottom: 0.4rem; }
 .ticks li::before {
   content: "▪"; position: absolute; left: 0; top: 0;
-  color: var(--brand); font-weight: 700;
+  color: var(--brand-accent); font-weight: 700;
 }
-.section-dark .ticks li::before { color: var(--brand-light); }
+.section-dark .ticks li::before { color: var(--brand-on-invert); }
 
 /* ---------- Proof callout ---------- */
 .proof {
-  background: var(--wash); border-left: 3px solid var(--brand);
+  background: var(--surface-sunken); border-left: 3px solid var(--brand-accent);
   border-radius: 4px; padding: 1rem 1.25rem; margin: 1.5rem 0;
 }
 .proof-label {
   text-transform: uppercase; letter-spacing: 0.09em; font-size: 0.72rem;
-  font-weight: 700; color: var(--brand); margin: 0 0 0.3rem;
+  font-weight: 700; color: var(--brand-accent); margin: 0 0 0.3rem;
 }
 .proof p:last-child { margin: 0; }
 
@@ -207,65 +285,65 @@ input:focus-visible, textarea:focus-visible {
 .role {
   display: grid; gap: 0.5rem 1.75rem;
   grid-template-columns: 11rem 1fr;
-  border-top: 1px solid var(--line); padding-top: 1.25rem;
+  border-top: 1px solid var(--border); padding-top: 1.25rem;
 }
-.role-period { font-weight: 700; color: var(--ink); margin: 0; }
-.role-engagement { color: var(--muted); font-size: 0.9rem; margin: 0.15rem 0 0; }
+.role-period { font-weight: 700; color: var(--text-strong); margin: 0; }
+.role-engagement { color: var(--text-muted); font-size: 0.9rem; margin: 0.15rem 0 0; }
 .role-body h2 { margin: 0 0 0.15rem; font-size: 1.12rem; }
-.role-sector { color: var(--brand); font-weight: 600; margin: 0 0 0.5rem; }
+.role-sector { color: var(--brand-accent); font-weight: 600; margin: 0 0 0.5rem; }
 
 /* ---------- CTA ---------- */
 .cta-panel {
-  background: var(--wash); border-left: 3px solid var(--brand);
+  background: var(--surface-sunken); border-left: 3px solid var(--brand-accent);
   border-radius: 4px; padding: 1.25rem 1.5rem; margin-top: 2rem;
 }
 .cta-panel h2 { margin: 0 0 0.4rem; font-size: 1.1rem; }
 .cta-panel p { margin: 0; }
-.section-dark .cta-panel { background: var(--slate-mid); }
+.section-dark .cta-panel { background: var(--surface-invert-mid); }
 
 /* ---------- Contact ---------- */
 .contact-list { list-style: none; margin: 0 0 1.75rem; padding: 0; }
-.contact-list li { display: flex; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
-.contact-list span { min-width: 5.5rem; color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+.contact-list li { display: flex; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+.contact-list span { min-width: 5.5rem; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; }
 
 /* ---------- Forms ---------- */
 .form-wrap {
-  background: var(--white); border: 1px solid var(--line);
+  background: var(--surface); border: 1px solid var(--border);
   border-radius: 6px; padding: 1.5rem; max-width: var(--panel);
 }
 .form-wrap h2 { margin: 0 0 1rem; font-size: 1.1rem; }
 .field { margin-bottom: 1rem; }
-.field label { display: block; font-weight: 600; color: var(--ink); margin-bottom: 0.3rem; font-size: 0.95rem; }
-.optional { font-weight: 400; color: var(--muted); }
+.field label { display: block; font-weight: 600; color: var(--text-strong); margin-bottom: 0.3rem; font-size: 0.95rem; }
+.optional { font-weight: 400; color: var(--text-muted); }
 .field input, .field textarea {
   width: 100%; padding: 0.8rem 0.9rem; font-family: var(--font-body); font-size: 1rem;
-  color: var(--body); background: var(--white);
-  /* --muted is 5.6:1 on white, satisfying WCAG 1.4.11 for UI components. */
-  border: 1px solid var(--muted); border-radius: 5px;
+  color: var(--text); background: var(--surface);
+  /* --text-muted must stay >=3:1 on --surface in both themes (WCAG 1.4.11). */
+  border: 1px solid var(--text-muted); border-radius: 5px;
 }
 .field textarea { resize: vertical; }
-.form-note { color: var(--muted); font-size: 0.9rem; margin: 0.85rem 0 0; }
+.form-note { color: var(--text-muted); font-size: 0.9rem; margin: 0.85rem 0 0; }
 .hidden-field { position: absolute; left: -9999px; }
 
-.sibling-nav { margin-top: 2.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+.sibling-nav { margin-top: 2.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
 .sibling-nav h2 { font-size: 1rem; }
 .sibling-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; }
 
 /* ---------- Footer ---------- */
-.site-footer { background: var(--slate-deep); color: #c3cad3; padding: 2.25rem 0 1.25rem; margin-top: 1rem; }
+.site-footer { background: var(--surface-invert-deep); color: var(--text-on-invert-dim); padding: 2.25rem 0 1.25rem; margin-top: 1rem; }
 .footer-grid { display: grid; gap: 1.75rem; grid-template-columns: 1.4fr 1fr 1fr; }
 .footer-col h2 {
-  color: var(--white); font-size: 0.8rem; margin: 0 0 0.7rem;
+  color: var(--on-invert-strong); font-size: 0.8rem; margin: 0 0 0.7rem;
   text-transform: uppercase; letter-spacing: 0.09em;
 }
 .footer-col ul { list-style: none; margin: 0; padding: 0; }
 .footer-col li { margin-bottom: 0.35rem; font-size: 0.94rem; }
-.footer-col a { color: #cbd8e4; text-decoration: none; }
-.footer-col a:hover { color: var(--white); text-decoration: underline; }
-.footer-brand { color: var(--white); font-family: var(--font-head); font-weight: 700; font-size: 1.1rem; margin: 0 0 0.35rem; }
-.footer-small { color: #b9c0c9; font-size: 0.94rem; margin: 0; }
-.footer-legal { margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid #333e4b; }
-.footer-legal p { margin: 0; font-size: 0.86rem; color: #b9c0c9; }
+.footer-col a { color: var(--link-on-invert); text-decoration: none; }
+.footer-col a:hover { color: var(--on-invert-strong); text-decoration: underline; }
+.footer-brand { color: var(--on-invert-strong); font-family: var(--font-head); font-weight: 700; font-size: 1.1rem; margin: 0 0 0.35rem; }
+.footer-small { color: var(--text-on-invert-faint); font-size: 0.94rem; margin: 0; }
+.footer-legal { margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--border-invert); }
+.footer-legal p { margin: 0; font-size: 0.86rem; color: var(--text-on-invert-faint); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1000px) {
@@ -277,8 +355,8 @@ input:focus-visible, textarea:focus-visible {
   .main-nav.is-collapsible { display: none; width: 100%; }
   .main-nav.is-collapsible.is-open { display: block; }
   .main-nav > ul { flex-direction: column; gap: 0; }
-  .main-nav a { padding: 0.7rem 0.5rem; border-radius: 0; border-bottom: 1px solid var(--line); }
-  .main-nav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--brand); }
+  .main-nav a { padding: 0.7rem 0.5rem; border-radius: 0; border-bottom: 1px solid var(--border); }
+  .main-nav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--brand-accent); }
   .role { grid-template-columns: 1fr; gap: 0.3rem; }
   .role-meta { display: flex; gap: 0.75rem; align-items: baseline; }
   .role-engagement { margin: 0; }
