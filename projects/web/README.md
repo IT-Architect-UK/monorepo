@@ -9,7 +9,7 @@ the monorepo — nothing is edited on the server.
 | Project | Path | Purpose |
 |---------|------|---------|
 | IT Surgery | `itsurgery/` | Local IT support for homes and small businesses in Penarth, Barry and Cardiff. Eleventy, 28 pages. |
-| IT Architect | `it-architect/` | Consultancy site — cloud, infrastructure, security and applied AI. Eleventy, 13 pages. |
+| IT Architect | `it-architect/` | Consultancy site — cloud, infrastructure, security and applied AI. Eleventy, 12 pages. |
 | Enquiry agent | `enquiry-agent/` | AI enquiry triage + Cal.com scheduling agent driving bookings for the IT Surgery site *(planned)*. |
 
 Each project is self-contained with its own README, dependencies and deploy
