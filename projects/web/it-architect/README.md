@@ -5,7 +5,7 @@ of IT Solution Architecture Limited. Aimed at clients hiring for cloud,
 infrastructure, security and applied-AI work, including via freelance platforms.
 
 **What this demonstrates:** a templated, accessible (WCAG 2.1 AA) static site
-built with Eleventy — 13 pages from shared layouts and structured data, deployed
+built with Eleventy — 12 pages from shared layouts and structured data, deployed
 by CI on push to Netlify. The site is itself a work sample.
 
 ## Quick start
@@ -47,14 +47,19 @@ grep -rIn -e IAG -e ReAssure -e Kyndryl -e Cyberbase _site/ && echo LEAK || echo
 
 ## Brand
 
-Shares the logo red `#990000` with IT Surgery, so the two brands are separated by
-treatment rather than colour:
+Shares the logo red `#990000` **and the typography** with IT Surgery — Poppins
+headings over a system body stack, same type scale and control sizing. The two
+brands are one company and should read as related work, so they are separated by
+surface and register rather than by typeface:
 
 | | IT Architect | IT Surgery |
 |---|---|---|
-| Typeface | Inter | Poppins |
+| Typeface | Poppins / system — **identical** | Poppins / system |
 | Surfaces | Dark slate `#1c2430` | Light, warm |
-| Register | Corporate, technical | Friendly, plain-English |
+| Register | Senior, outcome-focused | Friendly, plain-English |
+
+If you change the type scale here, change it in `projects/web/itsurgery/` too, or
+the brands drift apart again.
 
 Two contrast pitfalls, both caught by audit and fixed — do not reintroduce them:
 
@@ -88,6 +93,10 @@ this domain.
 
 ## Still to do
 
-- Confirm the certifications list — only two of the stated 23 are named here.
 - Add a photograph of Darren; a real face lifts a consultancy site.
 - Review whether any employment contract restricts soliciting contract work.
+
+There is no certifications page by design — a full page of credentials read as
+padding. `src/certifications.njk` is retired via `permalink: false` and can be
+deleted; the useful facts sit in a short block on the About page, with the full
+list left on LinkedIn.
