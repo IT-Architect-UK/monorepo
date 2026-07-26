@@ -74,10 +74,50 @@ the brands drift apart again.
 
 Two contrast pitfalls, both caught by audit and fixed — do not reintroduce them:
 
-- `#990000` as text on the dark slate is only **2.8:1**. Use `--brand-light`
+- `#990000` as text on the dark slate is only **2.8:1**. Use `--brand-on-invert`
   (`#ef9a9a`, 7.3:1) for brand-coloured text on dark surfaces.
-- The standard focus ring `#0b57d0` is only **2.5:1** on slate. Dark sections
-  override it to `--focus-dark` (`#7cb0ff`).
+- The standard focus ring `#0b57d0` is only **2.5:1** on slate. Dark surfaces
+  override it to `--focus-invert` (`#7cb0ff`).
+
+## Theming (light / dark)
+
+Colour tokens are named by **role**, not appearance — `--surface`, `--text`,
+`--brand-accent` — because a token called `--white` cannot be re-pointed for a
+dark theme without the name becoming a lie. Light values live in `:root`, dark
+values override the same names in `[data-theme="dark"]`.
+
+**Rule: no colour literal belongs in any rule outside those two blocks.** Check
+before committing:
+
+```bash
+python3 - <<'EOF'
+import re
+s=open('src/assets/styles.css').read()
+b=re.sub(r':root \{.*?\n\}\n','',s,flags=re.S)
+b=re.sub(r'\[data-theme="dark"\] \{.*?\n\}\n','',b,flags=re.S)
+b=re.sub(r'/\*.*?\*/','',b,flags=re.S)
+print(sorted(set(re.findall(r'#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)', b))) or 'clean')
+EOF
+```
+
+Three things that will bite if forgotten:
+
+- **`--brand-solid` and `--brand-accent` are different roles.** `#990000` is a
+  fine button fill but only 2.8:1 as text on a dark surface, so the accent
+  lightens in dark mode and the fill brightens (a dark red fill goes muddy on a
+  near-black page). Never collapse them back into one token.
+- **"invert" surfaces are dark in *both* themes.** In dark mode the page is
+  darker than they are, so they read as raised panels instead of merging into
+  one flat void. Anything sitting on an invert surface therefore keeps fixed
+  light values (`--chip-bg`, `--on-invert-strong`).
+- **The theme script in `<head>` must stay inline and blocking.** Moved to an
+  external file it runs after the stylesheet has painted, and every navigation
+  gives dark-mode visitors a white flash.
+
+Default follows `prefers-color-scheme`; an explicit choice persists in
+`localStorage` and wins from then on. The OS listener only acts while no
+explicit choice exists. The toggle is hidden until JS reveals it, so it is never
+shown in a state where it cannot work.
 
 ## Deploy (Netlify)
 

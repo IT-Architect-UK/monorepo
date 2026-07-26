@@ -161,7 +161,7 @@ input:focus-visible, textarea:focus-visible {
 /* ---------- Theme toggle ---------- */
 .theme-toggle {
   display: inline-flex; align-items: center; justify-content: center;
-  /* 44px meets the WCAG 2.5.8 minimum target size. */
+  /* WCAG 2.5.8 (AA) requires 24x24; 44x44 also satisfies 2.5.5 (AAA). */
   width: 44px; height: 44px;
   background: transparent; cursor: pointer;
   border: 1px solid var(--border); border-radius: 6px;

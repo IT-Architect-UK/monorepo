@@ -194,7 +194,9 @@ input:focus-visible, textarea:focus-visible {
    secondary control and does not compete with Call / WhatsApp / Email. */
 .theme-toggle {
   display: inline-flex; align-items: center; justify-content: center;
-  /* Matches .ubtn height; 44px wide meets the WCAG 2.5.8 target minimum. */
+  /* Matches .ubtn height. 44x32 clears the WCAG 2.5.8 (AA) 24x24 minimum;
+     it does not reach the 44x44 of 2.5.5 (AAA) because the utility bar is a
+     compact strip and a taller control would unbalance it. */
   width: 44px; height: 2rem;
   background: transparent; cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 5px;
