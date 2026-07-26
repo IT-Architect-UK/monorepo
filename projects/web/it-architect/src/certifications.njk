@@ -1,49 +1,7 @@
 ---
-layout: layouts/base.njk
-title: Certifications & Skills
-heading: Certifications & Skills
-standfirst: Formal qualifications, and the technologies behind them.
-description: Microsoft and AWS certifications, a BSc in computer technology, and the infrastructure, cloud, security and automation technologies used in delivery.
+# Retired. A whole page for certifications added little and read as padding;
+# the relevant facts now sit in a short block on the About page, with the full
+# list on LinkedIn. permalink:false stops this building — safe to delete.
+permalink: false
+eleventyExcludeFromCollections: true
 ---
-
-<section class="section">
-  <div class="container">
-    <div class="cols">
-      <div>
-        <h2>Certifications</h2>
-        <ul class="ticks">
-          <li><strong>Microsoft Certified: Azure AI Fundamentals</strong> — Microsoft, 2026</li>
-          <li><strong>AWS Certified Cloud Practitioner</strong> — Amazon Web Services, 2021</li>
-        </ul>
-        <p class="prose-note">
-          23 certifications in total. The full list, with credentials, is on
-          <a href="{{ site.linkedin }}" target="_blank" rel="noopener">LinkedIn<span class="visually-hidden"> (opens in a new tab)</span></a>.
-        </p>
-
-        <h2>Education</h2>
-        <ul class="ticks">
-          <li><strong>BSc, Computer Technology</strong> — Bournemouth University</li>
-        </ul>
-      </div>
-
-      <div>
-        <h2>Technologies</h2>
-
-        <h3>Cloud</h3>
-        <p class="tech">AWS · Microsoft Azure · Entra ID · AWS IAM · hybrid and multi-region design</p>
-
-        <h3>Automation &amp; IaC</h3>
-        <p class="tech">Terraform · Ansible · Packer · CI pipelines · PowerShell · Bash · Python</p>
-
-        <h3>Platforms</h3>
-        <p class="tech">Windows Server · Linux · VMware · Proxmox · Citrix · virtual desktops</p>
-
-        <h3>Security</h3>
-        <p class="tech">Zero-trust architecture · CIS hardening · SIEM · vulnerability management · file integrity monitoring · MFA and identity</p>
-
-        <h3>AI</h3>
-        <p class="tech">Claude · agent orchestration · self-hosted agents (Hermes Agent, OpenClaw) · MCP integrations</p>
-      </div>
-    </div>
-  </div>
-</section>

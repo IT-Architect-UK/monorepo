@@ -15,12 +15,29 @@
   "principal": "Darren Pilkington",
   "role": "IT Infrastructure & Security Architect",
   "nav": [
-    { "text": "Home", "url": "/" },
-    { "text": "Services", "url": "/services/" },
-    { "text": "Experience", "url": "/experience/" },
-    { "text": "Evidence", "url": "/evidence/" },
-    { "text": "Certifications", "url": "/certifications/" },
-    { "text": "About", "url": "/about/" },
-    { "text": "Contact", "url": "/contact/" }
+    {
+      "text": "Home",
+      "url": "/"
+    },
+    {
+      "text": "Services",
+      "url": "/services/"
+    },
+    {
+      "text": "Experience",
+      "url": "/experience/"
+    },
+    {
+      "text": "Evidence",
+      "url": "/evidence/"
+    },
+    {
+      "text": "About",
+      "url": "/about/"
+    },
+    {
+      "text": "Contact",
+      "url": "/contact/"
+    }
   ]
 }
