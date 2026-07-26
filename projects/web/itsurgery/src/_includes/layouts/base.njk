@@ -35,7 +35,8 @@
   }
   </script>
 
-  <link rel="stylesheet" href="/assets/styles.css" />
+  {# ?v= is a content hash — see the cache-busting note in eleventy.config.cjs #}
+  <link rel="stylesheet" href="/assets/styles.css?v={{ assetHash }}" />
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>

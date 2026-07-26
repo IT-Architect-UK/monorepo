@@ -7,9 +7,30 @@
  * Pages use directory-style URLs (e.g. /about-us/) so the existing
  * itsurgery.me URLs are preserved and search rankings are not lost.
  */
+const fs = require("fs");
+const crypto = require("crypto");
+
 module.exports = function (eleventyConfig) {
   // Copy the stylesheet through untouched.
   eleventyConfig.addPassthroughCopy({ "src/assets": "assets" });
+
+  /**
+   * Cache-busting fingerprint for the stylesheet.
+   *
+   * Assets are served with a long Cache-Control max-age (see netlify.toml).
+   * Because the filename never changes, a returning visitor would otherwise
+   * keep the previous CSS for up to a day after a deploy and see an unstyled
+   * or half-styled page. Appending a hash of the file contents gives each
+   * revision its own URL, so changes are picked up immediately while unchanged
+   * builds stay cached.
+   */
+  eleventyConfig.addGlobalData("assetHash", () =>
+    crypto
+      .createHash("md5")
+      .update(fs.readFileSync("src/assets/styles.css"))
+      .digest("hex")
+      .slice(0, 8)
+  );
 
   // Current year, for the footer copyright line.
   eleventyConfig.addShortcode("year", () => `${new Date().getFullYear()}`);
