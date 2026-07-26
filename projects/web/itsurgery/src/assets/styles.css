@@ -23,6 +23,10 @@
   --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --maxw: 1140px;
+  /* One reading measure for all body text. Mixing 60/70/72/75/78ch across
+     sections made the page look misaligned even though every container is
+     the same width. */
+  --measure: 70ch;
 }
 
 * { box-sizing: border-box; }
@@ -189,7 +193,7 @@ input:focus-visible, textarea:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 .page-head h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); margin: 0; }
-.standfirst { font-size: 1.1rem; margin: 0.75rem 0 0; max-width: 70ch; color: var(--ink); }
+.standfirst { font-size: 1.1rem; margin: 0.75rem 0 0; max-width: var(--measure); color: var(--ink); }
 
 /* ---------- Hero (home) ---------- */
 .hero { background: linear-gradient(180deg, var(--brand-tint), var(--white)); padding: 3rem 0 1.5rem; }
@@ -201,7 +205,7 @@ input:focus-visible, textarea:focus-visible {
   color: var(--brand); margin: 0 0 0.5rem; font-size: 0.95rem;
 }
 .hero h1 { font-size: clamp(2rem, 5vw, 2.9rem); line-height: 1.15; margin: 0 0 1rem; max-width: 24ch; }
-.lead { font-size: 1.1rem; max-width: 70ch; margin: 0 0 1.5rem; }
+.lead { font-size: 1.1rem; max-width: var(--measure); margin: 0 0 1.5rem; }
 
 /* ---------- Prominent pricing banner ---------- */
 .price-banner { background: var(--brand); color: var(--white); padding: 1.5rem 0; }
@@ -213,7 +217,7 @@ input:focus-visible, textarea:focus-visible {
   color: var(--white); margin: 0;
   font-size: clamp(1.8rem, 4vw, 2.4rem); line-height: 1;
 }
-.price-banner p { margin: 0.4rem 0 0; font-size: 1rem; max-width: 60ch; }
+.price-banner p { margin: 0.4rem 0 0; font-size: 1rem; max-width: var(--measure); }
 /* Inline links here sit on brand red — the default red would be invisible.
    Scoped to the paragraph so it does not override .btn-onDark, which is a
    white button and needs its red label. */
@@ -278,13 +282,13 @@ input:focus-visible, textarea:focus-visible {
   content: "✓"; position: absolute; left: 0; top: 0;
   color: var(--brand); font-weight: 900;
 }
-.ticks.wide { max-width: 75ch; }
+.ticks.wide { max-width: var(--measure); }
 
 .plain-list { list-style: none; margin: 0; padding: 0; }
 .plain-list li { margin-bottom: 0.5rem; }
 
 /* ---------- Service pages ---------- */
-.service-body { max-width: 78ch; }
+.service-body { max-width: var(--measure); }
 .sibling-nav { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
 .sibling-nav h2 { font-size: 1.2rem; }
 .sibling-nav ul { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
@@ -310,7 +314,7 @@ input:focus-visible, textarea:focus-visible {
 .cta-panel {
   background: var(--tint); border-left: 5px solid var(--brand);
   border-radius: 8px; padding: 1.5rem; margin-top: 2rem;
-  max-width: 78ch;
+  max-width: var(--measure);
 }
 .cta-panel h2 { margin: 0 0 0.5rem; font-size: 1.3rem; }
 .cta-panel p { margin: 0; font-size: 1rem; }
@@ -322,7 +326,7 @@ input:focus-visible, textarea:focus-visible {
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
   margin: 0 0 2rem;
-  max-width: 78ch;
+  max-width: var(--measure);
 }
 .intro-offer p { margin: 0; }
 .intro-flag {
@@ -368,7 +372,9 @@ input:focus-visible, textarea:focus-visible {
 .plan-home { max-width: 34rem; }
 
 /* ---------- AI callout (home) ---------- */
-.ai-callout { padding: 2rem 0; border-top: 1px solid var(--line); }
+/* Sits between two white bands, so it gets the tint to separate it rather
+   than a one-off border, and the same vertical rhythm as every other section. */
+.ai-callout { background: var(--tint); }
 .ai-flag {
   display: inline-block; margin: 0 0 0.5rem;
   background: var(--brand); color: var(--white);
@@ -377,7 +383,7 @@ input:focus-visible, textarea:focus-visible {
   padding: 0.15rem 0.6rem; border-radius: 4px;
 }
 .ai-callout h2 { margin: 0 0 0.5rem; }
-.ai-text { margin: 0 0 0.75rem; max-width: 70ch; }
+.ai-text { margin: 0 0 0.75rem; max-width: var(--measure); }
 .ai-links { margin: 0; font-weight: 700; }
 .ai-links a { margin-right: 0.35rem; }
 .ai-links span { margin-right: 0.35rem; color: var(--muted); }
@@ -393,16 +399,16 @@ input:focus-visible, textarea:focus-visible {
   font-family: var(--font-head); font-weight: 600; font-size: 1.4rem;
   text-align: center; padding: 1.1rem 1rem; border-radius: 10px;
 }
-.area-note { margin: 0; font-size: 1rem; max-width: 70ch; }
+.area-note { margin: 0; font-size: 1rem; max-width: var(--measure); }
 
 /* ---------- Forms ---------- */
-.contact-alt { font-size: 1.05rem; margin: 0 0 1.75rem; max-width: 72ch; }
+.contact-alt { font-size: 1.05rem; margin: 0 0 1.75rem; max-width: var(--measure); }
 .contact-alt a { font-weight: 700; }
 
 .form-wrap {
   background: var(--white); border: 1px solid var(--line);
   border-radius: 10px; padding: 1.75rem; margin-bottom: 1.5rem;
-  max-width: 720px;
+  max-width: var(--measure);
 }
 .form-wrap h2 { margin: 0 0 1.25rem; font-size: 1.3rem; }
 .field { margin-bottom: 1.1rem; border: 0; padding: 0; }
@@ -427,7 +433,7 @@ input:focus-visible, textarea:focus-visible {
 .booking-placeholder {
   border: 2px dashed var(--line); border-radius: 10px;
   padding: 1.75rem; text-align: center; color: var(--muted); background: var(--white);
-  max-width: 720px;
+  max-width: var(--measure);
 }
 
 .contact-card {
