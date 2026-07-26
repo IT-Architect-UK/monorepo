@@ -10,14 +10,15 @@ description: IT Surgery pricing — £30 per hour for home users and £60 per ho
   <div class="container">
     <div class="pricing-wrap">
       <div class="price-block">
-        <p class="price-figure">£{{ site.hourlyRate }}<span class="price-unit">per hour · home users</span></p>
+        <p class="price-figure">£{{ site.hourlyRate }}<span class="price-unit">per hour · home users · {{ site.vatIncLabel }}</span></p>
         <p class="price-note">
           Our rate for help at home, charged for the time we actually spend.
-          Includes the no fix, no fee promise.
+          The price you see is the price you pay. Includes the no fix, no fee
+          promise.
         </p>
       </div>
       <div class="price-block">
-        <p class="price-figure">£{{ site.businessHourlyRate }}<span class="price-unit">per hour · business</span></p>
+        <p class="price-figure">£{{ site.businessHourlyRate }}<span class="price-unit">per hour · business · {{ site.vatExLabel }}</span></p>
         <p class="price-note">
           For business support, where the work is commercial and the cost of
           downtime is higher. Still below most local providers — and lower again
@@ -25,12 +26,23 @@ description: IT Surgery pricing — £30 per hour for home users and £60 per ho
         </p>
       </div>
       <div class="price-block">
-        <p class="price-figure">£{{ site.bookingFee }}<span class="price-unit">to book</span></p>
+        <p class="price-figure">£{{ site.bookingFee }}<span class="price-unit">to book · {{ site.vatIncLabel }}</span></p>
         <p class="price-note">
           Secures your appointment and comes straight off your first hour, so it
           is not an extra charge. If we can't fix your problem, you get it back.
         </p>
       </div>
+    </div>
+
+    <div class="cta-panel">
+      <h2>About VAT</h2>
+      <p>
+        {{ site.legalName }} is VAT registered. <strong>Home prices include
+        VAT</strong> — what you see is what you pay, with nothing added at the
+        end. <strong>Business prices exclude VAT</strong>, which is the usual
+        convention and lets VAT-registered businesses reclaim it. Every invoice
+        shows the VAT separately.
+      </p>
     </div>
 
     <h2>What that means in practice</h2>

@@ -29,13 +29,13 @@ description: Monthly IT support plans for small businesses and home users in Pen
     <h2>For small businesses</h2>
     <p class="section-intro">
       Priced per person, so you only pay for the people you actually have.
-      Minimum £99 a month.
+      Minimum £99 a month. Business prices exclude VAT.
     </p>
 
     <div class="plans">
       <article class="plan">
         <h3>Essentials</h3>
-        <p class="plan-price">£{{ site.plans.essentials.intro }}<span class="plan-unit">per user / month</span></p>
+        <p class="plan-price">£{{ site.plans.essentials.intro }}<span class="plan-unit">per user / month {{ site.vatExLabel }}</span></p>
         <p class="plan-after">£{{ site.plans.essentials.standard }} from {{ site.standardFrom }}</p>
         <ul class="ticks">
           <li>Next working day response</li>
@@ -49,7 +49,7 @@ description: Monthly IT support plans for small businesses and home users in Pen
       <article class="plan plan-featured">
         <p class="plan-flag">Most popular</p>
         <h3>Standard</h3>
-        <p class="plan-price">£{{ site.plans.standard.intro }}<span class="plan-unit">per user / month</span></p>
+        <p class="plan-price">£{{ site.plans.standard.intro }}<span class="plan-unit">per user / month {{ site.vatExLabel }}</span></p>
         <p class="plan-after">£{{ site.plans.standard.standard }} from {{ site.standardFrom }}</p>
         <ul class="ticks">
           <li>Everything in Essentials</li>
@@ -63,7 +63,7 @@ description: Monthly IT support plans for small businesses and home users in Pen
 
       <article class="plan">
         <h3>Tailored</h3>
-        <p class="plan-price">POA<span class="plan-unit">quoted for you</span></p>
+        <p class="plan-price">POA<span class="plan-unit">quoted for you {{ site.vatExLabel }}</span></p>
         <ul class="ticks">
           <li>For more complex setups — servers, multiple sites, compliance</li>
           <li>Cloud, networking and virtualisation covered</li>
@@ -78,7 +78,7 @@ description: Monthly IT support plans for small businesses and home users in Pen
     <div class="plans">
       <article class="plan plan-home">
         <h3>Peace of Mind</h3>
-        <p class="plan-price">£{{ site.plans.home.intro }}<span class="plan-unit">per month</span></p>
+        <p class="plan-price">£{{ site.plans.home.intro }}<span class="plan-unit">per month {{ site.vatIncLabel }}</span></p>
         <p class="plan-after">£{{ site.plans.home.standard }} from {{ site.standardFrom }}</p>
         <ul class="ticks">
           <li>Next working day response when something goes wrong</li>
@@ -107,6 +107,7 @@ description: Monthly IT support plans for small businesses and home users in Pen
     <ul class="ticks wide">
       <li>No long tie-in. One month's notice and you can stop whenever you like.</li>
       <li>Billed monthly in advance. Business plans are billed per user, per month.</li>
+      <li>Business prices exclude VAT; the home plan price includes it. VAT is shown separately on every invoice.</li>
       <li>Introductory prices run to {{ site.introEnds }}; standard prices apply from {{ site.standardFrom }} and are shown on every plan above.</li>
       <li>On-site visits beyond what your plan includes are charged at the discounted plan rate, never the full hourly rate.</li>
       <li>Hardware, parts and third-party licences are charged separately and always agreed with you first.</li>

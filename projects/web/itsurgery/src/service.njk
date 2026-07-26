@@ -39,10 +39,10 @@ eleventyComputed:
           {% if service.rateNote %}
             {{ service.rateNote }}
           {% elif service.group == "business" %}
-            Business support is £{{ site.businessHourlyRate }} an hour, or from
-            £35 per user a month on a <a href="/support-plans/">support plan</a>.
+            Business support is £{{ site.businessHourlyRate }} an hour {{ site.vatExLabel }}, or from
+            £{{ site.plans.essentials.intro }} per user a month on a <a href="/support-plans/">support plan</a>.
           {% else %}
-            Our rate is £{{ site.hourlyRate }} an hour, and if we can't fix it you don't pay.
+            Our rate is £{{ site.hourlyRate }} an hour {{ site.vatIncLabel }}, and if we can't fix it you don't pay.
           {% endif %}
         </p>
       </div>
