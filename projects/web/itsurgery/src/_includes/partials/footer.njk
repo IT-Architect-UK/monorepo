@@ -52,9 +52,18 @@
   </div>
 
   <div class="container footer-legal">
+    {# Companies Act 2006 trading disclosures: a company trading under a
+       different name must show its registered name, number, place of
+       registration and registered office on its website. #}
     <p>
-      &copy; {% year %} {{ site.name }} — a trading name of {{ site.legalName }}.
+      &copy; {% year %} {{ site.name }} — a trading name of {{ site.legalName }},
+      a company registered in {{ site.placeOfRegistration }},
+      company number {{ site.companyNumber }}.
       VAT registration number {{ site.vatNumber }}.
+    </p>
+    <p>
+      Registered office: {{ site.address.street }}, {{ site.address.locality }},
+      {{ site.address.town }}, {{ site.address.postcode }}.
     </p>
   </div>
 </footer>
