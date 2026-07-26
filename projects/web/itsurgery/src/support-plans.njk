@@ -14,6 +14,16 @@ description: Monthly IT support plans for small businesses and home users in Pen
       number to ring, and you know exactly what it costs each month.
     </p>
 
+    <div class="intro-offer">
+      <p class="intro-flag">Introductory pricing</p>
+      <p>
+        Start a plan before <strong>{{ site.introOfferEnds }}</strong> and the
+        prices below are held for your first
+        <strong>{{ site.introHoldMonths }} months</strong>. After that we will
+        give you a month's notice of any change, and you can cancel at any time.
+      </p>
+    </div>
+
     <h2>For small businesses</h2>
     <p class="section-intro">
       Priced per person, so you only pay for the people you actually have.
@@ -29,7 +39,7 @@ description: Monthly IT support plans for small businesses and home users in Pen
           <li>Remote support during working hours</li>
           <li>Windows and software updates kept on top of</li>
           <li>Backups checked monthly</li>
-          <li>On-site visits at a reduced £25 an hour</li>
+          <li>On-site visits at £{{ site.planBusinessRate }} an hour instead of £{{ site.businessHourlyRate }}</li>
         </ul>
       </article>
 
@@ -70,7 +80,7 @@ description: Monthly IT support plans for small businesses and home users in Pen
           <li>An annual health check to keep your computer running sweetly</li>
           <li>Unlimited quick questions by phone or WhatsApp — including
               "is this email a scam?", which we are always happy to check</li>
-          <li>A reduced rate of £25 an hour for any hands-on work</li>
+          <li>A reduced rate of £{{ site.planHomeRate }} an hour for any hands-on work, instead of £{{ site.hourlyRate }}</li>
           <li>No contract — cancel whenever you like</li>
         </ul>
       </article>
@@ -79,8 +89,9 @@ description: Monthly IT support plans for small businesses and home users in Pen
     <div class="cta-panel">
       <h2>Is a plan actually worth it for you?</h2>
       <p>
-        Honestly — if you only need us once or twice a year, pay-as-you-go at
-        £{{ site.hourlyRate }} an hour is probably better value, and we will say
+        Honestly — if you only need us once or twice a year, pay-as-you-go
+        (£{{ site.hourlyRate }} an hour at home, £{{ site.businessHourlyRate }}
+        for business) is probably better value, and we will say
         so. Plans suit people who would rather ask a quick question without
         worrying about the clock, and businesses that cannot afford to lose a
         day's work.

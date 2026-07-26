@@ -15,7 +15,12 @@
   },
   "areas": ["Penarth", "Barry", "Cardiff"],
   "hourlyRate": "30",
+  "businessHourlyRate": "60",
+  "planHomeRate": "25",
+  "planBusinessRate": "40",
   "bookingFee": "20",
+  "introOfferEnds": "31 October 2026",
+  "introHoldMonths": "3",
   "nav": [
     { "text": "Home", "url": "/" },
     { "text": "Business IT", "url": "/business-it/", "group": "business" },

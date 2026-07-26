@@ -2,18 +2,26 @@
 layout: layouts/base.njk
 title: Pricing
 heading: Simple, honest pricing
-standfirst: £30 an hour, a £20 booking fee that comes off your first hour, and no charge at all if we can't fix it.
-description: IT Surgery pricing — £30 per hour for home and small business IT help in Penarth, Barry and Cardiff. £20 booking fee deducted from your first hour, refunded if we cannot fix the problem.
+standfirst: £30 an hour for home users, £60 for business. A £20 booking fee that comes off your first hour, and no charge at all if we can't fix it.
+description: IT Surgery pricing — £30 per hour for home users and £60 per hour for business IT support in Penarth, Barry and Cardiff. £20 booking fee deducted from your first hour, refunded if we cannot fix the problem.
 ---
 
 <section class="section">
   <div class="container">
     <div class="pricing-wrap">
       <div class="price-block">
-        <p class="price-figure">£{{ site.hourlyRate }}<span class="price-unit">per hour</span></p>
+        <p class="price-figure">£{{ site.hourlyRate }}<span class="price-unit">per hour · home users</span></p>
         <p class="price-note">
-          Our straightforward rate for home and small-business work, charged for
-          the time we actually spend.
+          Our rate for help at home, charged for the time we actually spend.
+          Includes the no fix, no fee promise.
+        </p>
+      </div>
+      <div class="price-block">
+        <p class="price-figure">£{{ site.businessHourlyRate }}<span class="price-unit">per hour · business</span></p>
+        <p class="price-note">
+          For business support, where the work is commercial and the cost of
+          downtime is higher. Still below most local providers — and lower again
+          on a <a href="/support-plans/">support plan</a>.
         </p>
       </div>
       <div class="price-block">
