@@ -23,10 +23,12 @@
   --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --maxw: 1140px;
-  /* One reading measure for all body text. Mixing 60/70/72/75/78ch across
-     sections made the page look misaligned even though every container is
-     the same width. */
-  --measure: 70ch;
+  /* One reading measure for all body text. Deliberately in rem, not ch: ch
+     scales with the element's own font-size, so a 1.1rem lead wrapped ~60px
+     wider than 1rem body copy and the bands looked misaligned. A fixed rem
+     value makes every text block wrap at the same pixel width. ~70 characters
+     at the 16px base. */
+  --measure: 38rem;
 }
 
 * { box-sizing: border-box; }
