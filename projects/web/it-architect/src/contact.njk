@@ -1,0 +1,62 @@
+---
+layout: layouts/base.njk
+title: Contact
+heading: Contact
+standfirst: Describe the problem — you will get an honest view on whether I can help.
+description: Contact Darren Pilkington at IT Architect for infrastructure, cloud, security and AI automation work. UK-wide, remote and on-site.
+---
+
+<section class="section">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <h2>Direct</h2>
+        <ul class="contact-list">
+          <li><span>Email</span><a href="mailto:{{ site.email }}">{{ site.email }}</a></li>
+          <li><span>Phone</span><a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a></li>
+          <li><span>LinkedIn</span><a href="{{ site.linkedin }}" target="_blank" rel="noopener">darrenpilkington<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+          <li><span>GitHub</span><a href="{{ site.github }}" target="_blank" rel="noopener">IT-Architect-UK<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+        </ul>
+
+        <h2>Working arrangements</h2>
+        <ul class="ticks">
+          <li>Remote across the UK; on-site where a project needs it</li>
+          <li>Project, fixed-price and day-rate engagements</li>
+          <li>Contracting through {{ site.legalName }}</li>
+        </ul>
+      </div>
+
+      <div>
+        {# Netlify Forms — form detection must be enabled in the Netlify UI. #}
+        <div class="form-wrap">
+          <h2>Send a message</h2>
+          <form name="enquiry" method="POST" action="/thanks/" data-netlify="true" data-netlify-honeypot="bot-field">
+            <p class="hidden-field">
+              <label>Leave this empty: <input name="bot-field" /></label>
+            </p>
+            <div class="field">
+              <label for="name">Your name</label>
+              <input id="name" name="name" type="text" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <label for="org">Organisation <span class="optional">(optional)</span></label>
+              <input id="org" name="organisation" type="text" autocomplete="organization" />
+            </div>
+            <div class="field">
+              <label for="message">What are you trying to achieve?</label>
+              <textarea id="message" name="message" rows="6" required></textarea>
+            </div>
+            <button class="btn btn-primary" type="submit">Send</button>
+            <p class="form-note">
+              Your details are used only to reply to this enquiry.
+            </p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,44 @@
+---
+layout: layouts/base.njk
+title: Experience
+heading: Experience
+standfirst: Where the work has been done, and what it achieved.
+description: Enterprise infrastructure and security delivery across aviation, financial services, IT services and consultancy — cloud migration, zero-trust security and automation.
+---
+
+<section class="section">
+  <div class="container">
+    <p class="lead prose">
+      Clients are described by sector rather than name. Engagements have been
+      under contract and confidentiality, and I would rather be trusted with
+      yours than trade on theirs.
+    </p>
+
+    <div class="timeline">
+      {% for e in experience %}
+      <article class="role">
+        <div class="role-meta">
+          <p class="role-period">{{ e.period }}</p>
+          <p class="role-engagement">{{ e.engagement }}</p>
+        </div>
+        <div class="role-body">
+          <h2>{{ e.role }}</h2>
+          <p class="role-sector">{{ e.sector }}</p>
+          <p>{{ e.summary }}</p>
+          <ul class="ticks">
+            {% for p in e.points %}<li>{{ p }}</li>{% endfor %}
+          </ul>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div class="cta-panel">
+      <h2>Full history</h2>
+      <p>
+        A complete employment history, endorsements and the full skills list are
+        on <a href="{{ site.linkedin }}" target="_blank" rel="noopener">LinkedIn<span class="visually-hidden"> (opens in a new tab)</span></a>.
+      </p>
+    </div>
+  </div>
+</section>

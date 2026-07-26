@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ title }} | {{ site.name }}</title>
+  <meta name="description" content="{{ description }}" />
+  <meta name="theme-color" content="#1c2430" />
+  <link rel="canonical" href="{{ site.url }}{{ page.url }}" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "name": "{{ site.name }}",
+    "description": "Infrastructure, security and AI automation consultancy.",
+    "url": "{{ site.url }}",
+    "email": "{{ site.email }}",
+    "telephone": "{{ site.phoneLink }}",
+    "legalName": "{{ site.legalName }}",
+    "areaServed": "GB",
+    "founder": { "@type": "Person", "name": "{{ site.principal }}", "jobTitle": "{{ site.role }}" }
+  }
+  </script>
+
+  <link rel="stylesheet" href="/assets/styles.css?v={{ assetHash }}" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  {% include "partials/header.njk" %}
+
+  <main id="main">
+    {% if not hidePageTitle %}
+    <div class="page-head">
+      <div class="container">
+        {% if eyebrow %}<p class="eyebrow">{{ eyebrow }}</p>{% endif %}
+        <h1>{{ heading or title }}</h1>
+        {% if standfirst %}<p class="standfirst">{{ standfirst }}</p>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {{ content | safe }}
+  </main>
+
+  {% include "partials/footer.njk" %}
+
+  <script>
+    // Mobile menu. Without JS the nav simply stays visible.
+    (function () {
+      var btn = document.querySelector('.menu-toggle');
+      var nav = document.getElementById('main-nav');
+      if (!btn || !nav) return;
+      btn.hidden = false;
+      nav.classList.add('is-collapsible');
+      btn.addEventListener('click', function () {
+        var open = nav.classList.toggle('is-open');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.textContent = open ? 'Close' : 'Menu';
+      });
+    })();
+  </script>
+</body>
+</html>

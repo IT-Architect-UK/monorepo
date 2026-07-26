@@ -1,0 +1,65 @@
+---
+layout: layouts/base.njk
+title: Evidence
+heading: Evidence
+standfirst: Anyone can claim to be senior. These you can inspect.
+description: Public reference implementations — a Packer, Ansible and CI monorepo, and a production Eleventy site — demonstrating infrastructure automation and delivery standards.
+---
+
+<section class="section">
+  <div class="container">
+    <p class="lead prose">
+      Choosing an engineer usually means taking someone's word for it. I would
+      rather you looked at the work. Both of these are public and live.
+    </p>
+
+    <div class="cards">
+      <article class="card card-feature">
+        <h2>Infrastructure monorepo</h2>
+        <p>
+          A working reference environment for test labs and greenfield builds:
+          Packer templates for Windows and Linux across Proxmox, VMware, AWS,
+          Azure and GCP, Ansible roles for configuration and hardening, and a CI
+          workflow that validates every template on push.
+        </p>
+        <p class="prose-note">
+          Inspect the commit history, not just the README — it shows how the work
+          is actually done.
+        </p>
+        <p>
+          <a class="btn btn-primary" href="{{ site.github }}" target="_blank" rel="noopener">
+            View on GitHub<span class="visually-hidden"> (opens in a new tab)</span>
+          </a>
+        </p>
+      </article>
+
+      <article class="card card-feature">
+        <h2>A production site, built and shipped</h2>
+        <p>
+          <strong>itsurgery.me</strong> — a live business site built with Eleventy:
+          templated so 28 pages share one layout, contact details held in a single
+          data file, WCAG 2.1 AA verified, machine-readable sitemap, forms handled
+          without a backend, and continuous deployment on every push.
+        </p>
+        <p class="prose-note">
+          Small in scope, but a fair sample of standards: accessible, fast,
+          maintainable, no server to patch.
+        </p>
+        <p>
+          <a class="btn btn-primary" href="https://itsurgery.me" target="_blank" rel="noopener">
+            Visit the site<span class="visually-hidden"> (opens in a new tab)</span>
+          </a>
+        </p>
+      </article>
+    </div>
+
+    <div class="cta-panel">
+      <h2>Want something more specific?</h2>
+      <p>
+        If you need to see work closer to your own problem, ask. I can usually
+        walk through an approach or build a small proof of concept —
+        <a href="mailto:{{ site.email }}">{{ site.email }}</a>.
+      </p>
+    </div>
+  </div>
+</section>

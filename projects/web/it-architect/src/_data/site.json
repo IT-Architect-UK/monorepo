@@ -1,0 +1,26 @@
+{
+  "name": "IT Architect",
+  "tagline": "IT Solution Experts",
+  "legalName": "IT Solution Architecture Limited",
+  "url": "https://it-architect.uk",
+  "email": "darren.pilkington@it-architect.uk",
+  "phoneDisplay": "07775 580371",
+  "phoneLink": "+447775580371",
+  "linkedin": "https://www.linkedin.com/in/darrenpilkington/",
+  "github": "https://github.com/IT-Architect-UK/monorepo",
+  "companyNumber": "12066050",
+  "placeOfRegistration": "England and Wales",
+  "vatNumber": "325 6309 11",
+  "yearsExperience": "25",
+  "principal": "Darren Pilkington",
+  "role": "IT Infrastructure & Security Architect",
+  "nav": [
+    { "text": "Home", "url": "/" },
+    { "text": "Services", "url": "/services/" },
+    { "text": "Experience", "url": "/experience/" },
+    { "text": "Evidence", "url": "/evidence/" },
+    { "text": "Certifications", "url": "/certifications/" },
+    { "text": "About", "url": "/about/" },
+    { "text": "Contact", "url": "/contact/" }
+  ]
+}

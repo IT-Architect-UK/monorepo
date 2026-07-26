@@ -1,0 +1,29 @@
+---
+layout: layouts/base.njk
+title: Services
+heading: Services
+standfirst: Cloud, automation, security and applied AI — delivered, not theorised.
+description: Cloud architecture and migration, infrastructure as code, security architecture, AI and agent automation, and test lab builds. UK infrastructure consultancy.
+---
+
+<section class="section">
+  <div class="container">
+    <div class="cards">
+      {% for s in services %}
+      <article class="card">
+        <h2><a href="/{{ s.slug }}/">{{ s.title }}</a></h2>
+        <p>{{ s.summary }}</p>
+        <p><a class="more" href="/{{ s.slug }}/">Read more</a></p>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div class="cta-panel">
+      <h2>Not sure which of these you need?</h2>
+      <p>
+        Most projects cut across several. Describe the problem and I will tell you
+        what it actually needs — <a href="mailto:{{ site.email }}">{{ site.email }}</a>.
+      </p>
+    </div>
+  </div>
+</section>

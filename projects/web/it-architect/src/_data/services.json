@@ -1,0 +1,79 @@
+[
+  {
+    "slug": "cloud-architecture-migration",
+    "title": "Cloud Architecture & Migration",
+    "summary": "Moving production estates to AWS and Azure without the drama.",
+    "intro": "Migration projects fail on the things nobody planned for — the undocumented dependency, the application nobody owns, the cutover window that was always too short. Two decades of doing this in regulated environments means those get surfaced during design, not during the weekend of the move.",
+    "body": "Work covers assessment and dependency mapping, target architecture, landing zones, identity and network design, migration execution and post-migration optimisation. Hybrid is treated as a legitimate destination rather than a failure to finish — plenty of workloads should stay where they are, and saying so is part of the job.",
+    "points": [
+      "Discovery and dependency mapping before anything moves",
+      "AWS and Azure landing zones, networking and identity",
+      "Lift-and-shift, re-platform or re-architect — chosen per workload, with reasons",
+      "Migration runbooks, rehearsal and rollback planning",
+      "Post-migration cost review and right-sizing"
+    ],
+    "proof": "Recent work included migrating 50+ on-premises servers into AWS for a global airline group, and moving secure file transfer to a multi-region AWS design for a UK life and pensions provider."
+  },
+  {
+    "slug": "infrastructure-as-code-automation",
+    "title": "Infrastructure as Code & Automation",
+    "summary": "Terraform, Ansible and Packer — environments you can rebuild, not nurse.",
+    "intro": "If your environment cannot be rebuilt from source control, you do not have infrastructure — you have an artefact nobody dares touch. The aim is always the same: every environment reproducible from code, every change reviewable, and nothing important living only in someone's memory.",
+    "body": "Delivery covers Terraform for provisioning, Ansible for configuration and hardening, and Packer for golden images, wired into CI so that changes are validated before they land. Automation is chosen where it repays the effort — a script that saves five minutes once a year is not worth maintaining, and I will say so.",
+    "points": [
+      "Terraform modules and state strategy for AWS, Azure and on-premises",
+      "Ansible roles for configuration, patching and CIS hardening",
+      "Packer golden images across cloud and hypervisor targets",
+      "CI validation pipelines so broken infrastructure code never merges",
+      "Documentation written for the engineer who inherits it"
+    ],
+    "proof": "Automation of provisioning and security configuration with Terraform and Ansible cut manual provisioning effort by roughly 60% on a large airline cloud estate."
+  },
+  {
+    "slug": "security-architecture",
+    "title": "Security Architecture",
+    "summary": "Zero-trust access, identity, hardening and vulnerability management.",
+    "intro": "Security architecture is mostly about making the safe path the easy path. Controls that engineers route around are worse than no controls, because they create the illusion of protection while quietly training everyone to work outside them.",
+    "body": "Work spans zero-trust access design, identity and access management across Entra ID and AWS IAM, host hardening against CIS baselines, file integrity monitoring, vulnerability management and SIEM integration — along with the documentation and change records that regulated environments demand.",
+    "points": [
+      "Zero-trust access architecture and segmentation",
+      "Identity and access management — Entra ID, AWS IAM, MFA enforcement",
+      "Windows and Linux hardening to CIS baselines via Ansible",
+      "Vulnerability scanning and file integrity monitoring",
+      "SIEM integration, custom detection content and monitoring",
+      "Risk-rated findings and remediation roadmaps for senior stakeholders"
+    ],
+    "proof": "Delivered zero-trust cloud access with Entra ID and AWS IAM, MFA across all workloads, and full estate visibility through SIEM and vulnerability scanning for a global airline group."
+  },
+  {
+    "slug": "ai-agent-automation",
+    "title": "AI & Agent Automation",
+    "summary": "Applied AI in operations — including self-hosted agents on your own infrastructure.",
+    "intro": "Most organisations are paying for AI licences that produce very little, because nobody has connected the tools to the work. The value is not in the model; it is in wiring it to real systems, with real guardrails, on tasks that genuinely repeat.",
+    "body": "This is the newest part of the practice and the fastest-moving: agent tooling applied to delivery and operations, self-hosted agents where data cannot leave the estate, and honest advice about where AI does not belong. Infrastructure and security experience matters here more than prompt-writing — an agent with access to systems is a privileged account, and should be designed like one.",
+    "points": [
+      "Where AI genuinely saves time in your operation — and where it does not",
+      "Agent orchestration wired into existing systems and data",
+      "Self-hosted agents such as Hermes Agent and OpenClaw on your own infrastructure",
+      "Claude, ChatGPT and Copilot rollout, with practical team training",
+      "Guardrails, least privilege and data boundaries for agent access",
+      "Automation of repetitive delivery and operations work"
+    ],
+    "proof": "Currently applying AI agent tooling to accelerate enterprise integration and security delivery, reducing manual overhead on repeatable work."
+  },
+  {
+    "slug": "test-labs-greenfield",
+    "title": "Test Labs & Greenfield Builds",
+    "summary": "Reproducible environments for proving a design before you commit to it.",
+    "intro": "Greenfield projects and proof-of-concept work stall when there is nowhere safe to try things. A properly built lab lets you test a design, a migration or a security control against something that behaves like production, without risking it.",
+    "body": "Builds cover hypervisor and cloud-based labs, automated provisioning so environments can be destroyed and rebuilt at will, monitoring and observability from day one, and documentation that lets someone else run it. The same approach underpins the public reference environment in my GitHub monorepo.",
+    "points": [
+      "Proxmox, VMware and cloud-based lab environments",
+      "Fully automated build — destroy and rebuild on demand",
+      "Golden images for Windows and Linux targets",
+      "Monitoring and observability included, not bolted on later",
+      "Greenfield platform design for new sites and new businesses"
+    ],
+    "proof": "A public reference implementation — Packer templates, Ansible roles and CI validation — is available in the GitHub monorepo linked from the evidence page."
+  }
+]

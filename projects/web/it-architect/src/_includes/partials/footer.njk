@@ -1,0 +1,45 @@
+<footer class="site-footer">
+  <div class="container footer-grid">
+
+    <div class="footer-col">
+      <p class="footer-brand">{{ site.name }}</p>
+      <p class="footer-small">
+        Infrastructure, security and AI automation consultancy.
+        {{ site.yearsExperience }} years in enterprise environments.
+      </p>
+    </div>
+
+    <div class="footer-col">
+      <h2>Services</h2>
+      <ul>
+        {% for s in services %}
+        <li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="footer-col">
+      <h2>Get in touch</h2>
+      <ul>
+        <li><a href="mailto:{{ site.email }}">{{ site.email }}</a></li>
+        <li><a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a></li>
+        <li><a href="{{ site.linkedin }}" target="_blank" rel="noopener">LinkedIn<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+        <li><a href="{{ site.github }}" target="_blank" rel="noopener">GitHub<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+        <li><a href="/contact/">Contact page</a></li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="container footer-legal">
+    {# Companies Act 2006 trading disclosures. #}
+    <p>
+      &copy; {% year %} {{ site.legalName }}, a company registered in
+      {{ site.placeOfRegistration }}. Trading as {{ site.name }}.
+    </p>
+    <p>
+      Company Number: {{ site.companyNumber }}
+      | VAT Registration Number: {{ site.vatNumber }}
+    </p>
+  </div>
+</footer>

@@ -1,0 +1,53 @@
+---
+layout: layouts/base.njk
+pagination:
+  data: services
+  size: 1
+  alias: service
+  addAllPagesToCollections: true
+permalink: "/{{ service.slug }}/"
+eleventyComputed:
+  title: "{{ service.title | safe }}"
+  heading: "{{ service.title | safe }}"
+  standfirst: "{{ service.summary | safe }}"
+  description: "{{ service.title | safe }} — {{ service.summary | safe }} UK infrastructure and security consultancy."
+---
+
+<section class="section">
+  <div class="container">
+    <div class="prose">
+      <p class="lead">{{ service.intro }}</p>
+      <p>{{ service.body }}</p>
+
+      <h2>What this covers</h2>
+      <ul class="ticks">
+        {% for p in service.points %}<li>{{ p }}</li>{% endfor %}
+      </ul>
+
+      {% if service.proof %}
+      <div class="proof">
+        <p class="proof-label">Delivered</p>
+        <p>{{ service.proof }}</p>
+      </div>
+      {% endif %}
+
+      <div class="cta-panel">
+        <h2>Discuss a {{ service.title | lower }} project</h2>
+        <p>
+          Email <a href="mailto:{{ site.email }}">{{ site.email }}</a> or
+          <a href="/contact/">get in touch</a>. Initial conversations are free and
+          you will get a straight view on scope and feasibility.
+        </p>
+      </div>
+
+      <nav class="sibling-nav" aria-label="Other services">
+        <h2>Other services</h2>
+        <ul>
+          {% for s in services %}{% if s.slug != service.slug %}
+          <li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>
+          {% endif %}{% endfor %}
+        </ul>
+      </nav>
+    </div>
+  </div>
+</section>

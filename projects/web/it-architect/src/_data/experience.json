@@ -1,0 +1,68 @@
+[
+  {
+    "sector": "Global IT services provider",
+    "role": "Technical Integration Lead",
+    "period": "2024 – present",
+    "engagement": "Permanent",
+    "summary": "Technical lead on enterprise integration and security projects across major client environments, applying AI agent tooling to accelerate delivery and reduce manual overhead.",
+    "points": [
+      "File integrity monitoring and compliance hardening deployed across client estates",
+      "Windows and Linux infrastructure hardened with Ansible against CIS baselines",
+      "Custom monitoring content built for SIEM and other monitoring platforms",
+      "Risk-rated security findings and remediation roadmaps presented to senior stakeholders",
+      "Escalation point for complex problems blocking project delivery"
+    ]
+  },
+  {
+    "sector": "Global airline group",
+    "role": "IT Infrastructure Security Architect",
+    "period": "2021 – 2023",
+    "engagement": "Contract",
+    "summary": "Architected a zero-trust cloud access solution and led the migration of a substantial on-premises estate into AWS.",
+    "points": [
+      "50+ on-premises servers migrated to AWS",
+      "Zero-trust access implemented with Entra ID and AWS IAM, MFA enforced across all workloads",
+      "Approximately 60% reduction in manual provisioning through Terraform and Ansible automation",
+      "SIEM and vulnerability scanning deployed for full visibility of the cloud estate",
+      "Security architecture documentation and change records produced to audit standard"
+    ]
+  },
+  {
+    "sector": "UK life and pensions provider",
+    "role": "Senior Infrastructure Architect",
+    "period": "2021 – 2022",
+    "engagement": "Contract",
+    "summary": "Led the secure migration of on-premises managed file transfer into a multi-region AWS design.",
+    "points": [
+      "10TB of sensitive financial data migrated and protected in transit and at rest",
+      "Multi-region AWS architecture with encrypted private networking",
+      "Managed file transfer automation rebuilt for resilience and auditability",
+      "Delivered within the controls expected of a regulated financial environment"
+    ]
+  },
+  {
+    "sector": "Security consultancy",
+    "role": "IT Infrastructure Security Architect",
+    "period": "2023 – 2024",
+    "engagement": "Contract",
+    "summary": "Security architecture and automation across client estates, with an emphasis on measurable risk reduction.",
+    "points": [
+      "Real-time monitoring and vulnerability scanning deployed to mitigate critical risks",
+      "Security configuration automated with Terraform and Ansible, cutting provisioning time",
+      "Security documentation and change management reporting aligned to industry standards"
+    ]
+  },
+  {
+    "sector": "Independent practice",
+    "role": "IT Infrastructure Architect — AI & Automation SME",
+    "period": "2023 – present",
+    "engagement": "Own consultancy",
+    "summary": "Infrastructure architecture, automation and applied AI delivered directly to clients through IT Solution Architecture Limited.",
+    "points": [
+      "Cloud and on-premises architecture for small and mid-sized organisations",
+      "Infrastructure as code, golden images and CI-validated builds",
+      "Applied AI and agent automation, including self-hosted deployments",
+      "Reference implementations published publicly on GitHub"
+    ]
+  }
+]

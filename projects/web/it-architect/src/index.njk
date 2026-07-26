@@ -1,0 +1,101 @@
+---
+layout: layouts/base.njk
+title: IT Infrastructure, Security & AI Automation
+description: Infrastructure and security architecture with 25 years of enterprise delivery — cloud migration, infrastructure as code, zero-trust security and applied AI automation. UK-based consultancy.
+hidePageTitle: true
+---
+
+<section class="hero">
+  <div class="container">
+    <p class="eyebrow">{{ site.yearsExperience }} years · enterprise infrastructure</p>
+    <h1>Infrastructure that can be rebuilt, secured and proven</h1>
+    <p class="lead">
+      I design and deliver cloud and on-premises infrastructure for organisations
+      that cannot afford it to go wrong — then automate it so it is reproducible,
+      hardened and documented. Increasingly, that includes putting AI to work on
+      the parts of delivery that repeat.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="/services/">What I do</a>
+      <a class="btn btn-ghost" href="/evidence/">See the evidence</a>
+    </div>
+  </div>
+</section>
+
+<section class="strip">
+  <div class="container strip-inner">
+    <div><span class="strip-figure">{{ site.yearsExperience }}</span><span class="strip-label">years in enterprise IT</span></div>
+    <div><span class="strip-figure">50+</span><span class="strip-label">servers migrated to AWS on one programme</span></div>
+    <div><span class="strip-figure">~60%</span><span class="strip-label">less manual provisioning through automation</span></div>
+    <div><span class="strip-figure">10TB</span><span class="strip-label">of regulated financial data migrated securely</span></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2>What I do</h2>
+    <p class="section-intro">
+      Five areas, all of them things I have delivered rather than read about.
+    </p>
+    <div class="cards">
+      {% for s in services %}
+      <article class="card">
+        <h3><a href="/{{ s.slug }}/">{{ s.title }}</a></h3>
+        <p>{{ s.summary }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section section-dark">
+  <div class="container">
+    <h2>How I work</h2>
+    <div class="cols">
+      <div>
+        <h3>Reproducible, not hand-built</h3>
+        <p>
+          If an environment cannot be rebuilt from source control, it is a
+          liability. Everything I build is defined as code, validated in CI and
+          documented for whoever inherits it.
+        </p>
+      </div>
+      <div>
+        <h3>Straight answers</h3>
+        <p>
+          Sometimes the right advice is that a migration is not worth it, or that
+          AI will not help with the problem you have. You will get that view
+          early, not after the invoice.
+        </p>
+      </div>
+      <div>
+        <h3>Security as a default</h3>
+        <p>
+          Hardening, identity and least privilege designed in from the start.
+          Controls engineers route around are worse than none at all.
+        </p>
+      </div>
+      <div>
+        <h3>Evidence over adjectives</h3>
+        <p>
+          Working reference implementations are published publicly so you can
+          inspect the standard of work before you commit to anything.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="cta-panel">
+      <h2>Got a project in mind?</h2>
+      <p>
+        Tell me what you are trying to achieve and I will tell you honestly
+        whether I am the right person for it.
+        <a href="mailto:{{ site.email }}">{{ site.email }}</a> or
+        <a href="/contact/">get in touch</a>.
+      </p>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,29 @@
+---
+layout: layouts/base.njk
+title: Message sent
+heading: Message sent
+standfirst: Thanks — I will come back to you shortly.
+description: Your message has been received.
+---
+
+<section class="section">
+  <div class="container">
+    <div class="prose">
+      <p class="lead">
+        Your message has arrived. I read these myself and will normally reply
+        within one working day.
+      </p>
+      <p>
+        If it is urgent, email <a href="mailto:{{ site.email }}">{{ site.email }}</a>
+        or call <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a> directly.
+      </p>
+      <div class="cta-panel">
+        <h2>While you wait</h2>
+        <p>
+          The <a href="/evidence/">evidence page</a> links to public reference
+          work, and <a href="/services/">services</a> sets out what I deliver.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
