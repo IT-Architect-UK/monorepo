@@ -14,6 +14,11 @@ module.exports = function (eleventyConfig) {
   // Copy the stylesheet through untouched.
   eleventyConfig.addPassthroughCopy({ "src/assets": "assets" });
 
+  // Favicons and the web manifest are copied to the site root, not into
+  // /assets/. Browsers and crawlers request /favicon.ico by that exact path
+  // whether or not the page declares it, so it has to live there.
+  eleventyConfig.addPassthroughCopy({ "src/icons": "." });
+
   /**
    * Cache-busting fingerprint for the stylesheet.
    *

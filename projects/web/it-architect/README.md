@@ -68,6 +68,40 @@ Two contrast pitfalls, both caught by audit and fixed — do not reintroduce the
 - The standard focus ring `#0b57d0` is only **2.5:1** on slate. Dark sections
   override it to `--focus-dark` (`#7cb0ff`).
 
+## Favicons
+
+Icons live in `src/icons/` and are copied to the **site root** by a passthrough
+in `eleventy.config.cjs` — browsers and crawlers request `/favicon.ico` by that
+exact path whether or not the page declares it, so it cannot sit under
+`/assets/`.
+
+| File | Used by |
+|------|---------|
+| `favicon.ico` | Browser tabs. Genuinely contains 16, 32 and 48px entries. |
+| `apple-touch-icon.png` | iOS home screen. 180px, square, **opaque**. |
+| `icon-192.png`, `icon-512.png` | Android / web manifest. |
+| `site.webmanifest` | Name, theme colour, icon list. |
+
+Two things to preserve if you regenerate these:
+
+- **`apple-touch-icon.png` must be opaque.** iOS composites transparency onto
+  black, so a transparent source produces the black-backed icon we were
+  deliberately getting rid of.
+- **Pillow cannot upscale when writing an `.ico`.** Saving from a 32px image
+  with `sizes=[(16,16),(32,32),(48,48)]` silently writes only 16 and 32. Render
+  a 256px master and let Pillow downsample. Verify by reading the ICO directory
+  header, not by opening the file (Pillow reports one size).
+
+The icon is the **monitor portion of the logo mark**, white on a slate
+`#1c2430` rounded tile. The full mark is not used: at 16px the tower's thin
+lines turn to grey mush and the black artwork nearly vanishes on a dark tab
+strip. Cropping to the monitor keeps it recognisably the logo while staying
+readable. The tile supplies its own background, so the icon holds up on light
+and dark tab strips alike — which a transparent dark-ink icon does not.
+
+There is no `icon.svg` here: the logo mark is raster, so there is nothing to
+vectorise without redrawing it.
+
 ## Deploy (Netlify)
 
 1. Create a Netlify site from `IT-Architect-UK/monorepo`.

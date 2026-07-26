@@ -8,6 +8,15 @@
   <meta name="theme-color" content="#990000" />
   <link rel="canonical" href="{{ site.url }}{{ page.url }}" />
 
+  {# Favicons. icon.svg is the same cross path as the header logo, so the tab
+     icon and the brand mark are one shape. The .ico (16/32/48) covers older
+     browsers. apple-touch-icon must be opaque — iOS composites transparency
+     onto black, which is the exact thing we are avoiding here. #}
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="48x48" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />

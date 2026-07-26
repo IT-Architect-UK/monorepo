@@ -78,6 +78,36 @@ every page, all the same size. The Quote Request page carries a callback form
 handled by **Netlify Forms** — no backend required; submissions appear in the
 Netlify dashboard.
 
+## Favicons
+
+Icons live in `src/icons/` and are copied to the **site root** by a passthrough
+in `eleventy.config.cjs` — browsers and crawlers request `/favicon.ico` by that
+exact path whether or not the page declares it, so it cannot sit under
+`/assets/`.
+
+| File | Used by |
+|------|---------|
+| `favicon.ico` | Browser tabs. Genuinely contains 16, 32 and 48px entries. |
+| `apple-touch-icon.png` | iOS home screen. 180px, square, **opaque**. |
+| `icon-192.png`, `icon-512.png` | Android / web manifest. |
+| `site.webmanifest` | Name, theme colour, icon list. |
+
+Two things to preserve if you regenerate these:
+
+- **`apple-touch-icon.png` must be opaque.** iOS composites transparency onto
+  black, so a transparent source produces the black-backed icon we were
+  deliberately getting rid of.
+- **Pillow cannot upscale when writing an `.ico`.** Saving from a 32px image
+  with `sizes=[(16,16),(32,32),(48,48)]` silently writes only 16 and 32. Render
+  a 256px master and let Pillow downsample. Verify by reading the ICO directory
+  header, not by opening the file (Pillow reports one size).
+
+The tab icon is `icon.svg` — the *same* path as the header logo's inline SVG
+(`M15 2h10v13h13v10H25v13H15V25H2V15h13z`, `#990000`), so the tab and the brand
+mark are one shape. It is transparent by design: a bold cross stays legible at
+16px on both light and dark tab strips. The `apple-touch-icon` uses a white
+field for the reason given above.
+
 ## Deploy (Netlify)
 
 1. Create a Netlify site from the `IT-Architect-UK/monorepo` repository.
