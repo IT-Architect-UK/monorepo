@@ -2,8 +2,8 @@
 layout: layouts/base.njk
 title: Pricing
 heading: Simple, honest pricing
-standfirst: £30 an hour for home users, £60 for business. A £20 booking fee that comes off your first hour, and no charge at all if we can't fix it.
-description: IT Surgery pricing — £30 per hour for home users and £60 per hour for business IT support in Penarth, Barry and Cardiff. £20 booking fee deducted from your first hour, refunded if we cannot fix the problem.
+standfirst: £36 an hour inc. VAT for home users, £60 + VAT for business. A £24 booking fee that comes off your first hour, and no charge at all if we can't fix it.
+description: IT Surgery pricing — £36 per hour inc. VAT for home users and £60 + VAT for business IT support in Penarth, Barry and Cardiff. £24 booking fee deducted from your first hour, refunded if we cannot fix the problem.
 ---
 
 <section class="section">
@@ -47,11 +47,11 @@ description: IT Surgery pricing — £30 per hour for home users and £60 per ho
 
     <h2>What that means in practice</h2>
     <ul class="ticks wide">
-      <li>You pay £20 to book a visit at a time that suits you.</li>
+      <li>You pay £{{ site.bookingFee }} to book a visit at a time that suits you.</li>
       <li>We arrive, diagnose the problem and tell you what is wrong.</li>
       <li>Before we go any further, you know what it will cost.</li>
-      <li>The £20 is deducted from your first hour — so an hour's work is £30 in total, not £50.</li>
-      <li>If we cannot fix the problem, the £20 is refunded in full.</li>
+      <li>The £{{ site.bookingFee }} is deducted from your first hour — so an hour's work is £{{ site.hourlyRate }} in total, not £{{ (site.hourlyRate | int) + (site.bookingFee | int) }}.</li>
+      <li>If we cannot fix the problem, the £{{ site.bookingFee }} is refunded in full.</li>
     </ul>
 
     <h2>Things worth knowing</h2>
@@ -66,8 +66,8 @@ description: IT Surgery pricing — £30 per hour for home users and £60 per ho
       <h2>Need us regularly?</h2>
       <p>
         If you would rather have ongoing cover than pay by the hour, our
-        <a href="/support-plans/">support plans</a> start at £12 a month for home
-        users and £35 per user a month for businesses.
+        <a href="/support-plans/">support plans</a> start at £{{ site.plans.home.intro }} a month for home
+        users and £{{ site.plans.essentials.intro }} per user a month for businesses.
       </p>
     </div>
 

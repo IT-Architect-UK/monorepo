@@ -13,12 +13,16 @@
     "town": "Penarth",
     "postcode": "CF64 5WW"
   },
-  "areas": ["Penarth", "Barry", "Cardiff"],
-  "hourlyRate": "30",
+  "areas": [
+    "Penarth",
+    "Barry",
+    "Cardiff"
+  ],
+  "hourlyRate": "36",
   "businessHourlyRate": "60",
-  "planHomeRate": "25",
+  "planHomeRate": "30",
   "planBusinessRate": "40",
-  "bookingFee": "20",
+  "bookingFee": "24",
   "vatRegistered": true,
   "vatNumber": "325 6309 11",
   "vatIncLabel": "inc. VAT",
@@ -27,20 +31,55 @@
   "introEnds": "31 October 2026",
   "standardFrom": "1 November 2026",
   "plans": {
-    "essentials": { "intro": "35", "standard": "45" },
-    "standard": { "intro": "55", "standard": "70" },
-    "home": { "intro": "12", "standard": "15" }
+    "essentials": {
+      "intro": "35",
+      "standard": "45"
+    },
+    "standard": {
+      "intro": "55",
+      "standard": "70"
+    },
+    "home": {
+      "intro": "15",
+      "standard": "18"
+    }
   },
   "nav": [
-    { "text": "Home", "url": "/" },
-    { "text": "Business IT", "url": "/business-it/", "group": "business" },
-    { "text": "Personal IT", "url": "/personal-it/", "group": "personal" },
-    { "text": "Pricing", "url": "/pricing/" },
-    { "text": "Support Plans", "url": "/support-plans/" },
-    { "text": "Site Map", "url": "/site-map/" }
+    {
+      "text": "Home",
+      "url": "/"
+    },
+    {
+      "text": "Business IT",
+      "url": "/business-it/",
+      "group": "business"
+    },
+    {
+      "text": "Personal IT",
+      "url": "/personal-it/",
+      "group": "personal"
+    },
+    {
+      "text": "Pricing",
+      "url": "/pricing/"
+    },
+    {
+      "text": "Support Plans",
+      "url": "/support-plans/"
+    },
+    {
+      "text": "Site Map",
+      "url": "/site-map/"
+    }
   ],
   "utilityNav": [
-    { "text": "About Us", "url": "/about-us/" },
-    { "text": "Quote Request", "url": "/quote/" }
+    {
+      "text": "About Us",
+      "url": "/about-us/"
+    },
+    {
+      "text": "Quote Request",
+      "url": "/quote/"
+    }
   ]
 }
