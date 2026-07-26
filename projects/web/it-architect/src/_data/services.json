@@ -19,7 +19,7 @@
     "title": "Infrastructure as Code & Automation",
     "summary": "Terraform, Ansible and Packer — environments you can rebuild, not nurse.",
     "intro": "If your environment cannot be rebuilt from source control, you do not have infrastructure — you have an artefact nobody dares touch. The aim is always the same: every environment reproducible from code, every change reviewable, and nothing important living only in someone's memory.",
-    "body": "Delivery covers Terraform for provisioning, Ansible for configuration and hardening, and Packer for golden images, wired into CI so that changes are validated before they land. Automation is chosen where it repays the effort — a script that saves five minutes once a year is not worth maintaining, and I will say so.",
+    "body": "Delivery covers Terraform for provisioning, Ansible for configuration and hardening, and Packer for golden images, wired into CI so that changes are validated before they land. Automation is chosen where it repays the effort — a script that saves five minutes once a year is not worth maintaining, and we will say so.",
     "points": [
       "Terraform modules and state strategy for AWS, Azure and on-premises",
       "Ansible roles for configuration, patching and CIS hardening",
@@ -66,7 +66,7 @@
     "title": "Test Labs & Greenfield Builds",
     "summary": "Reproducible environments for proving a design before you commit to it.",
     "intro": "Greenfield projects and proof-of-concept work stall when there is nowhere safe to try things. A properly built lab lets you test a design, a migration or a security control against something that behaves like production, without risking it.",
-    "body": "Builds cover hypervisor and cloud-based labs, automated provisioning so environments can be destroyed and rebuilt at will, monitoring and observability from day one, and documentation that lets someone else run it. The same approach underpins the public reference environment in my GitHub monorepo.",
+    "body": "Builds cover hypervisor and cloud-based labs, automated provisioning so environments can be destroyed and rebuilt at will, monitoring and observability from day one, and documentation that lets someone else run it. The same approach underpins the public reference environment in our GitHub monorepo.",
     "points": [
       "Proxmox, VMware and cloud-based lab environments",
       "Fully automated build — destroy and rebuild on demand",
