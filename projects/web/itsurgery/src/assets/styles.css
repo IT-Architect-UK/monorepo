@@ -232,9 +232,10 @@ input:focus-visible, textarea:focus-visible {
 
 /* ---------- Buttons ---------- */
 .btn {
-  display: inline-block; padding: 0.85rem 1.5rem; border-radius: 8px;
-  font-weight: 700; font-size: 1.05rem; text-decoration: none;
+  display: inline-block; padding: 0.5rem 1.1rem; border-radius: 6px;
+  font-weight: 700; font-size: 0.95rem; text-decoration: none;
   border: 2px solid transparent; font-family: var(--font-head); cursor: pointer;
+  line-height: 1.4;
 }
 .btn-primary { background: var(--brand); color: var(--white); }
 .btn-primary:hover { background: var(--brand-dark); }
@@ -529,7 +530,7 @@ input:focus-visible, textarea:focus-visible {
   .section { padding: 2rem 0; }
   .page-head { padding: 1.75rem 0 1.25rem; }
   .price-banner-inner { flex-direction: column; align-items: flex-start; }
-  .btn { width: 100%; text-align: center; }
+  .btn { width: 100%; text-align: center; padding: 0.7rem 1.1rem; }
   .card .btn { align-self: stretch; }
   .form-wrap, .booking-placeholder { padding: 1.25rem; }
   .areas li { font-size: 1.2rem; padding: 0.9rem; }
