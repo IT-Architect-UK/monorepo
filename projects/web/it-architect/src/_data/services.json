@@ -46,6 +46,22 @@
     "proof": "A 65,000-user privileged access and identity governance programme delivered across a global hybrid cloud estate. Zero-trust cloud access with Entra ID and AWS IAM, MFA on all workloads, and thousands of servers hardened across multiple regions with enterprise SIEM for centralised detection."
   },
   {
+    "slug": "end-user-compute",
+    "title": "End User Compute",
+    "summary": "Managed laptops, desktops, mobile devices and virtual desktops — delivered and secured at scale.",
+    "intro": "End user compute is where security policy meets actual people. Get it wrong and you either lock users out of doing their jobs, or leave the largest attack surface in the estate effectively unmanaged. It is also the part of IT every employee judges you on.",
+    "body": "Delivery covers managed Windows desktop and laptop builds, device enrolment and mobile device management, policy and patching, endpoint hardening, and published applications or full virtual desktops on Citrix, RDS and VDI. The same principles apply as anywhere else in the estate: build it from a repeatable image, define policy as configuration rather than clicks, and make sure someone can support it after handover.",
+    "points": [
+      "Managed Windows laptop and desktop builds — imaging, Group Policy and patching",
+      "Mobile device management and enrolment across distributed estates",
+      "Published applications and session hosts on Citrix and RDS",
+      "Virtual desktops on VMware and hybrid cloud",
+      "Endpoint protection, hardening and vulnerability remediation",
+      "Secure remote access for a hybrid or fully remote workforce"
+    ],
+    "proof": "Citrix XenApp was a named specialisation across thirteen years for a multinational energy group, delivered alongside server, storage and virtualisation design for estates in more than 50 countries — backed by Citrix Certified Advanced Administrator (XenApp). Mobile device management was rolled out across that group's global mobile and server estate, and endpoint protection and Group Policy hardening have been deployed across client estates more recently."
+  },
+  {
     "slug": "ai-agent-automation",
     "title": "AI & Agent Automation",
     "summary": "Applied AI in operations — including self-hosted agents on your own infrastructure.",

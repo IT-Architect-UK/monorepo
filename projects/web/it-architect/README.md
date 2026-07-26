@@ -5,7 +5,7 @@ of IT Solution Architecture Limited. Aimed at clients hiring for cloud,
 infrastructure, security and applied-AI work, including via freelance platforms.
 
 **What this demonstrates:** a templated, accessible (WCAG 2.1 AA) static site
-built with Eleventy — 12 pages from shared layouts and structured data, deployed
+built with Eleventy — 13 pages from shared layouts and structured data, deployed
 by CI on push to Netlify. The site is itself a work sample.
 
 ## Quick start
@@ -24,7 +24,7 @@ npm run build   # production build into _site/
 | Path | Purpose |
 |------|---------|
 | `src/_data/site.json` | Contact details, company identifiers, navigation. Single source of truth. |
-| `src/_data/services.json` | The five service areas. One entry generates a full page. |
+| `src/_data/services.json` | The six service areas. One entry generates a full page. |
 | `src/_data/experience.json` | Engagement history, **client names deliberately anonymised by sector**. |
 | `src/service.njk` | One template generating every service page via pagination. |
 | `src/_includes/layouts/base.njk` | Page shell, schema.org markup, mobile menu script. |

@@ -24,8 +24,12 @@
     "items": "Windows Server (all versions), Ubuntu, RHEL, Amazon Linux"
   },
   {
+    "group": "End user compute",
+    "items": "Managed Windows desktops and laptops, Citrix XenApp, RDS, VDI, mobile device management, endpoint hardening"
+  },
+  {
     "group": "Enterprise services",
-    "items": "Active Directory / ADDS, Citrix XenApp, MOVEit Transfer & Automation, MobileIron MDM"
+    "items": "Active Directory / ADDS, Group Policy, MOVEit Transfer & Automation, Microsoft 365"
   },
   {
     "group": "Identity & access",
