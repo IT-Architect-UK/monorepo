@@ -31,8 +31,12 @@ description: Contact Darren Pilkington at IT Architect for infrastructure, cloud
         <div class="form-wrap">
           <h2>Send a message</h2>
           <form name="enquiry" method="POST" action="/thanks/" data-netlify="true" data-netlify-honeypot="bot-field">
-            <p class="hidden-field">
-              <label>Leave this empty: <input name="bot-field" /></label>
+            {# Honeypot. Positioned off-screen rather than display:none, because
+               some bots skip hidden fields. aria-hidden and tabindex="-1" keep it
+               out of the tab order and the accessibility tree — without them a
+               keyboard user tabs into an invisible box and loses focus off-screen. #}
+            <p class="hidden-field" aria-hidden="true">
+              <label>Leave this empty: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
             </p>
             <div class="field">
               <label for="name">Your name</label>
