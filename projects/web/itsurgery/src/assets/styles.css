@@ -214,9 +214,11 @@ input:focus-visible, textarea:focus-visible {
   font-size: clamp(1.8rem, 4vw, 2.4rem); line-height: 1;
 }
 .price-banner p { margin: 0.4rem 0 0; font-size: 1rem; max-width: 60ch; }
-/* Links here sit on brand red — the default red link colour would be invisible. */
-.price-banner a { color: var(--white); text-decoration: underline; font-weight: 700; }
-.price-banner a:hover { text-decoration: none; }
+/* Inline links here sit on brand red — the default red would be invisible.
+   Scoped to the paragraph so it does not override .btn-onDark, which is a
+   white button and needs its red label. */
+.price-banner p a { color: var(--white); text-decoration: underline; font-weight: 700; }
+.price-banner p a:hover { text-decoration: none; }
 .btn-onDark {
   background: var(--white); color: var(--brand); border-color: var(--white);
 }
@@ -454,6 +456,9 @@ input:focus-visible, textarea:focus-visible {
 }
 .footer-tag { margin: 0 0 0.5rem; color: #ffb3b3; font-weight: 600; }
 .footer-small { color: #c9cdd1; font-size: 0.95rem; margin: 0; }
+/* Same idea as .footer-small but for light backgrounds — .footer-small's pale
+   grey is only 1.6:1 on white. */
+.small-print { color: var(--muted); font-size: 0.95rem; }
 .footer-address { font-style: normal; color: #c9cdd1; margin-top: 0.75rem; font-size: 0.95rem; }
 .footer-legal {
   margin-top: 1.75rem; padding-top: 1rem;
