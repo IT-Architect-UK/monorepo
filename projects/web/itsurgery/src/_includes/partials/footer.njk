@@ -35,18 +35,18 @@
   </nav>
 
   <div class="container footer-legal">
-    {# Companies Act 2006 trading disclosures: a company trading under a
-       different name must show its registered name, number, place of
-       registration and registered office on its website. #}
+    {# Companies Act 2006 trading disclosures: registered name, number and place
+       of registration shown here; the registered office address is published on
+       the About Us page, which satisfies the same requirement. #}
     <p>
       &copy; {% year %} {{ site.name }} — a trading name of {{ site.legalName }},
-      a company registered in {{ site.placeOfRegistration }},
-      company number {{ site.companyNumber }}.
-      VAT registration number {{ site.vatNumber }}.
+      a company registered in {{ site.placeOfRegistration }}.
     </p>
     <p>
-      Registered office: {{ site.address.street }}, {{ site.address.locality }},
-      {{ site.address.town }}, {{ site.address.postcode }}.
+      Company Number:
+      <a href="https://find-and-update.company-information.service.gov.uk/company/{{ site.companyNumber }}"
+         target="_blank" rel="noopener">{{ site.companyNumber }}<span class="visually-hidden"> (opens in a new tab)</span></a>
+      | VAT Registration Number: {{ site.vatNumber }}
     </p>
   </div>
 </footer>
