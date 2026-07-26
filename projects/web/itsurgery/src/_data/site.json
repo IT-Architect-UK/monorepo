@@ -21,6 +21,7 @@
     { "text": "Business IT", "url": "/business-it/", "group": "business" },
     { "text": "Personal IT", "url": "/personal-it/", "group": "personal" },
     { "text": "Pricing", "url": "/pricing/" },
+    { "text": "Support Plans", "url": "/support-plans/" },
     { "text": "Site Map", "url": "/site-map/" }
   ],
   "utilityNav": [

@@ -214,6 +214,9 @@ input:focus-visible, textarea:focus-visible {
   font-size: clamp(1.8rem, 4vw, 2.4rem); line-height: 1;
 }
 .price-banner p { margin: 0.4rem 0 0; font-size: 1rem; max-width: 60ch; }
+/* Links here sit on brand red — the default red link colour would be invisible. */
+.price-banner a { color: var(--white); text-decoration: underline; font-weight: 700; }
+.price-banner a:hover { text-decoration: none; }
 .btn-onDark {
   background: var(--white); color: var(--brand); border-color: var(--white);
 }
@@ -306,6 +309,38 @@ input:focus-visible, textarea:focus-visible {
 }
 .cta-panel h2 { margin: 0 0 0.5rem; font-size: 1.3rem; }
 .cta-panel p { margin: 0; font-size: 1rem; }
+
+/* ---------- Support plans ---------- */
+.plans {
+  display: grid; gap: 1.25rem; margin-bottom: 2.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+}
+.plan {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: 10px; padding: 1.5rem;
+  display: flex; flex-direction: column;
+}
+.plan h3 { margin: 0 0 0.5rem; font-size: 1.3rem; }
+.plan .ticks { margin-bottom: 0; }
+.plan-price {
+  font-family: var(--font-head); font-weight: 700;
+  font-size: 2.2rem; line-height: 1; color: var(--brand);
+  margin: 0 0 1rem;
+}
+.plan-unit {
+  display: block; font-family: var(--font-body); font-weight: 500;
+  font-size: 0.95rem; color: var(--muted); margin-top: 0.3rem;
+}
+.plan-featured { border: 2px solid var(--brand); }
+.plan-flag {
+  align-self: flex-start; margin: 0 0 0.6rem;
+  background: var(--brand); color: var(--white);
+  font-family: var(--font-head); font-weight: 700;
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.15rem 0.6rem; border-radius: 4px;
+}
+/* The home plan stands alone, so cap its width rather than let it stretch. */
+.plan-home { max-width: 34rem; }
 
 /* ---------- AI callout (home) ---------- */
 .ai-callout { padding: 2rem 0; border-top: 1px solid var(--line); }
