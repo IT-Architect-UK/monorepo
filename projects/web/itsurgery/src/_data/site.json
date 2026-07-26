@@ -20,6 +20,7 @@
   "planBusinessRate": "40",
   "bookingFee": "20",
   "vatRegistered": true,
+  "vatNumber": "325 6309 11",
   "vatIncLabel": "inc. VAT",
   "vatExLabel": "+ VAT",
   "introStarts": "1 August 2026",
