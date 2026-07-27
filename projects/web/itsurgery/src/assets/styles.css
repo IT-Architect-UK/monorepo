@@ -711,9 +711,15 @@ input:focus-visible, textarea:focus-visible {
   .price-figure { font-size: 2.3rem; }
 }
 
-/* Only drop the tagline on genuinely tiny screens — most phones are 375px+
-   and the tagline is part of the brand. */
-@media (max-width: 340px) {
+/* The tagline used to sit BELOW the logo, so it cost no width and could stay
+   down to 340px. Now it sits beside the logo, making the lockup 352px — which
+   will not fit next to the menu button on a phone, and the header wrapped to
+   132px. It therefore hides on phones; the tagline still appears in the hero and
+   the footer, so nothing is lost. */
+@media (max-width: 640px) {
   .brand-tag { display: none; }
+}
+
+@media (max-width: 340px) {
   .brand img { height: 2.3rem; }
 }
