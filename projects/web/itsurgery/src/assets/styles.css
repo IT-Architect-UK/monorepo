@@ -65,9 +65,18 @@
      white there while the cross keeps the brand red. */
   --brand-wordmark: #990000;
 
-  /* Fixed values for chips that sit on a permanently dark surface. */
+  /* Contact chips in the utility bar (Call / WhatsApp / Email). White-filled in
+     light mode; red-filled in dark mode to match IT Architect's buttons. */
   --chip-bg: #ffffff;
-  --chip-wash: #f7eeee;
+  --chip-fg: #990000;
+  --chip-border: #ffffff;
+  --chip-hover: #f7eeee;
+
+  /* "See full pricing" sits ON the red price banner, so it is white in BOTH
+     themes. A red fill there would be red-on-red — 1.0:1, invisible. Do not
+     wire this to --chip-bg. */
+  --on-banner-bg: #ffffff;
+  --on-banner-hover: #f7eeee;
 
   --focus: #0b57d0;
   --focus-invert: #7cb0ff;
@@ -107,6 +116,14 @@
   /* A #990000 fill goes muddy on a near-black page. */
   --brand-solid: #b31414;
   --brand-solid-hover: #cc2020;
+  /* Contact chips become red fills in dark mode, matching IT Architect. The
+     fill is only 2.34:1 against the bar, so a light border keeps the button
+     edge defined. */
+  --chip-bg: #b31414;
+  --chip-fg: #ffffff;
+  --chip-border: rgba(255, 255, 255, 0.55);
+  --chip-hover: #cc2020;
+
   /* No colour in dark mode: white for emphasis, grey for body. Links take the
      emphasis white and are underlined on hover only. */
   --brand-accent: #eef1f4;
@@ -194,23 +211,25 @@ input:focus-visible, textarea:focus-visible {
 .utility-links a[aria-current="page"] { text-decoration: underline; }
 
 .utility-contact { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-/* All contact actions share one size and one style. White on the dark bar so
-   each button has a clear boundary — brand red on near-black reads as muddy. */
+/* All contact actions share one size and one style. White-filled in light mode;
+   red-filled in dark mode so they match IT Architect's primary buttons. The
+   border is what keeps the edge crisp — a red fill is only 2.34:1 against the
+   bar, which on its own would leave the button shape vague. */
 .ubtn {
   display: inline-block;
   padding: 0.3rem 0.85rem;
   min-width: 7.5rem;
   text-align: center;
   background: var(--chip-bg);
-  color: var(--brand-solid);
+  color: var(--chip-fg);
   text-decoration: none;
   font-weight: 700;
   font-size: 0.95rem;
   border-radius: 5px;
-  border: 1px solid var(--chip-bg);
+  border: 1px solid var(--chip-border);
   white-space: nowrap;
 }
-.ubtn:hover { background: var(--chip-wash); }
+.ubtn:hover { background: var(--chip-hover); }
 
 /* ---------- Theme toggle ---------- */
 /* Lives in the utility bar, which is dark in BOTH themes, so its colours are
@@ -345,9 +364,9 @@ input:focus-visible, textarea:focus-visible {
 .price-banner p a { color: #ffffff; text-decoration: underline; font-weight: 700; }
 .price-banner p a:hover { text-decoration: none; }
 .btn-onDark {
-  background: var(--chip-bg); color: var(--brand-solid); border-color: var(--chip-bg);
+  background: var(--on-banner-bg); color: var(--brand-solid); border-color: var(--on-banner-bg);
 }
-.btn-onDark:hover { background: var(--chip-wash); }
+.btn-onDark:hover { background: var(--on-banner-hover); }
 
 /* ---------- Buttons ---------- */
 .btn {
