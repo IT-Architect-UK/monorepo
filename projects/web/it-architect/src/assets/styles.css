@@ -164,10 +164,14 @@ input:focus-visible, textarea:focus-visible {
 
 /* One logo per theme — see header.njk for why this is two files rather than a
    CSS swap. The dark file is white-and-grey; the standard one is black ink and
-   would be invisible on the dark page. */
-.logo-dark { display: none; }
-[data-theme="dark"] .logo-light { display: none; }
-[data-theme="dark"] .logo-dark { display: block; }
+   would be invisible on the dark page.
+
+   These selectors MUST stay scoped to .brand. A bare `.logo-dark` is (0,1,0)
+   and loses to `.brand img` (0,1,1) above, so both logos render and the header
+   doubles in height. Caught in the browser, not in the source. */
+.brand .logo-dark { display: none; }
+[data-theme="dark"] .brand .logo-light { display: none; }
+[data-theme="dark"] .brand .logo-dark { display: block; }
 
 .header-controls { display: flex; align-items: center; gap: 0.6rem; }
 
