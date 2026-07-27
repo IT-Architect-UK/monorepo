@@ -416,6 +416,15 @@ input:focus-visible, textarea:focus-visible {
   display: grid; gap: 1.25rem;
   grid-template-columns: repeat(4, 1fr);
 }
+/* The strapline is decorative, so it is the first thing to go when the header
+   is tight. The desktop nav appears at 961px and needs 709px; with the strapline
+   the brand lockup is 352px, and 352 + 709 + 16 only fits from about 1120px up.
+   Between those two points the strapline hides so the nav stays on one row.
+   Below 961px the nav collapses to the toggle, so there is room again. */
+@media (min-width: 961px) and (max-width: 1119px) {
+  .brand-tag { display: none; }
+}
+
 @media (max-width: 1000px) { .promise-list { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px)  { .promise-list { grid-template-columns: 1fr; } }
 .promise-list li { display: flex; flex-direction: column; gap: 0.2rem; }
