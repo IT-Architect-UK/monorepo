@@ -44,12 +44,18 @@
   --brand-solid: #990000;
   --brand-solid-hover: #7d0000;
 
-  /* Accents — links, eyebrows, bullets, rules and card borders — are BLUE.
-     #000099 is the exact mirror of the brand red (same value, red and blue
-     channels swapped), so it reads as part of the palette. It must lighten in
-     dark mode and on invert surfaces: #000099 is only 1.26:1 on near-black. */
-  --brand-accent: #000099;
-  --brand-on-invert: #8ab4ff;
+  /* Text accents: links, section labels, current nav item. Brand red in light
+     mode; dark mode drops colour for a neutral white/grey scheme (the X /
+     LinkedIn treatment) — see the dark block. */
+  --brand-accent: #990000;
+
+  /* Decorative rules and borders. A separate role from text: in dark mode a
+     near-white text accent would make a 3px rule glare, so rules go subtle. */
+  --accent-rule: #990000;
+
+  /* Labels on surfaces dark in BOTH themes (hero eyebrow, dark-band bullets).
+     Neutral white — a tinted red or blue reads as decoration here. */
+  --brand-on-invert: #ffffff;
 
   --focus: #0b57d0;
   --focus-invert: #7cb0ff;          /* #0b57d0 is only 2.5:1 on slate */
@@ -84,7 +90,9 @@
      White on #b31414 is still comfortably past 4.5:1. */
   --brand-solid: #b31414;
   --brand-solid-hover: #cc2020;
-  --brand-accent: #8ab4ff;
+  /* No colour in dark mode: white for emphasis, grey for body. */
+  --brand-accent: #eef2f6;
+  --accent-rule: #3a4655;
 
   --focus: #7cb0ff;
 }
@@ -109,6 +117,8 @@ body {
 
 h1, h2, h3 { font-family: var(--font-head); color: var(--text-strong); font-weight: 600; line-height: 1.25; }
 a { color: var(--brand-accent); }
+/* Links carry no underline until hovered, by request. */
+a:hover { text-decoration: underline; }
 
 .container { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
 
@@ -187,7 +197,7 @@ input:focus-visible, textarea:focus-visible {
   font-family: var(--font-head); font-weight: 600; font-size: 1rem;
 }
 .main-nav a:hover { background: var(--surface-sunken); color: var(--brand-accent); }
-.main-nav a[aria-current="page"] { color: var(--brand-accent); box-shadow: inset 0 -2px 0 var(--brand-accent); }
+.main-nav a[aria-current="page"] { color: var(--brand-accent); box-shadow: inset 0 -2px 0 var(--accent-rule); }
 
 /* ---------- Page head ---------- */
 .page-head {
@@ -234,7 +244,7 @@ input:focus-visible, textarea:focus-visible {
 .cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
 .card {
   background: var(--surface); border: 1px solid var(--border);
-  border-top: 3px solid var(--brand-accent);
+  border-top: 3px solid var(--accent-rule);
   border-radius: 6px; padding: 1.25rem;
 }
 .card h2, .card h3 { margin: 0 0 0.5rem; font-size: 1.08rem; }
@@ -274,7 +284,7 @@ input:focus-visible, textarea:focus-visible {
 
 /* ---------- Proof callout ---------- */
 .proof {
-  background: var(--surface-sunken); border-left: 3px solid var(--brand-accent);
+  background: var(--surface-sunken); border-left: 3px solid var(--accent-rule);
   border-radius: 4px; padding: 1rem 1.25rem; margin: 1.5rem 0;
 }
 .proof-label {
@@ -297,7 +307,7 @@ input:focus-visible, textarea:focus-visible {
 
 /* ---------- CTA ---------- */
 .cta-panel {
-  background: var(--surface-sunken); border-left: 3px solid var(--brand-accent);
+  background: var(--surface-sunken); border-left: 3px solid var(--accent-rule);
   border-radius: 4px; padding: 1.25rem 1.5rem; margin-top: 2rem;
 }
 .cta-panel h2 { margin: 0 0 0.4rem; font-size: 1.1rem; }
@@ -359,7 +369,7 @@ input:focus-visible, textarea:focus-visible {
   .main-nav.is-collapsible.is-open { display: block; }
   .main-nav > ul { flex-direction: column; gap: 0; }
   .main-nav a { padding: 0.7rem 0.5rem; border-radius: 0; border-bottom: 1px solid var(--border); }
-  .main-nav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--brand-accent); }
+  .main-nav a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--accent-rule); }
   .role { grid-template-columns: 1fr; gap: 0.3rem; }
   .role-meta { display: flex; gap: 0.75rem; align-items: baseline; }
   .role-engagement { margin: 0; }
