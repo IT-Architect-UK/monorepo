@@ -31,18 +31,18 @@
 <header class="site-header">
   <div class="container header-inner">
     <a class="brand" href="/" aria-label="{{ site.name }} — home">
-      <span class="brand-text">
-        {# One file per theme. The wordmark is near-black, so on the dark page it
-           would vanish; the dark file is white-to-grey. Both are the same pixel
-           size, so the header does not shift when the theme changes. alt="" is
-           correct here — the link already carries an aria-label, so alt text
-           would make screen readers announce the name twice. #}
-        <img class="logo-light" src="/assets/logo.png" alt="" width="1107" height="320" />
-        <img class="logo-dark" src="/assets/logo-dark.png" alt="" width="1107" height="320" />
-        {# Tagline stays live text rather than being baked into the image: it
-           reflows on mobile, is selectable, and search engines can read it. #}
-        <span class="brand-tag">{{ site.tagline }}</span>
-      </span>
+      {# One file per theme. The wordmark is near-black, so on the dark page it
+         would vanish; the dark file is white-to-grey. Both are the same pixel
+         size, so the header does not shift when the theme changes. alt="" is
+         correct here — the link already carries an aria-label, so alt text
+         would make screen readers announce the name twice. #}
+      <img class="logo-light" src="/assets/logo.png" alt="" width="1107" height="320" />
+      <img class="logo-dark" src="/assets/logo-dark.png" alt="" width="1107" height="320" />
+      {# Tagline sits BESIDE the logo, on its centre line. Placed underneath it
+         fought the stethoscope, which is itself a horizontal underline, and read
+         as a caption. Kept as live text rather than drawn into the image so it
+         reflows on mobile, stays selectable and search engines can read it. #}
+      <span class="brand-tag">{{ site.tagline }}</span>
     </a>
 
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" hidden>
