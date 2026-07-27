@@ -40,13 +40,16 @@
   --border: #dfe3e8;
   --border-invert: #333e4b;
 
-  /* Brand. Two roles: a solid fill that always carries white text, and an
-     accent used for links, bullets and rules. The accent has to change in dark
-     mode — #990000 is only 2.8:1 on a dark surface. */
+  /* Brand red stays the identity: logo, primary buttons. */
   --brand-solid: #990000;
   --brand-solid-hover: #7d0000;
-  --brand-accent: #990000;
-  --brand-on-invert: #ef9a9a;       /* 7.3:1 on the slate */
+
+  /* Accents — links, eyebrows, bullets, rules and card borders — are BLUE.
+     #000099 is the exact mirror of the brand red (same value, red and blue
+     channels swapped), so it reads as part of the palette. It must lighten in
+     dark mode and on invert surfaces: #000099 is only 1.26:1 on near-black. */
+  --brand-accent: #000099;
+  --brand-on-invert: #8ab4ff;
 
   --focus: #0b57d0;
   --focus-invert: #7cb0ff;          /* #0b57d0 is only 2.5:1 on slate */
@@ -81,7 +84,7 @@
      White on #b31414 is still comfortably past 4.5:1. */
   --brand-solid: #b31414;
   --brand-solid-hover: #cc2020;
-  --brand-accent: #ef9a9a;
+  --brand-accent: #8ab4ff;
 
   --focus: #7cb0ff;
 }

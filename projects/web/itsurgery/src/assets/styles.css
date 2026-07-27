@@ -35,19 +35,25 @@
   --text-on-invert: #e9ebed;
   --text-on-invert-dim: #c9cdd1;
   --link-on-invert: #cfe0ee;
-  --brand-on-invert: #ffb3b3;
 
   /* Lines */
   --border: #dcdfe3;
   --border-invert: #4a4f55;
   --shadow: rgba(0, 0, 0, 0.13);
 
-  /* Brand: a solid fill that always carries white text, and an accent for
-     links, rules and figures. The accent must lighten in dark mode — #990000
-     is only 2.8:1 on a dark surface. */
+  /* Brand red stays the identity: logo cross, wordmark, primary buttons,
+     price banner, contact chips. */
   --brand-solid: #990000;
   --brand-solid-hover: #7a0000;
-  --brand-accent: #990000;
+
+  /* Accents — links, eyebrow labels, price figures, rules and card borders —
+     are BLUE. #000099 is the exact mirror of the brand red (same value, red and
+     blue channels swapped), so it belongs to the palette rather than fighting
+     it. Blue links are also the strongest convention on the web, which matters
+     for an audience of home users. It must lighten in dark mode: #000099 is
+     only 1.26:1 on a near-black page. */
+  --brand-accent: #000099;
+  --brand-on-invert: #8ab4ff;
 
   /* The "IT Surgery" wordmark. Its own role, not --brand-accent: on a dark
      page a lightened red reads as salmon and cheapens the logotype, so it goes
@@ -94,7 +100,7 @@
   /* A #990000 fill goes muddy on a near-black page. */
   --brand-solid: #b31414;
   --brand-solid-hover: #cc2020;
-  --brand-accent: #f4a3a3;
+  --brand-accent: #8ab4ff;
   --brand-wordmark: #ffffff;
 
   --focus: #7cb0ff;
