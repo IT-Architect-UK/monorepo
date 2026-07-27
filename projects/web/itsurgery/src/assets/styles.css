@@ -49,6 +49,11 @@
   --brand-solid-hover: #7a0000;
   --brand-accent: #990000;
 
+  /* The "IT Surgery" wordmark. Its own role, not --brand-accent: on a dark
+     page a lightened red reads as salmon and cheapens the logotype, so it goes
+     white there while the cross keeps the brand red. */
+  --brand-wordmark: #990000;
+
   /* Fixed values for chips that sit on a permanently dark surface. */
   --chip-bg: #ffffff;
   --chip-wash: #f7eeee;
@@ -90,6 +95,7 @@
   --brand-solid: #b31414;
   --brand-solid-hover: #cc2020;
   --brand-accent: #f4a3a3;
+  --brand-wordmark: #ffffff;
 
   --focus: #7cb0ff;
 }
@@ -226,7 +232,7 @@ input:focus-visible, textarea:focus-visible {
 .brand { display: inline-flex; align-items: center; gap: 0.7rem; text-decoration: none; }
 .brand-cross { width: 2.5rem; height: 2.5rem; flex: none; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
-.brand-name { font-size: 1.35rem; color: var(--brand-accent); font-weight: 700; letter-spacing: 0.01em; }
+.brand-name { font-size: 1.35rem; color: var(--brand-wordmark); font-weight: 700; letter-spacing: 0.01em; }
 .brand-tag {
   font-size: 0.9rem; color: var(--text-muted);
   font-family: var(--font-body); font-weight: 500;
