@@ -14,13 +14,15 @@
   <script>
     (function () {
       try {
-        var saved = localStorage.getItem("theme");
-        var dark = saved
-          ? saved === "dark"
-          : window.matchMedia("(prefers-color-scheme: dark)").matches;
-        if (dark) document.documentElement.setAttribute("data-theme", "dark");
+        /* Light is the default for everyone. Dark applies only when the visitor
+           has explicitly chosen it here; the OS prefers-color-scheme setting is
+           deliberately NOT followed, so a first-time visitor always lands on the
+           light design. */
+        if (localStorage.getItem("theme") === "dark") {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
       } catch (e) {
-        /* Storage blocked (private mode). Light is a safe default. */
+        /* Storage blocked (private mode). Light is the default anyway. */
       }
     })();
   </script>
@@ -143,16 +145,6 @@
         try { localStorage.setItem('theme', dark ? 'light' : 'dark'); } catch (e) {}
         sync();
       });
-
-      // Follow the OS only while the visitor has expressed no preference.
-      try {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
-          if (localStorage.getItem('theme')) return;
-          if (e.matches) root.setAttribute('data-theme', 'dark');
-          else root.removeAttribute('data-theme');
-          sync();
-        });
-      } catch (e) {}
     })();
   </script>
 </body>

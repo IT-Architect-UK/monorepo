@@ -114,10 +114,11 @@ Three things that will bite if forgotten:
   external file it runs after the stylesheet has painted, and every navigation
   gives dark-mode visitors a white flash.
 
-Default follows `prefers-color-scheme`; an explicit choice persists in
-`localStorage` and wins from then on. The OS listener only acts while no
-explicit choice exists. The toggle is hidden until JS reveals it, so it is never
-shown in a state where it cannot work.
+**Light is the default for everyone.** `prefers-color-scheme` is deliberately
+NOT consulted, so a first-time visitor always lands on the light design however
+their OS is set. Dark applies only once the visitor presses the toggle, and that
+choice then persists in `localStorage`. The toggle is hidden until JS reveals
+it, so it is never shown in a state where it cannot work.
 
 ## Deploy (Netlify)
 
