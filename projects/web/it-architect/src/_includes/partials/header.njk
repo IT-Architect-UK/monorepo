@@ -1,9 +1,17 @@
 <header class="site-header">
   <div class="container header-inner">
     <a class="brand" href="/" aria-label="{{ site.name }} — home">
-      {# Intrinsic size must match the file, or the browser reserves the wrong
-         box and the header shifts as the image loads. #}
-      <img src="/assets/logo.png" alt="{{ site.name }} — {{ site.tagline }}" width="858" height="327" />
+      {# Two files, one per theme. 97% of the logo's ink is dark, so on the dark
+         page the tower, the "IT" and the tagline all vanish and only ARCHITECT
+         survives. CSS cannot swap an img src, and data-theme is not a media
+         query, so <picture> cannot help either — hence two elements with one
+         hidden. Both are the same pixel dimensions, so the swap shifts nothing.
+         Intrinsic width/height must match the files or the header jumps as they
+         load. Only one is ever displayed, so only one is in the a11y tree. #}
+      <img class="logo-light" src="/assets/logo.png"
+           alt="{{ site.name }} — {{ site.tagline }}" width="858" height="327" />
+      <img class="logo-dark" src="/assets/logo-dark.png"
+           alt="{{ site.name }} — {{ site.tagline }}" width="858" height="327" />
     </a>
 
     <div class="header-controls">

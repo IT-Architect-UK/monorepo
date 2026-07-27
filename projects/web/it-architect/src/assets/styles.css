@@ -162,6 +162,13 @@ input:focus-visible, textarea:focus-visible {
    is up and header padding is down, so the row barely grows. */
 .brand img { width: auto; height: 5.4rem; display: block; }
 
+/* One logo per theme — see header.njk for why this is two files rather than a
+   CSS swap. The dark file is white-and-grey; the standard one is black ink and
+   would be invisible on the dark page. */
+.logo-dark { display: none; }
+[data-theme="dark"] .logo-light { display: none; }
+[data-theme="dark"] .logo-dark { display: block; }
+
 .header-controls { display: flex; align-items: center; gap: 0.6rem; }
 
 .menu-toggle {
