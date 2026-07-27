@@ -72,10 +72,17 @@
   --chip-border: #ffffff;
   --chip-hover: #f7eeee;
 
-  /* "See full pricing" sits ON the red price banner, so it is white in BOTH
-     themes. A red fill there would be red-on-red — 1.0:1, invisible. Do not
-     wire this to --chip-bg. */
+  /* The prominent pricing banner. Its own token, NOT --brand-solid, which is
+     shared with the buttons and five other elements — changing the banner must
+     not repaint those. Brand red in light mode; a dark panel in dark mode,
+     where a full-width red block was overpowering. */
+  --banner-bg: #990000;
+
+  /* "See full pricing" sits ON that banner and is white in both themes, so its
+     label has to track the banner: red on the red banner, near-black on the
+     dark one. */
   --on-banner-bg: #ffffff;
+  --on-banner-fg: #990000;
   --on-banner-hover: #f7eeee;
 
   --focus: #0b57d0;
@@ -123,6 +130,12 @@
   --chip-fg: #ffffff;
   --chip-border: rgba(255, 255, 255, 0.55);
   --chip-hover: #cc2020;
+
+  /* No red band in dark mode — a full-width brand-red block dominated the page.
+     A raised dark panel carries the same emphasis without shouting. */
+  --banner-bg: #262c34;
+  --on-banner-fg: #12161c;
+  --on-banner-hover: #e3e6ea;
 
   /* No colour in dark mode: white for emphasis, grey for body. Links take the
      emphasis white and are underlined on hover only. */
@@ -348,7 +361,7 @@ input:focus-visible, textarea:focus-visible {
 .lead { font-size: 1.05rem; max-width: var(--measure); margin: 0 0 1.5rem; }
 
 /* ---------- Prominent pricing banner ---------- */
-.price-banner { background: var(--brand-solid); color: #ffffff; padding: 1.5rem 0; }
+.price-banner { background: var(--banner-bg); color: #ffffff; padding: 1.5rem 0; }
 .price-banner-inner {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1.25rem; flex-wrap: wrap;
@@ -358,13 +371,13 @@ input:focus-visible, textarea:focus-visible {
   font-size: clamp(1.5rem, 2.8vw, 1.9rem); line-height: 1;
 }
 .price-banner p { margin: 0.4rem 0 0; font-size: 1rem; max-width: var(--measure); }
-/* Inline links here sit on brand red — the default red would be invisible.
-   Scoped to the paragraph so it does not override .btn-onDark, which is a
-   white button and needs its red label. */
+/* Inline links here sit on the banner, which is dark in both themes, so they
+   are white. Scoped to the paragraph so it does not override .btn-onDark, which
+   is a white button and needs a dark label. */
 .price-banner p a { color: #ffffff; text-decoration: underline; font-weight: 700; }
 .price-banner p a:hover { text-decoration: none; }
 .btn-onDark {
-  background: var(--on-banner-bg); color: var(--brand-solid); border-color: var(--on-banner-bg);
+  background: var(--on-banner-bg); color: var(--on-banner-fg); border-color: var(--on-banner-bg);
 }
 .btn-onDark:hover { background: var(--on-banner-hover); }
 
