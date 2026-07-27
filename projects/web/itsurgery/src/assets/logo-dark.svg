@@ -1,15 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="213.6 234.24 425.04 123.6" role="img" aria-label="IT Surgery">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="425.04" height="123.6" viewBox="213.6 234.24 425.04 123.6" role="img" aria-label="IT Surgery">
 <defs>
-<filter id="fx" x="-8%" y="-14%" width="120%" height="136%">
-  <feGaussianBlur in="SourceAlpha" stdDeviation="1.24" result="bump"/>
-  <feSpecularLighting in="bump" surfaceScale="2.47" specularConstant="0.5"
-                      specularExponent="20" lighting-color="#ffffff" result="spec">
-    <feDistantLight azimuth="270" elevation="32"/></feSpecularLighting>
-  <feComposite in="spec" in2="SourceAlpha" operator="in" result="specIn"/>
-  <feMerge result="lit"><feMergeNode in="SourceGraphic"/><feMergeNode in="specIn"/></feMerge>
-  <feDropShadow in="lit" dx="1.24" dy="0" stdDeviation="0.74"
-                flood-color="#000000" flood-opacity="0.48"/></filter>
+<filter id="fx" x="-6%" y="-12%" width="115%" height="130%"><feDropShadow dx="1.24" dy="0" stdDeviation="0.74" flood-color="#000000" flood-opacity="0.48"/></filter>
 <clipPath id="clip1">
   <path d="M 216 266 L 590 266 L 590 358 L 216 358 Z M 216 266 "/>
 </clipPath>
