@@ -31,13 +31,15 @@
 <header class="site-header">
   <div class="container header-inner">
     <a class="brand" href="/" aria-label="{{ site.name }} — home">
-      {# One file per theme. The wordmark is near-black, so on the dark page it
-         would vanish; the dark file is white-to-grey. Both are the same pixel
-         size, so the header does not shift when the theme changes. alt="" is
-         correct here — the link already carries an aria-label, so alt text
+      {# SVG, generated from the original Illustrator vector, so it is crisp at
+         any size instead of a raster being downscaled. One file per theme: the
+         wordmark is near-black and would vanish on the dark page, so the dark
+         file is white-to-grey with a white outline. width/height carry the
+         viewBox aspect (425x124) purely to reserve the right box before load.
+         alt="" is correct — the link already has an aria-label, so alt text
          would make screen readers announce the name twice. #}
-      <img class="logo-light" src="/assets/logo.png" alt="" width="1105" height="320" />
-      <img class="logo-dark" src="/assets/logo-dark.png" alt="" width="1105" height="320" />
+      <img class="logo-light" src="/assets/logo.svg" alt="" width="425" height="124" />
+      <img class="logo-dark" src="/assets/logo-dark.svg" alt="" width="425" height="124" />
       {# Tagline sits BESIDE the logo, on its centre line. Placed underneath it
          fought the stethoscope, which is itself a horizontal underline, and read
          as a caption. Kept as live text rather than drawn into the image so it
