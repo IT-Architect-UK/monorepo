@@ -31,12 +31,16 @@
 <header class="site-header">
   <div class="container header-inner">
     <a class="brand" href="/" aria-label="{{ site.name }} — home">
-      {# Inline SVG cross: crisp at every size and on every screen. #}
-      <svg class="brand-cross" viewBox="0 0 40 40" role="img" aria-hidden="true" focusable="false">
-        <path fill="#990000" d="M15 2h10v13h13v10H25v13H15V25H2V15h13z" />
-      </svg>
       <span class="brand-text">
-        <span class="brand-name">{{ site.name }}</span>
+        {# One file per theme. The wordmark is near-black, so on the dark page it
+           would vanish; the dark file is white-to-grey. Both are the same pixel
+           size, so the header does not shift when the theme changes. alt="" is
+           correct here — the link already carries an aria-label, so alt text
+           would make screen readers announce the name twice. #}
+        <img class="logo-light" src="/assets/logo.png" alt="" width="1107" height="320" />
+        <img class="logo-dark" src="/assets/logo-dark.png" alt="" width="1107" height="320" />
+        {# Tagline stays live text rather than being baked into the image: it
+           reflows on mobile, is selectable, and search engines can read it. #}
         <span class="brand-tag">{{ site.tagline }}</span>
       </span>
     </a>

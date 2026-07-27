@@ -41,8 +41,8 @@
   --border-invert: #4a4f55;
   --shadow: rgba(0, 0, 0, 0.13);
 
-  /* Brand red stays the identity: logo cross, wordmark, primary buttons,
-     price banner, contact chips. */
+  /* Brand red stays the identity: primary buttons, price banner, contact chips.
+     The logo itself is now an image asset, not CSS-coloured type. */
   --brand-solid: #990000;
   --brand-solid-hover: #7a0000;
 
@@ -59,11 +59,6 @@
   /* Labels on surfaces that are dark in BOTH themes (footer tagline). Neutral
      white — a tinted red or blue reads as decoration here. */
   --brand-on-invert: #ffffff;
-
-  /* The "IT Surgery" wordmark. Its own role, not --brand-accent: on a dark
-     page a lightened red reads as salmon and cheapens the logotype, so it goes
-     white there while the cross keeps the brand red. */
-  --brand-wordmark: #990000;
 
   /* Contact chips in the utility bar (Call / WhatsApp / Email). White-filled in
      light mode; red-filled in dark mode to match IT Architect's buttons. */
@@ -141,7 +136,6 @@
      emphasis white and are underlined on hover only. */
   --brand-accent: #eef1f4;
   --accent-rule: #3f4a57;
-  --brand-wordmark: #ffffff;
 
   --focus: #7cb0ff;
 }
@@ -166,7 +160,7 @@ body {
   * { transition: none !important; animation: none !important; }
 }
 
-h1, h2, h3, .brand-name, .price-figure {
+h1, h2, h3, .price-figure {
   font-family: var(--font-head);
   font-weight: 600;
   color: var(--text-strong);
@@ -279,10 +273,16 @@ input:focus-visible, textarea:focus-visible {
   gap: 1rem; flex-wrap: wrap;
   padding-top: 0.6rem; padding-bottom: 0.6rem;
 }
-.brand { display: inline-flex; align-items: center; gap: 0.7rem; text-decoration: none; }
-.brand-cross { width: 2.5rem; height: 2.5rem; flex: none; }
+.brand { display: inline-flex; align-items: center; text-decoration: none; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
-.brand-name { font-size: 1.35rem; color: var(--brand-wordmark); font-weight: 700; letter-spacing: 0.01em; }
+/* The wordmark. Height drives the lockup; width follows the 3.46:1 aspect.
+   Selectors for the theme swap MUST stay scoped to .brand — a bare .logo-dark
+   is (0,1,0) and loses to `.brand img` (0,1,1), which would leave both logos
+   rendered and double the header height. */
+.brand img { height: 2.7rem; width: auto; display: block; }
+.brand .logo-dark { display: none; }
+[data-theme="dark"] .brand .logo-light { display: none; }
+[data-theme="dark"] .brand .logo-dark { display: block; }
 .brand-tag {
   font-size: 0.9rem; color: var(--text-muted);
   font-family: var(--font-body); font-weight: 500;
@@ -692,6 +692,5 @@ input:focus-visible, textarea:focus-visible {
    and the tagline is part of the brand. */
 @media (max-width: 340px) {
   .brand-tag { display: none; }
-  .brand-name { font-size: 1.25rem; }
-  .brand-cross { width: 1.9rem; height: 1.9rem; }
+  .brand img { height: 2.1rem; }
 }
