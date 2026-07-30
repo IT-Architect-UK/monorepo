@@ -283,11 +283,17 @@ input:focus-visible, textarea:focus-visible {
   padding-top: 0.6rem; padding-bottom: 0.6rem;
 }
 .brand { display: inline-flex; align-items: center; gap: 0.8rem; text-decoration: none; }
-/* The wordmark. Height drives the lockup; width follows the 3.46:1 aspect.
+/* The wordmark. Height drives the lockup; width follows the 3.26:1 aspect.
    Selectors for the theme swap MUST stay scoped to .brand — a bare .logo-dark
    is (0,1,0) and loses to `.brand img` (0,1,1), which would leave both logos
-   rendered and double the header height. */
-.brand img { height: 3.2rem; width: auto; display: block; }
+   rendered and double the header height.
+
+   3.4rem, not 3.2rem: the artwork now carries a margin so the outer strokes and
+   the drop shadow are not shaved off at the canvas edge (they were). That margin
+   is part of the image, so at an identical canvas height the letters themselves
+   would render 4% smaller. 3.4rem restores the cap height Darren approved and
+   keeps the lockup 177px wide, so the strapline breakpoints below still hold. */
+.brand img { height: 3.4rem; width: auto; display: block; }
 .brand .logo-dark { display: none; }
 [data-theme="dark"] .brand .logo-light { display: none; }
 [data-theme="dark"] .brand .logo-dark { display: block; }
@@ -723,5 +729,5 @@ input:focus-visible, textarea:focus-visible {
 }
 
 @media (max-width: 340px) {
-  .brand img { height: 2.3rem; }
+  .brand img { height: 2.45rem; } /* 2.3rem + the new margin, as above */
 }

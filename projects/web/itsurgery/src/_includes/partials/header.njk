@@ -37,12 +37,21 @@
          correct here — the link already carries an aria-label, so alt text
          would make screen readers announce the name twice.
 
-         This artwork is the version approved at d67552d. Later attempts to
-         thicken it, add a keyline and rebuild it as SVG were all rejected and
-         have been reverted. Redrawing the wordmark is a design job, not an
-         image-processing one — see LOGO.md. #}
-      <img class="logo-light" src="/assets/logo.png" alt="" width="1106" height="320" />
-      <img class="logo-dark" src="/assets/logo-dark.png" alt="" width="1106" height="320" />
+         Rebuilt from the Illustrator master by tools/build-logo.py — see LOGO.md
+         for what was tried and rejected before this. Two things matter and are
+         easy to undo by accident:
+
+         1. srcset with density descriptors. The old asset was 1106px wide painted
+            at 177px, so every visitor saw a 6x browser downscale, and that
+            resampling was most of the "blurred" look. Each display now gets an
+            asset at its own density and never upscales.
+         2. The 1x file is 179px for a 177px paint area. Deliberately just over,
+            never under — upscaling a bitmap reintroduces exactly the blur this
+            change removes. If you regenerate these, keep 1x >= the painted size. #}
+      <img class="logo-light" src="/assets/logo.png" alt="" width="179" height="55"
+           srcset="/assets/logo.png 1x, /assets/logo@2x.png 2x, /assets/logo@3x.png 3x" />
+      <img class="logo-dark" src="/assets/logo-dark.png" alt="" width="179" height="55"
+           srcset="/assets/logo-dark.png 1x, /assets/logo-dark@2x.png 2x, /assets/logo-dark@3x.png 3x" />
       {# Tagline sits BESIDE the logo, on its centre line. Placed underneath it
          fought the stethoscope, which is itself a horizontal underline, and read
          as a caption. Kept as live text rather than drawn into the image so it
