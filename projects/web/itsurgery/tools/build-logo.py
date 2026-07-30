@@ -24,6 +24,7 @@ DIL   = 12            # thickening radius, approved at 4.74px rendered
 SEAM  = 11            # seam guard that preserves the gap over the "i"
 BEVEL_FRAC = float(sys.argv[1]) if len(sys.argv) > 1 else 0.16
 PREFIX     = sys.argv[2] if len(sys.argv) > 2 else "b"
+SHAVE      = int(sys.argv[3]) if len(sys.argv) > 3 else 0   # rows off the "i" stem top
 RENDER_H   = 55       # 1x must be >= the painted size, never upscaled
 
 # ---------------------------------------------------------------- 1. rasterise
@@ -59,6 +60,62 @@ def dilate_keeping_gaps(A, r, seam_half):
     return grown
 
 A = dilate_keeping_gaps(a[..., 3], DIL, SEAM)
+
+# Shorten the stem of the leading "i" so the dot above it reads as separate.
+# Thickening grows the stem upward as well as outward, which closed the gap to
+# almost nothing (0.7px at the painted size). The dot's position is correct, so
+# the gap is opened from below by taking rows off the top of the stem, which the
+# letterform tolerates because that top is flat.
+#
+# Only pixels belonging to the stem's own connected component are cleared, and
+# only in its topmost rows. Clearing a rectangle instead would risk clipping the
+# neighbouring "T", whose bbox overlaps the stem in x.
+def shorten_i_stem(A, rows):
+    if rows <= 0:
+        return A
+    ink = A > 0.5
+    lbl, n = ndimage.label(ink)
+    comps = []
+    for i in range(1, n + 1):
+        ys, xs = np.where(lbl == i)
+        comps.append((len(ys), xs.min(), xs.max(), ys.min(), ys.max(), i))
+    # the dot is the smallest component sitting in the upper half
+    dot = min((c for c in comps if c[3] < ink.shape[0] * 0.5), key=lambda c: c[0])
+    _, dx0, dx1, _, dy1, _ = dot
+    below = ink[dy1 + 1:, dx0:dx1 + 1]
+    hit = np.where(below.any(axis=1))[0]
+    if not len(hit):
+        return A
+    top = dy1 + 1 + hit[0]
+    col = dx0 + int(np.where(ink[top, dx0:dx1 + 1])[0].mean())
+    stem = lbl[top, col]
+    # Confine the clear to the stem's OWN column run. The stem's component also
+    # contains other glyphs (the artwork is largely one connected shape), so
+    # clearing whole rows of that component erases ink elsewhere at the same
+    # height and splits letters apart -- it took the component count from 9 to 11.
+    # Probe a few rows down, not at the very top row: up there the thresholded
+    # ink is sparse antialiasing, so the contiguous run is only a pixel or two
+    # wide and clearing it does nothing. Lower down the stem is at full width.
+    probe = min(top + max(rows, 4), ink.shape[0] - 1)
+    row = ink[probe]
+    if not row[col]:
+        near = np.where(row[max(0, col - 40):col + 41])[0]
+        if not len(near):
+            return A
+        col = max(0, col - 40) + int(near[np.argmin(np.abs(near - 40))])
+    x0r = col
+    while x0r > 0 and row[x0r - 1]:
+        x0r -= 1
+    x1r = col
+    while x1r < ink.shape[1] - 1 and row[x1r + 1]:
+        x1r += 1
+    band = np.zeros_like(ink)
+    band[top:top + rows, x0r:x1r + 1] = True
+    A = A.copy()
+    A[(lbl == stem) & band] = 0.0
+    return A
+
+A = shorten_i_stem(A, SHAVE)
 solid = A > 0.5
 
 # --------------------------------------------- 3. measure the stroke, then bevel
@@ -117,5 +174,15 @@ def crop_export(arr, tint, prefix):
 
 full_l, w = crop_export(out, None, f"{PREFIX}_light")
 crop_export(out, (np.array([1.0,1.0,1.0]), np.array([0.60,0.64,0.69])), f"{PREFIX}_dark")
+# gap over the dot, reported at the painted size so it is judged as seen
+_ink = np.array(Image.open(f"{PREFIX}_light_3x.png").convert("RGBA"))[..., 3] > 128
+_l, _n = ndimage.label(_ink)
+_c = [(int((_l == i).sum()), np.where(_l == i)) for i in range(1, _n + 1)]
+_dot = min((c for c in _c if c[1][0].min() < _ink.shape[0] * 0.5), key=lambda c: c[0])
+_dy1, _dx0, _dx1 = _dot[1][0].max(), _dot[1][1].min(), _dot[1][1].max()
+_bel = np.where(_ink[_dy1 + 1:, _dx0:_dx1 + 1].any(axis=1))[0]
+_gap = int(_bel[0]) if len(_bel) else -1
+print(f"  components {_n} (must be 9)   dot gap {_gap}px at 3x = {_gap/3:.2f}px painted")
+
 print(f"bevel_frac={BEVEL_FRAC}  stroke_master={stroke_px:.1f}px  bevel={bevel:.1f}px  "
       f"master={full_l.width}x{full_l.height}  1x={w}x{RENDER_H}")
