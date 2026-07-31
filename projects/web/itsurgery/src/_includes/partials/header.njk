@@ -1,4 +1,8 @@
-{# Utility bar: About Us / Quote Request plus all contact actions, matched size. #}
+{# Utility bar: About Us on the left, the three contact actions on the right.
+   Contact Us sits where the phone number used to, because that slot is the one
+   people look at first and the form is now the channel we want them to use.
+   "Quote Request" was removed from the left nav — it pointed at the same page,
+   and two differently-worded links to one destination is a reason to hesitate. #}
 <div class="utility-bar">
   <div class="container utility-inner">
     <nav class="utility-links" aria-label="Secondary">
@@ -7,6 +11,7 @@
       {% endfor %}
     </nav>
     <nav class="utility-contact" aria-label="Contact us">
+      <a class="ubtn" href="/quote/"{% if page.url == "/quote/" %} aria-current="page"{% endif %}>Contact Us</a>
       <a class="ubtn" href="https://wa.me/{{ site.whatsapp }}?text=Hello%2C%20I%27d%20like%20some%20help%20with%20an%20IT%20problem" target="_blank" rel="noopener">WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
       <a class="ubtn" href="mailto:{{ site.email }}">Email</a>
       {# aria-pressed carries the state, so the accessible name stays constant
