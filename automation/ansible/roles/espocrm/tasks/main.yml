@@ -123,7 +123,7 @@
     group: root
     mode: "0644"
     content: |
-      # {{ ansible_managed }}
+      # Managed by Ansible — automation/ansible/roles/espocrm. Edits are overwritten.
       [Unit]
       Description=EspoCRM consistent backup (database dump + application files)
       After=docker.service
@@ -141,7 +141,7 @@
     group: root
     mode: "0644"
     content: |
-      # {{ ansible_managed }}
+      # Managed by Ansible — automation/ansible/roles/espocrm. Edits are overwritten.
       [Unit]
       Description=Run the EspoCRM backup on a schedule
 
