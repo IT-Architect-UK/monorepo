@@ -1,9 +1,15 @@
 # {{ ansible_managed }}
-# Reverse proxy for EspoCRM. Certbot rewrites this file when it installs the
-# certificate, adding the listen 443 / ssl_certificate lines.
+# Reverse proxy for EspoCRM.
 #
-# The IPv6 listeners are conditional: "listen [::]:80" on a host without IPv6
-# fails to bind and nginx refuses to start, taking the whole site down.
+# Ansible owns this file outright; certbot never edits it. certbot is run with
+# "certonly --webroot", which obtains the certificate and touches nothing else.
+# The alternative -- letting "certbot --nginx" rewrite the config -- fights
+# this template: every subsequent playbook run would overwrite certbot's
+# additions and take TLS down until the next renewal.
+#
+# The TLS block therefore appears only once the certificate actually exists on
+# disk. On a first run this file is HTTP-only, which is exactly what the ACME
+# HTTP-01 challenge needs; the second pass adds TLS.
 
 server {
     listen 80;
@@ -12,26 +18,49 @@ server {
 {% endif %}
     server_name {{ espocrm_domain }};
 
-    # Certbot needs this reachable over plain HTTP to renew.
+    # Must stay reachable over plain HTTP, for issuance and every renewal.
     location /.well-known/acme-challenge/ {
-        root /var/www/html;
+        root {{ espocrm_acme_webroot }};
     }
 
+{% if espocrm_tls_ready %}
     location / {
         return 301 https://$host$request_uri;
     }
+{% else %}
+    # No certificate yet — serve the app over HTTP so the box is usable, and
+    # so a misissued redirect does not make the site unreachable.
+    location / {
+        proxy_pass http://127.0.0.1:{{ espocrm_http_port }};
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+{% endif %}
 }
 
+{% if espocrm_tls_ready %}
 server {
-    listen 443 ssl;
+    # "listen ... http2" rather than the standalone "http2 on;" directive:
+    # the latter is nginx 1.25.1+, and Ubuntu 24.04 ships 1.24. This form works
+    # on both, at the cost of a deprecation warning on newer builds.
+    listen 443 ssl http2;
 {% if espocrm_enable_ipv6 %}
-    listen [::]:443 ssl;
+    listen [::]:443 ssl http2;
 {% endif %}
-    http2 on;
     server_name {{ espocrm_domain }};
 
-    # Attachments and import files. Espo's own php.ini allows 50M; keep nginx
-    # above it so the app returns a helpful error rather than nginx 413ing first.
+    ssl_certificate     /etc/letsencrypt/live/{{ espocrm_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ espocrm_domain }}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # Attachments and imports. Espo's own php.ini allows 50M; keep nginx above
+    # it so the app returns a useful error rather than nginx 413ing first.
     client_max_body_size {{ espocrm_max_upload_size }};
 
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
@@ -44,9 +73,10 @@ server {
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        # Espo builds absolute URLs from this. Wrong value = redirect loops
-        # on the customer portal login.
+        # Espo builds absolute URLs from this. Wrong value = redirect loops on
+        # the customer portal login.
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 300s;
     }
 }
+{% endif %}

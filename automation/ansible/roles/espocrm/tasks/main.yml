@@ -77,19 +77,40 @@
 
 # --- reverse proxy --------------------------------------------------------
 
-- name: Install nginx
+- name: Install nginx and certbot
   ansible.builtin.apt:
-    name: nginx
+    name:
+      - nginx
+      - certbot
     state: present
     update_cache: true
 
-- name: Deploy the EspoCRM nginx site
+# certonly + webroot, deliberately not the --nginx plugin. The plugin rewrites
+# the vhost, which this role also templates - so each would undo the other, and
+# TLS would break on the next playbook run rather than at renewal, where it
+# would at least be noticed.
+- name: Create the ACME challenge webroot
+  ansible.builtin.file:
+    path: "{{ espocrm_acme_webroot }}/.well-known/acme-challenge"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check whether a certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ espocrm_domain }}/fullchain.pem"
+  register: espocrm_cert
+
+- name: Deploy the nginx site (HTTP only until a certificate exists)
   ansible.builtin.template:
     src: espocrm.nginx.conf.j2
     dest: /etc/nginx/sites-available/espocrm.conf
     owner: root
     group: root
     mode: "0644"
+  vars:
+    espocrm_tls_ready: "{{ espocrm_cert.stat.exists }}"
   notify: Reload nginx
 
 - name: Enable the EspoCRM nginx site
@@ -104,6 +125,58 @@
     path: /etc/nginx/sites-enabled/default
     state: absent
   notify: Reload nginx
+
+# A site file is an include fragment - "nginx -t" on it alone is meaningless,
+# and the template module's validate option would test the config currently
+# installed rather than the candidate, passing or failing for the wrong reason.
+# Validate the assembled configuration instead, once the symlink is in place.
+- name: Validate the assembled nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+# nginx must be serving the challenge path before certbot is asked for a cert.
+- name: Apply pending nginx changes now
+  ansible.builtin.meta: flush_handlers
+
+- name: Obtain the certificate
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/certbot
+      - certonly
+      - --webroot
+      - -w
+      - "{{ espocrm_acme_webroot }}"
+      - -d
+      - "{{ espocrm_domain }}"
+      - --non-interactive
+      - --agree-tos
+      - -m
+      - "{{ letsencrypt_email }}"
+    creates: "/etc/letsencrypt/live/{{ espocrm_domain }}/fullchain.pem"
+  when: espocrm_request_certificate | default(true)
+  register: espocrm_certbot
+
+- name: Re-check for the certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ espocrm_domain }}/fullchain.pem"
+  register: espocrm_cert_after
+
+- name: Deploy the nginx site again, now with TLS
+  ansible.builtin.template:
+    src: espocrm.nginx.conf.j2
+    dest: /etc/nginx/sites-available/espocrm.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    espocrm_tls_ready: "{{ espocrm_cert_after.stat.exists }}"
+  when: espocrm_cert_after.stat.exists
+  notify: Reload nginx
+
+- name: Validate the assembled nginx configuration with TLS
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  when: espocrm_cert_after.stat.exists
 
 # --- backups --------------------------------------------------------------
 

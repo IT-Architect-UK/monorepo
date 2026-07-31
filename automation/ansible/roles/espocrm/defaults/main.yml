@@ -23,6 +23,10 @@ espocrm_pull_policy: missing        # 'always' only when intentionally upgrading
 espocrm_http_port: 8080             # loopback only; nginx fronts it
 espocrm_max_upload_size: "50m"      # keep at/above Espo's own 50M php.ini limit
 
+# Served over plain HTTP for ACME HTTP-01, at issuance and every renewal.
+espocrm_acme_webroot: /var/www/acme
+espocrm_request_certificate: true
+
 # ── Application settings ──────────────────────────────────────────────────
 espocrm_domain: ""                  # e.g. crm.itsurgery.me — REQUIRED
 espocrm_admin_username: admin
