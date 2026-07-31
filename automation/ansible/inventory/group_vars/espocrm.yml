@@ -1,0 +1,19 @@
+---
+# =============================================================================
+# group_vars/espocrm.yml — hosts running the CRM
+# =============================================================================
+# Non-secret settings only. The three passwords live in espocrm_vault.yml,
+# encrypted with Ansible Vault — see roles/espocrm/README.md.
+# =============================================================================
+
+espocrm_domain: "crm.itsurgery.me"
+letsencrypt_email: "darren.pilkington@it-architect.uk"
+
+# Pinned deliberately. Bump when you intend to upgrade, having taken a backup
+# first, then re-run with -e espocrm_pull_policy=always
+espocrm_image_tag: "9.2.4"
+espocrm_mariadb_tag: "11.4"
+
+# 02:30 local, so the dump has finished before Restic ships it off-box.
+espocrm_backup_schedule: "*-*-* 02:30:00"
+espocrm_local_backup_keep_days: 7

@@ -1,0 +1,100 @@
+---
+# =============================================================================
+# deploy-espocrm.yml
+# =============================================================================
+# Deploys EspoCRM — the customer relationship manager behind crm.itsurgery.me.
+#
+# What this playbook does:
+#   - Installs Docker Engine + Compose v2 (via the deploy-docker.yml tasks)
+#   - Runs EspoCRM + MariaDB + the scheduled-jobs daemon as containers,
+#     listening on the loopback interface only
+#   - Fronts them with nginx and a Let's Encrypt certificate
+#   - Installs a nightly consistent backup (database dump + application files)
+#     that Restic can then ship off-box
+#
+# What it deliberately does NOT do:
+#   - Invoicing or payments. Those live in Xero; EspoCRM holds the customer
+#     relationship, not the money. See projects/web/README.md.
+#
+# Prerequisites:
+#   - The baseline has been applied (playbooks/server-baseline.yml)
+#   - DNS: an A record for espocrm_domain already points at this host, or
+#     Certbot's HTTP-01 challenge will fail
+#   - Vault file with the three passwords (see roles/espocrm/README.md)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy-espocrm.yml \
+#     --ask-vault-pass
+#
+#   ansible-playbook playbooks/deploy-espocrm.yml \
+#     -e target_host=51.x.x.x --ask-vault-pass
+#
+# Variables:
+#   target_host       single IP/FQDN to target (optional)
+#   target_ssh_user   SSH user for single-host mode (default: it-admin)
+#   espocrm_domain    FQDN for the CRM (required)
+#   letsencrypt_email contact address for certificate expiry warnings
+# =============================================================================
+
+- name: "Register single target (survey mode only)"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Add target_host to the espocrm_target group
+      ansible.builtin.add_host:
+        name: "{{ target_host }}"
+        groups: espocrm_target
+        ansible_user: "{{ target_ssh_user | default('it-admin', true) }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+      when: target_host is defined and (target_host | length > 0)
+
+- name: Deploy EspoCRM
+  hosts: >-
+    {{ (target_host is defined and (target_host | length > 0))
+       | ternary('espocrm_target', target_hosts | default('espocrm')) }}
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - ../inventory/group_vars/all.yml
+
+  pre_tasks:
+    - name: Confirm the OS is supported
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family == "Debian"
+        fail_msg: >-
+          This playbook targets Ubuntu/Debian. EspoCRM needs PHP 8.3-8.5, which
+          is why the app runs in a container — but nginx and the packaging here
+          assume apt.
+        quiet: true
+
+  roles:
+    - role: espocrm
+
+  post_tasks:
+    - name: Obtain and install the Let's Encrypt certificate
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/certbot
+          - --nginx
+          - -d
+          - "{{ espocrm_domain }}"
+          - --non-interactive
+          - --agree-tos
+          - -m
+          - "{{ letsencrypt_email }}"
+          - --redirect
+        creates: "/etc/letsencrypt/live/{{ espocrm_domain }}/fullchain.pem"
+      when: espocrm_request_certificate | default(true)
+
+    - name: Show where to go next
+      ansible.builtin.debug:
+        msg:
+          - "EspoCRM is up at https://{{ espocrm_domain }}"
+          - "Sign in as '{{ espocrm_admin_username }}' with the vaulted password."
+          - "First jobs: enable 2FA (Administration > Authentication), then"
+          - "configure OIDC if you want Google/Microsoft sign-in."
+          - "Espo's own 2FA does NOT apply to OIDC logins — MFA comes from the"
+          - "identity provider in that case."

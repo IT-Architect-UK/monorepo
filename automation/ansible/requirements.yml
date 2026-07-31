@@ -1,0 +1,16 @@
+---
+# =============================================================================
+# requirements.yml — Ansible collections this repo depends on
+# =============================================================================
+# Install before running any playbook on a fresh controller:
+#   ansible-galaxy collection install -r requirements.yml
+# =============================================================================
+
+collections:
+  # Used by roles/common (timezone) and others.
+  - name: community.general
+
+  # Used by roles/espocrm to manage the Compose stack. This is a NEW dependency
+  # — nothing else in the repo used it before EspoCRM, so an existing toolbox
+  # may not have it installed.
+  - name: community.docker

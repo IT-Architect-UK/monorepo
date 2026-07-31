@@ -1,0 +1,150 @@
+---
+# =============================================================================
+# roles/espocrm — EspoCRM in Docker, behind nginx, with consistent backups
+# =============================================================================
+# Assumes Docker is already present (playbooks/deploy-docker.yml) and that the
+# common role has applied the baseline firewall. See roles/espocrm/README.md.
+# =============================================================================
+
+- name: Fail early if required secrets are missing
+  ansible.builtin.assert:
+    that:
+      - espocrm_db_password | default('', true) | length > 0
+      - espocrm_db_root_password | default('', true) | length > 0
+      - espocrm_admin_password | default('', true) | length > 0
+      - espocrm_domain | default('', true) | length > 0
+    fail_msg: >-
+      espocrm_domain and the three passwords must be set. Put the passwords in
+      an Ansible Vault file, never in group_vars in plain text. See the role
+      README for the encrypt_string commands.
+    quiet: true
+
+- name: Configure the firewall
+  ansible.builtin.import_tasks: firewall.yml
+  when: espocrm_manage_firewall
+  tags: [firewall]
+
+- name: Create EspoCRM directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - "{{ espocrm_base_dir }}"
+    - "{{ espocrm_backup_dir }}"
+
+- name: Deploy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ espocrm_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    # 0640: the file contains the database and admin passwords.
+    mode: "0640"
+  register: espocrm_compose
+
+- name: Start the EspoCRM stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ espocrm_base_dir }}"
+    state: present
+    pull: "{{ espocrm_pull_policy }}"
+  register: espocrm_stack
+
+- name: Wait for EspoCRM to answer on the loopback port
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ espocrm_http_port }}/"
+    status_code: [200, 302]
+  register: espocrm_ready
+  retries: 30
+  delay: 10
+  until: espocrm_ready is succeeded
+  # First run installs the schema, which takes a while on a small VPS.
+
+# --- reverse proxy --------------------------------------------------------
+
+- name: Install nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+
+- name: Deploy the EspoCRM nginx site
+  ansible.builtin.template:
+    src: espocrm.nginx.conf.j2
+    dest: /etc/nginx/sites-available/espocrm.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Enable the EspoCRM nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/espocrm.conf
+    dest: /etc/nginx/sites-enabled/espocrm.conf
+    state: link
+  notify: Reload nginx
+
+- name: Remove the default nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload nginx
+
+# --- backups --------------------------------------------------------------
+
+- name: Deploy the backup script
+  ansible.builtin.template:
+    src: espocrm-backup.sh.j2
+    dest: /usr/local/bin/espocrm-backup.sh
+    owner: root
+    group: root
+    # 0700: embeds the database root password.
+    mode: "0700"
+
+- name: Install the backup systemd unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/espocrm-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # {{ ansible_managed }}
+      [Unit]
+      Description=EspoCRM consistent backup (database dump + application files)
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/espocrm-backup.sh
+  notify: Reload systemd
+
+- name: Install the backup systemd timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/espocrm-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # {{ ansible_managed }}
+      [Unit]
+      Description=Run the EspoCRM backup on a schedule
+
+      [Timer]
+      OnCalendar={{ espocrm_backup_schedule }}
+      # Catch up if the VPS was down at the scheduled moment.
+      Persistent=true
+      RandomizedDelaySec=300
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
+- name: Enable the backup timer
+  ansible.builtin.systemd:
+    name: espocrm-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true

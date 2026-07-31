@@ -1,0 +1,75 @@
+# {{ ansible_managed }}
+# EspoCRM stack. Rendered by the espocrm Ansible role — edit the role, not this.
+#
+# Ports bind to 127.0.0.1 ONLY. TLS termination and public exposure are nginx's
+# job on the host, so the containers are never directly reachable from the
+# internet even if the host firewall were misconfigured.
+
+# Project name pinned explicitly. Compose otherwise derives it from the
+# directory name, which silently changes the volume names ("espocrm_espocrm")
+# that espocrm-backup.sh depends on — so moving this directory would break
+# backups without any error.
+name: espocrm
+
+services:
+
+  espocrm-db:
+    image: mariadb:{{ espocrm_mariadb_tag }}
+    container_name: espocrm-db
+    environment:
+      MARIADB_ROOT_PASSWORD: "{{ espocrm_db_root_password }}"
+      MARIADB_DATABASE: "{{ espocrm_db_name }}"
+      MARIADB_USER: "{{ espocrm_db_user }}"
+      MARIADB_PASSWORD: "{{ espocrm_db_password }}"
+    volumes:
+      - espocrm-db:/var/lib/mysql
+    restart: always
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 20s
+      start_period: 10s
+      timeout: 10s
+      retries: 3
+
+  espocrm:
+    image: espocrm/espocrm:{{ espocrm_image_tag }}
+    container_name: espocrm
+    environment:
+      ESPOCRM_DATABASE_PLATFORM: Mysql
+      ESPOCRM_DATABASE_HOST: espocrm-db
+      ESPOCRM_DATABASE_NAME: "{{ espocrm_db_name }}"
+      ESPOCRM_DATABASE_USER: "{{ espocrm_db_user }}"
+      ESPOCRM_DATABASE_PASSWORD: "{{ espocrm_db_password }}"
+      ESPOCRM_ADMIN_USERNAME: "{{ espocrm_admin_username }}"
+      ESPOCRM_ADMIN_PASSWORD: "{{ espocrm_admin_password }}"
+      ESPOCRM_SITE_URL: "https://{{ espocrm_domain }}"
+      ESPOCRM_TIME_ZONE: "{{ system_timezone | default('Europe/London') }}"
+      ESPOCRM_LANGUAGE: "{{ espocrm_language }}"
+      ESPOCRM_DEFAULT_CURRENCY: "{{ espocrm_currency }}"
+      # Espo sits behind nginx, so it must trust the proxy headers or every
+      # generated URL comes out as http:// and the portal login loop breaks.
+      ESPOCRM_CONFIG_IS_BEHIND_PROXY: "true"
+    volumes:
+      - espocrm:/var/www/html
+    restart: always
+    depends_on:
+      espocrm-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:{{ espocrm_http_port }}:80"
+
+  # Runs Espo's scheduled jobs (email fetching, reminders, cleanup). Without
+  # this container nothing scheduled ever fires — no daemon, no notifications.
+  espocrm-daemon:
+    image: espocrm/espocrm:{{ espocrm_image_tag }}
+    container_name: espocrm-daemon
+    volumes:
+      - espocrm:/var/www/html
+    restart: always
+    entrypoint: docker-daemon.sh
+    depends_on:
+      - espocrm
+
+volumes:
+  espocrm-db:
+  espocrm:

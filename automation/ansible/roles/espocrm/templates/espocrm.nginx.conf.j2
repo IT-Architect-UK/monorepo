@@ -1,0 +1,52 @@
+# {{ ansible_managed }}
+# Reverse proxy for EspoCRM. Certbot rewrites this file when it installs the
+# certificate, adding the listen 443 / ssl_certificate lines.
+#
+# The IPv6 listeners are conditional: "listen [::]:80" on a host without IPv6
+# fails to bind and nginx refuses to start, taking the whole site down.
+
+server {
+    listen 80;
+{% if espocrm_enable_ipv6 %}
+    listen [::]:80;
+{% endif %}
+    server_name {{ espocrm_domain }};
+
+    # Certbot needs this reachable over plain HTTP to renew.
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+{% if espocrm_enable_ipv6 %}
+    listen [::]:443 ssl;
+{% endif %}
+    http2 on;
+    server_name {{ espocrm_domain }};
+
+    # Attachments and import files. Espo's own php.ini allows 50M; keep nginx
+    # above it so the app returns a helpful error rather than nginx 413ing first.
+    client_max_body_size {{ espocrm_max_upload_size }};
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:{{ espocrm_http_port }};
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        # Espo builds absolute URLs from this. Wrong value = redirect loops
+        # on the customer portal login.
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}
