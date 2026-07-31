@@ -138,7 +138,9 @@ exports.handler = async (event) => {
     emailAddress: (data.email || '').trim() || null,
     phoneNumber: (data.phone || '').trim() || null,
     description: notes.length ? notes.join('\n') : null,
-    source: 'Web Site',
+    // Lead Source is deliberately NOT sent. The Lead Capture record sets it to
+    // "Web Site" itself, and any field absent from that record's Payload Fields
+    // list is discarded anyway — so sending it is at best redundant.
   };
 
   try {

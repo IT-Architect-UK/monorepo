@@ -162,10 +162,22 @@ Netlify's dashboard and still reached the inbox, it just needs entering by hand.
 
 **1. In EspoCRM** — Administration > Lead Capture > create a record.
 
-Set *Payload Fields* to at least: `firstName`, `lastName`, `emailAddress`,
-`phoneNumber`, `description`, `source`. Fields not listed there are silently
-discarded. The side panel then shows the full endpoint URL including the API
-key — copy it.
+Set *Payload Fields* to: `firstName`, `lastName`, `emailAddress`,
+`phoneNumber`, `description`. Fields not listed there are silently discarded,
+so this is the setting most likely to cause a puzzling empty Description later.
+
+Set *Lead Source* to **Web Site** and *Telephone country code* to **GB +44**.
+The function does not send a source — the capture record applies it.
+
+**Leave "Subscribe to Target List" unchecked.** It exists for mailing-list
+signups, and ticking it makes Target List mandatory. Someone asking for help
+with a slow laptop has not consented to marketing, and auto-subscribing them
+would be a UK GDPR problem.
+
+*Duplicate Check* is worth leaving on, but be aware it means a second enquiry
+from the same person may not create a second Lead.
+
+The side panel then shows the full endpoint URL including the API key — copy it.
 
 **2. In Netlify** — Site configuration > Environment variables:
 
