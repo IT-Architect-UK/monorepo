@@ -17,3 +17,8 @@ espocrm_mariadb_tag: "11.4"
 # 02:30 local, so the dump has finished before Restic ships it off-box.
 espocrm_backup_schedule: "*-*-* 02:30:00"
 espocrm_local_backup_keep_days: 7
+
+# The espocrm role owns the firewall on this host. The common role's baseline
+# ruleset opens SSH to the entire internet, and because rules are additive that
+# permissive rule would sit alongside the source restriction and defeat it.
+baseline_firewall: false

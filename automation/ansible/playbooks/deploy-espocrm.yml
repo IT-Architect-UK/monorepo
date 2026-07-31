@@ -5,7 +5,7 @@
 # Deploys EspoCRM — the customer relationship manager behind crm.itsurgery.me.
 #
 # What this playbook does:
-#   - Installs Docker Engine + Compose v2 (via the deploy-docker.yml tasks)
+#   - Installs Docker Engine + Compose v2 (imports deploy-docker.yml)
 #   - Runs EspoCRM + MariaDB + the scheduled-jobs daemon as containers,
 #     listening on the loopback interface only
 #   - Fronts them with nginx and a Let's Encrypt certificate
@@ -17,7 +17,10 @@
 #     relationship, not the money. See projects/web/README.md.
 #
 # Prerequisites:
-#   - The baseline has been applied (playbooks/server-baseline.yml)
+#   - If you also run server-baseline.yml against this host, set
+#     baseline_firewall: false for it (already set in group_vars/espocrm.yml).
+#     The common role's firewall opens SSH to the world, which would sit
+#     alongside — and defeat — the source restriction this role applies.
 #   - DNS: an A record for espocrm_domain already points at this host, or
 #     Certbot's HTTP-01 challenge will fail
 #   - Vault file with the three passwords (see roles/espocrm/README.md)
@@ -35,6 +38,13 @@
 #   espocrm_domain    FQDN for the CRM (required)
 #   letsencrypt_email contact address for certificate expiry warnings
 # =============================================================================
+
+# Docker first. Imported rather than duplicated, so there is one definition of
+# how Docker gets installed. It is idempotent, so re-running costs nothing.
+- name: Install Docker Engine (prerequisite)
+  ansible.builtin.import_playbook: deploy-docker.yml
+  vars:
+    target_hosts: "{{ espocrm_hosts_group | default('espocrm') }}"
 
 - name: "Register single target (survey mode only)"
   hosts: localhost

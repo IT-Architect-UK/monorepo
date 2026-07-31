@@ -62,6 +62,8 @@ ansible-galaxy collection install -r requirements.yml
 ansible-vault create inventory/group_vars/espocrm_vault.yml
 
 # 5. Dry run first. Nothing is changed; you see what would be.
+#    Docker is installed by the playbook itself - it imports deploy-docker.yml
+#    - so there is nothing to run beforehand.
 ansible-playbook playbooks/deploy-espocrm.yml --ask-vault-pass --check --diff
 
 # 6. For real
