@@ -19,6 +19,19 @@
       README for the encrypt_string commands.
     quiet: true
 
+- name: Reject passwords containing a single quote
+  ansible.builtin.assert:
+    that:
+      - "\"'\" not in espocrm_db_password"
+      - "\"'\" not in espocrm_db_root_password"
+      - "\"'\" not in espocrm_admin_password"
+    fail_msg: >-
+      A password contains a single quote ('). The backup script assigns the
+      database password inside single quotes, which a literal single quote
+      would terminate. Generate a replacement without one - in Bitwarden,
+      turn off special characters and raise the length instead.
+    quiet: true
+
 - name: Configure the firewall
   ansible.builtin.import_tasks: firewall.yml
   when: espocrm_manage_firewall

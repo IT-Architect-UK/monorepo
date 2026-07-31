@@ -23,13 +23,25 @@ mkdir -p "$BACKUP_DIR"
 # --- database -------------------------------------------------------------
 # --single-transaction keeps InnoDB consistent without locking the whole DB,
 # so the CRM stays usable while the dump runs.
-docker exec espocrm-db mariadb-dump \
+#
+# The password goes via MYSQL_PWD, NOT --password=. A password on the command
+# line is visible in `ps aux` to every user on the host for the whole duration
+# of the dump. Passing the variable name alone to `docker exec -e` forwards the
+# value from this script's environment without it appearing in any argv.
+#
+# Single-quoted on assignment so the shell does not expand $, ` or \ in the
+# password. Only a literal single quote would break this, and the role rejects
+# those - see the assert in tasks/main.yml.
+export MYSQL_PWD='{{ espocrm_db_root_password }}'
+
+docker exec -e MYSQL_PWD espocrm-db mariadb-dump \
     --single-transaction \
     --quick \
     --user=root \
-    --password="{{ espocrm_db_root_password }}" \
     "{{ espocrm_db_name }}" \
   | gzip -9 > "${BACKUP_DIR}/espocrm-db-${STAMP}.sql.gz"
+
+unset MYSQL_PWD
 
 # --- application files ----------------------------------------------------
 # data/ holds uploaded attachments and the generated config; custom/ holds any
