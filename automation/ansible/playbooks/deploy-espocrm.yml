@@ -84,6 +84,18 @@
     - role: espocrm
 
   post_tasks:
+    # certbot and the nginx plugin, from apt rather than snap: the apt build
+    # lands in /usr/bin and pulls its own systemd renewal timer, so there is
+    # nothing further to schedule.
+    - name: Install certbot and the nginx plugin
+      ansible.builtin.apt:
+        name:
+          - certbot
+          - python3-certbot-nginx
+        state: present
+        update_cache: true
+      when: espocrm_request_certificate | default(true)
+
     - name: Obtain and install the Let's Encrypt certificate
       ansible.builtin.command:
         argv:

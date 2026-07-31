@@ -7,7 +7,9 @@ can actually be restored.
 
 - EspoCRM, MariaDB and the scheduled-jobs daemon as containers, bound to
   `127.0.0.1` only
-- nginx in front, with a Let's Encrypt certificate and HSTS
+- nginx in front, with a Let's Encrypt certificate and HSTS. certbot and
+  python3-certbot-nginx are installed by the playbook; apt's build registers
+  its own renewal timer, so renewal needs no extra setup
 - A nightly `mariadb-dump` plus an archive of uploads and customisations,
   written to `/opt/espocrm/backups/` for Restic to collect
 
