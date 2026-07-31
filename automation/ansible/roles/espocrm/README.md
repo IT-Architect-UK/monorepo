@@ -100,6 +100,31 @@ When the toolbox VM or a WSL controller exists, change the `espocrm` group in
 `inventory/hosts.yml` from `ansible_connection: local` to a normal SSH target
 and run it from there instead. Nothing else in the role changes.
 
+## If the first run does not create the admin user
+
+`ESPOCRM_ADMIN_USERNAME` is a one-time installation variable — the image acts on
+it only when the database is empty. If EspoCRM rejects the username (its
+allowed-character rules are not documented upstream, and `it-admin` contains a
+hyphen), the account simply will not exist and you cannot log in.
+
+While there is no real data, the fix is cheap — wipe and redo:
+
+```bash
+cd /opt/espocrm
+docker compose down --volumes     # destroys the database. Fine on a fresh install ONLY.
+cd /opt/monorepo/automation/ansible
+ansible-playbook playbooks/deploy-espocrm.yml --ask-vault-pass
+```
+
+Check the container log first to see what it actually objected to:
+
+```bash
+docker logs espocrm 2>&1 | tail -40
+```
+
+Once there are real customer records in there, this is no longer an option —
+change the username inside EspoCRM under Administration > Users instead.
+
 ## Restoring a backup
 
 This is the part worth rehearsing before you need it.

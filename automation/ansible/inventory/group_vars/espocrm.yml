@@ -7,6 +7,14 @@
 # =============================================================================
 
 espocrm_domain: "crm.itsurgery.me"
+
+# Not "admin". Automated attacks assume the default, and EspoCRM exposes a
+# public login page. Matches the it-admin convention used elsewhere in the repo.
+#
+# NOTE: this is a ONE-TIME install variable in the EspoCRM image - it creates
+# the account on first run and is ignored afterwards. Changing it later means
+# editing the user inside EspoCRM, not re-running this playbook.
+espocrm_admin_username: "it-admin"
 letsencrypt_email: "darren.pilkington@it-architect.uk"
 
 # Pinned deliberately. Bump when you intend to upgrade, having taken a backup
