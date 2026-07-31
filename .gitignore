@@ -71,3 +71,7 @@ venv/
 # ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
 logs/
+
+# Ansible vault files are encrypted and safe to commit, but only once they
+# actually are encrypted. Uncomment to keep them out of Git entirely.
+# automation/ansible/inventory/group_vars/*/vault.yml

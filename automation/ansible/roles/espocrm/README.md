@@ -20,8 +20,13 @@ the A record must already resolve or the certificate step fails.
 
 ```bash
 cd automation/ansible
-ansible-vault create inventory/group_vars/espocrm_vault.yml
+ansible-vault create inventory/group_vars/espocrm/vault.yml
 ```
+
+The path matters. `group_vars/espocrm/` is a directory named after the
+inventory group, and Ansible loads every file inside it. A file named
+`group_vars/espocrm_vault.yml` would be ignored without warning — Ansible would
+be looking for a group called `espocrm_vault`.
 
 Put this in it, with your own values:
 
@@ -35,7 +40,7 @@ Generate them with something like `openssl rand -base64 24`. The role refuses
 to run if any is empty — that is deliberate, because the EspoCRM image
 otherwise installs with the upstream default password of `password`.
 
-**3. Set the domain** in `inventory/group_vars/espocrm.yml`.
+**3. Set the domain** in `inventory/group_vars/espocrm/vars.yml`.
 
 ## Running it — on the VPS itself
 

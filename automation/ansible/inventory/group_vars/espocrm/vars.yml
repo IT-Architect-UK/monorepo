@@ -1,6 +1,15 @@
 ---
 # =============================================================================
-# group_vars/espocrm.yml — hosts running the CRM
+# group_vars/espocrm/vars.yml — hosts running the CRM
+# =============================================================================
+# A DIRECTORY named after the group, not a single file. Ansible only auto-loads
+# group_vars files whose name matches a group, so a sibling file called
+# "espocrm_vault.yml" would silently never be read — it would be looking for a
+# group called espocrm_vault. Inside a directory named after the group, every
+# file is loaded, which is how vars and vault get separated.
+#
+#   group_vars/espocrm/vars.yml    <- this file, in Git, readable
+#   group_vars/espocrm/vault.yml   <- encrypted, the three passwords
 # =============================================================================
 # Non-secret settings only. The three passwords live in espocrm_vault.yml,
 # encrypted with Ansible Vault — see roles/espocrm/README.md.
