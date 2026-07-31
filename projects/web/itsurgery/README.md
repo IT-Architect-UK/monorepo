@@ -147,3 +147,48 @@ Worth adding later, when available:
 - Embed the Cal.com booking widget on the Quote Request page once configured.
 - Add a Reviews page and testimonials as they arrive.
 - Confirm whether the Sully address should be published (it is on the current site).
+
+## CRM integration (Netlify Forms to EspoCRM)
+
+Quote form submissions become Leads in EspoCRM at crm.itsurgery.me.
+
+The form still posts to Netlify exactly as before, so the submission is
+captured and the notification email sent **first**. Only then does an outgoing
+webhook call `netlify/functions/crm-lead.js`, which reshapes the payload and
+creates the Lead. If the CRM is down the enquiry is not lost — it is still in
+Netlify's dashboard and still reached the inbox, it just needs entering by hand.
+
+### Setting it up
+
+**1. In EspoCRM** — Administration > Lead Capture > create a record.
+
+Set *Payload Fields* to at least: `firstName`, `lastName`, `emailAddress`,
+`phoneNumber`, `description`, `source`. Fields not listed there are silently
+discarded. The side panel then shows the full endpoint URL including the API
+key — copy it.
+
+**2. In Netlify** — Site configuration > Environment variables:
+
+| Variable | Value |
+|---|---|
+| `ESPOCRM_LEAD_CAPTURE_URL` | the endpoint URL from step 1, key included |
+| `NETLIFY_WEBHOOK_JWS_SECRET` | a secret you generate; used in step 3 |
+
+**3. In Netlify** — Forms > Form notifications > add an **outgoing webhook**:
+
+- Event: new form submission
+- Form: `quote`
+- URL: `https://itsurgery.me/.netlify/functions/crm-lead`
+- JWS secret: the same value as `NETLIFY_WEBHOOK_JWS_SECRET`
+
+The JWS secret is not optional. Without it the function is a public endpoint
+and anyone could inject Leads; it rejects unsigned and mis-signed requests.
+
+### Checking it works
+
+Submit the form, then look at Netlify > Functions > `crm-lead` for
+`created lead from submission <id>`, and at Leads in EspoCRM.
+
+The function never logs the enquirer's name, phone number or problem — function
+logs are not an appropriate place for customer data. Only the submission ID and
+the outcome are logged, which is enough to trace a failure.
