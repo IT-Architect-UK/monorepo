@@ -1,0 +1,162 @@
+---
+layout: layouts/base.njk
+title: Booking Terms
+heading: Booking Terms
+standfirst: What you pay, what happens if we cannot fix it, and how to cancel — set out plainly.
+description: Terms and conditions for one-off IT Surgery bookings, including the booking fee, no fix no fee, your right to cancel, and how we look after your data.
+---
+
+<section class="section">
+  <div class="container narrow">
+
+    <p class="lead">
+      These are the terms for a <strong>one-off job</strong> — a repair, a
+      setup, a visit or a remote session. If you are on one of our
+      <a href="/support-plans/">support plans</a>, the
+      <a href="/plan-terms/">support plan terms</a> apply to that instead.
+      They are written to be read, not to catch you out. If anything is
+      unclear, <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
+      or email <a href="mailto:{{ site.email }}">{{ site.email }}</a> and we
+      will explain it before you book.
+    </p>
+
+    <h2>1. Who you are contracting with</h2>
+    <p>
+      IT Surgery is a trading name of {{ site.legalName }}, a company
+      registered in England and Wales (company number {{ site.companyNumber }}),
+      VAT registration number {{ site.vatNumber }}. Registered office:
+      {{ site.address.street }}, {{ site.address.locality }},
+      {{ site.address.town }}, {{ site.address.postcode }}.
+      Contact: <a href="mailto:{{ site.email }}">{{ site.email }}</a>.
+    </p>
+
+    <h2>2. Booking fee</h2>
+    <ul class="ticks wide">
+      <li>We ask for a <strong>£{{ site.bookingFee }} booking fee</strong> to reserve your appointment.</li>
+      <li>It comes off your first hour — it is not an extra charge.</li>
+      <li><strong>No fix, no fee.</strong> If we cannot solve the problem, we refund the booking fee in full and you pay nothing.</li>
+      <li>If we can solve it but you decide not to go ahead once we have told you what is involved, we keep the booking fee for the time spent diagnosing.</li>
+    </ul>
+
+    <h2>3. What it costs</h2>
+    <ul class="ticks wide">
+      <li>Home customers: <strong>£{{ site.hourlyRate }} an hour {{ site.vatIncLabel }}</strong>.</li>
+      <li>Business customers: <strong>£{{ site.businessHourlyRate }} an hour {{ site.vatExLabel }}</strong>.</li>
+      <li>We charge for the time we actually spend, rounded to the nearest fifteen minutes after the first hour.</li>
+      <li>Parts, replacement hardware and software licences are extra. We will always tell you the price and get your agreement before buying anything.</li>
+      <li>If a job is going to take longer than we expected, we stop and tell you before carrying on.</li>
+    </ul>
+
+    <h2>4. Where we work</h2>
+    <p>
+      We cover {{ site.areas | join(", ") }} and the surrounding Vale of
+      Glamorgan for on-site visits. Remote support is available anywhere in the
+      UK. If you are outside our area, ask — we will tell you straight away
+      rather than waste your time.
+    </p>
+
+    <h2>5. Changing or cancelling an appointment</h2>
+    <ul class="ticks wide">
+      <li>Change or cancel with <strong>24 hours' notice</strong> or more and we refund the booking fee in full, or move it to your new appointment.</li>
+      <li>Less than 24 hours, or if nobody is there when we arrive, we keep the booking fee to cover the reserved time.</li>
+      <li>If <em>we</em> have to change or cancel, you get the booking fee back in full, and we will do our best to offer you a slot that suits.</li>
+      <li>Things happen — illness, family, emergencies. Tell us and we will be reasonable.</li>
+    </ul>
+
+    <h2>6. Your 14-day right to cancel (home customers)</h2>
+    <p>
+      If you are a consumer and you booked online, by message or over the
+      phone, you have a legal right to cancel within <strong>14 days</strong>,
+      for any reason, under the Consumer Contracts (Information, Cancellation
+      and Additional Charges) Regulations 2013.
+    </p>
+    <ul class="ticks wide">
+      <li>To cancel, just tell us — <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a> or email <a href="mailto:{{ site.email }}">{{ site.email }}</a>. A simple message is enough; you do not need to give a reason or use any particular form.</li>
+      <li>We will refund everything you have paid within 14 days of being told.</li>
+      <li><strong>If you want us to start sooner than that</strong>, you can ask us to — most people do, because a broken computer will not wait. You keep the right to cancel, but if we have already done work you will pay a fair amount for what we actually provided. We will tell you the figure before deducting anything.</li>
+      <li>Once we have completely finished the job at your request within those 14 days, the right to cancel that job ends.</li>
+      <li>This right does not apply to business customers.</li>
+    </ul>
+
+    <h2>7. Backups and your data</h2>
+    <p>
+      <strong>Please back up anything you cannot afford to lose before we start.</strong>
+      We will always ask, and we will help you do it if you are not sure how.
+    </p>
+    <p>
+      We take reasonable care with your equipment and your files. But repairs
+      sometimes involve hardware that is already failing, and no engineer can
+      guarantee data survives a failing disk. We are not responsible for data
+      that was not backed up beforehand.
+    </p>
+    <p>
+      If a job carries a real risk to your data, we will tell you before we
+      touch anything, so you can decide.
+    </p>
+    <p>
+      How we handle your personal information is set out in our
+      <a href="/privacy/">privacy policy</a>.
+    </p>
+
+    <h2>8. Access, and what we need from you</h2>
+    <ul class="ticks wide">
+      <li>Someone aged 18 or over needs to be at home for the whole visit.</li>
+      <li>We will need passwords for the devices we are working on. Never give us your online banking password — we will never ask for it.</li>
+      <li>If we find something unsafe, unlicensed or unlawful, we will stop work and explain why.</li>
+      <li>We can only work on equipment you own or have permission to have worked on.</li>
+    </ul>
+
+    <h2>9. Our responsibility to you</h2>
+    <p>
+      We will carry out our work with reasonable care and skill, as the law
+      requires. If we get something wrong, we will put it right.
+    </p>
+    <p>
+      We do not exclude or limit our liability for death or personal injury
+      caused by our negligence, for fraud, or for anything else that cannot
+      lawfully be excluded. Otherwise, our liability for any one job is limited
+      to the amount you paid us for that job. We are not liable for business
+      losses such as lost profits or lost revenue — these terms are intended
+      for households and small businesses, not for customers relying on us for
+      business-critical continuity. If that is what you need, talk to us so we
+      can quote for it properly.
+    </p>
+    <p>
+      Nothing here affects your statutory rights. If you are a consumer, any
+      term found to be unfair under the Consumer Rights Act 2015 will not apply.
+    </p>
+
+    <h2>10. Paying us</h2>
+    <ul class="ticks wide">
+      <li>Payment is due when the job is done, unless we have agreed otherwise in writing.</li>
+      <li>Business customers may be invoiced on 14-day terms by arrangement.</li>
+      <li>Any hardware we supply remains ours until it is paid for in full.</li>
+    </ul>
+
+    <h2>11. Complaints</h2>
+    <p>
+      If something is not right, please tell us — <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
+      or email <a href="mailto:{{ site.email }}">{{ site.email }}</a>. We would
+      much rather hear about it and fix it. We will acknowledge your complaint
+      within two working days and aim to resolve it within fourteen.
+    </p>
+
+    <h2>12. General</h2>
+    <ul class="ticks wide">
+      <li>These terms are governed by the law of England and Wales, and the courts of England and Wales have jurisdiction. If you live in Scotland or Northern Ireland you may bring proceedings in your own courts.</li>
+      <li>If any part of these terms is found not to apply, the rest still stands.</li>
+      <li>These terms were last updated in {{ site.privacyUpdated }}.</li>
+    </ul>
+
+    <div class="cta-panel">
+      <h2>Questions before you book?</h2>
+      <p>
+        <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">Message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
+        or <a href="/quote/">ask us to call you back</a>. We would rather spend
+        ten minutes explaining than have you book something that is not right
+        for you.
+      </p>
+    </div>
+
+  </div>
+</section>
