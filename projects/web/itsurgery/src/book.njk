@@ -1,0 +1,48 @@
+---
+layout: layouts/base.njk
+title: Book an appointment
+heading: Book an appointment
+standfirst: Pick a time that suits you. You will get a confirmation straight away.
+description: Book a remote support session or a home or business visit with IT Surgery, covering Penarth, Barry and Cardiff. Choose a time that suits you and get instant confirmation.
+---
+
+<section class="section">
+  <div class="container narrow">
+    <p class="lead">
+      Choose the kind of help you need, pick a time, and we will confirm it by
+      email. If you would rather talk to someone first,
+      <a href="https://wa.me/{{ site.whatsapp }}?text=Hello%2C%20I%27d%20like%20some%20help%20with%20an%20IT%20problem" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
+      or <a href="/quote/">ask us to call you back</a> instead.
+    </p>
+    <p>
+      Booking costs nothing now. Our <a href="/booking-terms/">booking terms</a>
+      explain the £{{ site.bookingFee }} booking fee, which comes off your first
+      hour — and is refunded in full if we cannot fix the problem.
+    </p>
+  </div>
+</section>
+
+{# The calendar is Microsoft Bookings, embedded so customers stay on our site.
+   It is a third-party frame, so two things are deliberate:
+   - loading="lazy" keeps it off the critical path; the page text renders first
+   - the fallback link below is NOT optional. Some browsers block third-party
+     cookies inside frames, and when that happens the calendar simply fails to
+     load with no error the customer understands. Without a way out they cannot
+     book and will not tell us why. #}
+<section class="section booking-embed-section">
+  <div class="container">
+    <iframe
+      class="booking-embed"
+      src="{{ site.bookingUrl }}"
+      title="Booking calendar — choose a service and time"
+      loading="lazy"></iframe>
+
+    <p class="booking-fallback">
+      Calendar not loading?
+      <a href="{{ site.bookingUrl }}" target="_blank" rel="noopener">Open the booking page in a new tab<span class="visually-hidden"> (opens in a new tab)</span></a>,
+      or just
+      <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
+      and we will book it for you.
+    </p>
+  </div>
+</section>

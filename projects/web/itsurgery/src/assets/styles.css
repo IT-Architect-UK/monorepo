@@ -731,3 +731,30 @@ input:focus-visible, textarea:focus-visible {
 @media (max-width: 340px) {
   .brand img { height: 2.45rem; } /* 2.3rem + the new margin, as above */
 }
+
+/* ── Booking embed ────────────────────────────────────────────────────────
+   A third-party calendar in an iframe. The height is fixed rather than
+   auto-sized because cross-origin frames cannot report their own height —
+   there is no way to measure the content from outside it. 900px fits the
+   month view plus the time list without the frame scrolling internally on a
+   desktop; on a phone the frame scrolls, which is not ideal but is better
+   than a 2000px frame leaving acres of blank space on every other device. */
+.booking-embed {
+  width: 100%;
+  height: 900px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  display: block;
+}
+@media (max-width: 640px) {
+  /* Phones: taller, because the calendar stacks vertically and a short frame
+     means scrolling a calendar inside a scrolling page — the thing older
+     users find hardest. */
+  .booking-embed { height: 1150px; }
+}
+.booking-fallback {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
