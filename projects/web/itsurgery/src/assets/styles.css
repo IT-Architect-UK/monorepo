@@ -82,7 +82,6 @@
      near-black page was heavy and fought the surrounding text, so it falls back
      to the neutral panel used elsewhere. */
   --band-head-bg: #990000;
-  --band-head-note: #d3d3d3;
 
   /* "See full pricing" sits ON that banner and is white in both themes, so its
      label has to track the banner: red on the red banner, near-black on the
@@ -109,7 +108,6 @@
 [data-theme="dark"] {
   /* Neutral panel rather than red — see --band-head-bg in :root. */
   --band-head-bg: #262c34;
-  --band-head-note: #c9cdd1;
   color-scheme: dark;
 
   --surface: #12161c;
@@ -717,14 +715,18 @@ input:focus-visible, textarea:focus-visible {
 
 @media (max-width: 640px) {
   .utility-inner { justify-content: center; }
-  /* Phone gets a full-width row of its own (it is the primary action and the
-     longest label); WhatsApp and Email share the row beneath. Stops the number
-     wrapping onto two lines inside its button. */
+  /* Book takes a full-width row as the primary action; Contact Us and WhatsApp
+     share the row beneath. (This previously described a phone button, which was
+     removed when the number came off the site.) */
+  /* Flex wrap rather than a two-column grid: same result in a browser, but it
+     can be verified by tools/render-viewport.py, which does not place grid
+     items reliably. Book takes the full row as the primary action. */
   .utility-contact {
     width: 100%;
-    display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem;
+    display: flex; flex-wrap: wrap; gap: 0.4rem;
   }
-  .utility-contact .ubtn:first-child { grid-column: 1 / -1; }
+  .utility-contact .ubtn { flex: 1 1 40%; }   /* percentage, not calc(): calc in flex-basis is unevenly supported */
+  .utility-contact .ubtn:first-child { flex: 1 1 100%; }
   .ubtn { min-width: 0; }
   .hero { padding: 2.25rem 0 1.75rem; }
   .section { padding: 2rem 0; }
@@ -808,17 +810,6 @@ input:focus-visible, textarea:focus-visible {
   margin: 0;
   color: var(--on-invert-strong);
 }
-.band-time {
-  margin: 0.35rem 0 0;
-  font-size: 0.9rem;
-  color: var(--text-on-invert-dim);
-}
-.band-pricenote {
-  margin: 0.35rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.3;
-  color: var(--band-head-note);
-}
 .band-body { padding: 0.5rem 1.25rem; }
 .band-body h2 { margin: 0 0 0.25rem; font-size: 1.15rem; }
 .band-blurb { margin: 0; }
@@ -860,26 +851,24 @@ input:focus-visible, textarea:focus-visible {
   color: var(--text);
 }
 .addon { color: var(--text); font-size: 0.85rem; }
-@media (max-width: 560px) {
-  /* Phones: service name on its own line, price and duration beneath it. */
+/* Phones and small tablets. The breakpoint is 700px, not 560: at 600px the
+   11rem category panel leaves under 400px for a three-column row, which wrapped
+   the service names to two and three lines. Below this the panel becomes a
+   full-width heading and each row puts the service name on its own line with
+   the price and duration beneath it. */
+@media (max-width: 700px) {
+  .band { grid-template-columns: 1fr; }
+  .band-head { text-align: left; padding: 0.5rem 1.25rem; }
   .band-list li { flex-wrap: wrap; gap: 0 0.6rem; }
   .item-label { flex: 1 1 100%; order: -1; }
   .item-price { flex: 0 0 auto; }
-}
-@media (max-width: 560px) {
-  /* Stacked, because a 8.5rem price column plus wrapped text on a 320px phone
-     leaves the list two words wide. */
-  .band { grid-template-columns: 1fr; }
-  .band-head { flex-direction: row; gap: 0.6rem; align-items: baseline; justify-content: flex-start; padding: 0.75rem 1.25rem; }
-  .band-price { font-size: 1.6rem; }
-  .band-time { margin: 0; }
+  .item-meta { flex: 0 0 auto; }
 }
 
-/* ---- Print: the flyer --------------------------------------------------
-   The same page doubles as one side of a printed flyer, so there is one list
-   to maintain rather than a website version and a drifting Word document.
-   Chrome and Firefox both need -webkit-print-color-adjust to keep the price
-   panels; without it they print as white on white. */
+/* ---- Print --------------------------------------------------------------
+   Printing the price list. The leaflet is a separate page (/flyer/) with its
+   own stylesheet. -webkit-print-color-adjust is needed or the category panels
+   print white on white. */
 
 @media print {
   /* The price list, printed. The leaflet is a separate page (/flyer/) with its
@@ -906,7 +895,6 @@ input:focus-visible, textarea:focus-visible {
     print-color-adjust: exact;
   }
   .band-cat { color: #ffffff !important; font-size: 10pt; }
-  .band-pricenote { color: #f0d6d6 !important; }
   .band-body { flex: 1 1 auto; padding: 0.4rem 0.7rem; }
   .band-list li { padding: 0.12rem 0; font-size: 9pt; }
   a[href]::after { content: ""; }

@@ -43,12 +43,28 @@ body {
 @media screen {
   body { background: #eceff2; padding: 12mm 0; }
   .sheet {
+    /* Fixed sheet width for preview, but capped so it does not scroll sideways
+       on a phone. Print ignores all of this — see @page. */
     width: 210mm;
+    max-width: 100%;
     min-height: 297mm;
     margin: 0 auto;
     background: #ffffff;
     padding: 12mm 12mm 10mm;
     box-shadow: 0 2px 18px rgba(0,0,0,.18);
+  }
+  /* Must come after .sheet, or its padding loses the cascade. On a phone the
+     sheet fills the screen and the two columns collapse to one — an A4 layout
+     at 390px is unreadable. */
+  @media (max-width: 800px) {
+    body { padding: 0; }
+    .sheet { padding: 6mm; box-shadow: none; min-height: 0; }
+    .cats { columns: 1; }
+    .promises { flex-wrap: wrap; }
+    .promise { flex: 1 1 45%; }
+    .hook { font-size: 20pt; }
+    .mast { flex-wrap: wrap; gap: 3mm; }
+    .mast-area { text-align: left; }
   }
 }
 
