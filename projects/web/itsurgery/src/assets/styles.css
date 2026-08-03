@@ -829,9 +829,12 @@ input:focus-visible, textarea:focus-visible {
   font-size: 0.95rem;
 }
 .band-list li:last-child { border-bottom: 0; }
+/* One text colour across the whole row. Duration, service and price previously
+   used three different greys, which read as inconsistent rather than as
+   hierarchy — the price is distinguished by weight alone instead. */
 .item-meta {
   flex: 0 0 4.2rem;
-  color: var(--text-muted);
+  color: var(--text);
   font-size: 0.85rem;
   white-space: nowrap;
 }
@@ -842,9 +845,9 @@ input:focus-visible, textarea:focus-visible {
   margin-left: auto;
   white-space: nowrap;
   font-weight: 600;
-  color: var(--text-strong);
+  color: var(--text);
 }
-.addon { color: var(--text-muted); font-size: 0.85rem; }
+.addon { color: var(--text); font-size: 0.85rem; }
 @media (max-width: 560px) {
   /* Phones: the duration drops under the service rather than squeezing it. */
   .band-list li { flex-wrap: wrap; gap: 0 0.6rem; }
