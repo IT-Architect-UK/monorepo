@@ -782,7 +782,7 @@ input:focus-visible, textarea:focus-visible {
    individual line items are not, and a customer scanning a flyer is choosing
    a budget before they choose a job. The price panel is the invert surface
    already used by .price-block, so this page introduces no new colour. */
-.bands { display: grid; gap: 1rem; margin: 1.5rem 0 2rem; }
+.bands { display: grid; gap: 0.6rem; margin: 1.25rem 0 1.75rem; }
 .band {
   display: grid;
   grid-template-columns: 11rem 1fr;
@@ -794,7 +794,7 @@ input:focus-visible, textarea:focus-visible {
 .band-head {
   background: var(--band-head-bg);
   color: var(--on-invert-strong);
-  padding: 1rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -819,8 +819,8 @@ input:focus-visible, textarea:focus-visible {
   line-height: 1.3;
   color: var(--band-head-note);
 }
-.band-body { padding: 1rem 1.25rem; }
-.band-body h2 { margin: 0 0 0.4rem; font-size: 1.15rem; }
+.band-body { padding: 0.5rem 1.25rem; }
+.band-body h2 { margin: 0 0 0.25rem; font-size: 1.15rem; }
 .band-blurb { margin: 0; }
 /* One service per row: duration, service, price. Two columns were tried and
    rejected — the moment a service name wrapped to a second line the rows in the
