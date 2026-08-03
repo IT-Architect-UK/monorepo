@@ -232,6 +232,10 @@ input:focus-visible, textarea:focus-visible {
   gap: 1rem; flex-wrap: wrap;
   padding-top: 0.4rem; padding-bottom: 0.4rem;
 }
+/* About Us and the theme toggle share the left of the utility bar. The toggle
+   is deliberately not styled like the contact chips — it does a different kind
+   of thing, and beside them it read as a fourth button that had gone wrong. */
+.utility-left { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .utility-links { display: flex; gap: 1.25rem; flex-wrap: wrap; }
 .utility-links a { color: var(--text-on-invert); text-decoration: none; font-weight: 600; }
 .utility-links a:hover { text-decoration: underline; }
