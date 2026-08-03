@@ -11,13 +11,7 @@ description: IT Surgery fixed price list for home users in Penarth, Barry and Ca
 
     {# Print only. On screen the site header already carries the logo; on paper
        there is no header, and an unbranded price list is just a list. #}
-    <div class="print-header">
-      <img class="print-logo" src="/assets/logo@3x.png" alt="{{ site.name }}" />
-      <div class="print-headtext">
-        <p class="print-title">{{ heading }}</p>
-        <p class="print-strap">{{ site.tagline }} · Friendly IT help in {{ site.areas | join(", ") }}</p>
-      </div>
-    </div>
+    
 
     <p class="lead">
       Most people worry about the same thing: not the price of an hour, but how
@@ -48,17 +42,9 @@ description: IT Surgery fixed price list for home users in Penarth, Barry and Ca
       {% endfor %}
     </div>
 
-    <p class="print-cta">
-      <span class="print-cta-main">Latest prices and offers at <strong>{{ site.url | replace("https://", "") }}</strong></span>
-      <span class="print-cta-sub">Book online &nbsp;·&nbsp; WhatsApp {{ site.phoneDisplay }} &nbsp;·&nbsp; {{ site.email }}</span>
-    </p>
+    
 
-    <p class="print-note">
-      Prices vary by job and change from time to time — see the website for
-      what each job costs today. Parts and licences extra, agreed first. No
-      call-out charge in {{ site.areas | join(", ") }}. No fix, no fee. If a job
-      turns out bigger than it looked, we stop and tell you first.
-    </p>
+    
 
     <div class="cta-panel">
       <h2>What is and isn't included</h2>

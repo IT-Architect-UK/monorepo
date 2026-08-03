@@ -78,6 +78,12 @@
      where a full-width red block was overpowering. */
   --banner-bg: #990000;
 
+  /* Fixed-price category panels. Brand red in light mode; in dark mode red on a
+     near-black page was heavy and fought the surrounding text, so it falls back
+     to the neutral panel used elsewhere. */
+  --band-head-bg: #990000;
+  --band-head-note: #d3d3d3;
+
   /* "See full pricing" sits ON that banner and is white in both themes, so its
      label has to track the banner: red on the red banner, near-black on the
      dark one. */
@@ -101,6 +107,9 @@
 }
 
 [data-theme="dark"] {
+  /* Neutral panel rather than red — see --band-head-bg in :root. */
+  --band-head-bg: #262c34;
+  --band-head-note: #c9cdd1;
   color-scheme: dark;
 
   --surface: #12161c;
@@ -777,10 +786,7 @@ input:focus-visible, textarea:focus-visible {
   background: var(--surface);
 }
 .band-head {
-  /* Brand red, not the neutral panel: this is the only strong colour on the
-     page and it marks the categories. --brand-solid already lifts to a brighter
-     red in dark mode, so one token covers both themes. */
-  background: var(--brand-solid);
+  background: var(--band-head-bg);
   color: var(--on-invert-strong);
   padding: 1rem 0.75rem;
   text-align: center;
@@ -805,9 +811,7 @@ input:focus-visible, textarea:focus-visible {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;
   line-height: 1.3;
-  /* Dimmer than the category title, but still 4.6:1 on both reds — the dark
-     theme uses a brighter red, and the old dim grey failed against it. */
-  color: #d3d3d3;
+  color: var(--band-head-note);
 }
 .band-body { padding: 1rem 1.25rem; }
 .band-body h2 { margin: 0 0 0.4rem; font-size: 1.15rem; }
@@ -870,104 +874,34 @@ input:focus-visible, textarea:focus-visible {
    to maintain rather than a website version and a drifting Word document.
    Chrome and Firefox both need -webkit-print-color-adjust to keep the price
    panels; without it they print as white on white. */
-@media print {
-  /* Explicit margin so the sheet is the same whatever the browser defaults to,
-     and so the layout is not at the mercy of the print dialog. Size is left
-     unset deliberately: the same page prints correctly on A5 or A4. */
-  @page { margin: 6mm; }
 
-  /* Chrome and page furniture off, plus the on-page framing: a flyer has no
-     room for an intro paragraph, and the full terms list is replaced by the
-     one-line .print-note below (hidden on screen). */
+@media print {
+  /* The price list, printed. The leaflet is a separate page (/flyer/) with its
+     own stylesheet; this block used to try to be both, which is why it was
+     hiding the prices on a page whose entire purpose is prices. */
+  @page { margin: 12mm; }
   .site-header, .utility-bar, .site-footer, .menu-toggle,
-  .theme-toggle, .skip-link, .btn, .lead, .cta-panel,
-  .page-head { display: none !important; }
-  .print-note, .print-header, .print-cta { display: block !important; }
-  body { background: #ffffff; color: #000000; font-size: 9pt; line-height: 1.3; }
+  .theme-toggle, .skip-link, .btn { display: none !important; }
+  body { background: #ffffff; color: #000000; font-size: 10pt; }
   .section { padding: 0; }
-  .page-head { padding: 0 0 0.35rem; margin: 0; border: 0; }
   .container { max-width: none; padding: 0; }
-  .bands { gap: 0.15rem; margin: 0.25rem 0; }
+  .bands { gap: 0.4rem; }
   .band {
-    border: 1pt solid #999999;
+    display: flex;
+    border: 0.75pt solid #999999;
     break-inside: avoid;
     page-break-inside: avoid;
-    grid-template-columns: 6rem 1fr;
   }
   .band-head {
-    background: #3f444b !important;
+    flex: 0 0 34mm;
+    background: #990000 !important;
     color: #ffffff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    padding: 0.5rem;
   }
-  /* No prices on paper. A flyer outlives a price list, so the sheet carries
-     what does not change — how long a job takes — and sends people to the site
-     for the figure. */
-  .item-price { display: none !important; }
-  .band-cat { font-size: 9pt; color: #ffffff !important; hyphens: auto; }
-  .item-meta { color: #555555 !important; }
-  .band-body { padding: 0.25rem 0.55rem; }
-  .band-body h2 { font-size: 10pt; margin: 0 0 0.15rem; }
-  .band-blurb { font-size: 7.5pt; }
-  /* Multi-column, not grid: print engines and older browsers support columns
-     far more reliably, and a flowing column keeps the list compact whatever
-     the paper size. Same reason .band drops to flex here. */
-  .band { display: flex; }
-  .band-head { flex: 0 0 26mm; }
-  .band-body { flex: 1 1 auto; }
-  .band-list li { padding: 0.15rem 0; font-size: 8.5pt; }
-    .print-note { font-size: 7pt; margin: 0.3rem 0 0; color: #444444; }
-
-  /* Brand block. The price panels carry brand red rather than the site's dark
-     grey: on screen the red banner and header already establish the identity,
-     but a printed sheet has only this. */
-  .print-header {
-    border-bottom: 2pt solid #990000;
-    padding-bottom: 1.5mm;
-    margin-bottom: 2mm;
-  }
-  /* Sized by width, not height: the wordmark is a wide lockup and a height
-     constraint left it overflowing its box. */
-  /* Logo and headline side by side. Stacked, the lockup alone cost 13mm of a
-     194mm page — enough to push the contact bar onto a second sheet. */
-  .print-logo { width: 34mm; height: auto; display: inline-block; vertical-align: middle; }
-  .print-headtext { display: inline-block; vertical-align: middle; padding-left: 5mm; }
-  .print-title {
-    font-family: var(--font-head);
-    font-size: 12pt;
-    font-weight: 600;
-    color: #222222;
-    margin: 0;
-  }
-  .print-strap {
-    margin: 0.8mm 0 0;
-    font-family: var(--font-head);
-    font-size: 8.5pt;
-    font-weight: 600;
-    color: #990000;
-  }
-  .band-head {
-    background: #990000 !important;
-    color: #ffffff !important;
-  }
-  .band { border: 0.75pt solid #d9c2c2; }
-    .print-cta {
-    background: #990000 !important;
-    margin-top: 1.5mm;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    color: #ffffff !important;
-    text-align: center;
-    font-size: 9pt;
-    padding: 2mm 3mm;
-    border-radius: 2mm;
-    margin: 2mm 0 0;
-  }
-  .print-cta strong { color: #ffffff; }
-  .print-cta-main { display: block; font-size: 10pt; }
-  .print-cta-sub { display: block; font-size: 8pt; margin-top: 0.8mm; }
+  .band-cat { color: #ffffff !important; font-size: 10pt; }
+  .band-pricenote { color: #f0d6d6 !important; }
+  .band-body { flex: 1 1 auto; padding: 0.4rem 0.7rem; }
+  .band-list li { padding: 0.12rem 0; font-size: 9pt; }
   a[href]::after { content: ""; }
 }
-/* Hidden on screen; the flyer's branding, call to action and small print. */
-.print-note, .print-header, .print-cta { display: none; }
