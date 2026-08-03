@@ -777,7 +777,10 @@ input:focus-visible, textarea:focus-visible {
   background: var(--surface);
 }
 .band-head {
-  background: var(--surface-invert);
+  /* Brand red, not the neutral panel: this is the only strong colour on the
+     page and it marks the categories. --brand-solid already lifts to a brighter
+     red in dark mode, so one token covers both themes. */
+  background: var(--brand-solid);
   color: var(--on-invert-strong);
   padding: 1rem 0.75rem;
   text-align: center;
@@ -802,55 +805,50 @@ input:focus-visible, textarea:focus-visible {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;
   line-height: 1.3;
-  color: var(--text-on-invert-dim);
+  /* Dimmer than the category title, but still 4.6:1 on both reds — the dark
+     theme uses a brighter red, and the old dim grey failed against it. */
+  color: #d3d3d3;
 }
 .band-body { padding: 1rem 1.25rem; }
 .band-body h2 { margin: 0 0 0.4rem; font-size: 1.15rem; }
 .band-blurb { margin: 0; }
-/* Two columns via inline-block. Grid, flex-basis with calc(), and CSS columns
-   were each tried and each collapsed to a single column in one renderer or
-   another — silently, so it only showed up on the printed sheet. font-size: 0
-   here suppresses the whitespace between inline-block items; every child must
-   therefore restate its own size. */
+/* One service per row: duration, service, price. Two columns were tried and
+   rejected — the moment a service name wrapped to a second line the rows in the
+   two halves stopped aligning and the whole block looked ragged. */
 .band-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  font-size: 0;
 }
 .band-list li {
-  display: inline-block;
-  vertical-align: top;
-  width: 50%;
-  box-sizing: border-box;
-  padding-left: 1.1rem;
-  padding-right: 1.5rem;
-  margin-bottom: 0.35rem;
-  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
   font-size: 0.95rem;
 }
-/* Duration first in a fixed-width rail so the times align down the column,
-   then the job, then the price. */
+.band-list li:last-child { border-bottom: 0; }
 .item-meta {
-  display: inline-block;
-  width: 4.2rem;
+  flex: 0 0 4.2rem;
   color: var(--text-muted);
   font-size: 0.85rem;
   white-space: nowrap;
 }
-.item-price { color: var(--text-muted); white-space: nowrap; }
+/* Service names use the ordinary body text colour, which follows the theme.
+   Red is reserved for the category panels. */
+.item-label { flex: 1 1 auto; color: var(--text); }
+.item-price {
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text-strong);
+}
 .addon { color: var(--text-muted); font-size: 0.85rem; }
-.item-label::after { content: " · "; color: var(--text-muted); }
-@media (max-width: 700px) { .band-list li { width: 100%; padding-right: 0; } }
-.band-list li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.55em;
-  width: 0.4rem;
-  height: 0.4rem;
-  border-radius: 50%;
-  background: var(--brand-accent);
+@media (max-width: 560px) {
+  /* Phones: the duration drops under the service rather than squeezing it. */
+  .band-list li { flex-wrap: wrap; gap: 0 0.6rem; }
+  .item-label { flex: 1 1 100%; order: -1; }
 }
 @media (max-width: 560px) {
   /* Stacked, because a 8.5rem price column plus wrapped text on a 320px phone
@@ -912,9 +910,8 @@ input:focus-visible, textarea:focus-visible {
   .band { display: flex; }
   .band-head { flex: 0 0 26mm; }
   .band-body { flex: 1 1 auto; }
-  .band-list li { width: 50%; padding-right: 4mm; margin-bottom: 0.4mm; padding-left: 0.75rem; font-size: 8.5pt; }
-  .band-list li::before { width: 0.25rem; height: 0.25rem; top: 0.5em; }
-  .print-note { font-size: 7pt; margin: 0.3rem 0 0; color: #444444; }
+  .band-list li { padding: 0.15rem 0; font-size: 8.5pt; }
+    .print-note { font-size: 7pt; margin: 0.3rem 0 0; color: #444444; }
 
   /* Brand block. The price panels carry brand red rather than the site's dark
      grey: on screen the red banner and header already establish the identity,
@@ -949,8 +946,7 @@ input:focus-visible, textarea:focus-visible {
     color: #ffffff !important;
   }
   .band { border: 0.75pt solid #d9c2c2; }
-  .band-list li::before { background: #990000 !important; }
-  .print-cta {
+    .print-cta {
     background: #990000 !important;
     margin-top: 1.5mm;
     -webkit-print-color-adjust: exact;
