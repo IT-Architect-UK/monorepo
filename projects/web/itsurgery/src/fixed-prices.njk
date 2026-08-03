@@ -37,9 +37,9 @@ description: IT Surgery fixed price list for home users in Penarth, Barry and Ca
           <ul class="band-list">
             {% for item in group.items %}
             <li>
+              <span class="item-price">£{{ item.price }}{% if item.note %} ({{ item.note }}){% endif %}</span>
               <span class="item-meta">{{ item.time }}</span>
               <span class="item-label">{{ item.label }}{% if item.addon %} <span class="addon">({{ item.addon }})</span>{% endif %}</span>
-              <span class="item-price">£{{ item.price }}{% if item.note %} ({{ item.note }}){% endif %}</span>
             </li>
             {% endfor %}
           </ul>
