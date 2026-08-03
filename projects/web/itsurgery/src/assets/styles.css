@@ -137,10 +137,11 @@
      edge defined. */
   /* Light grey chips with near-black text, not red. Three red-filled buttons on
      a near-black bar were the loudest thing on the page and competed with the
-     logo; grey reads as a control rather than an alert. */
+     logo; grey reads as a control rather than an alert. The border is white
+     rather than a mid grey so the chip lifts off the dark bar. */
   --chip-bg: #ccd2d9;
   --chip-fg: #12161c;
-  --chip-border: #7c848d;
+  --chip-border: #ffffff;
   --chip-hover: #b9c1ca;
 
   /* The utility bar's grey would sit almost on the page colour here, so the
