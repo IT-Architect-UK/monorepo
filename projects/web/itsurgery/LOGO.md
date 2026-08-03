@@ -60,6 +60,14 @@ watershed between them, and refuses to grow ink across it. Verify after any
 change — at a common 320px height the artwork must have **9 separate components
 and a 6px gap**. Eight components means the dot has merged into the stem.
 
+**The dark variant's brightness lives in the build script.** Against the white
+nav text and chips the original tint (dark end `0.60,0.64,0.69`) read as dull, so
+it was lifted to `0.71,0.74,0.78`. The shipped `logo-dark*` files were adjusted
+in place at the time — the vector master is not in this repo — and the script was
+updated to match, so a future rebuild reproduces the brighter mark rather than
+silently reverting it. Verify after any rebuild: mean ink luminance ~0.82, and
+light and dark files identical in pixel dimensions.
+
 **Do not go back to editing the finished PNG.** An earlier attempt flat-filled
 the letterforms and collapsed 387 red tones to 2, destroying the bevel. If a
 change is needed, change the script and re-render from the vector.

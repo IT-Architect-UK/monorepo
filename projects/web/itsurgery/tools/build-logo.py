@@ -173,7 +173,10 @@ def crop_export(arr, tint, prefix):
     return im, w
 
 full_l, w = crop_export(out, None, f"{PREFIX}_light")
-crop_export(out, (np.array([1.0,1.0,1.0]), np.array([0.60,0.64,0.69])), f"{PREFIX}_dark")
+# Dark end lifted from (0.60,0.64,0.69): against the white nav text and chips the
+# older, greyer mark read as dull. These values are the old ones passed through
+# 1-(1-c)*0.72, which is the adjustment applied to the shipped assets.
+crop_export(out, (np.array([1.0,1.0,1.0]), np.array([0.71,0.74,0.78])), f"{PREFIX}_dark")
 # gap over the dot, reported at the painted size so it is judged as seen
 _ink = np.array(Image.open(f"{PREFIX}_light_3x.png").convert("RGBA"))[..., 3] > 128
 _l, _n = ndimage.label(_ink)
