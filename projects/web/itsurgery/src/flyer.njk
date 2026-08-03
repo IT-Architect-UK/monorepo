@@ -1,0 +1,60 @@
+---
+layout: layouts/flyer.njk
+title: Leaflet
+permalink: /flyer/
+eleventyExcludeFromCollections: true
+---
+<div class="sheet">
+
+  <div class="mast">
+    <img src="/assets/logo@3x.png" alt="{{ site.name }}" />
+    <p class="mast-area">{{ site.tagline }}<br />{{ site.areas | join(" · ") }}</p>
+  </div>
+  <div class="mast-rule"></div>
+
+  <h1 class="hook">Computer playing up?<br /><em>We'll come and sort it.</em></h1>
+  <p class="hook-sub">
+    Friendly, patient IT help at home, explained in plain English and at a fixed
+    price.
+  </p>
+
+  <div class="promises">
+    <div class="promise">No fix,<br />no fee</div>
+    <div class="promise">No call-out<br />charge</div>
+    <div class="promise">Plain English,<br />no jargon</div>
+    <div class="promise">Evenings &amp;<br />weekends</div>
+  </div>
+
+  <h2 class="services-head">What we can help with</h2>
+  <p class="services-note">We can help you with any IT requirements. Just get in
+    touch. Below are a subset of common fixed price services with indicative times.</p>
+
+  <div class="cats">
+    {% for group in pricelist.groups %}
+    <div class="cat">
+      <h3>{{ group.name }}{% if group.pill %} <span class="pill">{{ group.pill }}</span>{% endif %}</h3>
+      {% if group.blurb %}<p class="cat-blurb">{{ group.blurb }}</p>{% endif %}
+      <ul>
+        {% for item in group.items %}
+        <li><span class="t">{{ item.time }}</span><span class="l">{{ item.label }}{% if item.flyerPrice %} <span class="pill">{{ item.flyerPrice }}</span>{% endif %}{% if item.addon %} <span class="addon">({{ item.addon }})</span>{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="cta">
+    <p class="cta-lead">Prices, offers and booking</p>
+    <p class="cta-site">{{ site.url }}</p>
+    <p class="cta-rest">
+      WhatsApp {{ site.phoneDisplay }} &nbsp;·&nbsp; {{ site.email }}
+    </p>
+    <p class="cta-fee">Just £{{ site.bookingFee }} to book — and it comes off your bill.</p>
+  </div>
+
+  <p class="smallprint">
+    Times are typical, not fixed. Check our website for current deals &amp; prices.<br />
+    {{ site.legalName }} · Company {{ site.companyNumber }}
+  </p>
+
+</div>

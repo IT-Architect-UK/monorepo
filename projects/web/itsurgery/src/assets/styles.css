@@ -396,6 +396,9 @@ input:focus-visible, textarea:focus-visible {
    is a white button and needs a dark label. */
 .price-banner p a { color: #ffffff; text-decoration: underline; font-weight: 700; }
 .price-banner p a:hover { text-decoration: none; }
+/* Three buttons now sit in the banner, so they need to wrap on narrow screens
+   rather than squeezing the copy. */
+.price-banner-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 .btn-onDark {
   background: var(--on-banner-bg); color: var(--on-banner-fg); border-color: var(--on-banner-bg);
 }
@@ -758,3 +761,211 @@ input:focus-visible, textarea:focus-visible {
   font-size: 0.95rem;
   color: var(--text-muted);
 }
+
+/* ---- Fixed price bands -------------------------------------------------
+   Grouped by price rather than by category. Six prices are memorable; thirty
+   individual line items are not, and a customer scanning a flyer is choosing
+   a budget before they choose a job. The price panel is the invert surface
+   already used by .price-block, so this page introduces no new colour. */
+.bands { display: grid; gap: 1rem; margin: 1.5rem 0 2rem; }
+.band {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.band-head {
+  background: var(--surface-invert);
+  color: var(--on-invert-strong);
+  padding: 1rem 0.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.band-cat {
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0;
+  color: var(--on-invert-strong);
+}
+.band-time {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-on-invert-dim);
+}
+.band-pricenote {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: var(--text-on-invert-dim);
+}
+.band-body { padding: 1rem 1.25rem; }
+.band-body h2 { margin: 0 0 0.4rem; font-size: 1.15rem; }
+.band-blurb { margin: 0; }
+/* Two columns via inline-block. Grid, flex-basis with calc(), and CSS columns
+   were each tried and each collapsed to a single column in one renderer or
+   another — silently, so it only showed up on the printed sheet. font-size: 0
+   here suppresses the whitespace between inline-block items; every child must
+   therefore restate its own size. */
+.band-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0;
+}
+.band-list li {
+  display: inline-block;
+  vertical-align: top;
+  width: 50%;
+  box-sizing: border-box;
+  padding-left: 1.1rem;
+  padding-right: 1.5rem;
+  margin-bottom: 0.35rem;
+  position: relative;
+  font-size: 0.95rem;
+}
+/* Duration first in a fixed-width rail so the times align down the column,
+   then the job, then the price. */
+.item-meta {
+  display: inline-block;
+  width: 4.2rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.item-price { color: var(--text-muted); white-space: nowrap; }
+.addon { color: var(--text-muted); font-size: 0.85rem; }
+.item-label::after { content: " · "; color: var(--text-muted); }
+@media (max-width: 700px) { .band-list li { width: 100%; padding-right: 0; } }
+.band-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--brand-accent);
+}
+@media (max-width: 560px) {
+  /* Stacked, because a 8.5rem price column plus wrapped text on a 320px phone
+     leaves the list two words wide. */
+  .band { grid-template-columns: 1fr; }
+  .band-head { flex-direction: row; gap: 0.6rem; align-items: baseline; justify-content: flex-start; padding: 0.75rem 1.25rem; }
+  .band-price { font-size: 1.6rem; }
+  .band-time { margin: 0; }
+}
+
+/* ---- Print: the flyer --------------------------------------------------
+   The same page doubles as one side of a printed flyer, so there is one list
+   to maintain rather than a website version and a drifting Word document.
+   Chrome and Firefox both need -webkit-print-color-adjust to keep the price
+   panels; without it they print as white on white. */
+@media print {
+  /* Explicit margin so the sheet is the same whatever the browser defaults to,
+     and so the layout is not at the mercy of the print dialog. Size is left
+     unset deliberately: the same page prints correctly on A5 or A4. */
+  @page { margin: 6mm; }
+
+  /* Chrome and page furniture off, plus the on-page framing: a flyer has no
+     room for an intro paragraph, and the full terms list is replaced by the
+     one-line .print-note below (hidden on screen). */
+  .site-header, .utility-bar, .site-footer, .menu-toggle,
+  .theme-toggle, .skip-link, .btn, .lead, .cta-panel,
+  .page-head { display: none !important; }
+  .print-note, .print-header, .print-cta { display: block !important; }
+  body { background: #ffffff; color: #000000; font-size: 9pt; line-height: 1.3; }
+  .section { padding: 0; }
+  .page-head { padding: 0 0 0.35rem; margin: 0; border: 0; }
+  .container { max-width: none; padding: 0; }
+  .bands { gap: 0.15rem; margin: 0.25rem 0; }
+  .band {
+    border: 1pt solid #999999;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    grid-template-columns: 6rem 1fr;
+  }
+  .band-head {
+    background: #3f444b !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    padding: 0.5rem;
+  }
+  /* No prices on paper. A flyer outlives a price list, so the sheet carries
+     what does not change — how long a job takes — and sends people to the site
+     for the figure. */
+  .item-price { display: none !important; }
+  .band-cat { font-size: 9pt; color: #ffffff !important; hyphens: auto; }
+  .item-meta { color: #555555 !important; }
+  .band-body { padding: 0.25rem 0.55rem; }
+  .band-body h2 { font-size: 10pt; margin: 0 0 0.15rem; }
+  .band-blurb { font-size: 7.5pt; }
+  /* Multi-column, not grid: print engines and older browsers support columns
+     far more reliably, and a flowing column keeps the list compact whatever
+     the paper size. Same reason .band drops to flex here. */
+  .band { display: flex; }
+  .band-head { flex: 0 0 26mm; }
+  .band-body { flex: 1 1 auto; }
+  .band-list li { width: 50%; padding-right: 4mm; margin-bottom: 0.4mm; padding-left: 0.75rem; font-size: 8.5pt; }
+  .band-list li::before { width: 0.25rem; height: 0.25rem; top: 0.5em; }
+  .print-note { font-size: 7pt; margin: 0.3rem 0 0; color: #444444; }
+
+  /* Brand block. The price panels carry brand red rather than the site's dark
+     grey: on screen the red banner and header already establish the identity,
+     but a printed sheet has only this. */
+  .print-header {
+    border-bottom: 2pt solid #990000;
+    padding-bottom: 1.5mm;
+    margin-bottom: 2mm;
+  }
+  /* Sized by width, not height: the wordmark is a wide lockup and a height
+     constraint left it overflowing its box. */
+  /* Logo and headline side by side. Stacked, the lockup alone cost 13mm of a
+     194mm page — enough to push the contact bar onto a second sheet. */
+  .print-logo { width: 34mm; height: auto; display: inline-block; vertical-align: middle; }
+  .print-headtext { display: inline-block; vertical-align: middle; padding-left: 5mm; }
+  .print-title {
+    font-family: var(--font-head);
+    font-size: 12pt;
+    font-weight: 600;
+    color: #222222;
+    margin: 0;
+  }
+  .print-strap {
+    margin: 0.8mm 0 0;
+    font-family: var(--font-head);
+    font-size: 8.5pt;
+    font-weight: 600;
+    color: #990000;
+  }
+  .band-head {
+    background: #990000 !important;
+    color: #ffffff !important;
+  }
+  .band { border: 0.75pt solid #d9c2c2; }
+  .band-list li::before { background: #990000 !important; }
+  .print-cta {
+    background: #990000 !important;
+    margin-top: 1.5mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color: #ffffff !important;
+    text-align: center;
+    font-size: 9pt;
+    padding: 2mm 3mm;
+    border-radius: 2mm;
+    margin: 2mm 0 0;
+  }
+  .print-cta strong { color: #ffffff; }
+  .print-cta-main { display: block; font-size: 10pt; }
+  .print-cta-sub { display: block; font-size: 8pt; margin-top: 0.8mm; }
+  a[href]::after { content: ""; }
+}
+/* Hidden on screen; the flyer's branding, call to action and small print. */
+.print-note, .print-header, .print-cta { display: none; }

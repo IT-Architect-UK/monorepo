@@ -7,6 +7,10 @@
   <meta name="description" content="{{ description }}" />
   <meta name="theme-color" content="#990000" />
   <link rel="canonical" href="{{ site.url }}{{ page.url }}" />
+  {# Thin or placeholder pages set noindex: true in front matter. A page with
+     little content still competes for the same local search terms as the pages
+     that matter, so it stays out of the index until it earns its place. #}
+  {% if noindex %}<meta name="robots" content="noindex, follow" />{% endif %}
 
   {# Theme must be resolved BEFORE first paint. Inline and blocking on purpose:
      from an external file this runs after the stylesheet has already painted,

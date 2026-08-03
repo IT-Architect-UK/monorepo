@@ -1,0 +1,156 @@
+{
+  "note": "Single source for the fixed-price list. The website and the printed flyer both render from here. Grouped by category; each item carries its own duration and price. The flyer prints the durations and hides the prices, so a flyer does not go stale when a price changes. Group order is set so the leaflet's two columns come out level — see the heights in the flyer stylesheet comment.",
+  "groups": [
+    {
+      "name": "IT Surgery Appointments",
+      "items": [],
+      "pill": "£20",
+      "blurb": "Any problem, any device. Half an hour to find out what is required and what it will cost. If we can fix it within the 30 minute session we will.",
+      "priceNote": "£25 at your home, or £20 if you come to us — and it comes off your bill."
+    },
+    {
+      "name": "Remote IT Support",
+      "pill": "",
+      "items": [],
+      "blurb": "We connect remotely while you watch and fix your IT issue. Cost agreed before we start — no fix, no fee.",
+      "priceNote": "£30 an hour."
+    },
+    {
+      "name": "New Device Setup",
+      "items": [
+        {
+          "label": "New computer set up",
+          "time": "120 min",
+          "price": "70"
+        },
+        {
+          "label": "Phone or tablet set up",
+          "time": "90 min",
+          "price": "50"
+        },
+        {
+          "label": "Games console, TV or streaming hardware",
+          "time": "60 min",
+          "price": "35"
+        },
+        {
+          "label": "Smart speakers, doorbells, thermostats & lights",
+          "time": "90 min",
+          "price": "50"
+        },
+        {
+          "label": "WiFi — coverage in every room",
+          "time": "120 min",
+          "price": "70"
+        }
+      ]
+    },
+    {
+      "name": "AI & Productivity Support",
+      "items": [
+        {
+          "label": "Microsoft 365 or Google Office set up",
+          "time": "60 min",
+          "price": "35"
+        },
+        {
+          "label": "AI assistant set up — Claude, ChatGPT, Gemini or Copilot",
+          "time": "60 min",
+          "price": "35"
+        },
+        {
+          "label": "AI automation for repeat tasks, emails, documents & development",
+          "time": "120 min",
+          "price": "70"
+        },
+        {
+          "label": "Spotting AI scams — cloned voices & fake messages",
+          "time": "60 min",
+          "price": "35"
+        }
+      ]
+    },
+    {
+      "name": "Data, Backup & Recovery",
+      "items": [
+        {
+          "label": "Backup & recovery set up for any device",
+          "time": "60 min",
+          "price": "35"
+        },
+        {
+          "label": "Data recovery — OS, disk & file restores",
+          "time": "90 min",
+          "price": "50"
+        },
+        {
+          "label": "Old computer wiped & recycled safely",
+          "time": "60 min",
+          "price": "35"
+        }
+      ]
+    },
+    {
+      "name": "Family & Safety",
+      "items": [
+        {
+          "label": "Parental controls & oversight for consoles, phones & computers",
+          "time": "90 min",
+          "price": "50"
+        },
+        {
+          "label": "Security — malware scanning, application reviews, password & authentication management & more",
+          "time": "90 min",
+          "price": "50"
+        }
+      ]
+    },
+    {
+      "name": "Repairs & Troubleshooting",
+      "items": [
+        {
+          "label": "PC Health Check — tune-up & clean-up",
+          "time": "90 min",
+          "price": "50"
+        },
+        {
+          "label": "Malware scan, removal & protection",
+          "time": "120 min",
+          "price": "70"
+        },
+        {
+          "label": "Operating system reinstall or upgrade",
+          "time": "120 min",
+          "price": "99"
+        },
+        {
+          "label": "Home network, broadband & WiFi",
+          "time": "90 min",
+          "price": "50"
+        },
+        {
+          "label": "Printers & scanners",
+          "time": "90 min",
+          "price": "50"
+        },
+        {
+          "label": "Hardware upgrade or repair — memory, disk, graphics etc.",
+          "time": "90 min",
+          "price": "50"
+        }
+      ]
+    },
+    {
+      "name": "Lessons",
+      "items": [],
+      "blurb": "Anything you would like to learn, at your own pace — computers, phones, getting online, staying safe, or using AI. Tell us the subject when you book.",
+      "priceNote": "£35 an hour, for as long as you would like."
+    },
+    {
+      "name": "Advanced IT Services",
+      "items": [],
+      "blurb": "Get in touch if you want help with advanced IT systems at home. We can help you set up Network Attached Storage, home servers, IT test labs, self-hosted AI models & agents, small business systems — or anything not listed here. Tell us what you need and we will tell you honestly whether we can help, and what it takes.",
+      "priceNote": "Quoted individually."
+    }
+  ]
+}

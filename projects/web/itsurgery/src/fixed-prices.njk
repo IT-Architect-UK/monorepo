@@ -1,0 +1,81 @@
+---
+layout: layouts/base.njk
+title: Fixed Prices
+heading: Fixed prices, agreed before we start
+standfirst: Common jobs at a set price, so you know what it costs before we begin. No hourly meter running, and no surprises at the end.
+description: IT Surgery fixed price list for home users in Penarth, Barry and Cardiff. Set prices for repairs, set-up, WiFi, backups, photos, family safety and AI help. Prices include VAT.
+---
+
+<section class="section">
+  <div class="container">
+
+    {# Print only. On screen the site header already carries the logo; on paper
+       there is no header, and an unbranded price list is just a list. #}
+    <div class="print-header">
+      <img class="print-logo" src="/assets/logo@3x.png" alt="{{ site.name }}" />
+      <div class="print-headtext">
+        <p class="print-title">{{ heading }}</p>
+        <p class="print-strap">{{ site.tagline }} · Friendly IT help in {{ site.areas | join(", ") }}</p>
+      </div>
+    </div>
+
+    <p class="lead">
+      Most people worry about the same thing: not the price of an hour, but how
+      many hours it might turn into. So each job below has one price and a
+      typical time. If a job turns out to be bigger than it looked, we stop and
+      tell you before going any further — and you decide.
+    </p>
+
+    <div class="bands">
+      {% for group in pricelist.groups %}
+      <div class="band">
+        <div class="band-head">
+          <p class="band-cat">{{ group.name }}</p>{% if group.pill %}<p class="band-pricenote">from {{ group.pill }}</p>{% endif %}
+        </div>
+        <div class="band-body">
+          {% if group.blurb %}<p class="band-blurb">{{ group.blurb }}{% if group.priceNote %} <strong>{{ group.priceNote }}</strong>{% endif %}</p>{% endif %}
+          <ul class="band-list">
+            {% for item in group.items %}
+            <li>
+              <span class="item-meta">{{ item.time }}</span>
+              <span class="item-label">{{ item.label }}{% if item.addon %} <span class="addon">({{ item.addon }})</span>{% endif %}</span>
+              <span class="item-price">£{{ item.price }}{% if item.note %} ({{ item.note }}){% endif %}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <p class="print-cta">
+      <span class="print-cta-main">Latest prices and offers at <strong>{{ site.url | replace("https://", "") }}</strong></span>
+      <span class="print-cta-sub">Book online &nbsp;·&nbsp; WhatsApp {{ site.phoneDisplay }} &nbsp;·&nbsp; {{ site.email }}</span>
+    </p>
+
+    <p class="print-note">
+      Prices vary by job and change from time to time — see the website for
+      what each job costs today. Parts and licences extra, agreed first. No
+      call-out charge in {{ site.areas | join(", ") }}. No fix, no fee. If a job
+      turns out bigger than it looked, we stop and tell you first.
+    </p>
+
+    <div class="cta-panel">
+      <h2>What is and isn't included</h2>
+      <ul class="ticks wide">
+        <li>All prices include VAT. What you see is what you pay.</li>
+        <li>Parts, hardware and licences are extra, and always agreed with you first.</li>
+        <li>No call-out charge anywhere in {{ site.areas | join(", ") }}.</li>
+        <li>If we can't fix it, you don't pay — the booking fee comes back in full.</li>
+        <li>If a printer or computer is beyond economic repair we'll say so, rather than charge you to keep it limping along.</li>
+        <li>We never ask for banking passwords, and never enter payment details on your behalf.</li>
+        <li>Something not on the list? Book a Surgery Appointment and we'll take a look.</li>
+      </ul>
+    </div>
+
+    <p>
+      <a class="btn btn-primary" href="/book/">Book an appointment</a>
+      <a class="btn btn-secondary" href="/pricing/">See hourly rates</a>
+    </p>
+  </div>
+</section>

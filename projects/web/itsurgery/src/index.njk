@@ -21,16 +21,20 @@ hidePageTitle: true
 <section class="price-banner" aria-labelledby="price-banner-title">
   <div class="container price-banner-inner">
     <div class="price-banner-main">
-      <h2 id="price-banner-title">From £{{ site.hourlyRate }} an hour</h2>
+      <h2 id="price-banner-title">Just £{{ site.bookingFee }} to book</h2>
       <p>
-        £{{ site.hourlyRate }} an hour for home users ({{ site.vatIncLabel }}), £{{ site.businessHourlyRate }}
-        for business ({{ site.vatExLabel }}). £{{ site.bookingFee }} to book, taken off your first hour —
-        and refunded in full if we can't fix the problem.
-        <strong>No fix, no fee.</strong>
-        Or take out a <a href="/support-plans/">support plan</a> from £{{ site.plans.home.intro }} a month.
+        The £{{ site.bookingFee }} comes off your first hour, and you get it back in
+        full if we can't fix the problem. <strong>No fix, no fee.</strong>
+        £{{ site.hourlyRate }} an hour for home users ({{ site.vatIncLabel }}),
+        £{{ site.businessHourlyRate }} for business ({{ site.vatExLabel }}). Or take out a
+        <a href="/support-plans/">support plan</a> from £{{ site.plans.home.intro }} a month.
       </p>
     </div>
-    <a class="btn btn-onDark" href="/pricing/">See full pricing</a>
+    <div class="price-banner-actions">
+      <a class="btn btn-onDark" href="/fixed-prices/">Home fixed prices</a>
+      <a class="btn btn-onDark" href="/business-fixed-prices/">Business fixed prices</a>
+      <a class="btn btn-onDark" href="/pricing/">See full pricing</a>
+    </div>
   </div>
 </section>
 

@@ -1,0 +1,202 @@
+/* ---------------------------------------------------------------------------
+   IT Surgery leaflet — a print piece, not a web page.
+
+   Deliberately standalone rather than a print stylesheet over the site: the
+   website's job is a browsable price list, the leaflet's job is to make someone
+   pick up the phone. Sharing a layout made the leaflet look like a spreadsheet.
+   Content still comes from _data/pricelist.json, so prices and jobs cannot
+   drift between the two.
+   --------------------------------------------------------------------------- */
+
+@page { size: A4; margin: 11mm 12mm 9mm; }
+
+:root {
+  --red: #990000;
+  --red-deep: #7a0000;
+  --ink: #222222;
+  /* One grey for all text, matched in luminance to the brand red (#4a4a4a and
+     #990000 both sit at 8.9:1 on white). The old lighter --muted made the
+     durations and small print read as an afterthought on paper, where there is
+     no backlight to lift them. #333333 sits at 12.6:1, a step darker than the
+     red it sits beside, which reads better in print than a luminance match. */
+  --body: #333333;
+  --muted: #333333;
+  --rule: #e4d6d6;
+  --wash: #faf4f4;
+  --head: "Poppins", system-ui, sans-serif;
+  --text: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--text);
+  color: var(--body);
+  font-size: 9pt;
+  line-height: 1.35;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* On screen only: give the sheet a page-like frame so it can be previewed. */
+@media screen {
+  body { background: #eceff2; padding: 12mm 0; }
+  .sheet {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 12mm 12mm 10mm;
+    box-shadow: 0 2px 18px rgba(0,0,0,.18);
+  }
+}
+
+/* ---------- masthead ---------- */
+.mast { display: flex; align-items: center; justify-content: space-between; }
+.mast img { width: 44mm; height: auto; }
+.mast-area {
+  font-family: var(--head);
+  font-weight: 600;
+  font-size: 9pt;
+  color: var(--red);
+  text-align: right;
+  line-height: 1.35;
+}
+.mast-rule { height: 2.5pt; background: var(--red); margin: 3mm 0 6mm; }
+
+/* ---------- hook ---------- */
+.hook {
+  font-family: var(--head);
+  font-weight: 700;
+  font-size: 21pt;
+  line-height: 1.22;
+  color: var(--ink);
+  margin: 0 0 2.5mm;
+  letter-spacing: -0.01em;
+}
+.hook em { color: var(--red); font-style: normal; }
+.hook-sub {
+  font-size: 10.5pt;
+  line-height: 1.4;
+  color: var(--body);
+  margin: 0 0 4.5mm;
+  max-width: 155mm;
+}
+
+/* ---------- promises ---------- */
+.promises { display: flex; gap: 3mm; margin: 0 0 5mm; }
+.promise {
+  flex: 1 1 0;
+  border: 1pt solid var(--red);
+  border-radius: 2mm;
+  padding: 2.4mm 2mm;
+  text-align: center;
+  font-family: var(--head);
+  font-weight: 600;
+  font-size: 8.5pt;
+  color: var(--red);
+  line-height: 1.25;
+}
+
+/* ---------- services ---------- */
+.services-head {
+  font-family: var(--head);
+  font-weight: 600;
+  font-size: 11.5pt;
+  color: var(--ink);
+  margin: 0 0 1mm;
+}
+.services-note { font-size: 8.5pt; color: var(--muted); margin: 0 0 3mm; }
+
+/* Newspaper column flow, not a two-up grid. With rows, every pair is as tall
+   as its taller half and the ragged gaps cost most of a page; columns let the
+   categories flow and pack. break-inside keeps a category whole. */
+.cats { columns: 2; column-gap: 8mm; }
+.cat {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin: 0 0 2.2mm;
+}
+.cat h3 .pill { vertical-align: 0.4mm; margin-left: 1mm; }
+.cat h3 {
+  font-family: var(--head);
+  font-weight: 600;
+  font-size: 10pt;
+  color: var(--red);
+  margin: 0 0 1.2mm;
+  padding-bottom: 1mm;
+  border-bottom: 0.75pt solid var(--rule);
+}
+.cat ul { list-style: none; margin: 0; padding: 0; }
+/* Duration first, in a fixed-width rail, so the times line up down the column
+   and the eye can scan "how long will this take" without reading each line. */
+.cat li { margin: 0 0 0.7mm; line-height: 1.28; padding-left: 12.5mm; text-indent: -12.5mm; }
+.cat .t {
+  display: inline-block;
+  width: 12.5mm;
+  text-indent: 0;
+  color: var(--muted);
+  font-family: var(--head);
+  font-weight: 500;
+  font-size: 8pt;
+  white-space: nowrap;
+  overflow: visible;
+}
+.cat .l { text-indent: 0; }
+.cat .addon { color: var(--muted); font-size: 8pt; }
+.cat-blurb { margin: 0 0 1.2mm; color: var(--body); }
+/* The one price the leaflet carries. Everything else sends people to the site,
+   so this needs to read as deliberate rather than as a stray figure. */
+.cat .pill {
+  display: inline-block;
+  background: var(--red);
+  color: #ffffff;
+  font-family: var(--head);
+  font-weight: 600;
+  font-size: 8pt;
+  border-radius: 1.4mm;
+  padding: 0.2mm 1.6mm;
+  white-space: nowrap;
+}
+
+/* ---------- call to action ---------- */
+.cta {
+  background: var(--red);
+  color: #ffffff;
+  border-radius: 3mm;
+  padding: 3mm 6mm;
+  text-align: center;
+  margin-top: 4mm;
+}
+/* Two levels only: the web address, and everything else. The panel previously
+   mixed three weights and four sizes with inline bold inside a line, which read
+   as noise rather than hierarchy. */
+.cta-lead,
+.cta-rest,
+.cta-fee {
+  font-family: var(--head);
+  font-weight: 500;
+  font-size: 9.5pt;
+  margin: 0;
+}
+.cta-lead { margin-bottom: 1mm; }
+.cta-site {
+  font-family: var(--head);
+  font-weight: 700;
+  font-size: 16.5pt;
+  margin: 0 0 1.4mm;
+}
+.cta-fee {
+  margin-top: 1.8mm;
+  padding-top: 1.4mm;
+  border-top: 0.75pt solid rgba(255,255,255,.4);
+}
+
+.smallprint {
+  font-size: 7.5pt;
+  color: var(--muted);
+  line-height: 1.35;
+  margin: 2.5mm 0 0;
+  text-align: center;
+}
