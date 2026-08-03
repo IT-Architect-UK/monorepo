@@ -135,10 +135,13 @@
   /* Contact chips become red fills in dark mode, matching IT Architect. The
      fill is only 2.34:1 against the bar, so a light border keeps the button
      edge defined. */
-  --chip-bg: #b31414;
-  --chip-fg: #ffffff;
-  --chip-border: rgba(255, 255, 255, 0.55);
-  --chip-hover: #cc2020;
+  /* Light grey chips with near-black text, not red. Three red-filled buttons on
+     a near-black bar were the loudest thing on the page and competed with the
+     logo; grey reads as a control rather than an alert. */
+  --chip-bg: #ccd2d9;
+  --chip-fg: #12161c;
+  --chip-border: #7c848d;
+  --chip-hover: #b9c1ca;
 
   /* The utility bar's grey would sit almost on the page colour here, so the
      strapline lifts to a readable light grey instead. */
