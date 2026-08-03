@@ -62,11 +62,18 @@ and a 6px gap**. Eight components means the dot has merged into the stem.
 
 **The dark variant's brightness lives in the build script.** Against the white
 nav text and chips the original tint (dark end `0.60,0.64,0.69`) read as dull, so
-it was lifted to `0.71,0.74,0.78`. The shipped `logo-dark*` files were adjusted
+it was lifted to `0.86,0.87,0.89`. The shipped `logo-dark*` files were adjusted
 in place at the time — the vector master is not in this repo — and the script was
 updated to match, so a future rebuild reproduces the brighter mark rather than
-silently reverting it. Verify after any rebuild: mean ink luminance ~0.82, and
-light and dark files identical in pixel dimensions.
+silently reverting it. Verify after any rebuild: modal ink tone near `#e4e7ea`, and light and dark
+files identical in pixel dimensions.
+
+Note the ceiling. Adjusting the shipped bitmap trades tones for brightness — the
+mark went from 302 distinct tones to 86 getting this close to the text, and
+matching the text's brightness *exactly* would flatten the bevel altogether,
+because the bevel is what pulls the average down. To go brighter without losing
+the modelling, rebuild from the vector at 600 DPI with the tint above, where the
+gradient has the tonal room to survive.
 
 **Do not go back to editing the finished PNG.** An earlier attempt flat-filled
 the letterforms and collapsed 387 red tones to 2, destroying the bevel. If a
