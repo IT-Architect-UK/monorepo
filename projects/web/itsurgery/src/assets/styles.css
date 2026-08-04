@@ -779,6 +779,45 @@ input:focus-visible, textarea:focus-visible {
   color: var(--text-muted);
 }
 
+/* ---- Which price list am I on? --------------------------------------------
+   Two linked states rather than tabs, because each list has its own URL. The
+   current one is filled; the other reads as a control you can press. Sized for
+   a thumb on a phone (44px is the usual minimum touch target). */
+.price-switch {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0 0 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.price-switch a {
+  display: block;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  min-height: 44px;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+.price-switch a:hover { background: var(--surface-sunken); }
+.price-switch a[aria-current="page"] {
+  background: var(--brand-solid);
+  color: var(--on-invert-strong);
+}
+@media (max-width: 420px) {
+  /* Two full-width rows rather than a squeezed pill pair. */
+  .price-switch { width: 100%; border-radius: 12px; }
+  .price-switch a { flex: 1 1 100%; text-align: center; border-radius: 8px; }
+}
+@media print { .price-switch { display: none; } }
+
 /* ---- Fixed price bands -------------------------------------------------
    Grouped by price rather than by category. Six prices are memorable; thirty
    individual line items are not, and a customer scanning a flyer is choosing

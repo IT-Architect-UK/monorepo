@@ -1,0 +1,8 @@
+{# Which price list am I looking at? The two lists live on separate pages, so
+   without this a business visitor reads home prices without realising. Rendered
+   as links rather than tabs: each state has its own URL, so it can be shared,
+   bookmarked and found in search. aria-current marks the one you are on. #}
+<nav class="price-switch" aria-label="Choose a price list">
+  <a href="/fixed-prices/"{% if page.url == "/fixed-prices/" %} aria-current="page"{% endif %}>For your home</a>
+  <a href="/business-fixed-prices/"{% if page.url == "/business-fixed-prices/" %} aria-current="page"{% endif %}>For your business</a>
+</nav>
