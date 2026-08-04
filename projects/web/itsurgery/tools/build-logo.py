@@ -175,8 +175,8 @@ def crop_export(arr, tint, prefix):
 full_l, w = crop_export(out, None, f"{PREFIX}_light")
 # Dark end lifted from (0.60,0.64,0.69) so the mark sits close to the bold body
 # text (#eef1f4) rather than reading as dull beside it. These are the old values
-# through 1-(1-c)*0.36, matching the adjustment applied to the shipped assets.
-crop_export(out, (np.array([1.0,1.0,1.0]), np.array([0.86,0.87,0.89])), f"{PREFIX}_dark")
+# through 1-(1-c)*0.36*0.55, matching the adjustment applied to the shipped assets.
+crop_export(out, (np.array([1.0,1.0,1.0]), np.array([0.92,0.93,0.94])), f"{PREFIX}_dark")
 # gap over the dot, reported at the painted size so it is judged as seen
 _ink = np.array(Image.open(f"{PREFIX}_light_3x.png").convert("RGBA"))[..., 3] > 128
 _l, _n = ndimage.label(_ink)

@@ -62,10 +62,10 @@ and a 6px gap**. Eight components means the dot has merged into the stem.
 
 **The dark variant's brightness lives in the build script.** Against the white
 nav text and chips the original tint (dark end `0.60,0.64,0.69`) read as dull, so
-it was lifted to `0.86,0.87,0.89`. The shipped `logo-dark*` files were adjusted
+it was lifted to `0.92,0.93,0.94`. The shipped `logo-dark*` files were adjusted
 in place at the time — the vector master is not in this repo — and the script was
 updated to match, so a future rebuild reproduces the brighter mark rather than
-silently reverting it. Verify after any rebuild: modal ink tone near `#e4e7ea`, and light and dark
+silently reverting it. Verify after any rebuild: modal ink tone near `#f0f1f3`, and light and dark
 files identical in pixel dimensions.
 
 Note the ceiling. Adjusting the shipped bitmap trades tones for brightness — the

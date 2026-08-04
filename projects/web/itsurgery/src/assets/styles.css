@@ -859,10 +859,13 @@ input:focus-visible, textarea:focus-visible {
 @media (max-width: 700px) {
   .band { grid-template-columns: 1fr; }
   .band-head { text-align: left; padding: 0.5rem 1.25rem; }
+  /* Same reading order as desktop — price, then duration, then the service.
+     The name takes a full row of its own beneath them rather than being
+     reordered above, which read as inconsistent between the two layouts. */
   .band-list li { flex-wrap: wrap; gap: 0 0.6rem; }
-  .item-label { flex: 1 1 100%; order: -1; }
   .item-price { flex: 0 0 auto; }
   .item-meta { flex: 0 0 auto; }
+  .item-label { flex: 1 1 100%; }
 }
 
 /* ---- Print --------------------------------------------------------------
