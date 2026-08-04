@@ -833,10 +833,12 @@ input:focus-visible, textarea:focus-visible {
 /* One text colour across the whole row. Duration, service and price previously
    used three different greys, which read as inconsistent rather than as
    hierarchy — the price is distinguished by weight alone instead. */
+/* Price and duration are set identically — same size, same weight as the
+   service name. They were 0.95rem/600 and 0.85rem/400, which read as three
+   different kinds of text in one row. */
 .item-meta {
   flex: 0 0 4.2rem;
   color: var(--text);
-  font-size: 0.85rem;
   white-space: nowrap;
 }
 /* Service names use the ordinary body text colour, which follows the theme.
@@ -847,7 +849,6 @@ input:focus-visible, textarea:focus-visible {
 .item-price {
   flex: 0 0 3.4rem;
   white-space: nowrap;
-  font-weight: 600;
   color: var(--text);
 }
 .addon { color: var(--text); font-size: 0.85rem; }
