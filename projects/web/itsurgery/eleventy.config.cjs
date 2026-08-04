@@ -8,6 +8,7 @@
  * itsurgery.me URLs are preserved and search rankings are not lost.
  */
 const fs = require("fs");
+const path = require("path");
 const crypto = require("crypto");
 
 module.exports = function (eleventyConfig) {
@@ -36,6 +37,21 @@ module.exports = function (eleventyConfig) {
       .digest("hex")
       .slice(0, 8)
   );
+
+  /**
+   * Cache-bust any asset by content hash: {{ '/assets/logo.png' | v }}.
+   *
+   * netlify.toml caches /assets/* for 24 hours, and the images are not
+   * fingerprinted, so a replaced logo kept showing the old file on devices that
+   * had already cached it — a rebuilt logo looked unchanged on a phone for a
+   * day. Only styles.css was versioned; this covers everything else.
+   */
+  eleventyConfig.addFilter("v", (assetPath) => {
+    const file = path.join("src", assetPath);
+    if (!fs.existsSync(file)) return assetPath;      // fail open, never break a build
+    const hash = crypto.createHash("md5").update(fs.readFileSync(file)).digest("hex").slice(0, 8);
+    return `${assetPath}?v=${hash}`;
+  });
 
   // Current year, for the footer copyright line.
   eleventyConfig.addShortcode("year", () => `${new Date().getFullYear()}`);
