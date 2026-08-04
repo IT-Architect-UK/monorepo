@@ -60,20 +60,26 @@ watershed between them, and refuses to grow ink across it. Verify after any
 change — at a common 320px height the artwork must have **9 separate components
 and a 6px gap**. Eight components means the dot has merged into the stem.
 
-**The dark variant's brightness lives in the build script.** Against the white
-nav text and chips the original tint (dark end `0.60,0.64,0.69`) read as dull, so
-it was lifted to `0.92,0.93,0.94`. The shipped `logo-dark*` files were adjusted
-in place at the time — the vector master is not in this repo — and the script was
-updated to match, so a future rebuild reproduces the brighter mark rather than
-silently reverting it. Verify after any rebuild: modal ink tone near `#f0f1f3`, and light and dark
-files identical in pixel dimensions.
+**The dark variant is a flat white knockout, not a tinted copy.** Tinting the
+light mark kept its bevel and drop shadow, and on a dark background that shading
+*is* the grey — no amount of lifting the tint made it read as white, it only
+flattened the bevel while staying grey. The dark file is now the thickened alpha
+filled solid white: one RGB value, no bevel, no shadow. It matches the white text
+beside it exactly, and the letterforms still read because the seam-aware
+thickening and the gap over the "i" live in the alpha, not in the shading.
 
-Note the ceiling. Adjusting the shipped bitmap trades tones for brightness — the
-mark went from 302 distinct tones to 86 getting this close to the text, and
-matching the text's brightness *exactly* would flatten the bevel altogether,
-because the bevel is what pulls the average down. To go brighter without losing
-the modelling, rebuild from the vector at 600 DPI with the tint above, where the
-gradient has the tonal room to survive.
+Both variants are cropped to the **same** bounding box, taken from the light
+mark (which includes its drop shadow). Cropping each to its own ink would give
+them different pixel dimensions and the header would jump on theme toggle.
+
+Rebuild both with:
+
+```bash
+python3 tools/build-logo.py 0.16 out 40
+```
+
+then copy `out_dark_*.png` over `logo-dark*.png`. The light files it produces are
+byte-identical to the shipped ones, so a rebuild is safe to run at any time.
 
 **Do not go back to editing the finished PNG.** An earlier attempt flat-filled
 the letterforms and collapsed 387 red tones to 2, destroying the bevel. If a

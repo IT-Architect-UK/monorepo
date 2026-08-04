@@ -159,24 +159,31 @@ np.divide(A[..., None] * rgb, np.maximum(out[..., 3:4], 1e-6), out=rgb)
 out[..., :3] = np.clip(rgb, 0, 1)
 
 # ------------------------------------------------------------------- 6. export
-def crop_export(arr, tint, prefix):
-    o = arr.copy()
-    if tint is not None:                       # dark-theme variant: white->grey
-        lum = 0.2126*o[...,0] + 0.7152*o[...,1] + 0.0722*o[...,2]
-        k = 1.0 - lum / max(lum.max(), 1e-6)
-        o[..., :3] = tint[0] * (1 - k[..., None]) + tint[1] * k[..., None]
-    im = Image.fromarray((np.clip(o, 0, 1) * 255).astype(np.uint8), "RGBA")
-    im = im.crop(im.getchannel("A").point(lambda v: 255 if v > 2 else 0).getbbox())
+# Both variants are cropped to the SAME box. Cropping each to its own ink would
+# give them different pixel dimensions, and the header jumps when the theme is
+# toggled — see LOGO.md.
+BBOX = Image.fromarray((np.clip(out, 0, 1) * 255).astype(np.uint8), "RGBA") \
+            .getchannel("A").point(lambda v: 255 if v > 2 else 0).getbbox()
+
+def crop_export(arr, prefix):
+    im = Image.fromarray((np.clip(arr, 0, 1) * 255).astype(np.uint8), "RGBA").crop(BBOX)
     w = round(im.width * RENDER_H / im.height)
     for n in (1, 2, 3):
         im.resize((w*n, RENDER_H*n), Image.LANCZOS).save(f"{prefix}_{n}x.png")
     return im, w
 
-full_l, w = crop_export(out, None, f"{PREFIX}_light")
-# Dark end lifted from (0.60,0.64,0.69) so the mark sits close to the bold body
-# text (#eef1f4) rather than reading as dull beside it. These are the old values
-# through 1-(1-c)*0.36*0.55, matching the adjustment applied to the shipped assets.
-crop_export(out, (np.array([1.0,1.0,1.0]), np.array([0.92,0.93,0.94])), f"{PREFIX}_dark")
+# Dark theme: a flat white knockout, not a tinted copy of the light mark.
+# Tinting kept the bevel and the drop shadow, which on a dark background read as
+# grey rather than white however far the tint was pushed — the shading IS the
+# grey. A monochrome silhouette is the standard dark-mode treatment: it matches
+# the white text beside it exactly, and the letterforms still read because the
+# thickening and the gap over the "i" are preserved in the alpha.
+white = np.zeros((H, W, 4), np.float32)
+white[..., :3] = 1.0
+white[..., 3] = A
+
+full_l, w = crop_export(out, f"{PREFIX}_light")
+crop_export(white, f"{PREFIX}_dark")
 # gap over the dot, reported at the painted size so it is judged as seen
 _ink = np.array(Image.open(f"{PREFIX}_light_3x.png").convert("RGBA"))[..., 3] > 128
 _l, _n = ndimage.label(_ink)
