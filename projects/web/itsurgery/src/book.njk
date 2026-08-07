@@ -33,20 +33,26 @@ description: Book a remote support session or a home or business visit with IT S
   </div>
 </section>
 
-{# The calendar is Microsoft Bookings, embedded so customers stay on our site.
-   It is a third-party frame, so two things are deliberate:
-   - loading="lazy" keeps it off the critical path; the page text renders first
-   - the fallback link below is NOT optional. Some browsers block third-party
-     cookies inside frames, and when that happens the calendar simply fails to
-     load with no error the customer understands. Without a way out they cannot
-     book and will not tell us why. #}
+{# The calendar is Cal.com, embedded with its own script so the frame sizes
+   itself to its content. A fixed-height iframe was tried first and is worse:
+   too short puts a scrollbar inside a scrolling page — the thing older users
+   find hardest — and too tall leaves a dead gap under the calendar.
+
+   The fallback below is NOT optional. The embed needs JavaScript, and if it is
+   blocked or the script fails, nothing renders at all. Without a way out the
+   customer cannot book and will not tell us why. #}
 <section class="section booking-embed-section">
   <div class="container">
-    <iframe
-      class="booking-embed"
-      src="{{ site.bookingUrl }}"
-      title="Booking calendar — choose a service and time"
-      loading="lazy"></iframe>
+    <div class="booking-embed" id="my-cal-inline-remote-support-session"></div>
+
+    <noscript>
+      <p class="booking-fallback">
+        The calendar needs JavaScript to load.
+        <a href="{{ site.bookingUrl }}" target="_blank" rel="noopener">Open the booking page in a new tab<span class="visually-hidden"> (opens in a new tab)</span></a>,
+        or <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
+        and we will book it for you.
+      </p>
+    </noscript>
 
     <p class="booking-fallback">
       Calendar not loading?
@@ -55,5 +61,18 @@ description: Book a remote support session or a home or business visit with IT S
       <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
       and we will book it for you.
     </p>
+
+    <script type="text/javascript">
+      (function (C, A, L) { let p = function (a, ar) { a.q.push(ar); }; let d = C.document; C.Cal = C.Cal || function () { let cal = C.Cal; let ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { const api = function () { p(api, arguments); }; const namespace = ar[1]; api.q = api.q || []; if(typeof namespace === "string"){cal.ns[namespace] = cal.ns[namespace] || api;p(cal.ns[namespace], ar);p(cal, ["initNamespace", namespace]);} else p(cal, ar); return;} p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
+      Cal("init", "remote-support-session", {origin:"https://app.cal.com"});
+      Cal.config = Cal.config || {};
+      Cal.config.forwardQueryParams = true;
+      Cal.ns["remote-support-session"]("inline", {
+        elementOrSelector:"#my-cal-inline-remote-support-session",
+        config: {"layout":"month_view","useSlotsViewOnSmallScreen":"true","theme":"auto"},
+        calLink: "it-surgery/remote-support-session",
+      });
+      Cal.ns["remote-support-session"]("ui", {"cssVarsPerTheme":{"light":{"cal-brand":"#990000"},"dark":{"cal-brand":"#990000"}},"hideEventTypeDetails":false,"layout":"month_view"});
+    </script>
   </div>
 </section>
