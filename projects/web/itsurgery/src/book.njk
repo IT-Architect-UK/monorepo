@@ -6,34 +6,11 @@ standfirst: Pick a time that suits you. You will get a confirmation straight awa
 description: Book a remote support session or a home or business visit with IT Surgery, covering Penarth, Barry and Cardiff. Choose a time that suits you and get instant confirmation.
 ---
 
-<section class="section">
-  <div class="container narrow">
-    <p class="lead">
-      Choose the kind of help you need, pick a time, and we will confirm it by
-      email. If you would rather talk to someone first,
-      <a href="https://wa.me/{{ site.whatsapp }}?text=Hello%2C%20I%27d%20like%20some%20help%20with%20an%20IT%20problem" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
-      or <a href="/quote/">ask us to call you back</a> instead.
-    </p>
-    <h2>Why we ask for a booking fee</h2>
-    <p>
-      Holding a slot means turning someone else away, and driving to a job
-      that isn't there costs us the afternoon. The £{{ site.bookingFee }} is a
-      small check that a booking is real — it is not meant to cover our time,
-      just to make sure someone is expecting us.
-    </p>
-    <p>
-      It isn't an extra charge — it comes off your first hour, and you get it
-      back in full if we can't fix the problem. Our
-      <a href="/booking-terms/">booking terms</a> set out the details.
-    </p>
-    <p>
-      <strong>We never see your card details.</strong> Payment is handled by
-      Stripe, our payment provider. Nothing is stored by us.
-    </p>
-  </div>
-</section>
+{# The calendar comes first. It is what people arrived for, and everything that
+   was above it repeated the standfirst or explained the fee — which the calendar
+   itself already states. The explanation still follows, just underneath.
 
-{# The calendar is Cal.com, embedded with its own script so the frame sizes
+   The calendar is Cal.com, embedded with its own script so the frame sizes
    itself to its content. A fixed-height iframe was tried first and is worse:
    too short puts a scrollbar inside a scrolling page — the thing older users
    find hardest — and too tall leaves a dead gap under the calendar.
@@ -42,7 +19,7 @@ description: Book a remote support session or a home or business visit with IT S
    blocked or the script fails, nothing renders at all. Without a way out the
    customer cannot book and will not tell us why. #}
 <section class="section booking-embed-section">
-  <div class="container">
+  <div class="container wide">
     <div class="booking-embed" id="my-cal-inline-remote-support-session"></div>
 
     <noscript>
@@ -62,9 +39,6 @@ description: Book a remote support session or a home or business visit with IT S
       and we will book it for you.
     </p>
 
-    {# Brand colour is passed per theme to match the site's own buttons: brand
-       red on light, white on dark — the same #ffffff the Call/WhatsApp/Book
-       chips use in dark mode, where a dark red button reads as muddy. #}
     <script type="text/javascript">
       (function (C, A, L) { let p = function (a, ar) { a.q.push(ar); }; let d = C.document; C.Cal = C.Cal || function () { let cal = C.Cal; let ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { const api = function () { p(api, arguments); }; const namespace = ar[1]; api.q = api.q || []; if(typeof namespace === "string"){cal.ns[namespace] = cal.ns[namespace] || api;p(cal.ns[namespace], ar);p(cal, ["initNamespace", namespace]);} else p(cal, ar); return;} p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
       Cal("init", "remote-support-session", {origin:"https://app.cal.com"});
@@ -100,5 +74,35 @@ description: Book a remote support session or a home or business visit with IT S
         }
       });
     </script>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container narrow">
+    <h2>Why we ask for a booking fee</h2>
+    <p>
+      Holding a slot means turning someone else away, and driving to a job
+      that isn't there costs us the afternoon. The £{{ site.bookingFee }} is a
+      small check that a booking is real — it is not meant to cover our time,
+      just to make sure someone is expecting us.
+    </p>
+    <p>
+      It isn't an extra charge — it comes off your first hour, and you get it
+      back in full if we can't fix the problem. Our
+      <a href="/booking-terms/">booking terms</a> set out the details.
+    </p>
+    <p>
+      <strong>We never see your card details.</strong> Payment is handled by
+      Stripe, our payment provider. Nothing is stored by us.
+    </p>
+
+    <div class="cta-panel">
+      <h2>Would rather talk to someone first?</h2>
+      <p>
+        <a href="https://wa.me/{{ site.whatsapp }}?text=Hello%2C%20I%27d%20like%20some%20help%20with%20an%20IT%20problem" target="_blank" rel="noopener">Message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>,
+        <a href="tel:{{ site.phoneLink }}">call {{ site.phoneDisplay }}</a>,
+        or <a href="/quote/">ask us to call you back</a>.
+      </p>
+    </div>
   </div>
 </section>
