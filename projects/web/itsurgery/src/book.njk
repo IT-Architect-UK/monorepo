@@ -76,6 +76,29 @@ description: Book a remote support session or a home or business visit with IT S
         calLink: "it-surgery/remote-support-session",
       });
       Cal.ns["remote-support-session"]("ui", {"cssVarsPerTheme":{"light":{"cal-brand":"#990000"},"dark":{"cal-brand":"#ffffff"}},"hideEventTypeDetails":false,"layout":"month_view"});
+
+      /* Cal.com's own "redirect on booking" is a paid feature, but the embed
+         runs on this page, so we can do it ourselves for nothing.
+
+         The payload shape is not guaranteed across embed versions, so dig for
+         the booking id rather than trusting one path, and if we cannot find it
+         just leave the customer on Cal.com's own confirmation — a worse page,
+         but never a broken one. */
+      Cal.ns["remote-support-session"]("on", {
+        action: "bookingSuccessful",
+        callback: function (e) {
+          try {
+            var d = (e && e.detail && e.detail.data) || (e && e.data) || {};
+            var b = d.booking || d;
+            var uid = b.uid || b.bookingUid || d.uid;
+            var start = b.startTime || b.date || d.startTime;
+            if (!uid) { return; }
+            var to = "/booked/?uid=" + encodeURIComponent(uid);
+            if (start) { to += "&t=" + encodeURIComponent(start); }
+            window.location.href = to;
+          } catch (err) { /* leave them on the Cal.com confirmation */ }
+        }
+      });
     </script>
   </div>
 </section>

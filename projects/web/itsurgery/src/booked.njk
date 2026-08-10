@@ -1,0 +1,140 @@
+---
+layout: layouts/base.njk
+title: Booking confirmed
+heading: Your session is booked
+standfirst: Just one thing left — the £5 booking fee.
+description: Your IT Surgery session is confirmed. Pay the £5 booking fee to secure your slot.
+eleventyExcludeFromCollections: true
+noindex: true
+---
+
+{# Reached only by the redirect from /book/ after Cal.com confirms a booking.
+   The payment link is created by a background flow a second or two after the
+   booking lands, so this page polls for it rather than assuming it exists.
+
+   noindex: the page is meaningless without a booking id, and we do not want it
+   in search results. #}
+
+<section class="section">
+  <div class="container narrow">
+
+    <div class="cta-panel" id="confirmed">
+      <h2>Confirmed<span id="when-wrap">, <span id="when"></span></span></h2>
+      <p>
+        We've emailed you a calendar invitation. Accept it and the appointment
+        will appear in your diary.
+      </p>
+    </div>
+
+    <h2>Your £{{ site.bookingFee }} booking fee</h2>
+
+    {# aria-live so a screen reader hears the state change without the focus
+       being yanked around. #}
+    <p id="pay-status" class="lead" aria-live="polite">
+      Preparing your secure payment link…
+    </p>
+
+    <p id="pay-action" hidden>
+      <a class="btn" id="pay-link" href="#">Pay £{{ site.bookingFee }} now</a>
+    </p>
+
+    <p id="pay-fallback" hidden>
+      We've emailed your invoice — it has a Pay Now button. If it hasn't arrived
+      in a few minutes, check your junk folder or
+      <a href="tel:{{ site.phoneLink }}">call us on {{ site.phoneDisplay }}</a>
+      and we'll sort it out.
+    </p>
+
+    <p>
+      It isn't an extra charge — it comes off your first hour, and you get it
+      back in full if we can't fix the problem. Payment is handled by Stripe;
+      we never see your card details. Our
+      <a href="/booking-terms/">booking terms</a> set out the details.
+    </p>
+
+    <h2>What happens next</h2>
+    <ol class="ticks wide">
+      <li>You'll get a calendar invitation by email — accept it to save the time</li>
+      <li>We'll join the call at the agreed time and connect to your computer</li>
+      <li>The £{{ site.bookingFee }} comes off whatever the work costs</li>
+    </ol>
+
+    <div class="cta-panel">
+      <h2>Need to change something?</h2>
+      <p>
+        Your confirmation email has links to reschedule or cancel. Or
+        <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
+        and we'll do it for you.
+      </p>
+    </div>
+
+    <h2>While you're here</h2>
+    <ul class="ticks wide">
+      <li><a href="/fixed-prices/">Fixed prices</a> — common jobs at a set price</li>
+      <li><a href="/support-plans/">Support plans</a> — ongoing cover from £{{ site.plans.home.intro }} a month</li>
+      <li><a href="/business-it/">Business IT</a> — if you also run a business</li>
+    </ul>
+
+  </div>
+</section>
+
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var uid = params.get('uid');
+  var start = params.get('t');
+
+  // Show the appointment time immediately if the booking page passed it, so the
+  // customer sees confirmation before anything about money.
+  if (start) {
+    var d = new Date(start);
+    if (!isNaN(d)) {
+      document.getElementById('when').textContent = d.toLocaleString('en-GB', {
+        weekday: 'long', day: 'numeric', month: 'long',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } else {
+      document.getElementById('when-wrap').hidden = true;
+    }
+  } else {
+    document.getElementById('when-wrap').hidden = true;
+  }
+
+  var status = document.getElementById('pay-status');
+  var action = document.getElementById('pay-action');
+  var link = document.getElementById('pay-link');
+  var fallback = document.getElementById('pay-fallback');
+
+  function giveUp() {
+    status.hidden = true;
+    fallback.hidden = false;
+  }
+
+  if (!uid) { giveUp(); return; }
+
+  var endpoint = {{ site.payLinkEndpoint | dump | safe }};
+  var attempts = 0;
+
+  function poll() {
+    attempts++;
+    fetch(endpoint + '&uid=' + encodeURIComponent(uid))
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.payUrl) {
+          link.href = j.payUrl;
+          status.hidden = true;
+          action.hidden = false;
+          return;
+        }
+        if (attempts >= 15) { giveUp(); return; }   // ~30 seconds
+        setTimeout(poll, 2000);
+      })
+      .catch(function () {
+        if (attempts >= 15) { giveUp(); return; }
+        setTimeout(poll, 2000);
+      });
+  }
+
+  poll();
+})();
+</script>
