@@ -31,12 +31,17 @@ noindex: true
     {# aria-live so a screen reader hears the state change without the focus
        being yanked around. #}
     <p id="pay-status" class="lead" aria-live="polite">
-      Preparing your secure payment link…
+      Preparing your secure payment page…
     </p>
 
-    <p id="pay-action" hidden>
-      <a class="btn btn-primary" id="pay-link" href="#">Pay £{{ site.bookingFee }} now</a>
-    </p>
+    <div id="pay-action" hidden>
+      <p class="lead" id="pay-message">
+        Taking you to our secure payment page…
+      </p>
+      <p>
+        <a class="btn btn-primary" id="pay-link" href="#">Pay £{{ site.bookingFee }} now</a>
+      </p>
+    </div>
 
     <p id="pay-fallback" hidden>
       We've emailed your invoice — it has a Pay Now button. If it hasn't arrived
@@ -124,6 +129,11 @@ noindex: true
           link.href = j.payUrl;
           status.hidden = true;
           action.hidden = false;
+          /* Send them on automatically, but only after the confirmation and a
+             plain statement of where they are going. An unannounced jump to a
+             third-party domain is where a cautious customer closes the tab.
+             The button is there for anyone who does not want to wait. */
+          setTimeout(function () { window.location.href = j.payUrl; }, 4000);
           return;
         }
         if (attempts >= 15) { giveUp(); return; }   // ~30 seconds
