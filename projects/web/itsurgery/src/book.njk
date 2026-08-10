@@ -18,6 +18,35 @@ description: Book a remote support session or a home or business visit with IT S
    The fallback below is NOT optional. The embed needs JavaScript, and if it is
    blocked or the script fails, nothing renders at all. Without a way out the
    customer cannot book and will not tell us why. #}
+<section class="section">
+  <div class="container narrow">
+    <p class="lead fee-notice">
+      <strong>There is a £{{ site.bookingFee }} booking fee</strong> to confirm your
+      slot. It comes off your first hour, and you get it back in full if we
+      can't fix the problem.
+    </p>
+
+    {# Native details/summary: keyboard and screen-reader accessible with no
+       JavaScript, and it still opens if scripting fails. The reasoning matters
+       to the few people who want it and is clutter for everyone else, so it is
+       one line until asked for. #}
+    <details class="disclosure">
+      <summary>Why we ask for a booking fee</summary>
+      <p>
+        Holding a slot means turning someone else away, and driving to a job
+        that isn't there costs us the afternoon. The £{{ site.bookingFee }} is a
+        small check that a booking is real — it is not meant to cover our time,
+        just to make sure someone is expecting us.
+      </p>
+      <p>
+        <strong>We never see your card details.</strong> Payment is handled by
+        Stripe, our payment provider. Nothing is stored by us. Our
+        <a href="/booking-terms/">booking terms</a> set out the details.
+      </p>
+    </details>
+  </div>
+</section>
+
 <section class="section booking-embed-section">
   <div class="container wide">
     <div class="booking-embed" id="my-cal-inline-remote-support-session"></div>
@@ -79,23 +108,6 @@ description: Book a remote support session or a home or business visit with IT S
 
 <section class="section">
   <div class="container narrow">
-    <h2>Why we ask for a booking fee</h2>
-    <p>
-      Holding a slot means turning someone else away, and driving to a job
-      that isn't there costs us the afternoon. The £{{ site.bookingFee }} is a
-      small check that a booking is real — it is not meant to cover our time,
-      just to make sure someone is expecting us.
-    </p>
-    <p>
-      It isn't an extra charge — it comes off your first hour, and you get it
-      back in full if we can't fix the problem. Our
-      <a href="/booking-terms/">booking terms</a> set out the details.
-    </p>
-    <p>
-      <strong>We never see your card details.</strong> Payment is handled by
-      Stripe, our payment provider. Nothing is stored by us.
-    </p>
-
     <div class="cta-panel">
       <h2>Would rather talk to someone first?</h2>
       <p>

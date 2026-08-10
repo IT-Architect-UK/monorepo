@@ -194,6 +194,30 @@ a:hover { text-decoration: underline; }
    text — currently just the booking calendar, which gains from the room. */
 .container.wide { max-width: 1400px; }
 
+/* ---------- Disclosure ---------- */
+/* Used where detail matters to a minority and is clutter for everyone else.
+   Styled as an obvious control rather than a bare triangle: this audience does
+   not necessarily know a disclosure triangle is clickable. */
+.disclosure { margin: 0 0 1.5rem; }
+.disclosure > summary {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  /* 44px tall including padding — WCAG 2.5.5 target size. */
+  min-height: 44px; padding: 0.5rem 0;
+  color: var(--brand-accent); font-weight: 700;
+  text-decoration: underline; cursor: pointer;
+  list-style: none;
+}
+.disclosure > summary::-webkit-details-marker { display: none; }
+.disclosure > summary::before {
+  content: "+"; display: inline-flex; align-items: center; justify-content: center;
+  width: 1.5rem; height: 1.5rem; flex: 0 0 auto;
+  border: 2px solid currentColor; border-radius: 50%;
+  font-weight: 700; text-decoration: none; line-height: 1;
+}
+.disclosure[open] > summary::before { content: "\2212"; }   /* minus */
+.disclosure > summary:hover { color: var(--brand-solid-hover); }
+.disclosure > p { margin-top: 0.75rem; }
+
 /* ---------- Accessibility helpers ---------- */
 .skip-link {
   position: absolute; left: -999px; top: 0;
