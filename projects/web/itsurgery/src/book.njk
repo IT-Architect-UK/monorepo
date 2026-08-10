@@ -18,7 +18,7 @@ description: Book a remote support session or a home or business visit with IT S
    The fallback below is NOT optional. The embed needs JavaScript, and if it is
    blocked or the script fails, nothing renders at all. Without a way out the
    customer cannot book and will not tell us why. #}
-<section class="section">
+<section class="section booking-embed-section">
   <div class="container narrow">
     <p class="lead fee-notice">
       <strong>There is a £{{ site.bookingFee }} booking fee</strong> to confirm your
@@ -45,9 +45,7 @@ description: Book a remote support session or a home or business visit with IT S
       </p>
     </details>
   </div>
-</section>
 
-<section class="section booking-embed-section">
   <div class="container wide">
     <div class="booking-embed" id="my-cal-inline-remote-support-session"></div>
 

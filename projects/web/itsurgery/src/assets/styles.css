@@ -198,7 +198,7 @@ a:hover { text-decoration: underline; }
 /* Used where detail matters to a minority and is clutter for everyone else.
    Styled as an obvious control rather than a bare triangle: this audience does
    not necessarily know a disclosure triangle is clickable. */
-.disclosure { margin: 0 0 1.5rem; }
+.disclosure { margin: 0 0 1.25rem; }
 .disclosure > summary {
   display: inline-flex; align-items: center; gap: 0.5rem;
   /* 44px tall including padding — WCAG 2.5.5 target size. */
