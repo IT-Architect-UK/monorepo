@@ -218,6 +218,34 @@ a:hover { text-decoration: underline; }
 .disclosure > summary:hover { color: var(--brand-solid-hover); }
 .disclosure > p { margin-top: 0.75rem; }
 
+/* ---------- Redirect to payment ---------- */
+/* Bigger than body copy: this is the one thing on the page the customer has to
+   act on, and it competes with a confirmation they have just been reassured by. */
+.pay-message {
+  font-family: var(--font-head);
+  font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+.pay-note { font-size: 0.95rem; color: var(--text-muted); margin-top: 0.75rem; }
+.progress {
+  height: 8px; width: 100%; max-width: 320px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 999px; overflow: hidden;
+  margin: 0 0 1.25rem;
+}
+.progress-bar {
+  height: 100%; width: 0;
+  background: var(--brand-solid);
+  transition: width linear 5s;
+}
+/* Someone who has asked for less motion still needs to know it is counting —
+   the number does that, so just stop the bar animating. */
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar { transition: none; width: 100%; }
+}
+
 /* ---------- Accessibility helpers ---------- */
 .skip-link {
   position: absolute; left: -999px; top: 0;

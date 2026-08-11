@@ -35,11 +35,20 @@ noindex: true
     </p>
 
     <div id="pay-action" hidden>
-      <p class="lead" id="pay-message">
-        Taking you to our secure payment page…
+      <p class="pay-message">
+        Taking you to our secure payment page in
+        <span id="countdown">5</span> seconds…
       </p>
+
+      {# Decorative: the countdown text above already carries the meaning. #}
+      <div class="progress" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+
       <p>
         <a class="btn btn-primary" id="pay-link" href="#">Pay £{{ site.bookingFee }} now</a>
+      </p>
+      <p class="pay-note">
+        The payment page is run by Xero, our accounting provider. You can pay by
+        card, Apple Pay or Google Pay.
       </p>
     </div>
 
@@ -110,6 +119,29 @@ noindex: true
   var link = document.getElementById('pay-link');
   var fallback = document.getElementById('pay-fallback');
 
+  /* Five seconds is long enough to read where you are going and short enough
+     not to feel stuck. The bar and the number say the same thing two ways —
+     some people read numbers, some just want to see something moving. */
+  function startRedirect(url) {
+    var seconds = 5;
+    var counter = document.getElementById('countdown');
+    var bar = document.getElementById('progress-bar');
+    counter.textContent = seconds;
+    // next frame, so the transition actually runs
+    requestAnimationFrame(function () {
+      bar.style.transitionDuration = seconds + 's';
+      bar.style.width = '100%';
+    });
+    var tick = setInterval(function () {
+      seconds--;
+      counter.textContent = seconds > 0 ? seconds : 0;
+      if (seconds <= 0) {
+        clearInterval(tick);
+        window.location.href = url;
+      }
+    }, 1000);
+  }
+
   function giveUp() {
     status.hidden = true;
     fallback.hidden = false;
@@ -133,7 +165,7 @@ noindex: true
              plain statement of where they are going. An unannounced jump to a
              third-party domain is where a cautious customer closes the tab.
              The button is there for anyone who does not want to wait. */
-          setTimeout(function () { window.location.href = j.payUrl; }, 4000);
+          startRedirect(j.payUrl);
           return;
         }
         if (attempts >= 15) { giveUp(); return; }   // ~30 seconds
