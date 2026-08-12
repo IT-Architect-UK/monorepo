@@ -1,6 +1,9 @@
 # Projects
 
-Self-contained project deployments — currently blockchain node infrastructure. These demonstrate end-to-end node deployment: baseline OS config, service installation, firewalling, and monitoring. Usage details in each script's header.
+Self-contained project deployments — blockchain node infrastructure, a trading
+analysis tool, and the business's websites. Each is standalone: it can be built,
+run and understood on its own, without the rest of the monorepo. Usage details
+live in each script's header or the project's own README.
 
 ## Cardano — `blockchain/cardano/`
 
@@ -42,4 +45,5 @@ repo. See `web/README.md` for conventions.
 
 | Project | Purpose |
 |---------|---------|
-| `web/itsurgery/` | IT Surgery — local IT support site for Penarth, Barry and Cardiff. Eleventy; 22 pages generated from shared layouts and structured data. |
+| `web/itsurgery/` | IT Surgery — local IT support site for Penarth, Barry and Cardiff. Eleventy; 34 pages from shared layouts and structured data. Takes live bookings and deposits. |
+| `web/it-architect/` | IT Architect — consultancy site covering cloud, infrastructure, security and applied AI. Eleventy; 13 pages. |

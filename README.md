@@ -159,6 +159,48 @@ Every push triggers four validation jobs in parallel:
 
 Each template lives in its own subdirectory (`automation/packer/builds/<template>/`), so `packer init`/`packer validate` run against a single, isolated `.pkr.hcl` file per template — no shared-directory HCL merge conflicts to work around.
 
+### Business Systems — a real business runs on this repo
+
+The most complete example in here is not a lab: it is the live booking and
+payment pipeline behind [itsurgery.me](https://itsurgery.me), assembled from
+open-source components and deployed from this repository.
+
+```
+ Customer
+    │  books a slot on the website
+    ▼
+ Cal.com ──webhook──► n8n ──┬──► EspoCRM      contact + appointment, with history
+    │                       │
+    │                       ├──► Xero         £5 deposit invoice, VAT-inclusive
+    │                       │
+    │                       └──► payment link written back to the appointment
+    ▼                                              │
+ Calendar invite                                   ▼
+ (Accept / Decline)                    Confirmation page collects the deposit
+                                              via Stripe
+```
+
+Reschedules and cancellations flow through the same path: the appointment is
+updated in place with its history, and a cancelled booking has its invoice
+voided automatically — unless it has already been paid, in which case a refund
+decision is escalated rather than guessed at.
+
+What it demonstrates:
+
+- **Systems integration** across four independent APIs, with the failure modes
+  handled rather than assumed — idempotent matching on a stable key, permissions
+  and licensing understood before building, and destructive actions escalated to
+  a human
+- **Infrastructure as code** — every component deployed by an Ansible role in
+  `automation/ansible/roles/`, with restorable backups and documented recovery
+- **Deliberate technology choices** — n8n rather than a per-seat SaaS
+  automation tool, so the same deployment can be handed to a client on their own
+  infrastructure
+
+Start at [`automation/ansible/roles/n8n/`](automation/ansible/roles/n8n/) and
+[`projects/web/itsurgery/`](projects/web/itsurgery/).
+
+
 ---
 
 ## Getting Started

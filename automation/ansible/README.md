@@ -117,14 +117,48 @@ ansible-playbook -i inventory/hosts.yml playbooks/setup-backup-restic.yml --ask-
 
 ## 📋 Playbook Reference
 
-| Playbook | Purpose | Typical use |
+### Server lifecycle
+
+| Playbook | Purpose | When to run |
 |----------|---------|-------------|
-| `server-baseline.yml` | Initial server hardening | Run once after provisioning |
-| `deploy-docker.yml` | Install Docker + Compose | Run on container hosts |
-| `configure-tls.yml` | Let's Encrypt certificate | Run on web servers |
-| `deploy-monitoring.yml` | Prometheus node_exporter | Run on all servers |
-| `setup-backup-restic.yml` | Restic encrypted backup | Run on all servers |
-| `patch-and-reboot.yml` | OS patching | Run monthly or for CVEs |
+| `provision-vm.yml` | Create a VM on Proxmox from a template | New server |
+| `server-baseline.yml` | Initial server hardening | Once after provisioning |
+| `distribute-ssh-key.yml` | Push an SSH key to managed hosts | Onboarding a new admin |
+| `patch-and-reboot.yml` | OS patching | Monthly, or for a CVE |
+
+### Platform services
+
+| Playbook | Purpose | When to run |
+|----------|---------|-------------|
+| `deploy-docker.yml` | Install Docker + Compose | Container hosts |
+| `configure-tls.yml` | Let's Encrypt certificate | Web servers |
+| `configure-iptables.yml` | Firewall ruleset | Any host |
+| `configure-fail2ban.yml` | SSH brute-force protection | Any host |
+| `deploy-monitoring.yml` | Prometheus node_exporter | All servers |
+| `setup-backup-restic.yml` | Restic encrypted backup | All servers |
+| `deploy-webmin.yml` | Webmin administration UI | Where a GUI is wanted |
+| `deploy-vault.yml` | HashiCorp Vault | Secrets host |
+
+### Business systems
+
+These run the live business. See the role READMEs for what each one does and
+how to restore it.
+
+| Playbook | Purpose | When to run |
+|----------|---------|-------------|
+| `deploy-espocrm.yml` | EspoCRM in Docker behind nginx, with nightly restorable backups | CRM host |
+| `deploy-n8n.yml` | n8n + Postgres behind nginx — runs the booking pipeline | Automation host |
+
+### Windows
+
+| Playbook | Purpose | When to run |
+|----------|---------|-------------|
+| `windows-baseline.yml` | Windows hardening baseline | Once after provisioning |
+| `install-windows-apps.yml` | Application install via Chocolatey | Build time |
+| `configure-windows-disks.yml` | Disk initialisation and layout | Build time |
+| `configure-windows-backup.yml` | Windows Server Backup | Build time |
+| `ita-windows-customisations.yml` | House customisations (Windows) | Build time |
+| `ita-linux-customisations.yml` | House customisations (Linux) | Build time |
 
 ## 🧩 Useful Commands
 
