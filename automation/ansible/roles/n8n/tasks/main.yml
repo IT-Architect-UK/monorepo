@@ -1,0 +1,219 @@
+---
+# =============================================================================
+# roles/n8n — n8n in Docker with Postgres, behind nginx, with backups
+# =============================================================================
+# Assumes Docker is already present (playbooks/deploy-docker.yml) and that the
+# espocrm role has already opened 80/443 on this host. See roles/n8n/README.md.
+# =============================================================================
+
+- name: Fail early if required secrets are missing
+  ansible.builtin.assert:
+    that:
+      - n8n_encryption_key | default('', true) | length > 0
+      - n8n_db_password | default('', true) | length > 0
+      - n8n_domain | default('', true) | length > 0
+    fail_msg: >-
+      n8n_domain, n8n_encryption_key and n8n_db_password must be set. Put the
+      secrets in an Ansible Vault file, never in group_vars in plain text, and
+      keep a copy of the encryption key in Bitwarden — without it, a restored
+      database has no usable credentials. See the role README.
+    quiet: true
+
+- name: Reject secrets containing a single quote
+  ansible.builtin.assert:
+    that:
+      - "\"'\" not in n8n_db_password"
+      - "\"'\" not in n8n_encryption_key"
+    fail_msg: >-
+      A secret contains a single quote ('). The backup script quotes the
+      database user and name with single quotes, which a literal one would
+      terminate. Generate a replacement without one — in Bitwarden, turn off
+      special characters and raise the length instead.
+    quiet: true
+
+- name: Detect IPv6
+  # Governs the nginx listeners. Must match what the firewall (owned by the
+  # espocrm role) actually protects, or nginx binds a port nothing filters.
+  ansible.builtin.set_fact:
+    n8n_enable_ipv6: "{{ ansible_all_ipv6_addresses | default([]) | reject('match', '^fe80:') | list | length > 0 }}"
+
+- name: Create n8n directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - "{{ n8n_base_dir }}"
+    - "{{ n8n_backup_dir }}"
+
+- name: Deploy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ n8n_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    # 0640: contains the database password and the encryption key.
+    mode: "0640"
+
+- name: Start the n8n stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ n8n_base_dir }}"
+    state: present
+    pull: "{{ n8n_pull_policy }}"
+
+- name: Wait for n8n to answer on the loopback port
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ n8n_http_port }}/healthz"
+    status_code: [200]
+  register: n8n_ready
+  retries: 30
+  delay: 10
+  until: n8n_ready is succeeded
+  # First run creates the schema, which takes a while on a small VPS.
+
+# --- reverse proxy --------------------------------------------------------
+
+- name: Install nginx and certbot
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - certbot
+    state: present
+    update_cache: true
+
+- name: Create the ACME challenge webroot
+  # Shared with the espocrm role; creating it twice is harmless and means this
+  # role still works if it is ever run on a host without EspoCRM.
+  ansible.builtin.file:
+    path: "{{ n8n_acme_webroot }}/.well-known/acme-challenge"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check whether a certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ n8n_domain }}/fullchain.pem"
+  register: n8n_cert
+
+- name: Deploy the nginx site (HTTP only until a certificate exists)
+  ansible.builtin.template:
+    src: n8n.nginx.conf.j2
+    dest: /etc/nginx/sites-available/n8n.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    n8n_tls_ready: "{{ n8n_cert.stat.exists }}"
+  notify: Reload nginx
+
+- name: Enable the n8n nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/n8n.conf
+    dest: /etc/nginx/sites-enabled/n8n.conf
+    state: link
+  notify: Reload nginx
+
+- name: Validate the assembled nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Apply pending nginx changes now
+  # nginx must be serving the challenge path before certbot is asked.
+  ansible.builtin.meta: flush_handlers
+
+- name: Obtain the certificate
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/certbot
+      - certonly
+      - --webroot
+      - -w
+      - "{{ n8n_acme_webroot }}"
+      - -d
+      - "{{ n8n_domain }}"
+      - --non-interactive
+      - --agree-tos
+      - -m
+      - "{{ letsencrypt_email }}"
+    creates: "/etc/letsencrypt/live/{{ n8n_domain }}/fullchain.pem"
+  when: n8n_request_certificate | default(true)
+
+- name: Re-check for the certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ n8n_domain }}/fullchain.pem"
+  register: n8n_cert_after
+
+- name: Deploy the nginx site again, now with TLS
+  ansible.builtin.template:
+    src: n8n.nginx.conf.j2
+    dest: /etc/nginx/sites-available/n8n.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    n8n_tls_ready: "{{ n8n_cert_after.stat.exists }}"
+  when: n8n_cert_after.stat.exists
+  notify: Reload nginx
+
+- name: Validate the assembled nginx configuration with TLS
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  when: n8n_cert_after.stat.exists
+
+# --- backups --------------------------------------------------------------
+
+- name: Deploy the backup script
+  ansible.builtin.template:
+    src: n8n-backup.sh.j2
+    dest: /usr/local/bin/n8n-backup.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the backup systemd unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/n8n-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — automation/ansible/roles/n8n. Edits are overwritten.
+      [Unit]
+      Description=n8n consistent backup (Postgres dump + data directory)
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/n8n-backup.sh
+  notify: Reload systemd
+
+- name: Install the backup systemd timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/n8n-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — automation/ansible/roles/n8n. Edits are overwritten.
+      [Unit]
+      Description=Run the n8n backup on a schedule
+
+      [Timer]
+      OnCalendar={{ n8n_backup_schedule }}
+      Persistent=true
+      RandomizedDelaySec=300
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
+- name: Enable the backup timer
+  ansible.builtin.systemd:
+    name: n8n-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true

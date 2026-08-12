@@ -1,0 +1,14 @@
+---
+# =============================================================================
+# deploy-n8n.yml — n8n automation platform
+# =============================================================================
+# Runs on the VPS itself, like deploy-espocrm.yml. See roles/n8n/README.md.
+#
+#   ansible-playbook playbooks/deploy-n8n.yml --ask-vault-pass
+# =============================================================================
+
+- name: Deploy n8n
+  hosts: n8n
+  become: true
+  roles:
+    - n8n

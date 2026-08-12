@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# Consistent n8n backup: a Postgres dump plus the n8n data directory. Restic
+# collects {{ n8n_backup_dir }} afterwards and ships it off-box.
+#
+# What is NOT in here, deliberately: N8N_ENCRYPTION_KEY. It lives in the
+# compose file and in Bitwarden. A backup that contained both the encrypted
+# credentials and the key to decrypt them would be a single file worth stealing.
+# Restoring therefore needs the key from Bitwarden — that is the intended
+# trade, and it is written down in the role README.
+
+set -euo pipefail
+
+BACKUP_DIR="{{ n8n_backup_dir }}"
+KEEP_DAYS="{{ n8n_local_backup_keep_days }}"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+
+mkdir -p "$BACKUP_DIR"
+
+# --- database -------------------------------------------------------------
+# Dump inside the container so the client version always matches the server.
+# --clean --if-exists so the dump can be replayed onto a populated database
+# without hand-editing it first.
+docker exec n8n-postgres pg_dump \
+  --username '{{ n8n_db_user }}' \
+  --dbname '{{ n8n_db_name }}' \
+  --clean --if-exists \
+  | gzip > "$BACKUP_DIR/n8n-db-$STAMP.sql.gz"
+
+# --- data directory -------------------------------------------------------
+# Binary data, custom nodes and the instance id. Small, but a restore without
+# it loses anything a workflow wrote to disk.
+docker run --rm \
+  --volumes-from n8n \
+  -v "$BACKUP_DIR":/backup \
+  alpine:3 \
+  tar czf "/backup/n8n-data-$STAMP.tar.gz" -C /home/node .n8n
+
+# --- prune ----------------------------------------------------------------
+# Local copies only. Long-term retention is Restic's job, not this script's.
+find "$BACKUP_DIR" -name 'n8n-db-*.sql.gz'   -mtime "+$KEEP_DAYS" -delete
+find "$BACKUP_DIR" -name 'n8n-data-*.tar.gz' -mtime "+$KEEP_DAYS" -delete
+
+# Fail loudly if the dump came out suspiciously small — an empty gzip is about
+# 20 bytes, and a silently empty backup is worse than no backup.
+DB_SIZE=$(stat -c%s "$BACKUP_DIR/n8n-db-$STAMP.sql.gz")
+if [ "$DB_SIZE" -lt 1000 ]; then
+  echo "n8n backup: database dump is only ${DB_SIZE} bytes — treating as failed" >&2
+  exit 1
+fi
+
+echo "n8n backup complete: $STAMP (${DB_SIZE} bytes compressed)"

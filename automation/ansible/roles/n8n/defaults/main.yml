@@ -1,0 +1,57 @@
+---
+# =============================================================================
+# roles/n8n — defaults
+# =============================================================================
+# Secrets are deliberately NOT defaulted. The role asserts they are set, so a
+# missing key fails the run immediately rather than silently starting n8n with
+# a generated encryption key that nothing has a copy of.
+# =============================================================================
+
+# ── Where things live ─────────────────────────────────────────────────────
+n8n_base_dir: /opt/n8n
+n8n_backup_dir: /opt/n8n/backups
+
+# ── Image versions ────────────────────────────────────────────────────────
+# Pinned rather than "latest". n8n ships several releases a week; an unattended
+# pull that jumps a major version is how a working booking pipeline becomes a
+# broken one overnight. Bump deliberately, read the release notes, re-run.
+n8n_image_tag: "2.34.1"             # latest stable at 2026-08-05
+n8n_postgres_tag: "16"              # major-version pin; patch updates are safe
+n8n_pull_policy: missing            # 'always' only when intentionally upgrading
+
+# ── Networking ────────────────────────────────────────────────────────────
+n8n_http_port: 5678                 # loopback only; nginx fronts it
+n8n_max_upload_size: "50m"
+
+# Served over plain HTTP for ACME HTTP-01, at issuance and every renewal.
+# Shared with the espocrm role — same box, same webroot, one challenge path.
+n8n_acme_webroot: /var/www/acme
+n8n_request_certificate: true
+
+# ── Application settings ──────────────────────────────────────────────────
+n8n_domain: ""                      # e.g. n8n.itsurgery.me — REQUIRED
+n8n_timezone: "Europe/London"       # governs Schedule Trigger wall-clock times
+n8n_db_name: n8n
+n8n_db_user: n8n
+
+# n8n builds webhook URLs from this. Cal.com and the website both call those
+# URLs, so changing it later means re-registering every external caller.
+n8n_webhook_url: "https://{{ n8n_domain }}/"
+
+# ── Backups ───────────────────────────────────────────────────────────────
+# Dump into n8n_backup_dir; Restic then ships that directory off-box. Schedule
+# BEFORE the Restic timer, and after the espocrm backup so the two do not
+# contend for the same disk at the same moment.
+n8n_backup_schedule: "*-*-* 02:45:00"
+n8n_local_backup_keep_days: 7
+
+# ── Firewall ──────────────────────────────────────────────────────────────
+# Deliberately not managed here. The espocrm role already owns the firewall on
+# this host and has 80/443 open to the world, which is all n8n needs. Two roles
+# writing the same iptables ruleset is how you lock yourself out.
+
+# ── Secrets — set these in Vault, not here ────────────────────────────────
+# n8n_encryption_key: losing this makes every stored credential unreadable.
+# Keep a copy in Bitwarden as well as in the vault file.
+n8n_encryption_key: ""
+n8n_db_password: ""

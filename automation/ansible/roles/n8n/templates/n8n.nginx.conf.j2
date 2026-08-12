@@ -1,0 +1,82 @@
+# {{ ansible_managed }}
+# Reverse proxy for n8n.
+#
+# Same two-pass approach as the espocrm site: Ansible owns this file, certbot
+# is run with "certonly --webroot" and never edits it. The TLS block appears
+# only once the certificate exists, so a first run is HTTP-only — which is what
+# the ACME HTTP-01 challenge needs.
+
+server {
+    listen 80;
+{% if n8n_enable_ipv6 %}
+    listen [::]:80;
+{% endif %}
+    server_name {{ n8n_domain }};
+
+    location /.well-known/acme-challenge/ {
+        root {{ n8n_acme_webroot }};
+    }
+
+{% if n8n_tls_ready %}
+    location / {
+        return 301 https://$host$request_uri;
+    }
+{% else %}
+    location / {
+        proxy_pass http://127.0.0.1:{{ n8n_http_port }};
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+{% endif %}
+}
+
+{% if n8n_tls_ready %}
+server {
+    # "listen ... http2" rather than "http2 on;" — the latter is nginx 1.25.1+
+    # and Ubuntu 24.04 ships 1.24.
+    listen 443 ssl http2;
+{% if n8n_enable_ipv6 %}
+    listen [::]:443 ssl http2;
+{% endif %}
+    server_name {{ n8n_domain }};
+
+    ssl_certificate     /etc/letsencrypt/live/{{ n8n_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ n8n_domain }}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    client_max_body_size {{ n8n_max_upload_size }};
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    # No X-Frame-Options: n8n's editor is not framed by us, and adding it here
+    # has no effect on the API that Cal.com and the website call.
+
+    location / {
+        proxy_pass http://127.0.0.1:{{ n8n_http_port }};
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # The editor keeps a websocket open for execution progress. Without
+        # these the UI loads but never updates, which looks like n8n hanging.
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Workflow executions can run for minutes. The default 60s would cut
+        # the editor off mid-run and report a failure that did not happen.
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+
+        # Webhook payloads should reach the workflow as sent.
+        proxy_request_buffering off;
+    }
+}
+{% endif %}

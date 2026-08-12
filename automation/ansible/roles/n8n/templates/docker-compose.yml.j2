@@ -1,0 +1,89 @@
+# {{ ansible_managed }}
+#
+# n8n with Postgres. Both bound to the loopback: nginx is the only thing that
+# should be able to reach n8n, and nothing outside this box should ever reach
+# Postgres.
+#
+# SQLite is n8n's default and is deliberately not used. Postgres gives a clean
+# pg_dump/pg_restore, survives concurrent executions properly, and is what a
+# client deployment would want — this file is meant to be the same one we hand
+# over, not a special case for our own box.
+
+services:
+
+  postgres:
+    image: postgres:{{ n8n_postgres_tag }}
+    container_name: n8n-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "{{ n8n_db_name }}"
+      POSTGRES_USER: "{{ n8n_db_user }}"
+      POSTGRES_PASSWORD: "{{ n8n_db_password }}"
+      # Deterministic locale so an index built here behaves the same after a
+      # restore onto another host.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - n8n_db:/var/lib/postgresql/data
+    healthcheck:
+      # n8n crashes on start if Postgres is not accepting connections yet, and
+      # restart:unless-stopped would then loop it. Wait for readiness instead.
+      test: ["CMD-SHELL", "pg_isready -U {{ n8n_db_user }} -d {{ n8n_db_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  n8n:
+    image: n8nio/n8n:{{ n8n_image_tag }}
+    container_name: n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # Loopback only. nginx terminates TLS and proxies to this.
+      - "127.0.0.1:{{ n8n_http_port }}:5678"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: "{{ n8n_db_name }}"
+      DB_POSTGRESDB_USER: "{{ n8n_db_user }}"
+      DB_POSTGRESDB_PASSWORD: "{{ n8n_db_password }}"
+
+      # Credentials in the database are encrypted with this. Restore the
+      # database somewhere without the same key and every credential is lost.
+      N8N_ENCRYPTION_KEY: "{{ n8n_encryption_key }}"
+
+      # How n8n builds the URLs it hands to external callers. Cal.com registers
+      # these, so they must match reality.
+      #
+      # N8N_WEBHOOK_URL, not WEBHOOK_URL: the latter is a deprecated alias as of
+      # 2.x and logs a warning on every start.
+      N8N_HOST: "{{ n8n_domain }}"
+      N8N_PROTOCOL: https
+      N8N_PORT: "5678"
+      N8N_WEBHOOK_URL: "{{ n8n_webhook_url }}"
+      # Used for links in emails n8n sends, and as the SAML redirect target.
+      N8N_EDITOR_BASE_URL: "{{ n8n_webhook_url }}"
+
+      # One reverse proxy in front. Without this n8n sees nginx's address as
+      # the client and rate limiting and logging are wrong.
+      N8N_PROXY_HOPS: "1"
+
+      # Schedule triggers fire on wall-clock time. n8n's default is
+      # America/New_York, so leaving this unset does not mean UTC — it means
+      # every scheduled workflow runs five hours out.
+      GENERIC_TIMEZONE: "{{ n8n_timezone }}"
+      TZ: "{{ n8n_timezone }}"
+
+      N8N_DIAGNOSTICS_ENABLED: "false"
+
+      # Task runners are deliberately not configured. N8N_RUNNERS_ENABLED is
+      # deprecated as of 2.0 and runners now launch internally by default;
+      # setting it re-introduces a deprecation warning for no benefit.
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_db:
+  n8n_data:
