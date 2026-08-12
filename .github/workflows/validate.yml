@@ -91,8 +91,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Pinned to a release, not @main. An action is third-party code running
+      # inside CI: tracking a branch means whatever they pushed last runs here,
+      # with no commit on our side to explain a sudden failure — and if that
+      # repository were ever compromised, the bad version would run
+      # automatically. A SHA would be stronger still, since a tag can be moved.
       - name: Install Packer
-        uses: hashicorp/setup-packer@main
+        uses: hashicorp/setup-packer@v3
         with:
           version: "latest"
 
