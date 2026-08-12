@@ -1,0 +1,56 @@
+# =============================================================================
+# Dependabot — automated dependency updates
+# =============================================================================
+# Security updates (fixes for published CVEs) are enabled in the repository
+# settings and are NOT configured here — they run regardless of this file.
+#
+# This file adds *version* updates: routine upgrades for things that are merely
+# out of date. Deliberately narrow and monthly. Unscoped weekly updates across a
+# monorepo this size produce more pull requests than anyone reads, and a repo
+# full of stale bot PRs looks worse than one with none.
+# =============================================================================
+
+version: 2
+
+updates:
+
+  # ── Websites ─────────────────────────────────────────────────────────────
+  # Both sites are Eleventy. Their dependencies are build-time only — nothing
+  # here reaches a visitor's browser — so the risk of an upgrade is a broken
+  # build, which CI catches, rather than a broken site.
+  - package-ecosystem: npm
+    directory: /projects/web/itsurgery
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      # One PR for the lot rather than one per package. Eleventy pulls in a
+      # long tail of small dependencies that all move together.
+      build-dependencies:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: npm
+    directory: /projects/web/it-architect
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      build-dependencies:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # ── GitHub Actions ───────────────────────────────────────────────────────
+  # Worth keeping current: a pinned action that stops being maintained is a
+  # supply-chain problem in the one place that has repository credentials.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(ci)"
