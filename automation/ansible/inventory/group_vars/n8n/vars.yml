@@ -1,0 +1,12 @@
+---
+# =============================================================================
+# group_vars/n8n — non-secret settings for the n8n host
+# =============================================================================
+# Secrets (n8n_encryption_key, n8n_db_password) live in vault.yml alongside
+# this file. See roles/n8n/README.md.
+# =============================================================================
+
+# Cal.com's webhook and the itsurgery.me booking page both call n8n by this
+# name. Changing it later means re-registering every external caller, so treat
+# it as permanent.
+n8n_domain: "n8n.itsurgery.me"

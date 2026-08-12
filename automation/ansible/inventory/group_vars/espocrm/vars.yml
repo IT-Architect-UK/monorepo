@@ -24,7 +24,6 @@ espocrm_domain: "crm.itsurgery.me"
 # the account on first run and is ignored afterwards. Changing it later means
 # editing the user inside EspoCRM, not re-running this playbook.
 espocrm_admin_username: "it-admin"
-letsencrypt_email: "darren.pilkington@it-architect.uk"
 
 # Pinned deliberately. Bump when you intend to upgrade, having taken a backup
 # first, then re-run with -e espocrm_pull_policy=always

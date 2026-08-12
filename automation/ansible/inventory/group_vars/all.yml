@@ -38,6 +38,12 @@ baseline_branding: false              # login banner / MOTD / prompt branding
 baseline_disable_ipv6: false          # disable IPv6 system-wide
 baseline_monorepo_clone: false        # clone this repo to /git/monorepo on every image
 
+# ── TLS ───────────────────────────────────────────────────────────────────
+# Contact address on every Let's Encrypt certificate this inventory issues, and
+# where expiry warnings go. Not per-service: it was in group_vars/espocrm and
+# any second TLS host failed with an undefined variable at the certbot step.
+letsencrypt_email: "darren.pilkington@it-architect.uk"
+
 # ── Timezone / NTP ────────────────────────────────────────────────────────
 system_timezone: "Europe/London"
 ntp_servers:
