@@ -1,0 +1,649 @@
+{
+  "name": "Cal.com booking",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cal-booking",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -800,
+        0
+      ],
+      "id": "cal-booking-webhook",
+      "name": "Cal.com booking",
+      "webhookId": "b7f1a6d2-9c34-4f1a-bd52-0a1c6e4f7c31",
+      "notes": "Cal.com posts BOOKING_CREATED, BOOKING_RESCHEDULED and BOOKING_CANCELLED here. Responds immediately — Cal.com should not wait on Xero."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-booking_created",
+                    "leftValue": "={{ $json.body.triggerEvent }}",
+                    "rightValue": "BOOKING_CREATED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "created"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-booking_rescheduled",
+                    "leftValue": "={{ $json.body.triggerEvent }}",
+                    "rightValue": "BOOKING_RESCHEDULED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "rescheduled"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cond-booking_cancelled",
+                    "leftValue": "={{ $json.body.triggerEvent }}",
+                    "rightValue": "BOOKING_CANCELLED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancelled"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "switch-trigger-event",
+      "name": "Which event?"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://crm.itsurgery.me/api/v1/Contact?maxSize=1&where[0][type]=equals&where[0][attribute]=emailAddress&where[0][value]={{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -380,
+        -260
+      ],
+      "id": "find-contact",
+      "name": "Find contact",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
+      },
+      "notes": "Match on email, not name — two different people share a name more often than an address."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "contact-exists",
+              "leftValue": "={{ $json.total }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -180,
+        -260
+      ],
+      "id": "if-contact-exists",
+      "name": "Contact exists?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm.itsurgery.me/api/v1/Contact",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"firstName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].firstName }}\", \"lastName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].lastName || $('Cal.com booking').item.json.body.payload.attendees[0].name }}\", \"emailAddress\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}\", \"phoneNumber\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].phoneNumber }}\"}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Skip-Duplicate-Check",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        20,
+        -160
+      ],
+      "id": "create-contact",
+      "name": "Create contact",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
+      },
+      "notes": "X-Skip-Duplicate-Check: EspoCRM rejects a new contact whose NAME matches an existing one, even when the email is new."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm.itsurgery.me/api/v1/Meeting",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"name\": \"={{ $('Cal.com booking').item.json.body.payload.eventTitle }}\", \"status\": \"Planned\", \"dateStart\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"assignedUserId\": \"6a7c877797045317a\", \"parentType\": \"Contact\", \"parentId\": \"={{ $json.id || $json.list[0].id }}\", \"contactsIds\": [\"={{ $json.id || $json.list[0].id }}\"], \"cBookingId\": \"={{ $('Cal.com booking').item.json.body.payload.iCalUID }}\", \"cCalUid\": \"={{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"=Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        -260
+      ],
+      "id": "create-meeting",
+      "name": "Create meeting",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
+      },
+      "notes": "Both branches feed this node. '$json.id || $json.list[0].id' resolves either shape: a created contact has .id, a found one arrives as .list[0].id. That is why no Set node is needed."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.xero.com/api.xro/2.0/Invoices",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"Type\": \"ACCREC\", \"Contact\": {\"Name\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].name }}\", \"FirstName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].firstName }}\", \"LastName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].lastName || $('Cal.com booking').item.json.body.payload.attendees[0].name }}\", \"EmailAddress\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}\"}, \"Date\": \"={{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"DueDate\": \"={{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"Reference\": \"=Booking fee — {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\", \"LineAmountTypes\": \"Inclusive\", \"Status\": \"AUTHORISED\", \"LineItems\": [{\"Description\": \"Booking fee — Remote Support Session\", \"Quantity\": 1, \"UnitAmount\": 5, \"AccountCode\": \"200\", \"TaxType\": \"OUTPUT2\"}]}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        460,
+        -260
+      ],
+      "id": "create-invoice",
+      "name": "Create invoice",
+      "notes": "Dates in UK time, not UTC: between midnight and 1am BST utcNow() is still yesterday, which would put the invoice in the wrong VAT period."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.xero.com/api.xro/2.0/Invoices/{{ $json.Invoices[0].InvoiceID }}/OnlineInvoice",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        680,
+        -260
+      ],
+      "id": "get-pay-link",
+      "name": "Get pay link"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting/{{ $('Create meeting').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"cPayUrl\": \"={{ $json.OnlineInvoices[0].OnlineInvoiceUrl }}\", \"cInvoiceId\": \"={{ $('Create invoice').item.json.Invoices[0].InvoiceID }}\"}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        900,
+        -260
+      ],
+      "id": "save-pay-link",
+      "name": "Save pay link",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
+      },
+      "notes": "The /booked/ page polls for cPayUrl; cInvoiceId is what the cancel branch voids."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.xero.com/api.xro/2.0/Invoices/{{ $('Create invoice').item.json.Invoices[0].InvoiceID }}/Email",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        -260
+      ],
+      "id": "email-invoice",
+      "name": "Email invoice",
+      "notes": "The fallback. If the customer closes the tab before the confirmation page redirects, the invoice still reaches them with a Pay Now button."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting?maxSize=1&where[0][type]=equals&where[0][attribute]=cBookingId&where[0][value]={{ $('Cal.com booking').item.json.body.payload.iCalUID }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -380,
+        0
+      ],
+      "id": "find-meeting",
+      "name": "Find meeting",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
+      },
+      "notes": "iCalUID, not uid: Cal.com issues a new uid on every reschedule but iCalUID is constant for the life of the booking."
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting/{{ $json.list[0].id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"dateStart\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"cCalUid\": \"={{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"=Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\\\\nMoved from {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.rescheduleStartTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }} — {{ $('Cal.com booking').item.json.body.payload.responses.rescheduleReason.value }}\"}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -180,
+        0
+      ],
+      "id": "update-meeting",
+      "name": "Update meeting",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
+      },
+      "notes": "cCalUid is refreshed because the confirmation page is handed the NEW uid after a reschedule and would otherwise never find this meeting."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting?maxSize=1&where[0][type]=equals&where[0][attribute]=cBookingId&where[0][value]={{ $('Cal.com booking').item.json.body.payload.iCalUID }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -380,
+        260
+      ],
+      "id": "find-meeting-to-cancel",
+      "name": "Find meeting to cancel",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.xero.com/api.xro/2.0/Invoices/{{ $json.list[0].cInvoiceId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"Status\": \"VOIDED\"}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -180,
+        260
+      ],
+      "id": "void-invoice",
+      "name": "Void invoice",
+      "notes": "Xero cannot void a PAID invoice, so a failure here means the customer has already paid and a refund decision is needed. Continues on error so the meeting is still marked cancelled.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting/{{ $('Find meeting to cancel').item.json.list[0].id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"status\": \"Not Held\", \"description\": \"=CANCELLED — was booked for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\\\nCancelled by: {{ $('Cal.com booking').item.json.body.payload.cancelledBy }}\\\\nReason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}\\\\nOriginal enquiry: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        40,
+        260
+      ],
+      "id": "mark-not-held",
+      "name": "Mark not held",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cal.com booking": {
+      "main": [
+        [
+          {
+            "node": "Which event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which event?": {
+      "main": [
+        [
+          {
+            "node": "Find contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find meeting",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find meeting to cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find contact": {
+      "main": [
+        [
+          {
+            "node": "Contact exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact exists?": {
+      "main": [
+        [
+          {
+            "node": "Create meeting",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create contact": {
+      "main": [
+        [
+          {
+            "node": "Create meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create meeting": {
+      "main": [
+        [
+          {
+            "node": "Create invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create invoice": {
+      "main": [
+        [
+          {
+            "node": "Get pay link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get pay link": {
+      "main": [
+        [
+          {
+            "node": "Save pay link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save pay link": {
+      "main": [
+        [
+          {
+            "node": "Email invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find meeting": {
+      "main": [
+        [
+          {
+            "node": "Update meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find meeting to cancel": {
+      "main": [
+        [
+          {
+            "node": "Void invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Void invoice": {
+      "main": [
+        [
+          {
+            "node": "Mark not held",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
