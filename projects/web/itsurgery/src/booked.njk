@@ -151,7 +151,10 @@ noindex: true
 
   function poll() {
     attempts++;
-    fetch(endpoint + '&uid=' + encodeURIComponent(uid))
+    // The endpoint may or may not already carry a query string, depending on
+    // what is hosting it. Pick the right separator rather than assuming.
+    var sep = endpoint.indexOf('?') === -1 ? '?' : '&';
+    fetch(endpoint + sep + 'uid=' + encodeURIComponent(uid))
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j && j.payUrl) {
