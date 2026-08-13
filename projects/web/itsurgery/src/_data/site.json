@@ -85,5 +85,5 @@
   ],
   "privacyUpdated": "July 2026",
   "bookingUrl": "https://cal.com/it-surgery/remote-support-session",
-  "payLinkEndpoint": "https://default0f8703ae7d514894b66e75f73e64a9.03.environment.api.powerplatform.com/powerautomate/automations/direct/cu/29/workflows/58c66a289c2d44c994a2c953785fa83a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=GzU-BKbA6o-dBFJxDzt4xRw26rigFtri6JDtwSD97zc"
+  "payLinkEndpoint": "https://n8n.itsurgery.me/webhook/pay-link"
 }
