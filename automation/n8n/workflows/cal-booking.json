@@ -209,7 +209,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"name\": \"={{ $('Cal.com booking').item.json.body.payload.eventTitle }}\", \"status\": \"Planned\", \"dateStart\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"assignedUserId\": \"6a7c877797045317a\", \"parentType\": \"Contact\", \"parentId\": \"={{ $json.id || $json.list[0].id }}\", \"contactsIds\": [\"={{ $json.id || $json.list[0].id }}\"], \"cBookingId\": \"={{ $('Cal.com booking').item.json.body.payload.iCalUID }}\", \"cCalUid\": \"={{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"=Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
+        "jsonBody": "{\"name\": \"={{ $('Cal.com booking').item.json.body.payload.eventTitle }}\", \"status\": \"Planned\", \"dateStart\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"assignedUserId\": \"6a7c877797045317a\", \"parentType\": \"Contact\", \"parentId\": \"={{ $json.id || $json.list[0].id }}\", \"contactsIds\": [\"={{ $json.id || $json.list[0].id }}\"], \"cBookingId\": \"={{ $('Cal.com booking').item.json.body.payload.iCalUID }}\", \"cCalUid\": \"={{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"=Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
@@ -259,7 +259,13 @@
       ],
       "id": "create-invoice",
       "name": "Create invoice",
-      "notes": "Dates in UK time, not UTC: between midnight and 1am BST utcNow() is still yesterday, which would put the invoice in the wrong VAT period."
+      "notes": "Dates in UK time, not UTC: between midnight and 1am BST utcNow() is still yesterday, which would put the invoice in the wrong VAT period.",
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      }
     },
     {
       "parameters": {
@@ -289,7 +295,13 @@
         -260
       ],
       "id": "get-pay-link",
-      "name": "Get pay link"
+      "name": "Get pay link",
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      }
     },
     {
       "parameters": {
@@ -350,7 +362,13 @@
       ],
       "id": "email-invoice",
       "name": "Email invoice",
-      "notes": "The fallback. If the customer closes the tab before the confirmation page redirects, the invoice still reaches them with a Pay Now button."
+      "notes": "The fallback. If the customer closes the tab before the confirmation page redirects, the invoice still reaches them with a Pay Now button.",
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      }
     },
     {
       "parameters": {
@@ -385,7 +403,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"dateStart\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"cCalUid\": \"={{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"=Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\\\\nMoved from {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.rescheduleStartTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }} — {{ $('Cal.com booking').item.json.body.payload.responses.rescheduleReason.value }}\"}"
+        "jsonBody": "{\"dateStart\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"cCalUid\": \"={{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"=Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\\nMoved from {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.rescheduleStartTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }} — {{ $('Cal.com booking').item.json.body.payload.responses.rescheduleReason.value }}\"}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
@@ -459,7 +477,13 @@
       "id": "void-invoice",
       "name": "Void invoice",
       "notes": "Xero cannot void a PAID invoice, so a failure here means the customer has already paid and a refund decision is needed. Continues on error so the meeting is still marked cancelled.",
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      }
     },
     {
       "parameters": {
@@ -470,7 +494,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"status\": \"Not Held\", \"description\": \"=CANCELLED — was booked for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\\\nCancelled by: {{ $('Cal.com booking').item.json.body.payload.cancelledBy }}\\\\nReason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}\\\\nOriginal enquiry: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
+        "jsonBody": "{\"status\": \"Not Held\", \"description\": \"=CANCELLED — was booked for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\nCancelled by: {{ $('Cal.com booking').item.json.body.payload.cancelledBy }}\\nReason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}\\nOriginal enquiry: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
