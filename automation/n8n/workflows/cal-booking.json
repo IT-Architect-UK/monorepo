@@ -173,7 +173,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"firstName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].firstName }}\", \"lastName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].lastName || $('Cal.com booking').item.json.body.payload.attendees[0].name }}\", \"emailAddress\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}\", \"phoneNumber\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].phoneNumber }}\"}",
+        "jsonBody": "={\"firstName\": \"{{ $('Cal.com booking').item.json.body.payload.attendees[0].firstName }}\", \"lastName\": \"{{ $('Cal.com booking').item.json.body.payload.attendees[0].lastName || $('Cal.com booking').item.json.body.payload.attendees[0].name }}\", \"emailAddress\": \"{{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}\", \"phoneNumber\": \"{{ $('Cal.com booking').item.json.body.payload.attendees[0].phoneNumber }}\"}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -209,7 +209,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"name\": \"={{ $('Cal.com booking').item.json.body.payload.eventTitle }}\", \"status\": \"Planned\", \"dateStart\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"assignedUserId\": \"6a7c877797045317a\", \"parentType\": \"Contact\", \"parentId\": \"={{ $json.id || $json.list[0].id }}\", \"contactsIds\": [\"={{ $json.id || $json.list[0].id }}\"], \"cBookingId\": \"={{ $('Cal.com booking').item.json.body.payload.iCalUID }}\", \"cCalUid\": \"={{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"=Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
+        "jsonBody": "={\"name\": \"{{ $('Cal.com booking').item.json.body.payload.eventTitle }}\", \"status\": \"Planned\", \"dateStart\": \"{{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"{{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"assignedUserId\": \"6a7c877797045317a\", \"parentType\": \"Contact\", \"parentId\": \"{{ $json.id || $json.list[0].id }}\", \"contactsIds\": [\"{{ $json.id || $json.list[0].id }}\"], \"cBookingId\": \"{{ $('Cal.com booking').item.json.body.payload.iCalUID }}\", \"cCalUid\": \"{{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
@@ -249,7 +249,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"Type\": \"ACCREC\", \"Contact\": {\"Name\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].name }}\", \"FirstName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].firstName }}\", \"LastName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].lastName || $('Cal.com booking').item.json.body.payload.attendees[0].name }}\", \"EmailAddress\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}\"}, \"Date\": \"={{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"DueDate\": \"={{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"Reference\": \"=Booking fee — {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\", \"LineAmountTypes\": \"Inclusive\", \"Status\": \"AUTHORISED\", \"LineItems\": [{\"Description\": \"Booking fee — Remote Support Session\", \"Quantity\": 1, \"UnitAmount\": 5, \"AccountCode\": \"200\", \"TaxType\": \"OUTPUT2\"}]}"
+        "jsonBody": "={\"Type\": \"ACCREC\", \"Contact\": {\"Name\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].name }}\", \"FirstName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].firstName }}\", \"LastName\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].lastName || $('Cal.com booking').item.json.body.payload.attendees[0].name }}\", \"EmailAddress\": \"={{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}\"}, \"Date\": \"{{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"DueDate\": \"{{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"Reference\": \"Booking fee — {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\", \"LineAmountTypes\": \"Inclusive\", \"Status\": \"AUTHORISED\", \"LineItems\": [{\"Description\": \"Booking fee — Remote Support Session\", \"Quantity\": 1, \"UnitAmount\": 5, \"AccountCode\": \"200\", \"TaxType\": \"OUTPUT2\"}]}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
@@ -312,7 +312,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"cPayUrl\": \"={{ $json.OnlineInvoices[0].OnlineInvoiceUrl }}\", \"cInvoiceId\": \"={{ $('Create invoice').item.json.Invoices[0].InvoiceID }}\"}"
+        "jsonBody": "={\"cPayUrl\": \"{{ $json.OnlineInvoices[0].OnlineInvoiceUrl }}\", \"cInvoiceId\": \"{{ $('Create invoice').item.json.Invoices[0].InvoiceID }}\"}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
@@ -352,7 +352,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{}"
+        "jsonBody": "={}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
@@ -403,7 +403,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"dateStart\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"cCalUid\": \"={{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"=Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\\nMoved from {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.rescheduleStartTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }} — {{ $('Cal.com booking').item.json.body.payload.responses.rescheduleReason.value }}\"}"
+        "jsonBody": "={\"dateStart\": \"{{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"dateEnd\": \"{{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.endTime).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\", \"cCalUid\": \"{{ $('Cal.com booking').item.json.body.payload.uid }}\", \"description\": \"Booked online — {{ $('Cal.com booking').item.json.body.payload.eventTitle }} on {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\nJoin: {{ $('Cal.com booking').item.json.body.payload.metadata.videoCallUrl }}\\nReason: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\\nMoved from {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.rescheduleStartTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }} — {{ $('Cal.com booking').item.json.body.payload.responses.rescheduleReason.value }}\"}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
@@ -466,7 +466,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"Status\": \"VOIDED\"}"
+        "jsonBody": "={\"Status\": \"VOIDED\"}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
@@ -494,7 +494,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\"status\": \"Not Held\", \"description\": \"=CANCELLED — was booked for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\nCancelled by: {{ $('Cal.com booking').item.json.body.payload.cancelledBy }}\\nReason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}\\nOriginal enquiry: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
+        "jsonBody": "={\"status\": \"Not Held\", \"description\": \"CANCELLED — was booked for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}\\nCancelled by: {{ $('Cal.com booking').item.json.body.payload.cancelledBy }}\\nReason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}\\nOriginal enquiry: {{ $('Cal.com booking').item.json.body.payload.responses.notes.value }}\"}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
