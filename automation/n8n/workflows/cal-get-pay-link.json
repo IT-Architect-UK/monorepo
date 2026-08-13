@@ -1,0 +1,71 @@
+{
+  "name": "Cal.com — get pay link",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "pay-link",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-256, -16],
+      "id": "e3d5524a-4772-42be-921f-f504c223cb44",
+      "name": "Cal.com — get pay link",
+      "webhookId": "139088b1-3567-40d9-aa0b-3cf4f26b8713"
+    },
+    {
+      "parameters": {
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting?maxSize=1&where[0][type]=equals&where[0][attribute]=cCalUid&where[0][value]={{ $json.query.uid }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-48, -16],
+      "id": "fe323308-66c3-4627-a93b-cb866b8f0ca8",
+      "name": "Find meeting",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"payUrl\": \"{{ $json.list?.[0]?.cPayUrl || '' }}\"\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://itsurgery.me"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [160, -16],
+      "id": "682793e6-9c71-40f1-bba9-9bf9c3646646",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Cal.com — get pay link": {
+      "main": [[{ "node": "Find meeting", "type": "main", "index": 0 }]]
+    },
+    "Find meeting": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
