@@ -516,7 +516,9 @@
         "toRecipients": "darren.pilkington@it-architect.uk",
         "subject": "=Refund needed — {{ $('Cal.com booking').item.json.body.payload.attendees[0].name }} cancelled a paid booking",
         "bodyContent": "=<p><strong>{{ $('Cal.com booking').item.json.body.payload.attendees[0].name }}</strong> ({{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}) has cancelled their booking for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}.</p><p>The £5 booking fee invoice could <strong>not</strong> be voided, which means it has already been paid. A refund decision is needed.</p><p>Cancelled by: {{ $('Cal.com booking').item.json.body.payload.cancelledBy }}<br>Reason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}</p><p>Invoice ID: {{ $('Find meeting to cancel').item.json.list[0].cInvoiceId }}<br><a href=\"{{ $('Find meeting to cancel').item.json.list[0].cPayUrl }}\">Open the invoice in Xero</a></p>",
-        "additionalFields": {}
+        "additionalFields": {
+          "bodyContentType": "html"
+        }
       },
       "type": "n8n-nodes-base.microsoftOutlook",
       "typeVersion": 2,

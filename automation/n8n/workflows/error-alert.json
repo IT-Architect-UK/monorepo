@@ -18,7 +18,9 @@
         "toRecipients": "darren.pilkington@it-architect.uk",
         "subject": "=n8n failed — {{ $json.workflow.name }}",
         "bodyContent": "=<p><strong>{{ $json.workflow.name }}</strong> failed at {{ $now.setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}.</p><p>Failed node: {{ $json.execution?.lastNodeExecuted || 'trigger — the workflow never started' }}<br>Error: {{ $json.execution?.error?.message || $json.trigger?.error?.message || 'no message given' }}</p><p>Execution: {{ $json.execution?.url || 'not recorded, because the failure was in the trigger' }}</p>",
-        "additionalFields": {}
+        "additionalFields": {
+          "bodyContentType": "html"
+        }
       },
       "type": "n8n-nodes-base.microsoftOutlook",
       "typeVersion": 2,
