@@ -476,8 +476,8 @@
       ],
       "id": "void-invoice",
       "name": "Void invoice",
-      "notes": "Xero cannot void a PAID invoice, so a failure here means the customer has already paid and a refund decision is needed. Continues on error so the meeting is still marked cancelled.",
-      "onError": "continueRegularOutput",
+      "notes": "Xero cannot void a PAID invoice, so a failure here means the customer has already paid and a refund decision is needed. The error output raises the alert; both outputs still reach Mark not held.",
+      "onError": "continueErrorOutput",
       "credentials": {
         "xeroOAuth2Api": {
           "id": "DCxryEtuSrcWPmFu",
@@ -508,6 +508,29 @@
         "httpHeaderAuth": {
           "id": "sOse4EsI4Hy6KYi6",
           "name": "EspoCRM — crm.itsurgery.me"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toRecipients": "darren.pilkington@it-architect.uk",
+        "subject": "=Refund needed — {{ $('Cal.com booking').item.json.body.payload.attendees[0].name }} cancelled a paid booking",
+        "bodyContent": "=<p><strong>{{ $('Cal.com booking').item.json.body.payload.attendees[0].name }}</strong> ({{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}) has cancelled their booking for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}.</p><p>The £5 booking fee invoice could <strong>not</strong> be voided, which means it has already been paid. A refund decision is needed.</p><p>Cancelled by: {{ $('Cal.com booking').item.json.body.payload.cancelledBy }}<br>Reason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}</p><p>Invoice ID: {{ $('Find meeting to cancel').item.json.list[0].cInvoiceId }}<br><a href=\"{{ $('Find meeting to cancel').item.json.list[0].cPayUrl }}\">Open the invoice in Xero</a></p>",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        460
+      ],
+      "id": "alert-refund-needed",
+      "name": "Alert refund needed",
+      "notes": "Sends as help@itsurgery.me via Microsoft Graph. Every value comes from the webhook or the CRM record, never from the Xero error payload, so the wording cannot break on an unexpected error shape.",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "vFBlY5YMFquusk6v",
+          "name": "Microsoft 365 — help@itsurgery.me"
         }
       }
     }
@@ -656,6 +679,24 @@
       ]
     },
     "Void invoice": {
+      "main": [
+        [
+          {
+            "node": "Mark not held",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert refund needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert refund needed": {
       "main": [
         [
           {
