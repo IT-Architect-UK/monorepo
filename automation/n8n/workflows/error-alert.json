@@ -1,0 +1,56 @@
+{
+  "name": "n8n error alert",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "error-trigger",
+      "name": "On workflow error",
+      "notes": "Fires when a workflow that names this one as its error workflow fails during an automatic execution. n8n does not run error workflows for manual executions, so this cannot be tested from the editor."
+    },
+    {
+      "parameters": {
+        "toRecipients": "darren.pilkington@it-architect.uk",
+        "subject": "=n8n failed — {{ $json.workflow.name }}",
+        "bodyContent": "=<p><strong>{{ $json.workflow.name }}</strong> failed at {{ $now.setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}.</p><p>Failed node: {{ $json.execution?.lastNodeExecuted || 'trigger — the workflow never started' }}<br>Error: {{ $json.execution?.error?.message || $json.trigger?.error?.message || 'no message given' }}</p><p>Execution: {{ $json.execution?.url || 'not recorded, because the failure was in the trigger' }}</p>",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "email-the-failure",
+      "name": "Email the failure",
+      "notes": "Reads both payload shapes. A mid-run failure arrives under execution{}, a trigger failure under trigger{} — assuming only the first would leave the alert blank exactly when something has broken badly.",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "vFBlY5YMFquusk6v",
+          "name": "Microsoft 365 — help@itsurgery.me"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "On workflow error": {
+      "main": [
+        [
+          {
+            "node": "Email the failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

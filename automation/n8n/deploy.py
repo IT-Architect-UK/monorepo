@@ -11,6 +11,10 @@ instance created the workflow, so an id-based sync would only ever work against
 the one instance that produced the file. Name-based matching means the same
 file deploys to a client's instance as easily as to ours.
 
+For the same reason, a workflow does not name its error handler by id. Set
+`settings.errorWorkflowName` to the *name* of the error workflow and this
+script resolves it to that instance's id after everything has been deployed.
+
 Usage:
     N8N_BASE_URL=https://n8n.example.com \
     N8N_API_KEY=... \
@@ -33,6 +37,8 @@ WORKFLOW_DIR = Path(__file__).parent / "workflows"
 # file — id, versionId, meta, tags, pinData — is either read-only or rejected
 # outright, so it is stripped rather than sent and argued about.
 SENDABLE = ("name", "nodes", "connections", "settings")
+
+ERROR_TRIGGER = "n8n-nodes-base.errorTrigger"
 
 
 def call(method: str, path: str, body=None):
@@ -75,6 +81,12 @@ def existing_by_name() -> dict:
             return found
 
 
+def is_error_handler(workflow: dict) -> bool:
+    """An Error Trigger workflow is run by n8n when another workflow fails, so
+    it does not need to be — and is not — activated."""
+    return any(n.get("type") == ERROR_TRIGGER for n in workflow.get("nodes", []))
+
+
 def main() -> int:
     dry_run = "--dry-run" in sys.argv
 
@@ -90,16 +102,27 @@ def main() -> int:
     remote = existing_by_name()
     print(f"{len(remote)} workflow(s) already on the instance\n")
 
+    deployed = {}   # name -> id on this instance
+    pending = []    # workflows whose error handler still needs resolving
+
     for path in files:
         local = json.loads(path.read_text())
         name = local["name"]
         payload = {k: local[k] for k in SENDABLE if k in local}
+
+        # errorWorkflowName is ours, not n8n's. Strip it before sending and
+        # deal with it once every workflow has an id.
+        settings = dict(payload.get("settings") or {})
+        handler_name = settings.pop("errorWorkflowName", None)
+        payload["settings"] = settings
 
         match = remote.get(name)
         verb = "update" if match else "create"
         print(f"{path.name}: {verb} '{name}'")
 
         if dry_run:
+            if handler_name:
+                print(f"  … would link error workflow '{handler_name}'")
             continue
 
         if match:
@@ -108,10 +131,30 @@ def main() -> int:
         else:
             wf_id = call("POST", "/workflows", payload)["id"]
 
-        # Activate every time. A workflow that exists but is not active looks
-        # deployed and does nothing, which is the worst of both.
-        call("POST", f"/workflows/{wf_id}/activate")
-        print(f"  ✔ {verb}d and activated ({wf_id})")
+        deployed[name] = wf_id
+
+        if is_error_handler(local):
+            # Activating one is unnecessary; n8n invokes it on failure.
+            print(f"  ✔ {verb}d ({wf_id}) — error handler, not activated")
+        else:
+            # Activate every time. A workflow that exists but is not active
+            # looks deployed and does nothing, which is the worst of both.
+            call("POST", f"/workflows/{wf_id}/activate")
+            print(f"  ✔ {verb}d and activated ({wf_id})")
+
+        if handler_name:
+            pending.append((name, payload, handler_name))
+
+    for name, payload, handler_name in pending:
+        target = deployed.get(handler_name) or (remote.get(handler_name) or {}).get("id")
+        if not target:
+            raise SystemExit(
+                f"'{name}' names error workflow '{handler_name}', which is "
+                f"neither in this repository nor on the instance."
+            )
+        payload["settings"]["errorWorkflow"] = target
+        call("PUT", f"/workflows/{deployed[name]}", payload)
+        print(f"{name}: errors go to '{handler_name}' ({target})")
 
     return 0
 

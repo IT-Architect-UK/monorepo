@@ -91,6 +91,7 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "errorWorkflowName": "n8n error alert"
   }
 }

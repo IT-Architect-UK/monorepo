@@ -24,7 +24,30 @@ delete the orphan.
 
 | Workflow | Called by | Purpose |
 |----------|-----------|---------|
+| `cal-booking.json` | Cal.com webhooks | Creates or updates the customer and meeting in EspoCRM, raises the £5 Xero invoice, and handles reschedules and cancellations |
 | `cal-get-pay-link.json` | The `/booked/` page on itsurgery.me | Returns the Xero payment link for a booking, which the page polls for while the invoice is being raised |
+| `error-alert.json` | n8n itself, when another workflow fails | Emails the failure to Darren. Never runs on its own |
+
+## When something fails
+
+Both live workflows name `n8n error alert` as their error workflow, so any
+failed automatic execution emails Darren with the workflow, the node that
+broke, the error message and a link to the execution.
+
+n8n links error workflows by **id**, which belongs to one instance and would
+break the name-matching this repository depends on. So the files carry
+`settings.errorWorkflowName` instead — a key of ours, not n8n's — and
+`deploy.py` resolves it to that instance's id after every workflow exists, then
+strips it before sending. Rename the error workflow and you must rename it in
+both places.
+
+Two things to know before trying to test it:
+
+- n8n does **not** run error workflows for manual executions. Only a real
+  automatic run — a webhook, a schedule — will fire one.
+- A workflow containing an Error Trigger is deliberately not activated. n8n
+  invokes it on failure regardless, and the deploy script skips activation for
+  anything holding that node.
 
 ## Setting it up on a new instance
 
