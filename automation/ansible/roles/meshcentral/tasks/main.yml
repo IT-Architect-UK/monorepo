@@ -1,0 +1,231 @@
+---
+# =============================================================================
+# roles/meshcentral — MeshCentral in Docker, behind nginx, with backups
+# =============================================================================
+# Assumes Docker is present (playbooks/deploy-docker.yml) and that the espocrm
+# role has already opened 80/443 on this host. See roles/meshcentral/README.md.
+# =============================================================================
+
+- name: Fail early if the domain is missing
+  ansible.builtin.assert:
+    that:
+      - meshcentral_domain | default('', true) | length > 0
+    fail_msg: >-
+      meshcentral_domain must be set (e.g. help.itsurgery.me). It is written
+      into the certificate, into MeshCentral's certUrl, and into every agent
+      that is ever installed on a customer machine — an agent built against the
+      wrong name cannot find its way home. See the role README.
+    quiet: true
+
+- name: Warn loudly if account registration is open
+  ansible.builtin.debug:
+    msg: >-
+      REGISTRATION IS OPEN on https://{{ meshcentral_domain }}/ — anyone who
+      finds the URL can create an account. Register your own account now, then
+      set meshcentral_allow_new_accounts to false and re-run this playbook.
+  when: meshcentral_allow_new_accounts | bool
+
+- name: Detect IPv6
+  # Must match what the firewall (owned by the espocrm role) actually protects,
+  # or nginx binds a port nothing filters.
+  ansible.builtin.set_fact:
+    meshcentral_enable_ipv6: "{{ ansible_all_ipv6_addresses | default([]) | reject('match', '^fe80:') | list | length > 0 }}"
+
+- name: Create MeshCentral directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - "{{ meshcentral_base_dir }}"
+    - "{{ meshcentral_base_dir }}/meshcentral-data"
+    - "{{ meshcentral_base_dir }}/meshcentral-files"
+    - "{{ meshcentral_base_dir }}/meshcentral-web"
+    - "{{ meshcentral_backup_dir }}"
+
+- name: Deploy config.json
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ meshcentral_base_dir }}/meshcentral-data/config.json"
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart meshcentral
+
+- name: Deploy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ meshcentral_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Start MeshCentral
+  community.docker.docker_compose_v2:
+    project_src: "{{ meshcentral_base_dir }}"
+    state: present
+    pull: "{{ meshcentral_pull_policy }}"
+
+- name: Apply any pending restart before waiting on the port
+  # A config.json change queues a restart. Without flushing it here the next
+  # task would poll the OLD process, pass, and leave the new settings unapplied
+  # until something else happened to restart the container.
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for MeshCentral to answer on the loopback port
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ meshcentral_http_port }}/"
+    status_code: [200, 302, 401]
+    validate_certs: false
+  register: meshcentral_ready
+  retries: 30
+  delay: 10
+  until: meshcentral_ready is succeeded
+  # First run generates the server certificates, which is slow on a small VPS.
+
+# --- reverse proxy --------------------------------------------------------
+
+- name: Install nginx and certbot
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - certbot
+    state: present
+    update_cache: true
+
+- name: Create the ACME challenge webroot
+  # Shared with the espocrm and n8n roles; creating it again is harmless and
+  # means this role still works on a host without either.
+  ansible.builtin.file:
+    path: "{{ meshcentral_acme_webroot }}/.well-known/acme-challenge"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check whether a certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ meshcentral_domain }}/fullchain.pem"
+  register: meshcentral_cert
+
+- name: Deploy the nginx site (HTTP only until a certificate exists)
+  ansible.builtin.template:
+    src: meshcentral.nginx.conf.j2
+    dest: /etc/nginx/sites-available/meshcentral.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    meshcentral_tls_ready: "{{ meshcentral_cert.stat.exists }}"
+  notify: Reload nginx
+
+- name: Enable the MeshCentral nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/meshcentral.conf
+    dest: /etc/nginx/sites-enabled/meshcentral.conf
+    state: link
+  notify: Reload nginx
+
+- name: Validate the assembled nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Apply pending nginx changes now
+  # nginx must be serving the challenge path before certbot is asked.
+  ansible.builtin.meta: flush_handlers
+
+- name: Obtain the certificate
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/certbot
+      - certonly
+      - --webroot
+      - -w
+      - "{{ meshcentral_acme_webroot }}"
+      - -d
+      - "{{ meshcentral_domain }}"
+      - --non-interactive
+      - --agree-tos
+      - -m
+      - "{{ letsencrypt_email }}"
+    creates: "/etc/letsencrypt/live/{{ meshcentral_domain }}/fullchain.pem"
+  when: meshcentral_request_certificate | default(true)
+
+- name: Re-check for the certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ meshcentral_domain }}/fullchain.pem"
+  register: meshcentral_cert_after
+
+- name: Deploy the nginx site again, now with TLS
+  ansible.builtin.template:
+    src: meshcentral.nginx.conf.j2
+    dest: /etc/nginx/sites-available/meshcentral.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    meshcentral_tls_ready: "{{ meshcentral_cert_after.stat.exists }}"
+  when: meshcentral_cert_after.stat.exists
+  notify: Reload nginx
+
+- name: Validate the assembled nginx configuration with TLS
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  when: meshcentral_cert_after.stat.exists
+
+# --- backups --------------------------------------------------------------
+
+- name: Deploy the backup script
+  ansible.builtin.template:
+    src: meshcentral-backup.sh.j2
+    dest: /usr/local/bin/meshcentral-backup.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the backup systemd unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/meshcentral-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — automation/ansible/roles/meshcentral. Edits are overwritten.
+      [Unit]
+      Description=MeshCentral backup (stops the container for a consistent archive)
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/meshcentral-backup.sh
+  notify: Reload systemd
+
+- name: Install the backup systemd timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/meshcentral-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — automation/ansible/roles/meshcentral. Edits are overwritten.
+      [Unit]
+      Description=Run the MeshCentral backup on a schedule
+
+      [Timer]
+      OnCalendar={{ meshcentral_backup_schedule }}
+      Persistent=true
+      RandomizedDelaySec=300
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
+- name: Enable the backup timer
+  ansible.builtin.systemd:
+    name: meshcentral-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true

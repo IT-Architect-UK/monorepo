@@ -1,0 +1,84 @@
+---
+# =============================================================================
+# roles/swapfile — a modest swap file, so a memory spike degrades rather than kills
+# =============================================================================
+# A VPS with zero swap does not slow down under memory pressure; the OOM killer
+# picks a process and ends it. On a box running the CRM, the automation engine
+# and the remote-support server, the victim could be anything — including
+# something mid-booking. Swap buys the kernel somewhere to go.
+# =============================================================================
+
+- name: Check whether swap is already active
+  ansible.builtin.set_fact:
+    swapfile_already_active: "{{ (ansible_memory_mb.swap.total | default(0)) > 0 }}"
+
+- name: Report existing swap
+  ansible.builtin.debug:
+    msg: >-
+      Swap is already active ({{ ansible_memory_mb.swap.total }} MB). Leaving it
+      alone — this role only creates swap where there is none.
+  when: swapfile_already_active
+
+- name: Create the swap file
+  # fallocate is instant but produces a sparse file on some filesystems, which
+  # swapon rejects. dd is slower and always correct.
+  ansible.builtin.command:
+    argv:
+      - dd
+      - if=/dev/zero
+      - "of={{ swapfile_path }}"
+      - bs=1M
+      - "count={{ swapfile_size_mb }}"
+    creates: "{{ swapfile_path }}"
+  when: not swapfile_already_active
+
+- name: Restrict the swap file
+  # mkswap refuses anything more permissive, and the contents are process memory.
+  ansible.builtin.file:
+    path: "{{ swapfile_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: not swapfile_already_active
+
+- name: Format the swap file
+  ansible.builtin.command: "mkswap {{ swapfile_path }}"
+  register: swapfile_mkswap
+  changed_when: swapfile_mkswap.rc == 0
+  failed_when: swapfile_mkswap.rc != 0 and 'existing swap' not in swapfile_mkswap.stderr
+  when: not swapfile_already_active
+
+- name: Persist the swap file in fstab
+  # Before swapon: if the machine reboots between the two, swap still returns.
+  #
+  # lineinfile rather than ansible.posix.mount, so this role needs no
+  # collections and can be run against any box on its own.
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: "^{{ swapfile_path | regex_escape }}\\s"
+    line: "{{ swapfile_path }} none swap sw 0 0"
+    state: present
+    validate: "findmnt --verify --tab-file %s"
+  when: not swapfile_already_active
+
+- name: Enable the swap file
+  ansible.builtin.command: "swapon {{ swapfile_path }}"
+  register: swapfile_swapon
+  changed_when: swapfile_swapon.rc == 0
+  when: not swapfile_already_active
+
+- name: Set swappiness persistently
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/60-swappiness.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — automation/ansible/roles/swapfile. Edits are overwritten.
+      vm.swappiness = {{ swapfile_swappiness }}
+  register: swapfile_swappiness_file
+
+- name: Apply swappiness now
+  ansible.builtin.command: sysctl -p /etc/sysctl.d/60-swappiness.conf
+  changed_when: true
+  when: swapfile_swappiness_file is changed

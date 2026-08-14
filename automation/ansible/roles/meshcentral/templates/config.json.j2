@@ -1,0 +1,21 @@
+{
+  "__comment": "{{ ansible_managed }} — edits here are overwritten. Change the Ansible template.",
+  "settings": {
+    "cert": "{{ meshcentral_domain }}",
+    "port": {{ meshcentral_http_port }},
+    "aliasPort": 443,
+    "tlsOffload": "127.0.0.1",
+    "selfUpdate": false,
+    "agentPong": 300,
+    "webRTC": {{ meshcentral_webrtc | string | lower }},
+    "plugins": { "enabled": false }
+  },
+  "domains": {
+    "": {
+      "title": "{{ meshcentral_title }}",
+      "title2": "{{ meshcentral_title2 }}",
+      "newAccounts": {{ meshcentral_allow_new_accounts | string | lower }},
+      "certUrl": "https://{{ meshcentral_domain }}:443"
+    }
+  }
+}

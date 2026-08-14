@@ -1,0 +1,72 @@
+---
+# =============================================================================
+# roles/meshcentral — defaults
+# =============================================================================
+# MeshCentral is the remote-support server: the customer downloads a small
+# assistant from OUR domain, we ask permission, they see our name on the
+# consent prompt. That provenance is the whole point — see the role README.
+# =============================================================================
+
+# ── Where things live ─────────────────────────────────────────────────────
+# Bind mounts rather than named volumes. MeshCentral's state is ordinary files
+# and being able to read them without a docker incantation makes both backup
+# and a 2am diagnosis considerably easier.
+meshcentral_base_dir: /opt/meshcentral
+meshcentral_backup_dir: /opt/meshcentral/backups
+
+# ── Image version ─────────────────────────────────────────────────────────
+# Pinned, like the other roles. A remote-support server that silently changes
+# under you is one you cannot trust during a customer session.
+#
+# The image also ships -slim (local database only) and per-database variants.
+# Slim is the better fit for this deployment and worth moving to once the tag
+# has been confirmed to exist; the plain tag is used here because it is the one
+# verified as published.
+meshcentral_image: "ghcr.io/ylianst/meshcentral"
+meshcentral_image_tag: "1.1.59"
+meshcentral_pull_policy: missing
+
+# ── Networking ────────────────────────────────────────────────────────────
+# Loopback only; nginx fronts it and terminates TLS. MeshCentral's own HTTP
+# redirect listener stays inside the container, unpublished, so it can never
+# contend with nginx for port 80.
+meshcentral_http_port: 4430
+
+meshcentral_acme_webroot: /var/www/acme
+meshcentral_request_certificate: true
+
+# ── Application settings ──────────────────────────────────────────────────
+meshcentral_domain: ""              # e.g. help.itsurgery.me — REQUIRED
+meshcentral_title: "IT Surgery"
+meshcentral_title2: "Remote Help"
+
+# The database. NeDB (MeshCentral's built-in file store) is right at this
+# scale: one fewer container to run, patch and back up, and the entire dataset
+# is a directory we already archive. Revisit only if device counts grow into
+# the hundreds.
+meshcentral_use_local_db: true
+
+# WebRTC lets the browser and the agent talk directly, bypassing the server.
+# Off deliberately: behind a reverse proxy it is the awkward path, and relaying
+# through the server is predictable, which matters more than throughput when
+# someone is watching you fix their computer.
+meshcentral_webrtc: false
+
+# ── Account creation — READ THIS ──────────────────────────────────────────
+# MeshCentral has no admin account until one registers, and its account-
+# creation CLI is documented as an offline recovery tool. So the first run
+# opens registration, you register immediately, and then this is set to false
+# and the playbook re-run.
+#
+# While this is true, anyone who finds the URL can create an account. Register
+# and close it in the same sitting — do not leave it open overnight.
+meshcentral_allow_new_accounts: true
+
+# ── Backups ───────────────────────────────────────────────────────────────
+# After the n8n backup at 02:45, so the two never contend for the same disk.
+meshcentral_backup_schedule: "*-*-* 03:15:00"
+meshcentral_local_backup_keep_days: 7
+
+# ── Firewall ──────────────────────────────────────────────────────────────
+# Not managed here. The espocrm role owns the firewall on this host and 80/443
+# are already open, which is all MeshCentral needs.

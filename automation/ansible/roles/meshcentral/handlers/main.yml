@@ -1,0 +1,14 @@
+---
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+
+- name: Restart meshcentral
+  community.docker.docker_compose_v2:
+    project_src: "{{ meshcentral_base_dir }}"
+    state: restarted
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true

@@ -1,0 +1,16 @@
+---
+# =============================================================================
+# group_vars/meshcentral — remote-support server
+# =============================================================================
+# No vault file: MeshCentral holds no third-party credentials. The admin
+# account is created through the web interface on first run and its password
+# belongs in Bitwarden, not here.
+# =============================================================================
+
+meshcentral_domain: "help.itsurgery.me"
+
+# Chosen because a worried customer has to read it back over the phone.
+# "help dot it surgery dot me" survives that; "remote" or "mesh" would not.
+
+# Open on the first run only. Register, then set this to false and re-run.
+meshcentral_allow_new_accounts: true

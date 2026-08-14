@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+#
+# MeshCentral, bound to the loopback with nginx in front.
+#
+# No database container: MeshCentral's built-in file store lives in
+# meshcentral-data, which is bind-mounted below and therefore already covered
+# by the backup script. One fewer moving part on a box that is already running
+# a CRM and an automation engine.
+
+services:
+
+  meshcentral:
+    image: {{ meshcentral_image }}:{{ meshcentral_image_tag }}
+    container_name: meshcentral
+    restart: unless-stopped
+    ports:
+      # Loopback only. nginx terminates TLS and proxies to this. MeshCentral's
+      # own redirect listener is deliberately NOT published — nginx owns 80.
+      - "127.0.0.1:{{ meshcentral_http_port }}:{{ meshcentral_http_port }}"
+    volumes:
+      # config.json is templated by Ansible into this directory. MeshCentral
+      # reads it from here on start.
+      - {{ meshcentral_base_dir }}/meshcentral-data:/opt/meshcentral/meshcentral-data
+      - {{ meshcentral_base_dir }}/meshcentral-files:/opt/meshcentral/meshcentral-files
+      - {{ meshcentral_base_dir }}/meshcentral-web:/opt/meshcentral/meshcentral-web
+      # The host's CA bundle, for the same reason n8n gets it: outbound TLS to
+      # services whose intermediates the image does not ship.
+      - /etc/ssl/certs:/etc/ssl/certs:ro
+    environment:
+      TZ: "{{ system_timezone | default('Europe/London') }}"

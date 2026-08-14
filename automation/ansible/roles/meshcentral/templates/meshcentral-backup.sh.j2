@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# MeshCentral backup. Everything that matters is files — the local database,
+# the server certificates it generated, device group keys and uploaded files —
+# so this is a straight archive of the data directories. Restic collects
+# {{ meshcentral_backup_dir }} afterwards and ships it off-box.
+#
+# The archive includes the server's own key material, because a restore without
+# it means every deployed agent can no longer verify the server and has to be
+# reinstalled on the customer's machine. Treat the backups as sensitive.
+
+set -euo pipefail
+
+BASE_DIR="{{ meshcentral_base_dir }}"
+BACKUP_DIR="{{ meshcentral_backup_dir }}"
+KEEP_DAYS="{{ meshcentral_local_backup_keep_days }}"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+ARCHIVE="$BACKUP_DIR/meshcentral-$STAMP.tar.gz"
+
+mkdir -p "$BACKUP_DIR"
+
+# Stop the container for the duration. The local database is a set of files
+# being written live; archiving them under load risks capturing a half-written
+# record, and a backup you cannot restore is not a backup. The stop lasts
+# seconds and happens at {{ meshcentral_backup_schedule }}.
+docker stop meshcentral >/dev/null
+
+# Always restart, even if the archive fails — never leave the service down.
+trap 'docker start meshcentral >/dev/null' EXIT
+
+tar czf "$ARCHIVE" \
+  -C "$BASE_DIR" \
+  --exclude='./backups' \
+  ./meshcentral-data ./meshcentral-files ./meshcentral-web
+
+# --- prune ----------------------------------------------------------------
+find "$BACKUP_DIR" -name 'meshcentral-*.tar.gz' -mtime "+$KEEP_DAYS" -delete
+
+# An empty gzip is about 20 bytes. Fail loudly rather than accumulate a shelf
+# of useless archives that only get examined the day they are needed.
+SIZE=$(stat -c%s "$ARCHIVE")
+if [ "$SIZE" -lt 1000 ]; then
+  echo "meshcentral backup: archive is only ${SIZE} bytes — treating as failed" >&2
+  exit 1
+fi
+
+echo "meshcentral backup complete: $STAMP (${SIZE} bytes compressed)"

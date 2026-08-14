@@ -1,0 +1,14 @@
+---
+# =============================================================================
+# roles/swapfile — defaults
+# =============================================================================
+# Host-level, not tied to any one service. Kept separate so it can be run on
+# its own against any box that needs it.
+# =============================================================================
+
+swapfile_path: /swapfile
+swapfile_size_mb: 2048
+
+# 10, not the default 60. With plenty of RAM free we want the kernel to leave
+# working pages alone and treat swap as an emergency reserve, not a habit.
+swapfile_swappiness: 10

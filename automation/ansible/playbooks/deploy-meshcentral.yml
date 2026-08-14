@@ -1,0 +1,21 @@
+---
+# =============================================================================
+# deploy-meshcentral.yml — remote-support server
+# =============================================================================
+# Runs on the VPS itself, like deploy-espocrm.yml and deploy-n8n.yml.
+# See roles/meshcentral/README.md.
+#
+#   ansible-playbook playbooks/deploy-meshcentral.yml
+#
+# The swapfile role runs first. This host had no swap at all, and MeshCentral
+# is the third service on it — a memory spike with no swap does not slow the
+# box down, it kills a process, and the OOM killer does not care that one of
+# them was taking a booking.
+# =============================================================================
+
+- name: Deploy MeshCentral
+  hosts: meshcentral
+  become: true
+  roles:
+    - swapfile
+    - meshcentral
