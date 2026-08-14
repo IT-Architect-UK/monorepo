@@ -60,7 +60,7 @@ meshcentral_webrtc: false
 #
 # While this is true, anyone who finds the URL can create an account. Register
 # and close it in the same sitting — do not leave it open overnight.
-meshcentral_allow_new_accounts: true
+meshcentral_allow_new_accounts: false
 
 # ── Backups ───────────────────────────────────────────────────────────────
 # After the n8n backup at 02:45, so the two never contend for the same disk.

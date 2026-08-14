@@ -12,5 +12,11 @@ meshcentral_domain: "help.itsurgery.me"
 # Chosen because a worried customer has to read it back over the phone.
 # "help dot it surgery dot me" survives that; "remote" or "mesh" would not.
 
-# Open on the first run only. Register, then set this to false and re-run.
-meshcentral_allow_new_accounts: true
+# Closed. Darren's administrator account was registered on 2026-08-14, during
+# the window the first run opened. Accounts here are ours — technicians and
+# admins — never customers', who only ever run the assistant. Leaving signup
+# open would let anyone who reads help.itsurgery.me off the website create an
+# account on the server that reaches into customer machines.
+#
+# Only set this true again to add a colleague, and close it the same day.
+meshcentral_allow_new_accounts: false

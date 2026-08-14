@@ -36,15 +36,21 @@ MeshCentral has no admin account until somebody registers one, and its
 account-creation command line is documented as an offline recovery tool rather
 than a setup step. So:
 
-1. Run the playbook. It prints a warning that registration is open.
+1. Set `meshcentral_allow_new_accounts: true` in
+   `inventory/group_vars/meshcentral/vars.yml` and run the playbook. It prints
+   a warning that registration is open.
 2. Go to `https://help.itsurgery.me/` and create your account **immediately**.
    The first account becomes the site administrator.
-3. Set `meshcentral_allow_new_accounts: false` in
-   `inventory/group_vars/meshcentral/vars.yml`.
+3. Set it back to `false`.
 4. Run the playbook again.
 
-Between steps 1 and 3, anyone who finds the URL can create an account. Do it in
-one sitting.
+Accounts here are ours — technicians and admins. Customers never have one; they
+only ever run the assistant. So while registration is open, anyone who finds
+the URL can create an account on the server that reaches into customer
+machines, and the URL is printed on the website. Do it in one sitting.
+
+The default is `false`, so a fresh deployment has to open the door deliberately
+rather than arriving with it open.
 
 ## How a support session works
 
