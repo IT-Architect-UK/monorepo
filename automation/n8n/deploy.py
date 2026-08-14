@@ -38,8 +38,6 @@ WORKFLOW_DIR = Path(__file__).parent / "workflows"
 # outright, so it is stripped rather than sent and argued about.
 SENDABLE = ("name", "nodes", "connections", "settings")
 
-ERROR_TRIGGER = "n8n-nodes-base.errorTrigger"
-
 
 def call(method: str, path: str, body=None):
     base = os.environ["N8N_BASE_URL"].rstrip("/")
@@ -79,12 +77,6 @@ def existing_by_name() -> dict:
         cursor = page.get("nextCursor")
         if not cursor:
             return found
-
-
-def is_error_handler(workflow: dict) -> bool:
-    """An Error Trigger workflow is run by n8n when another workflow fails, so
-    it does not need to be — and is not — activated."""
-    return any(n.get("type") == ERROR_TRIGGER for n in workflow.get("nodes", []))
 
 
 def main() -> int:
@@ -133,14 +125,12 @@ def main() -> int:
 
         deployed[name] = wf_id
 
-        if is_error_handler(local):
-            # Activating one is unnecessary; n8n invokes it on failure.
-            print(f"  ✔ {verb}d ({wf_id}) — error handler, not activated")
-        else:
-            # Activate every time. A workflow that exists but is not active
-            # looks deployed and does nothing, which is the worst of both.
-            call("POST", f"/workflows/{wf_id}/activate")
-            print(f"  ✔ {verb}d and activated ({wf_id})")
+        # Activate every time, error handlers included. The Error Trigger docs
+        # say an error workflow does not need publishing; on n8n 2.x that is
+        # wrong — an unpublished workflow does not run, so the handler stayed
+        # silent through a real failure and no alert was sent.
+        call("POST", f"/workflows/{wf_id}/activate")
+        print(f"  ✔ {verb}d and activated ({wf_id})")
 
         if handler_name:
             pending.append((name, payload, handler_name))

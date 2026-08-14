@@ -45,9 +45,9 @@ Two things to know before trying to test it:
 
 - n8n does **not** run error workflows for manual executions. Only a real
   automatic run — a webhook, a schedule — will fire one.
-- A workflow containing an Error Trigger is deliberately not activated. n8n
-  invokes it on failure regardless, and the deploy script skips activation for
-  anything holding that node.
+- The error workflow **must be published**, like any other. n8n's Error Trigger
+  documentation says otherwise, but on 2.x an unpublished workflow does not run
+  and the alert simply never arrives. `deploy.py` activates everything.
 
 ## Setting it up on a new instance
 
