@@ -78,11 +78,20 @@ services:
 
       N8N_DIAGNOSTICS_ENABLED: "false"
 
+      # The image ships a CA bundle, but not every intermediate that public
+      # services present — Microsoft's mail relay is one, and n8n fails STARTTLS
+      # with "unable to get local issuer certificate". Point Node at the host's
+      # bundle, which the distro keeps current, rather than turning certificate
+      # verification off per node.
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+
       # Task runners are deliberately not configured. N8N_RUNNERS_ENABLED is
       # deprecated as of 2.0 and runners now launch internally by default;
       # setting it re-introduces a deprecation warning for no benefit.
     volumes:
       - n8n_data:/home/node/.n8n
+      # Read-only: the container needs to trust these, never to change them.
+      - /etc/ssl/certs:/etc/ssl/certs:ro
 
 volumes:
   n8n_db:

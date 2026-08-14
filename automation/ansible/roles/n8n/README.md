@@ -124,6 +124,18 @@ portable. To move to Proxmox later:
    encryption key.
 3. Repoint DNS.
 
+## TLS to outbound services
+
+The container mounts the host's `/etc/ssl/certs` read-only and sets
+`NODE_EXTRA_CA_CERTS`. Without it, n8n fails STARTTLS to Microsoft's mail relay
+with *"unable to get local issuer certificate"* — the image's bundle does not
+carry every intermediate that public services present.
+
+The tempting fix is the "Ignore SSL Issues (Insecure)" toggle on the node.
+Don't: it stops n8n verifying it is talking to who it thinks, it has to be
+remembered on every future node, and it hides the next certificate problem
+rather than surfacing it.
+
 ## Firewall
 
 This role does not manage the firewall. The espocrm role already owns the
