@@ -1,0 +1,85 @@
+---
+layout: layouts/base.njk
+title: Remote help
+heading: Remote help
+standfirst: Three steps, and we can look at your computer together — with you watching every click.
+description: Download the IT Surgery remote help program so we can look at your computer with you during a support session.
+noindex: true
+excludeFromSitemap: true
+---
+
+{# noindex and excluded from the sitemap on purpose. This page is operational,
+   not marketing — /remote-support/ is the page that sells remote support. It is
+   handed out during a call, and there is no reason for a stranger to find it in
+   a search result. #}
+<section class="section">
+  <div class="container narrow">
+
+    <p class="lead">
+      This page is for customers who are already speaking to us. If you have
+      found it another way, please <a href="/book/">book an appointment</a> or
+      ring us on <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a> first —
+      there is nothing here that helps on its own.
+    </p>
+
+    <ol class="steps">
+      <li>
+        <h2>Download the program</h2>
+        <p>
+          <a class="btn btn-primary" href="{{ '/assets/downloads/IT-Surgery-Remote-Help.exe' | v }}" download>Download IT Surgery Remote Help</a>
+        </p>
+        <p>
+          It is small and downloads in a few seconds. It will appear at the
+          bottom of your browser, or in your <strong>Downloads</strong> folder.
+        </p>
+      </li>
+
+      <li>
+        <h2>Open it</h2>
+        <p>
+          Double-click the file you just downloaded. Windows may show a blue box
+          asking whether you are sure. That is normal for a program it has not
+          seen before — click <strong>More info</strong>, then
+          <strong>Run anyway</strong>. Stay on the phone with us and we will talk
+          you through it.
+        </p>
+      </li>
+
+      <li>
+        <h2>Ask us for help</h2>
+        <p>
+          A small window opens. Click the button to request help, and tell us it
+          has done so. A message will then appear on your screen asking whether
+          you give us permission — nothing happens until you say yes.
+        </p>
+      </li>
+    </ol>
+
+    <h2>What this does, and what it doesn't</h2>
+    <ul class="ticks wide">
+      <li><strong>You watch everything.</strong> Your screen stays in front of you and you see every click we make.</li>
+      <li><strong>You can stop at any time.</strong> Close the window and the connection ends immediately.</li>
+      <li><strong>Nothing stays behind.</strong> This program does not install itself. When we are finished, close it and it is gone.</li>
+      <li><strong>We never need your banking details.</strong> Not your card, not your passwords for money. Nobody legitimate ever will.</li>
+    </ul>
+
+    <div class="cta-panel">
+      <h2>If someone rings you out of the blue</h2>
+      <p>
+        <strong>We will never telephone you unexpectedly and ask you to install
+        anything.</strong> If someone claims to be from IT Surgery, or from
+        Microsoft, and asks you to download something, put the phone down. Then
+        ring us yourself on <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a>
+        and we will tell you whether it was really us.
+      </p>
+    </div>
+
+    <h2>Stuck?</h2>
+    <p>
+      Ring us on <a href="tel:{{ site.phoneLink }}">{{ site.phoneDisplay }}</a> or
+      <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>.
+      There is no such thing as a daft question here.
+    </p>
+
+  </div>
+</section>

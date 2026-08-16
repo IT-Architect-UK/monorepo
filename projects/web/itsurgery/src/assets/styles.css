@@ -993,3 +993,47 @@ input:focus-visible, textarea:focus-visible {
   .band-list li { padding: 0.12rem 0; font-size: 9pt; }
   a[href]::after { content: ""; }
 }
+
+/* Numbered steps on /remote-help/.
+   Large, well separated numerals: this page is read by someone who is already
+   flustered, often on the phone, and the ordering has to be unmistakable at a
+   glance. The default list marker is far too quiet for that. */
+.steps {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+  counter-reset: step;
+}
+
+.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 3.75rem;
+  margin-bottom: 2.5rem;
+}
+
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--brand-solid);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.steps > li > h2 {
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 480px) {
+  .steps > li { padding-left: 3.25rem; }
+  .steps > li::before { width: 2.4rem; height: 2.4rem; font-size: 1.2rem; }
+}
