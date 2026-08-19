@@ -79,6 +79,68 @@ def existing_by_name() -> dict:
             return found
 
 
+# Fields we set ourselves. Anything else n8n attaches on read — ids,
+# timestamps, versionId, default settings — is none of our business and
+# comparing it would fail every run until somebody switched the check off.
+VERIFIED_NODE_FIELDS = (
+    "type", "typeVersion", "parameters", "credentials", "onError", "disabled",
+)
+
+
+def _clean_connections(conns: dict) -> dict:
+    """Drop empty output slots so a trailing [] does not read as a difference."""
+    out = {}
+    for src, spec in (conns or {}).items():
+        outputs = [o for o in spec.get("main", [])]
+        while outputs and not outputs[-1]:
+            outputs.pop()
+        out[src] = [[{"node": c["node"], "index": c.get("index", 0)} for c in o] for o in outputs]
+    return out
+
+
+def drift(sent: dict, live: dict) -> list:
+    """Everything the instance disagrees with us about, in plain English.
+
+    Only what we asserted is checked. A green deploy has to mean 'the live
+    workflow matches this repository' — before this existed it meant no more
+    than 'the API accepted the request', and a node silently failed to deploy
+    for five days behind a series of green ticks.
+    """
+    problems = []
+
+    live_nodes = {n["name"]: n for n in live.get("nodes", [])}
+    for node in sent.get("nodes", []):
+        name = node["name"]
+        there = live_nodes.get(name)
+        if there is None:
+            problems.append(f"node '{name}' is missing from the live workflow")
+            continue
+        for field in VERIFIED_NODE_FIELDS:
+            if field not in node:
+                continue
+            if there.get(field) != node[field]:
+                problems.append(
+                    f"node '{name}' field '{field}': sent {node[field]!r}, "
+                    f"live {there.get(field)!r}"
+                )
+
+    extra = set(live_nodes) - {n["name"] for n in sent.get("nodes", [])}
+    for name in sorted(extra):
+        problems.append(f"node '{name}' exists live but not in this repository")
+
+    if _clean_connections(sent.get("connections")) != _clean_connections(live.get("connections")):
+        problems.append("connections differ from the repository")
+
+    live_settings = live.get("settings") or {}
+    for key, value in (sent.get("settings") or {}).items():
+        if live_settings.get(key) != value:
+            problems.append(
+                f"setting '{key}': sent {value!r}, live {live_settings.get(key)!r}"
+            )
+
+    return problems
+
+
 def main() -> int:
     dry_run = "--dry-run" in sys.argv
 
@@ -96,6 +158,7 @@ def main() -> int:
 
     deployed = {}   # name -> id on this instance
     pending = []    # workflows whose error handler still needs resolving
+    sent = {}       # name -> (id, payload) — what we asserted, for the read-back
 
     for path in files:
         local = json.loads(path.read_text())
@@ -124,6 +187,7 @@ def main() -> int:
             wf_id = call("POST", "/workflows", payload)["id"]
 
         deployed[name] = wf_id
+        sent[name] = payload
 
         # Activate every time, error handlers included. The Error Trigger docs
         # say an error workflow does not need publishing; on n8n 2.x that is
@@ -144,7 +208,29 @@ def main() -> int:
             )
         payload["settings"]["errorWorkflow"] = target
         call("PUT", f"/workflows/{deployed[name]}", payload)
+        sent[name] = payload
         print(f"{name}: errors go to '{handler_name}' ({target})")
+
+    # --- read back and prove it ------------------------------------------
+    print()
+    failures = 0
+    for name, payload in sent.items():
+        live = call("GET", f"/workflows/{deployed[name]}")
+        problems = drift(payload, live)
+        if problems:
+            failures += 1
+            print(f"DRIFT  {name}")
+            for p in problems:
+                print(f"       {p}")
+        else:
+            print(f"verified  {name}")
+
+    if failures:
+        raise SystemExit(
+            f"\n{failures} workflow(s) do not match this repository. The API "
+            f"accepted the change but the instance is serving something else — "
+            f"do not trust a green deploy until this is resolved."
+        )
 
     return 0
 

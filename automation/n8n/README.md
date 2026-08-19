@@ -73,6 +73,22 @@ fixing up the ids — the sync script matches workflows by name but does not yet
 do the same for credentials. Worth building when there is a second instance to
 build it against.
 
+## Why a green deploy can be trusted
+
+The last step of every deploy reads each workflow back from n8n and compares it
+with the file that was just sent — node by node, plus connections and the
+settings we set. Any difference fails the build and names the field.
+
+This exists because it was needed. On 14 August a node was added to the cancel
+branch, the deploy went green, and the node never appeared on the instance. Five
+further deploys stayed green. It surfaced on 19 August only because a real
+cancelled booking failed to raise its alert — the API had been accepting every
+request and reporting success, which is not the same as applying it.
+
+The check asserts only what we set. Ids, timestamps, `versionId` and n8n's own
+default settings are ignored: comparing those would fail on every run and the
+check would be switched off within a week.
+
 ## Running it by hand
 
 ```bash
