@@ -476,8 +476,8 @@
       ],
       "id": "void-invoice",
       "name": "Void invoice",
-      "notes": "Xero cannot void a PAID invoice, so a failure here means the customer has already paid and a refund decision is needed. The error output raises the alert; both outputs still reach Mark not held.",
-      "onError": "continueErrorOutput",
+      "notes": "Xero cannot void a PAID invoice, so a failure here means the customer has already paid and a refund decision is needed. Continues on the NORMAL output carrying the error in the item — the dedicated error output was tried and did not route reliably on this instance, so the next node decides instead.",
+      "onError": "continueRegularOutput",
       "credentials": {
         "xeroOAuth2Api": {
           "id": "DCxryEtuSrcWPmFu",
@@ -499,7 +499,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        40,
+        500,
         260
       ],
       "id": "mark-not-held",
@@ -523,8 +523,8 @@
       "type": "n8n-nodes-base.microsoftOutlook",
       "typeVersion": 2,
       "position": [
-        -180,
-        460
+        260,
+        400
       ],
       "id": "alert-refund-needed",
       "name": "Alert refund needed",
@@ -535,6 +535,42 @@
           "name": "Microsoft 365 — help@itsurgery.me"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "void-errored",
+              "leftValue": "={{ $json.error !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        40,
+        260
+      ],
+      "id": "did-void-fail",
+      "name": "Did the void fail?",
+      "notes": "Branching on the data rather than on n8n's error output. The success path has never misbehaved here; the error output has. 'error' is present on the item only when the HTTP node failed and passed the failure along."
     }
   ],
   "connections": {
@@ -684,14 +720,7 @@
       "main": [
         [
           {
-            "node": "Mark not held",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Alert refund needed",
+            "node": "Did the void fail?",
             "type": "main",
             "index": 0
           }
@@ -700,6 +729,24 @@
     },
     "Alert refund needed": {
       "main": [
+        [
+          {
+            "node": "Mark not held",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Did the void fail?": {
+      "main": [
+        [
+          {
+            "node": "Alert refund needed",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Mark not held",
