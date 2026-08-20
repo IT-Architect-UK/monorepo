@@ -499,8 +499,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        500,
-        260
+        1800,
+        180
       ],
       "id": "mark-not-held",
       "name": "Mark not held",
@@ -508,31 +508,6 @@
         "httpHeaderAuth": {
           "id": "sOse4EsI4Hy6KYi6",
           "name": "EspoCRM — crm.itsurgery.me"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "toRecipients": "darren.pilkington@it-architect.uk",
-        "subject": "=Refund needed — {{ $('Cal.com booking').item.json.body.payload.attendees[0].name }} cancelled a paid booking",
-        "bodyContent": "=<p><strong>{{ $('Cal.com booking').item.json.body.payload.attendees[0].name }}</strong> ({{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}) has cancelled their booking for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }}.</p><p>The £5 booking fee invoice could <strong>not</strong> be voided, which means it has already been paid.</p><p style=\\\"font-size:16px\\\"><strong>{{ Math.round(DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).diff($now, 'hours').hours) }} hours' notice — {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).diff($now, 'hours').hours >= 24 ? 'a refund is due under your booking terms.' : 'you may keep the fee under your booking terms.' }}</strong></p><p>Cancelled by: {{ $('Cal.com booking').item.json.body.payload.cancelledBy }}<br>Reason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}</p><p>Invoice ID: {{ $('Find meeting to cancel').item.json.list[0].cInvoiceId }}<br><a href=\\\"{{ $('Find meeting to cancel').item.json.list[0].cPayUrl }}\\\">Open the invoice in Xero</a></p>",
-        "additionalFields": {
-          "bodyContentType": "html"
-        }
-      },
-      "type": "n8n-nodes-base.microsoftOutlook",
-      "typeVersion": 2,
-      "position": [
-        260,
-        400
-      ],
-      "id": "alert-refund-needed",
-      "name": "Alert refund needed",
-      "notes": "States the verdict rather than the facts. The booking terms give a full refund at 24 hours' notice or more and let us keep the fee below that, so the workflow knows the answer — leaving Darren to work it out from a start time is work a machine should have done.",
-      "credentials": {
-        "microsoftOutlookOAuth2Api": {
-          "id": "vFBlY5YMFquusk6v",
-          "name": "Microsoft 365 — help@itsurgery.me"
         }
       }
     },
@@ -571,6 +546,284 @@
       "id": "did-void-fail",
       "name": "Did the void fail?",
       "notes": "Branching on the data rather than on n8n's error output. The success path has never misbehaved here; the error output has. 'error' is present on the item only when the HTTP node failed and passed the failure along."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.xero.com/api.xro/2.0/Invoices/{{ $('Find meeting to cancel').item.json.list[0].cInvoiceId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        260,
+        180
+      ],
+      "id": "get-the-invoice",
+      "name": "Get the invoice",
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      },
+      "notes": "The invoice knows which payment settled it, and the payment knows the Stripe charge."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.xero.com/api.xro/2.0/Payments/{{ $json.Invoices[0].Payments[0].PaymentID }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        480,
+        180
+      ],
+      "id": "get-the-payment",
+      "name": "Get the payment",
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      },
+      "notes": "Reference holds the Stripe charge id (ch_...) and Account holds the bank account it landed in. Both are read rather than hardcoded, so the refund always reverses the charge that paid THIS invoice and books it against the same account."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "refund-due",
+              "leftValue": "={{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).diff($now, 'hours').hours >= 24 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        700,
+        180
+      ],
+      "id": "refund-due",
+      "name": "Refund due?",
+      "notes": "The booking terms: 24 hours' notice or more and the fee goes back; less and we keep it. Encoded here so the rule is applied the same way every time."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/refunds",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "stripeApi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "charge",
+              "value": "={{ ($('Get the payment').item.json.Payments[0].Reference || '').match(/ch_[A-Za-z0-9]+/)?.[0] }}"
+            },
+            {
+              "name": "reason",
+              "value": "requested_by_customer"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        920,
+        80
+      ],
+      "id": "refund-in-stripe",
+      "name": "Refund in Stripe",
+      "credentials": {
+        "stripeApi": {
+          "id": "IQG0FuA3WWRhOICU",
+          "name": "Stripe — IT Surgery"
+        }
+      },
+      "notes": "Money first, books second. If this succeeds and Xero then fails, the ledger lags by minutes and the error alert says so. The other order would have the accounts claiming a refund that never left. The charge id is extracted with a regex so a reference carrying extra text cannot send the wrong value to Stripe."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.xero.com/api.xro/2.0/CreditNotes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"Type\": \"ACCRECCREDIT\", \"Contact\": {\"ContactID\": \"{{ $('Get the invoice').item.json.Invoices[0].Contact.ContactID }}\"}, \"Date\": \"{{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"Reference\": \"Refund — booking cancelled\", \"LineAmountTypes\": \"Inclusive\", \"Status\": \"AUTHORISED\", \"LineItems\": [{\"Description\": \"Refund of booking fee — Remote Support Session\", \"Quantity\": 1, \"UnitAmount\": {{ $json.amount / 100 }}, \"AccountCode\": \"200\", \"TaxType\": \"OUTPUT2\"}]}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1140,
+        80
+      ],
+      "id": "credit-note",
+      "name": "Credit note",
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      },
+      "notes": "Stripe reports minor units, so 500 becomes 5.00. Mirrors the original invoice line so the VAT reverses correctly."
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://api.xero.com/api.xro/2.0/Payments",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"CreditNote\": {\"CreditNoteID\": \"{{ $json.CreditNotes[0].CreditNoteID }}\"}, \"Account\": {\"AccountID\": \"{{ $('Get the payment').item.json.Payments[0].Account.AccountID }}\"}, \"Date\": \"{{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"Amount\": {{ $('Refund in Stripe').item.json.amount / 100 }}, \"Reference\": \"Stripe refund {{ $('Refund in Stripe').item.json.id }}\"}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1360,
+        80
+      ],
+      "id": "post-the-refund",
+      "name": "Post the refund",
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      },
+      "notes": "Xero's documented way to refund a credit note is a payment against it. Same bank account as the original receipt, and the Stripe refund id in the reference so the bank line reconciles without detective work."
+    },
+    {
+      "parameters": {
+        "toRecipients": "darren.pilkington@it-architect.uk",
+        "subject": "=Refunded £{{ $('Refund in Stripe').item.json.amount / 100 }} — {{ $('Cal.com booking').item.json.body.payload.attendees[0].name }} cancelled",
+        "bodyContent": "=<p><strong>{{ $('Cal.com booking').item.json.body.payload.attendees[0].name }}</strong> ({{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}) cancelled their booking for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }} with {{ Math.round(DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).diff($now, 'hours').hours) }} hours' notice.</p><p><strong>£{{ $('Refund in Stripe').item.json.amount / 100 }} has been refunded to their card</strong> and a credit note raised in Xero. Nothing further to do.</p><p>Reason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}<br>Stripe refund: {{ $('Refund in Stripe').item.json.id }}</p>",
+        "additionalFields": {
+          "bodyContentType": "html"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        80
+      ],
+      "id": "alert-refunded",
+      "name": "Alert refunded",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "vFBlY5YMFquusk6v",
+          "name": "Microsoft 365 — help@itsurgery.me"
+        }
+      },
+      "notes": "Tells him what happened, not what to do. There is no action left."
+    },
+    {
+      "parameters": {
+        "toRecipients": "darren.pilkington@it-architect.uk",
+        "subject": "=Late cancellation — fee retained — {{ $('Cal.com booking').item.json.body.payload.attendees[0].name }}",
+        "bodyContent": "=<p><strong>{{ $('Cal.com booking').item.json.body.payload.attendees[0].name }}</strong> ({{ $('Cal.com booking').item.json.body.payload.attendees[0].email }}) cancelled their booking for {{ DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).setZone('Europe/London').toFormat('dd MMM yyyy HH:mm') }} with only {{ Math.round(DateTime.fromISO($('Cal.com booking').item.json.body.payload.startTime).diff($now, 'hours').hours) }} hours' notice.</p><p><strong>No refund has been made</strong> — under your booking terms the fee is retained below 24 hours' notice. Nothing has been sent to Stripe.</p><p>Reason given: {{ $('Cal.com booking').item.json.body.payload.cancellationReason }}</p><p>If you would rather refund them anyway, do it in Stripe and raise a credit note in Xero so the books match.</p>",
+        "additionalFields": {
+          "bodyContentType": "html"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        920,
+        300
+      ],
+      "id": "alert-fee-kept",
+      "name": "Alert fee kept",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "vFBlY5YMFquusk6v",
+          "name": "Microsoft 365 — help@itsurgery.me"
+        }
+      },
+      "notes": "Deliberately does nothing automatically. Refunding a late cancellation is a goodwill decision, and goodwill is not a rule a workflow should apply on its own."
     }
   ],
   "connections": {
@@ -727,7 +980,98 @@
         ]
       ]
     },
-    "Alert refund needed": {
+    "Did the void fail?": {
+      "main": [
+        [
+          {
+            "node": "Get the invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark not held",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get the invoice": {
+      "main": [
+        [
+          {
+            "node": "Get the payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get the payment": {
+      "main": [
+        [
+          {
+            "node": "Refund due?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refund due?": {
+      "main": [
+        [
+          {
+            "node": "Refund in Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert fee kept",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refund in Stripe": {
+      "main": [
+        [
+          {
+            "node": "Credit note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Credit note": {
+      "main": [
+        [
+          {
+            "node": "Post the refund",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post the refund": {
+      "main": [
+        [
+          {
+            "node": "Alert refunded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert refunded": {
       "main": [
         [
           {
@@ -738,15 +1082,8 @@
         ]
       ]
     },
-    "Did the void fail?": {
+    "Alert fee kept": {
       "main": [
-        [
-          {
-            "node": "Alert refund needed",
-            "type": "main",
-            "index": 0
-          }
-        ],
         [
           {
             "node": "Mark not held",
