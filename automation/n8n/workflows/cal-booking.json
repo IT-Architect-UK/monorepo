@@ -690,7 +690,7 @@
       "credentials": {
         "stripeApi": {
           "id": "IQG0FuA3WWRhOICU",
-          "name": "Stripe — IT Surgery"
+          "name": "Stripe account"
         }
       },
       "notes": "Money first, books second. If this succeeds and Xero then fails, the ledger lags by minutes and the error alert says so. The other order would have the accounts claiming a refund that never left. The charge id is extracted with a regex so a reference carrying extra text cannot send the wrong value to Stripe."

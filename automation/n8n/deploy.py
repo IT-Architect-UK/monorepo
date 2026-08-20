@@ -118,10 +118,17 @@ def drift(sent: dict, live: dict) -> list:
         for field in VERIFIED_NODE_FIELDS:
             if field not in node:
                 continue
-            if there.get(field) != node[field]:
+            sent_value, live_value = node[field], there.get(field)
+            if field == "credentials":
+                # Compare which credential is attached, not what it is called.
+                # The id is the functional link; the name is a label anyone can
+                # change in the UI, and a rename should not fail a deploy.
+                sent_value = {k: v.get("id") for k, v in (sent_value or {}).items()}
+                live_value = {k: v.get("id") for k, v in (live_value or {}).items()}
+            if live_value != sent_value:
                 problems.append(
-                    f"node '{name}' field '{field}': sent {node[field]!r}, "
-                    f"live {there.get(field)!r}"
+                    f"node '{name}' field '{field}': sent {sent_value!r}, "
+                    f"live {live_value!r}"
                 )
 
     extra = set(live_nodes) - {n["name"] for n in sent.get("nodes", [])}

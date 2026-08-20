@@ -27,6 +27,7 @@ delete the orphan.
 | `cal-booking.json` | Cal.com webhooks | Creates or updates the customer and meeting in EspoCRM, raises the £5 Xero invoice, and handles reschedules and cancellations |
 | `cal-get-pay-link.json` | The `/booked/` page on itsurgery.me | Returns the Xero payment link for a booking, which the page polls for while the invoice is being raised |
 | `error-alert.json` | n8n itself, when another workflow fails | Emails the failure to Darren. Never runs on its own |
+| `dashboard.json` | Darren, in a browser | The business dashboard — money, upcoming bookings, unpaid invoices |
 
 ## When something fails
 
@@ -72,6 +73,28 @@ therefore means creating credentials with the same names on their instance and
 fixing up the ids — the sync script matches workflows by name but does not yet
 do the same for credentials. Worth building when there is a second instance to
 build it against.
+
+## Why the dashboard is served by n8n, not Netlify
+
+The obvious home for a dashboard is the website — same repo, same deploy,
+`dash.itsurgery.me` and a certificate for free. We chose n8n instead, and the
+reason is worth remembering before anyone moves it.
+
+The dashboard reads EspoCRM, Xero and Stripe, and will later issue refunds.
+n8n already holds all of those credentials. Served from n8n, the page is built
+on the server and arrives at the browser as finished HTML — the browser never
+holds a key, there is no cross-origin call, and the login is n8n's own basic
+auth rather than something we would have to build and maintain.
+
+Served from Netlify, the page would be public, every n8n endpoint behind it
+would need its own authentication, and anything the page knows a visitor also
+knows. That is all solvable, but it is a login system, CORS configuration and a
+second place for secrets to live — in exchange for a nicer address.
+
+TLS is not a factor either way: n8n has a Let's Encrypt certificate already.
+
+If a prettier address matters later, put `dash.itsurgery.me` in front of the
+n8n webhook with nginx. That keeps the security model and changes only the URL.
 
 ## Why a green deploy can be trusted
 
