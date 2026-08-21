@@ -90,6 +90,13 @@ const TYPE_LABELS = {
   business: 'Business IT',
 };
 
+// Same idea as TYPE_LABELS: the form posts a value, a human reads the lead.
+const WHERE_LABELS = {
+  either: 'whichever is easier',
+  remote: 'remote support',
+  onsite: 'a visit',
+};
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method not allowed' };
@@ -128,6 +135,9 @@ exports.handler = async (event) => {
 
   const notes = [];
   if (data.type) notes.push(`Enquiry type: ${TYPE_LABELS[data.type] || data.type}`);
+  if (data.kit) notes.push(`Equipment: ${data.kit}`);
+  if (data.where) notes.push(`Prefers: ${WHERE_LABELS[data.where] || data.where}`);
+  if (data.deadline) notes.push(`Needed by: ${data.deadline}`);
   if (data.when) notes.push(`Best time to call: ${data.when}`);
   if (data.problem) notes.push('', data.problem);
 

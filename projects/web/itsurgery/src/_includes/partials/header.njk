@@ -2,7 +2,7 @@
    actions on the right. The toggle sits apart from the contact buttons on
    purpose — it looks different because it does a different kind of thing, and
    grouping it with them made it read as a fourth broken button.
-   Contact Us sits where the phone number used to, because that slot is the one
+   Get a Quote sits where the phone number used to, because that slot is the one
    people look at first and the form is now the channel we want them to use.
    "Quote Request" was removed from the left nav — it pointed at the same page,
    and two differently-worded links to one destination is a reason to hesitate. #}
@@ -31,7 +31,7 @@
     </div>
     <nav class="utility-contact" aria-label="Contact us">
       <a class="ubtn" href="/book/"{% if page.url == "/book/" %} aria-current="page"{% endif %}>Book</a>
-      <a class="ubtn" href="/quote/"{% if page.url == "/quote/" %} aria-current="page"{% endif %}>Contact Us</a>
+      <a class="ubtn" href="/quote/"{% if page.url == "/quote/" %} aria-current="page"{% endif %}>Get a Quote</a>
       <a class="ubtn" href="https://wa.me/{{ site.whatsapp }}?text=Hello%2C%20I%27d%20like%20some%20help%20with%20an%20IT%20problem" target="_blank" rel="noopener">WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
     </nav>
   </div>

@@ -2,7 +2,7 @@
 layout: layouts/base.njk
 title: Quote Request
 heading: Quote Request
-standfirst: Tell us what you need and we'll come back to you with a clear price. Not sure how to describe it? Just ask for a callback.
+standfirst: Tell us what you need — a one-off job, a bigger project, or something you cannot quite describe — and we will come back to you with a clear price.
 description: Request a quote or a callback from IT Surgery — friendly IT help for homes and small businesses in Penarth, Barry and Cardiff. No obligation.
 ---
 
@@ -27,7 +27,7 @@ description: Request a quote or a callback from IT Surgery — friendly IT help 
 
     {# Handled by Netlify Forms — no server or backend needed. #}
     <div class="form-wrap">
-      <h2>Request a quote or callback</h2>
+      <h2>Tell us about the job</h2>
       {#
         Netlify Forms. Two things are required for this to work:
         1. "Enable form detection" must be turned on in the Netlify UI
@@ -73,6 +73,25 @@ description: Request a quote or a callback from IT Surgery — friendly IT help 
           <textarea id="problem" name="problem" rows="5"
             placeholder="A sentence or two is plenty — for example: my laptop has become very slow."></textarea>
         </div>
+
+        <div class="field">
+          <label for="kit">What is it? <span class="optional">(optional)</span></label>
+          <input id="kit" name="kit" type="text"
+            placeholder="e.g. one Windows laptop, or four office PCs and a printer" />
+        </div>
+
+        <div class="field">
+          <label for="deadline">When do you need it by? <span class="optional">(optional)</span></label>
+          <input id="deadline" name="deadline" type="text"
+            placeholder="e.g. this week, or before we move office on the 3rd" />
+        </div>
+
+        <fieldset class="field">
+          <legend>Where would suit you?</legend>
+          <label class="radio"><input type="radio" name="where" value="either" checked /> Whichever is easier</label>
+          <label class="radio"><input type="radio" name="where" value="remote" /> Remotely, over the internet</label>
+          <label class="radio"><input type="radio" name="where" value="onsite" /> At my home or office</label>
+        </fieldset>
 
         <div class="field">
           <label for="when">Best time to call you <span class="optional">(optional)</span></label>
