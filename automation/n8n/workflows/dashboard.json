@@ -12,48 +12,49 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -620,
+        -900,
         0
       ],
       "id": "dashboard-webhook",
       "name": "Open the dashboard",
       "webhookId": "c4e1f7a9-2b83-4d16-9f52-71ac3e5b8d40",
-      "notes": "Served by n8n rather than Netlify on purpose — see the README. n8n holds every credential already, so the page is built server-side and the browser never sees a secret.",
       "credentials": {
         "httpBasicAuth": {
           "id": "Hi3G6E9Nx9HDAY2D",
           "name": "Dashboard login"
         }
-      }
+      },
+      "notes": "Served by n8n, not Netlify — see the README."
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://crm.itsurgery.me/api/v1/Meeting?maxSize=20&orderBy=dateStart&order=asc&where[0][type]=after&where[0][attribute]=dateStart&where[0][value]={{ $now.minus({ hours: 2 }).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}",
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting?maxSize=50&orderBy=dateStart&order=desc&where[0][type]=after&where[0][attribute]=dateStart&where[0][value]={{ $now.minus({ days: 30 }).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}",
+        "options": {},
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "genericAuthType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        -380,
+        -680,
         0
       ],
       "id": "fetch-meetings",
-      "name": "Upcoming bookings",
+      "name": "Bookings",
       "credentials": {
         "httpHeaderAuth": {
           "id": "sOse4EsI4Hy6KYi6",
           "name": "EspoCRM — crm.itsurgery.me"
         }
       },
-      "notes": "Two hours back rather than from now, so a session already under way is still on screen while you are in it."
+      "notes": "Thirty days back as well as forward: the page needs recent history to show what was cancelled and what has been done, not just what is next."
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "https://api.xero.com/api.xro/2.0/Invoices?where=Status%3D%3D%22AUTHORISED%22%20AND%20Type%3D%3D%22ACCREC%22&order=Date%20DESC",
+        "url": "https://api.xero.com/api.xro/2.0/Invoices?where=Type%3D%3D%22ACCREC%22&order=Date%20DESC",
+        "options": {},
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "xeroOAuth2Api",
         "sendHeaders": true,
@@ -68,37 +69,36 @@
               "value": "application/json"
             }
           ]
-        },
-        "options": {}
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        -160,
+        -460,
         0
       ],
-      "id": "fetch-unpaid",
-      "name": "Awaiting payment",
+      "id": "fetch-invoices",
+      "name": "Invoices",
       "credentials": {
         "xeroOAuth2Api": {
           "id": "DCxryEtuSrcWPmFu",
           "name": "Xero — IT Solution Architecture Ltd"
         }
       },
-      "notes": "Raised but unpaid. This is the gap nothing could see before: somebody booked, took the slot, and never paid."
+      "notes": "Filtered by month in code rather than in a Xero where clause — one fewer piece of syntax to get wrong, and the volume is tiny."
     },
     {
       "parameters": {
         "method": "GET",
         "url": "https://api.stripe.com/v1/balance",
+        "options": {},
         "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "stripeApi",
-        "options": {}
+        "nodeCredentialType": "stripeApi"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        60,
+        -240,
         0
       ],
       "id": "fetch-balance",
@@ -108,22 +108,138 @@
           "id": "IQG0FuA3WWRhOICU",
           "name": "Stripe account"
         }
-      },
-      "notes": "Available is what you can spend; pending is money taken that Stripe has not settled yet. Different numbers, and the difference matters at month end."
+      }
     },
     {
       "parameters": {
-        "jsCode": "// The page is assembled here rather than in a template node: one place to\n// read, and the shape of each system's response is documented by the code\n// that unpicks it.\n\nconst meetings = ($('Upcoming bookings').first().json.list) || [];\nconst invoices = ($('Awaiting payment').first().json.Invoices) || [];\nconst balance  = $('Stripe balance').first().json || {};\n\nconst money = (n) => '£' + Number(n || 0).toFixed(2);\n\n// Everything below came from outside this system. A customer's name is user\n// input like any other, and it is going into HTML.\nconst esc = (s) => String(s == null ? '' : s)\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n\nconst when = (raw) => {\n  if (!raw) return '';\n  const iso = String(raw).replace(' ', 'T');\n  const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');\n  return isNaN(d) ? '' : d.toLocaleString('en-GB', { weekday: 'short', day: 'numeric',\n    month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });\n};\n\n// Stripe reports minor units, per currency.\nconst sum = (arr) => (arr || []).reduce((t, b) => t + (b.amount || 0), 0) / 100;\n\nconst bookingRows = meetings.length\n  ? meetings.map(m => `<tr><td>${esc(when(m.dateStart))}</td><td>${esc(m.name)}</td>` +\n      `<td>${esc(m.status)}</td></tr>`).join('')\n  : '<tr><td colspan=\"3\" class=\"quiet\">Nothing booked.</td></tr>';\n\nconst unpaidRows = invoices.length\n  ? invoices.map(i => `<tr><td>${esc(i.InvoiceNumber)}</td>` +\n      `<td>${esc(i.Contact && i.Contact.Name)}</td>` +\n      `<td>${money(i.AmountDue)}</td></tr>`).join('')\n  : '<tr><td colspan=\"3\" class=\"quiet\">Everything is paid.</td></tr>';\n\nconst html = `<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<meta name=\"robots\" content=\"noindex\">\n<title>IT Surgery — Dashboard</title>\n<style>\n :root{--brand:#990000;--ink:#222;--quiet:#5a6068;--line:#dcdfe3;--bg:#f4f5f7}\n *{box-sizing:border-box}\n body{margin:0;background:var(--bg);color:var(--ink);\n   font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}\n header{background:var(--brand);color:#fff;padding:1rem 1.25rem}\n header h1{margin:0;font-size:1.15rem}\n header p{margin:.25rem 0 0;opacity:.85;font-size:.85rem}\n main{padding:1rem;max-width:900px;margin:0 auto}\n .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:1rem;margin-bottom:1rem}\n .card h2{margin:0 0 .75rem;font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;color:var(--quiet)}\n .figs{display:flex;gap:2rem;flex-wrap:wrap}\n .fig strong{display:block;font-size:1.75rem;line-height:1.2}\n .fig span{font-size:.8rem;color:var(--quiet)}\n table{width:100%;border-collapse:collapse}\n td,th{text-align:left;padding:.45rem 0;border-bottom:1px solid var(--line);font-size:.92rem}\n th{font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--quiet)}\n tr:last-child td{border-bottom:0}\n .quiet{color:var(--quiet)}\n</style></head><body>\n<header><h1>IT Surgery</h1><p>${esc(when(new Date().toISOString()))}</p></header>\n<main>\n  <div class=\"card\"><h2>Money</h2><div class=\"figs\">\n    <div class=\"fig\"><strong>${money(sum(balance.available))}</strong><span>available in Stripe</span></div>\n    <div class=\"fig\"><strong>${money(sum(balance.pending))}</strong><span>pending</span></div>\n    <div class=\"fig\"><strong>${invoices.length}</strong><span>awaiting payment</span></div>\n  </div></div>\n  <div class=\"card\"><h2>Coming up</h2>\n    <table><tr><th>When</th><th>What</th><th>Status</th></tr>${bookingRows}</table></div>\n  <div class=\"card\"><h2>Awaiting payment</h2>\n    <table><tr><th>Invoice</th><th>Who</th><th>Due</th></tr>${unpaidRows}</table></div>\n</main></body></html>`;\n\nreturn [{ json: { html } }];"
+        "method": "GET",
+        "url": "https://api.stripe.com/v1/payouts?limit=1",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "stripeApi"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -20,
+        0
+      ],
+      "id": "fetch-payout",
+      "name": "Next payout",
+      "credentials": {
+        "stripeApi": {
+          "id": "IQG0FuA3WWRhOICU",
+          "name": "Stripe account"
+        }
+      },
+      "notes": "What actually lands in Starling, and when. Revenue and cash are not the same number."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://itsurgery.me/",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        200,
+        -160
+      ],
+      "id": "check-site",
+      "name": "Website up?",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://crm.itsurgery.me/",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        200,
+        0
+      ],
+      "id": "check-crm",
+      "name": "CRM up?",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://help.itsurgery.me/",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        200,
+        160
+      ],
+      "id": "check-mesh",
+      "name": "Remote help up?",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/IT-Architect-UK/monorepo/actions/runs?per_page=1",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        420,
+        0
+      ],
+      "id": "fetch-deploy",
+      "name": "Last deploy",
+      "onError": "continueRegularOutput",
+      "notes": "Public repository, so no token needed. Tells the page whether the last push to main actually deployed."
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// One place that turns four systems into a page. Each block says what it is\n// reading and why, because the shape of these responses is the only\n// documentation of them we have.\n\nconst esc = (s) => String(s == null ? '' : s)\n  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');\nconst money = (n) => '£' + Number(n || 0).toFixed(2);\nconst num = (n) => Number(n || 0).toFixed(2);\n\nconst safe = (name, path, fallback) => {\n  try {\n    let v = $(name).first().json;\n    for (const k of path) v = v?.[k];\n    return v === undefined || v === null ? fallback : v;\n  } catch (e) { return fallback; }\n};\n\n// --- bookings -------------------------------------------------------------\nconst meetings = safe('Bookings', ['list'], []) || [];\nconst parse = (raw) => {\n  if (!raw) return null;\n  const iso = String(raw).replace(' ', 'T');\n  const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');\n  return isNaN(d) ? null : d;\n};\nconst fmt = (d, opts) => d ? d.toLocaleString('en-GB',\n  Object.assign({ timeZone: 'Europe/London' }, opts)) : '';\nconst now = new Date();\nconst endOfToday = new Date(now); endOfToday.setHours(23,59,59,999);\n\nconst withDate = meetings.map(m => ({ m, d: parse(m.dateStart) })).filter(x => x.d);\nconst today = withDate.filter(x => x.d >= new Date(now.getTime() - 2*3600*1000) && x.d <= endOfToday)\n                      .sort((a,b) => a.d - b.d);\nconst soon  = withDate.filter(x => x.d > endOfToday).sort((a,b) => a.d - b.d).slice(0, 6);\nconst joinOf = (m) => (String(m.description || '').match(/Join:\\s*(\\S+)/) || [])[1] || '';\n\n// --- money ----------------------------------------------------------------\nconst invoices = safe('Invoices', ['Invoices'], []) || [];\nconst monthStart = new Date(now.getFullYear(), now.getMonth(), 1);\nconst invDate = (i) => parse((i.DateString || '').slice(0,19)) || parse(i.Date);\nconst thisMonth = invoices.filter(i => { const d = invDate(i); return d && d >= monthStart; });\nconst invoiced = thisMonth.reduce((t,i) => t + Number(i.Total || 0), 0);\nconst paid = thisMonth.reduce((t,i) => t + Number(i.AmountPaid || 0), 0);\nconst unpaid = invoices.filter(i => i.Status === 'AUTHORISED' && Number(i.AmountDue) > 0);\nconst owed = unpaid.reduce((t,i) => t + Number(i.AmountDue || 0), 0);\n\nconst sum = (arr) => (arr || []).reduce((t,b) => t + (b.amount || 0), 0) / 100;\nconst available = sum(safe('Stripe balance', ['available'], []));\nconst pending = sum(safe('Stripe balance', ['pending'], []));\nconst payout = (safe('Next payout', ['data'], []) || [])[0];\n\n// --- health ---------------------------------------------------------------\nconst up = (name) => {\n  const code = safe(name, ['statusCode'], 0);\n  return code >= 200 && code < 400;\n};\nconst deployRun = (safe('Last deploy', ['body','workflow_runs'], []) || [])[0]\n               || (safe('Last deploy', ['workflow_runs'], []) || [])[0];\nconst deployOk = deployRun ? deployRun.conclusion === 'success' : null;\n\n// --- rendering ------------------------------------------------------------\nconst dot = (ok) => `<span class=\"dot ${ok ? 'ok' : 'bad'}\"></span>`;\n\nconst todayRows = today.length ? today.map(({m,d}) => {\n  const join = joinOf(m);\n  return `<tr><td class=\"t\">${esc(fmt(d,{hour:'2-digit',minute:'2-digit'}))}</td>\n    <td>${esc(m.name)}<div class=\"sub\">${esc(m.status)}</div></td>\n    <td class=\"r\">${join ? `<a class=\"btn\" href=\"${esc(join)}\">Join</a>` : ''}</td></tr>`;\n}).join('') : '<tr><td colspan=\"3\" class=\"quiet\">Nothing today.</td></tr>';\n\nconst soonRows = soon.length ? soon.map(({m,d}) =>\n  `<tr><td class=\"t\">${esc(fmt(d,{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}</td>\n   <td>${esc(m.name)}</td><td class=\"r quiet\">${esc(m.status)}</td></tr>`).join('')\n  : '<tr><td colspan=\"3\" class=\"quiet\">Nothing booked.</td></tr>';\n\nconst needRows = unpaid.length ? unpaid.map(i =>\n  `<tr><td>${esc(i.InvoiceNumber)}</td><td>${esc(i.Contact && i.Contact.Name)}</td>\n   <td class=\"r\">${money(i.AmountDue)}</td></tr>`).join('')\n  : '<tr><td colspan=\"3\" class=\"quiet\">Nobody owes you anything.</td></tr>';\n\nconst html = `<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<meta name=\"robots\" content=\"noindex\">\n<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n<link href=\"https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap\" rel=\"stylesheet\">\n<title>IT Surgery — Dashboard</title>\n<style>\n :root{--brand:#990000;--ink:#333;--strong:#222;--quiet:#5a6068;--line:#dcdfe3;--bg:#f4f5f7}\n *{box-sizing:border-box}\n body{margin:0;background:var(--bg);color:var(--ink);\n   font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}\n header{background:#fff;border-bottom:3px solid var(--brand);padding:.85rem 1.25rem;\n   display:flex;align-items:center;gap:.9rem;flex-wrap:wrap}\n header img{height:34px}\n header .when{margin-left:auto;color:var(--quiet);font-size:.85rem}\n main{padding:1rem;max-width:1000px;margin:0 auto}\n h2{font-family:Poppins,sans-serif;font-weight:600;color:var(--strong);\n   margin:0 0 .75rem;font-size:.95rem}\n .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem}\n .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:1rem}\n .figs{display:flex;gap:1.5rem;flex-wrap:wrap}\n .fig strong{display:block;font-family:Poppins,sans-serif;font-size:1.6rem;\n   line-height:1.2;color:var(--strong)}\n .fig span{font-size:.78rem;color:var(--quiet)}\n table{width:100%;border-collapse:collapse}\n td{padding:.5rem 0;border-bottom:1px solid var(--line);font-size:.92rem;vertical-align:top}\n tr:last-child td{border-bottom:0}\n td.t{white-space:nowrap;color:var(--strong);font-weight:600;width:1%;padding-right:.9rem}\n td.r{text-align:right;white-space:nowrap}\n .sub{font-size:.78rem;color:var(--quiet)}\n .quiet{color:var(--quiet)}\n .btn{display:inline-block;background:var(--brand);color:#fff;text-decoration:none;\n   padding:.3rem .7rem;border-radius:6px;font-size:.82rem}\n .dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;margin-right:.45rem}\n .dot.ok{background:#0b6e4f}.dot.bad{background:var(--brand)}\n .health div{padding:.35rem 0;font-size:.9rem}\n @media(max-width:520px){header img{height:28px}}\n</style></head><body>\n<header>\n  <img src=\"https://itsurgery.me/assets/logo.png\" alt=\"IT Surgery\">\n  <span class=\"when\">${esc(fmt(now,{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}))}</span>\n</header>\n<main>\n  <div class=\"card\" style=\"margin-bottom:1rem\">\n    <h2>Money this month</h2>\n    <div class=\"figs\">\n      <div class=\"fig\"><strong>${money(invoiced)}</strong><span>invoiced</span></div>\n      <div class=\"fig\"><strong>${money(paid)}</strong><span>paid</span></div>\n      <div class=\"fig\"><strong>${money(owed)}</strong><span>outstanding</span></div>\n      <div class=\"fig\"><strong>${money(available)}</strong><span>in Stripe</span></div>\n      <div class=\"fig\"><strong>${payout ? money(payout.amount/100) : '—'}</strong>\n        <span>${payout ? 'next payout ' + esc(fmt(new Date(payout.arrival_date*1000),{day:'numeric',month:'short'})) : 'no payout scheduled'}</span></div>\n    </div>\n  </div>\n\n  <div class=\"grid\">\n    <div class=\"card\"><h2>Today</h2><table>${todayRows}</table></div>\n    <div class=\"card\"><h2>Needs you — unpaid</h2><table>${needRows}</table></div>\n    <div class=\"card\"><h2>Coming up</h2><table>${soonRows}</table></div>\n    <div class=\"card health\"><h2>Health</h2>\n      <div>${dot(up('Website up?'))} itsurgery.me</div>\n      <div>${dot(up('CRM up?'))} CRM</div>\n      <div>${dot(up('Remote help up?'))} Remote help</div>\n      <div>${dot(deployOk === true)} Last deploy${deployRun ? ' — ' + esc(String(deployRun.display_title || '').slice(0,40)) : ''}</div>\n    </div>\n  </div>\n</main></body></html>`;\n\nreturn [{ json: { html } }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        280,
+        640,
         0
       ],
       "id": "build-page",
       "name": "Build the page",
-      "notes": "Fed by the last fetch in the chain, not by all three in parallel. n8n runs a node when its first input arrives, so a three-way fan-in built the page before two of the three calls had happened."
+      "notes": "Every value is read through a helper that tolerates a missing field, so one misbehaving system leaves a gap on the page instead of a blank screen."
     },
     {
       "parameters": {
@@ -147,12 +263,11 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        500,
+        860,
         0
       ],
       "id": "serve-page",
-      "name": "Serve it",
-      "notes": "no-store: this page shows money and customer names and should not sit in a browser cache."
+      "name": "Serve it"
     }
   ],
   "connections": {
@@ -160,25 +275,25 @@
       "main": [
         [
           {
-            "node": "Upcoming bookings",
+            "node": "Bookings",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Upcoming bookings": {
+    "Bookings": {
       "main": [
         [
           {
-            "node": "Awaiting payment",
+            "node": "Invoices",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Awaiting payment": {
+    "Invoices": {
       "main": [
         [
           {
@@ -190,6 +305,61 @@
       ]
     },
     "Stripe balance": {
+      "main": [
+        [
+          {
+            "node": "Next payout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Next payout": {
+      "main": [
+        [
+          {
+            "node": "Website up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Website up?": {
+      "main": [
+        [
+          {
+            "node": "CRM up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM up?": {
+      "main": [
+        [
+          {
+            "node": "Remote help up?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remote help up?": {
+      "main": [
+        [
+          {
+            "node": "Last deploy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Last deploy": {
       "main": [
         [
           {
