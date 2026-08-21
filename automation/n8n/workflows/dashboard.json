@@ -1,0 +1,127 @@
+{
+  "name": "Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard",
+        "authentication": "basicAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-620, 0],
+      "id": "dashboard-webhook",
+      "name": "Open the dashboard",
+      "webhookId": "c4e1f7a9-2b83-4d16-9f52-71ac3e5b8d40",
+      "notes": "Served by n8n rather than Netlify on purpose — see the README. n8n holds every credential already, so the page is built server-side and the browser never sees a secret.",
+      "credentials": {
+        "httpBasicAuth": { "id": "Hi3G6E9Nx9HDAY2D", "name": "Dashboard login" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting?maxSize=20&orderBy=dateStart&order=asc&where[0][type]=after&where[0][attribute]=dateStart&where[0][value]={{ $now.minus({ hours: 2 }).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-380, -160],
+      "id": "fetch-meetings",
+      "name": "Upcoming bookings",
+      "credentials": {
+        "httpHeaderAuth": { "id": "sOse4EsI4Hy6KYi6", "name": "EspoCRM — crm.itsurgery.me" }
+      },
+      "notes": "Two hours back rather than from now, so a session already under way is still on screen while you are in it."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.xero.com/api.xro/2.0/Invoices?where=Status%3D%3D%22AUTHORISED%22%20AND%20Type%3D%3D%22ACCREC%22&order=Date%20DESC",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "xero-tenant-id", "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8" },
+            { "name": "Accept", "value": "application/json" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-380, 0],
+      "id": "fetch-unpaid",
+      "name": "Awaiting payment",
+      "credentials": {
+        "xeroOAuth2Api": { "id": "DCxryEtuSrcWPmFu", "name": "Xero — IT Solution Architecture Ltd" }
+      },
+      "notes": "Raised but unpaid. This is the gap nothing could see before: somebody booked, took the slot, and never paid."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.stripe.com/v1/balance",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "stripeApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-380, 160],
+      "id": "fetch-balance",
+      "name": "Stripe balance",
+      "credentials": { "stripeApi": { "id": "IQG0FuA3WWRhOICU", "name": "Stripe account" } },
+      "notes": "Available is what you can spend; pending is money taken that Stripe has not settled yet. Different numbers, and the difference matters at month end."
+    },
+    {
+      "parameters": {
+        "jsCode": "// The page is assembled here rather than in a template node: one place to\n// read, and the shape of each system's response is documented by the code\n// that unpicks it.\n\nconst meetings = ($('Upcoming bookings').first().json.list) || [];\nconst invoices = ($('Awaiting payment').first().json.Invoices) || [];\nconst balance  = $('Stripe balance').first().json || {};\n\nconst money = (n) => '£' + Number(n || 0).toFixed(2);\n\n// Everything below came from outside this system. A customer's name is user\n// input like any other, and it is going into HTML.\nconst esc = (s) => String(s == null ? '' : s)\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n\nconst when = (raw) => {\n  if (!raw) return '';\n  const iso = String(raw).replace(' ', 'T');\n  const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');\n  return isNaN(d) ? '' : d.toLocaleString('en-GB', { weekday: 'short', day: 'numeric',\n    month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });\n};\n\n// Stripe reports minor units, per currency.\nconst sum = (arr) => (arr || []).reduce((t, b) => t + (b.amount || 0), 0) / 100;\n\nconst bookingRows = meetings.length\n  ? meetings.map(m => `<tr><td>${esc(when(m.dateStart))}</td><td>${esc(m.name)}</td>` +\n      `<td>${esc(m.status)}</td></tr>`).join('')\n  : '<tr><td colspan=\"3\" class=\"quiet\">Nothing booked.</td></tr>';\n\nconst unpaidRows = invoices.length\n  ? invoices.map(i => `<tr><td>${esc(i.InvoiceNumber)}</td>` +\n      `<td>${esc(i.Contact && i.Contact.Name)}</td>` +\n      `<td>${money(i.AmountDue)}</td></tr>`).join('')\n  : '<tr><td colspan=\"3\" class=\"quiet\">Everything is paid.</td></tr>';\n\nconst html = `<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<meta name=\"robots\" content=\"noindex\">\n<title>IT Surgery — Dashboard</title>\n<style>\n :root{--brand:#990000;--ink:#222;--quiet:#5a6068;--line:#dcdfe3;--bg:#f4f5f7}\n *{box-sizing:border-box}\n body{margin:0;background:var(--bg);color:var(--ink);\n   font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}\n header{background:var(--brand);color:#fff;padding:1rem 1.25rem}\n header h1{margin:0;font-size:1.15rem}\n header p{margin:.25rem 0 0;opacity:.85;font-size:.85rem}\n main{padding:1rem;max-width:900px;margin:0 auto}\n .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:1rem;margin-bottom:1rem}\n .card h2{margin:0 0 .75rem;font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;color:var(--quiet)}\n .figs{display:flex;gap:2rem;flex-wrap:wrap}\n .fig strong{display:block;font-size:1.75rem;line-height:1.2}\n .fig span{font-size:.8rem;color:var(--quiet)}\n table{width:100%;border-collapse:collapse}\n td,th{text-align:left;padding:.45rem 0;border-bottom:1px solid var(--line);font-size:.92rem}\n th{font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--quiet)}\n tr:last-child td{border-bottom:0}\n .quiet{color:var(--quiet)}\n</style></head><body>\n<header><h1>IT Surgery</h1><p>${esc(when(new Date().toISOString()))}</p></header>\n<main>\n  <div class=\"card\"><h2>Money</h2><div class=\"figs\">\n    <div class=\"fig\"><strong>${money(sum(balance.available))}</strong><span>available in Stripe</span></div>\n    <div class=\"fig\"><strong>${money(sum(balance.pending))}</strong><span>pending</span></div>\n    <div class=\"fig\"><strong>${invoices.length}</strong><span>awaiting payment</span></div>\n  </div></div>\n  <div class=\"card\"><h2>Coming up</h2>\n    <table><tr><th>When</th><th>What</th><th>Status</th></tr>${bookingRows}</table></div>\n  <div class=\"card\"><h2>Awaiting payment</h2>\n    <table><tr><th>Invoice</th><th>Who</th><th>Due</th></tr>${unpaidRows}</table></div>\n</main></body></html>`;\n\nreturn [{ json: { html } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-140, 0],
+      "id": "build-page",
+      "name": "Build the page"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "text/html; charset=utf-8" },
+              { "name": "Cache-Control", "value": "no-store" }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [100, 0],
+      "id": "serve-page",
+      "name": "Serve it",
+      "notes": "no-store: this page shows money and customer names and should not sit in a browser cache."
+    }
+  ],
+  "connections": {
+    "Open the dashboard": {
+      "main": [[
+        { "node": "Upcoming bookings", "type": "main", "index": 0 },
+        { "node": "Awaiting payment", "type": "main", "index": 0 },
+        { "node": "Stripe balance", "type": "main", "index": 0 }
+      ]]
+    },
+    "Upcoming bookings": { "main": [[{ "node": "Build the page", "type": "main", "index": 0 }]] },
+    "Awaiting payment": { "main": [[{ "node": "Build the page", "type": "main", "index": 0 }]] },
+    "Stripe balance": { "main": [[{ "node": "Build the page", "type": "main", "index": 0 }]] },
+    "Build the page": { "main": [[{ "node": "Serve it", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "errorWorkflowName": "n8n error alert" }
+}
