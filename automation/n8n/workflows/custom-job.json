@@ -1,0 +1,201 @@
+{
+  "name": "Custom job",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "custom-job",
+        "authentication": "basicAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-900, 0],
+      "id": "custom-job-webhook",
+      "name": "New job",
+      "webhookId": "8f3c1d27-64ba-4e19-a0d5-2b7e9f41c063",
+      "credentials": { "httpBasicAuth": { "id": "Hi3G6E9Nx9HDAY2D", "name": "Dashboard login" } },
+      "notes": "Behind the dashboard login. This raises real invoices, so it is not something to leave open."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Everything here was typed into a form by hand, quite possibly on a phone\n// between jobs. Check it before it becomes an invoice.\n\nconst b = $input.first().json.body || {};\nconst name = String(b.customer || '').trim();\nconst email = String(b.email || '').trim();\nconst work = String(b.work || '').trim();\nconst amount = Number(String(b.amount || '').replace(/[£,\\s]/g, ''));\nconst business = String(b.vat || '') === 'business';\n\nconst problems = [];\nif (name.length < 2) problems.push('a customer name');\nif (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) problems.push('a valid email address');\nif (work.length < 3) problems.push('a description of the work');\nif (!isFinite(amount) || amount <= 0) problems.push('an amount greater than zero');\nif (amount > 5000) problems.push('an amount under £5000 (raise anything larger in Xero directly)');\n\n// Split a typed name into the two fields the CRM wants, without pretending to\n// be clever about it.\nconst bits = name.split(/\\s+/);\nconst firstName = bits.length > 1 ? bits.slice(0, -1).join(' ') : name;\nconst lastName = bits.length > 1 ? bits[bits.length - 1] : '';\n\nreturn [{ json: { ok: problems.length === 0, problems, name, firstName, lastName,\n  email, work, amount: Math.round(amount * 100) / 100, business } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-680, 0],
+      "id": "check-it",
+      "name": "Check it"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+          "conditions": [{
+            "id": "is-valid",
+            "leftValue": "={{ $json.ok }}",
+            "rightValue": "",
+            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+          }],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [-460, 0],
+      "id": "is-it-valid",
+      "name": "Is it valid?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.xero.com/api.xro/2.0/Invoices",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "xero-tenant-id", "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8" },
+            { "name": "Accept", "value": "application/json" }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"Type\": \"ACCREC\", \"Contact\": {\"Name\": \"{{ $json.name }}\", \"FirstName\": \"{{ $json.firstName }}\", \"LastName\": \"{{ $json.lastName }}\", \"EmailAddress\": \"{{ $json.email }}\"}, \"Date\": \"{{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"DueDate\": \"{{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"Reference\": \"Agreed with customer\", \"LineAmountTypes\": \"{{ $json.business ? 'Exclusive' : 'Inclusive' }}\", \"Status\": \"AUTHORISED\", \"LineItems\": [{\"Description\": \"{{ $json.work }}\", \"Quantity\": 1, \"UnitAmount\": {{ $json.amount }}, \"AccountCode\": \"200\", \"TaxType\": \"OUTPUT2\"}]}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-240, -120],
+      "id": "raise-invoice",
+      "name": "Raise the invoice",
+      "credentials": { "xeroOAuth2Api": { "id": "DCxryEtuSrcWPmFu", "name": "Xero — IT Solution Architecture Ltd" } },
+      "notes": "Inclusive for home customers, Exclusive for business — the same distinction the website makes, because £60 + VAT and £60 inc VAT are different jobs' worth of money."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.xero.com/api.xro/2.0/Invoices/{{ $json.Invoices[0].InvoiceID }}/OnlineInvoice",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "xero-tenant-id", "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8" },
+            { "name": "Accept", "value": "application/json" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-20, -120],
+      "id": "get-pay-link",
+      "name": "Get the pay link",
+      "credentials": { "xeroOAuth2Api": { "id": "DCxryEtuSrcWPmFu", "name": "Xero — IT Solution Architecture Ltd" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.xero.com/api.xro/2.0/Invoices/{{ $('Raise the invoice').item.json.Invoices[0].InvoiceID }}/Email",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "xero-tenant-id", "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8" },
+            { "name": "Accept", "value": "application/json" }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [200, -120],
+      "id": "email-invoice",
+      "name": "Send it to them",
+      "credentials": { "xeroOAuth2Api": { "id": "DCxryEtuSrcWPmFu", "name": "Xero — IT Solution Architecture Ltd" } },
+      "notes": "Xero emails the invoice with a Pay Now button. The link is also shown on screen, for when it is easier to text it to somebody."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crm.itsurgery.me/api/v1/Contact",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"firstName\": \"{{ $('Check it').item.json.firstName }}\", \"lastName\": \"{{ $('Check it').item.json.lastName }}\", \"emailAddress\": \"{{ $('Check it').item.json.email }}\", \"description\": \"Custom job: {{ $('Check it').item.json.work }}\"}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-Skip-Duplicate-Check", "value": "true" }] }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [420, -120],
+      "id": "add-to-crm",
+      "name": "Add them to the CRM",
+      "onError": "continueRegularOutput",
+      "credentials": { "httpHeaderAuth": { "id": "sOse4EsI4Hy6KYi6", "name": "EspoCRM — crm.itsurgery.me" } },
+      "notes": "Best effort. A CRM hiccup must not stop an invoice going out — the money matters more than the record, and the record can be fixed afterwards."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Invoice raised</title><style>body{font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f4f5f7;color:#333;margin:0;padding:1.5rem}.c{background:#fff;border:1px solid #dcdfe3;border-radius:10px;padding:1.5rem;max-width:34rem;margin:0 auto}h1{font-size:1.1rem;margin:0 0 .75rem}a{color:#990000}code{display:block;background:#f4f5f7;border:1px solid #dcdfe3;border-radius:6px;padding:.6rem;font-size:.8rem;word-break:break-all;margin:.6rem 0}</style></head><body><div class=\"c\"><h1>Invoice {{ $('Raise the invoice').item.json.Invoices[0].InvoiceNumber }} raised</h1><p>{{ $('Check it').item.json.name }} has been emailed the invoice for £{{ $('Raise the invoice').item.json.Invoices[0].Total }}, with a Pay Now button.</p><p>If it is easier to text or WhatsApp them the link:</p><code>{{ $('Get the pay link').item.json.OnlineInvoices[0].OnlineInvoiceUrl }}</code><p><a href=\"/webhook/dashboard\">Back to the dashboard</a></p></div></body></html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "text/html; charset=utf-8" },
+              { "name": "Cache-Control", "value": "no-store" }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [640, -120],
+      "id": "confirm",
+      "name": "Show the link"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Not sent</title><style>body{font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f4f5f7;color:#333;margin:0;padding:1.5rem}.c{background:#fff;border:1px solid #dcdfe3;border-radius:10px;padding:1.5rem;max-width:30rem;margin:0 auto}h1{font-size:1.1rem;margin:0 0 .75rem;color:#990000}a{color:#990000}</style></head><body><div class=\"c\"><h1>Nothing was raised</h1><p>The form needs {{ $json.problems.join(', and ') }}.</p><p><a href=\"/webhook/dashboard\">Go back and try again</a></p></div></body></html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "text/html; charset=utf-8" },
+              { "name": "Cache-Control", "value": "no-store" }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-240, 140],
+      "id": "reject",
+      "name": "Explain what is missing",
+      "notes": "Says what is wrong in words rather than returning an error. Nothing has been created at this point."
+    }
+  ],
+  "connections": {
+    "New job": { "main": [[{ "node": "Check it", "type": "main", "index": 0 }]] },
+    "Check it": { "main": [[{ "node": "Is it valid?", "type": "main", "index": 0 }]] },
+    "Is it valid?": { "main": [
+      [{ "node": "Raise the invoice", "type": "main", "index": 0 }],
+      [{ "node": "Explain what is missing", "type": "main", "index": 0 }]
+    ]},
+    "Raise the invoice": { "main": [[{ "node": "Get the pay link", "type": "main", "index": 0 }]] },
+    "Get the pay link": { "main": [[{ "node": "Send it to them", "type": "main", "index": 0 }]] },
+    "Send it to them": { "main": [[{ "node": "Add them to the CRM", "type": "main", "index": 0 }]] },
+    "Add them to the CRM": { "main": [[{ "node": "Show the link", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "errorWorkflowName": "n8n error alert" }
+}
