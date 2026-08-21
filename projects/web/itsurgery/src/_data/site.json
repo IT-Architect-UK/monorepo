@@ -85,5 +85,6 @@
   ],
   "privacyUpdated": "August 2026",
   "bookingUrl": "https://cal.com/it-surgery/remote-support-session",
-  "payLinkEndpoint": "https://n8n.itsurgery.me/webhook/pay-link"
+  "payLinkEndpoint": "https://n8n.itsurgery.me/webhook/pay-link",
+  "reviewUrl": "https://g.page/r/CbTS5cA_a6nhEBM/review"
 }

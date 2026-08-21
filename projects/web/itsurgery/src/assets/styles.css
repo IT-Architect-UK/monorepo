@@ -1037,3 +1037,7 @@ input:focus-visible, textarea:focus-visible {
   .steps > li { padding-left: 3.25rem; }
   .steps > li::before { width: 2.4rem; height: 2.4rem; font-size: 1.2rem; }
 }
+
+/* Footer review prompt. Sits under the contact list, deliberately quiet: it is
+   there for someone who has already decided to leave a review, not a pitch. */
+.footer-review { margin-top: .85rem; }

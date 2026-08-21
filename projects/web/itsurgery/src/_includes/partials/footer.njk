@@ -21,6 +21,13 @@
         <li><a href="mailto:{{ site.email }}">{{ site.email }}</a></li>
         <li><a href="/quote/">Request a quote or callback</a></li>
       </ul>
+      {# Passive on purpose. Nobody is asked for a review here — this is for a
+         customer who already decided to leave one and is looking for where. The
+         asking happens after a job, not on a web page. #}
+      <p class="footer-small footer-review">
+        Been a customer?
+        <a href="{{ site.reviewUrl }}" target="_blank" rel="noopener">Leave us a Google review<span class="visually-hidden"> (opens in a new tab)</span></a>.
+      </p>
     </div>
 
   </div>
