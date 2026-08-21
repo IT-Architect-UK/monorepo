@@ -2,42 +2,56 @@
 layout: layouts/base.njk
 title: Business Fixed Prices
 heading: Fixed prices for your business
-standfirst: We are putting together a fixed-price list for business customers. Until it is ready, business work is quoted before we start — so you still know the cost up front.
-description: Fixed-price IT support for small businesses in Penarth, Barry and Cardiff. Price list in preparation — business work is quoted in advance at £60 + VAT an hour, or on a monthly support plan.
-eleventyExcludeFromCollections: true
-noindex: true
-excludeFromSitemap: true
+standfirst: Set prices for the jobs small businesses actually need doing, each with the time it should take. Prices exclude VAT.
+description: Fixed-price business IT support in Penarth, Barry and Cardiff — Microsoft 365, servers, networks, virtual machines, backups and Cyber Essentials readiness. Set prices with the time each job takes. Prices exclude VAT.
 ---
 
 <section class="section">
   <div class="container">
 
     {% include "partials/price-switch.njk" %}
+
+    <p class="lead">
+      Every job below has one price and the time it is expected to take, so you
+      can see what you are buying rather than watching a meter. If something
+      turns out to be bigger than it looked, we stop and tell you before going
+      further — you decide what happens next.
+    </p>
+
+    <div class="bands">
+      {% for group in businessprices.groups %}
+      <div class="band">
+        <div class="band-head">
+          <p class="band-cat">{{ group.name }}</p>
+        </div>
+        <div class="band-body">
+          {% if group.blurb %}<p class="band-blurb">{{ group.blurb }}</p>{% endif %}
+          <ul class="band-list">
+            {% for item in group.items %}
+            <li>
+              {# "Quoted" is a word, not an amount — a £ in front of it would read as nonsense. #}
+              <span class="item-price">{% if item.quoted %}{{ item.price }}{% else %}£{{ item.price }}{% endif %}</span>
+              <span class="item-meta">{{ item.time }}</span>
+              <span class="item-label">{{ item.label }}{% if item.addon %} <span class="addon">({{ item.addon }})</span>{% endif %}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
     <div class="cta-panel">
-      <h2>Not ready yet — but nothing is hidden</h2>
-      <p>
-        The fixed-price list for business work is still being put together. In the
-        meantime nothing about how we charge is a secret:
-      </p>
+      <h2>What is and isn't included</h2>
       <ul class="ticks wide">
-        <li>Business support is <strong>£{{ site.businessHourlyRate }} an hour {{ site.vatExLabel }}</strong>.</li>
-        <li>Every job is quoted and agreed before we start, so the cost is known up front.</li>
-        <li>Regular support is cheaper on a <a href="/support-plans/">support plan</a>.</li>
-        <li>Parts, hardware and licences are extra, and always agreed with you first.</li>
+        <li><strong>All prices exclude VAT</strong>, which is how most businesses prefer to see them. VAT is added on the invoice.</li>
+        <li>Hardware, parts and software licences are extra, and always agreed with you before anything is bought.</li>
+        <li>No call-out charge anywhere in {{ site.areas | join(", ") }}.</li>
+        <li>Migrations are quoted rather than fixed. Moving a server or a mailbox is where the surprises live, and a fixed price would only mean one of us losing.</li>
+        <li>Work not on this list is charged at £{{ site.businessHourlyRate }} an hour {{ site.vatExLabel }}, or quoted up front — <a href="/quote/">tell us about the job</a> and we will come back with a price.</li>
+        <li>If you would rather have ongoing cover than pay per job, our <a href="/support-plans/">support plans</a> include a reduced hourly rate.</li>
       </ul>
     </div>
 
-    <h2>What we do for business</h2>
-    <p>
-      New machines built and deployed, Microsoft 365 set up and looked after,
-      networks and WiFi, backups that are actually tested, security reviews, and
-      practical AI work. If it is on the
-      <a href="/fixed-prices/">home fixed-price list</a>, we do it for businesses too.
-    </p>
-
-    <p>
-      <a class="btn btn-primary" href="/quote/">Ask for a quote</a>
-      <a class="btn btn-secondary" href="/fixed-prices/">Home fixed prices</a>
-    </p>
   </div>
 </section>
