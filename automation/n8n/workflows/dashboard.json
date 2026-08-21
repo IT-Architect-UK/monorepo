@@ -11,13 +11,19 @@
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [-620, 0],
+      "position": [
+        -620,
+        0
+      ],
       "id": "dashboard-webhook",
       "name": "Open the dashboard",
       "webhookId": "c4e1f7a9-2b83-4d16-9f52-71ac3e5b8d40",
       "notes": "Served by n8n rather than Netlify on purpose — see the README. n8n holds every credential already, so the page is built server-side and the browser never sees a secret.",
       "credentials": {
-        "httpBasicAuth": { "id": "Hi3G6E9Nx9HDAY2D", "name": "Dashboard login" }
+        "httpBasicAuth": {
+          "id": "Hi3G6E9Nx9HDAY2D",
+          "name": "Dashboard login"
+        }
       }
     },
     {
@@ -30,11 +36,17 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-380, -160],
+      "position": [
+        -380,
+        0
+      ],
       "id": "fetch-meetings",
       "name": "Upcoming bookings",
       "credentials": {
-        "httpHeaderAuth": { "id": "sOse4EsI4Hy6KYi6", "name": "EspoCRM — crm.itsurgery.me" }
+        "httpHeaderAuth": {
+          "id": "sOse4EsI4Hy6KYi6",
+          "name": "EspoCRM — crm.itsurgery.me"
+        }
       },
       "notes": "Two hours back rather than from now, so a session already under way is still on screen while you are in it."
     },
@@ -47,19 +59,31 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "xero-tenant-id", "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8" },
-            { "name": "Accept", "value": "application/json" }
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
           ]
         },
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-380, 0],
+      "position": [
+        -160,
+        0
+      ],
       "id": "fetch-unpaid",
       "name": "Awaiting payment",
       "credentials": {
-        "xeroOAuth2Api": { "id": "DCxryEtuSrcWPmFu", "name": "Xero — IT Solution Architecture Ltd" }
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
       },
       "notes": "Raised but unpaid. This is the gap nothing could see before: somebody booked, took the slot, and never paid."
     },
@@ -73,10 +97,18 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
-      "position": [-380, 160],
+      "position": [
+        60,
+        0
+      ],
       "id": "fetch-balance",
       "name": "Stripe balance",
-      "credentials": { "stripeApi": { "id": "IQG0FuA3WWRhOICU", "name": "Stripe account" } },
+      "credentials": {
+        "stripeApi": {
+          "id": "IQG0FuA3WWRhOICU",
+          "name": "Stripe account"
+        }
+      },
       "notes": "Available is what you can spend; pending is money taken that Stripe has not settled yet. Different numbers, and the difference matters at month end."
     },
     {
@@ -85,9 +117,13 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-140, 0],
+      "position": [
+        280,
+        0
+      ],
       "id": "build-page",
-      "name": "Build the page"
+      "name": "Build the page",
+      "notes": "Fed by the last fetch in the chain, not by all three in parallel. n8n runs a node when its first input arrives, so a three-way fan-in built the page before two of the three calls had happened."
     },
     {
       "parameters": {
@@ -96,15 +132,24 @@
         "options": {
           "responseHeaders": {
             "entries": [
-              { "name": "Content-Type", "value": "text/html; charset=utf-8" },
-              { "name": "Cache-Control", "value": "no-store" }
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
             ]
           }
         }
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [100, 0],
+      "position": [
+        500,
+        0
+      ],
       "id": "serve-page",
       "name": "Serve it",
       "notes": "no-store: this page shows money and customer names and should not sit in a browser cache."
@@ -112,16 +157,63 @@
   ],
   "connections": {
     "Open the dashboard": {
-      "main": [[
-        { "node": "Upcoming bookings", "type": "main", "index": 0 },
-        { "node": "Awaiting payment", "type": "main", "index": 0 },
-        { "node": "Stripe balance", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "Upcoming bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Upcoming bookings": { "main": [[{ "node": "Build the page", "type": "main", "index": 0 }]] },
-    "Awaiting payment": { "main": [[{ "node": "Build the page", "type": "main", "index": 0 }]] },
-    "Stripe balance": { "main": [[{ "node": "Build the page", "type": "main", "index": 0 }]] },
-    "Build the page": { "main": [[{ "node": "Serve it", "type": "main", "index": 0 }]] }
+    "Upcoming bookings": {
+      "main": [
+        [
+          {
+            "node": "Awaiting payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Awaiting payment": {
+      "main": [
+        [
+          {
+            "node": "Stripe balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stripe balance": {
+      "main": [
+        [
+          {
+            "node": "Build the page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the page": {
+      "main": [
+        [
+          {
+            "node": "Serve it",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1", "errorWorkflowName": "n8n error alert" }
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflowName": "n8n error alert"
+  }
 }
