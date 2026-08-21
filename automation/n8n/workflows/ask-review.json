@@ -1,0 +1,114 @@
+{
+  "name": "Ask for a review",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ask-review",
+        "authentication": "basicAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-720, 0],
+      "id": "ask-review-webhook",
+      "name": "Button pressed",
+      "webhookId": "5b2d9c14-77ae-4e60-93a1-6d0f2c8ab415",
+      "credentials": { "httpBasicAuth": { "id": "Hi3G6E9Nx9HDAY2D", "name": "Dashboard login" } },
+      "notes": "Same login as the dashboard, so the browser carries it across from the page the button was on. A POST rather than a link: link prefetchers and mail scanners follow GETs, and this one sends a customer an email."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting/{{ $json.body.meetingId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-500, 0],
+      "id": "get-meeting",
+      "name": "Get the job",
+      "credentials": { "httpHeaderAuth": { "id": "sOse4EsI4Hy6KYi6", "name": "EspoCRM — crm.itsurgery.me" } },
+      "notes": "Fetched rather than trusted from the form, so the email address comes from the CRM and not from whatever was posted."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://crm.itsurgery.me/api/v1/Contact/{{ $json.parentId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [-280, 0],
+      "id": "get-contact",
+      "name": "Get the customer",
+      "credentials": { "httpHeaderAuth": { "id": "sOse4EsI4Hy6KYi6", "name": "EspoCRM — crm.itsurgery.me" } }
+    },
+    {
+      "parameters": {
+        "toRecipients": "={{ $json.emailAddress }}",
+        "subject": "Thanks from IT Surgery",
+        "bodyContent": "=<p>Hello {{ $json.firstName || 'there' }},</p><p>Thanks for letting me help with your computer — I hope everything is still running as it should.</p><p>If you have a minute, a short review would genuinely help. I am a one-man business in Penarth and a few honest words from a local customer make more difference than any advertising I could buy.</p><p><a href=\"https://g.page/r/CbTS5cA_a6nhEBM/review\">Leave a review on Google</a></p><p>And if anything is not right, please reply to this email instead and I will sort it out.</p><p>Thanks again,<br>Darren<br>IT Surgery</p>",
+        "additionalFields": { "bodyContentType": "html" }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [-60, 0],
+      "id": "send-request",
+      "name": "Ask them",
+      "credentials": { "microsoftOutlookOAuth2Api": { "id": "vFBlY5YMFquusk6v", "name": "Microsoft 365 — help@itsurgery.me" } },
+      "notes": "Ends by offering the reply-to-me route for anyone unhappy. That is not a trick to filter bad reviews — it is that somebody with a problem should get it fixed, and a review form is the wrong place to find out."
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://crm.itsurgery.me/api/v1/Meeting/{{ $('Button pressed').item.json.body.meetingId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"cReviewRequested\": \"{{ $now.toUTC().toFormat('yyyy-MM-dd HH:mm:ss') }}\"}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [160, 0],
+      "id": "stamp-meeting",
+      "name": "Remember we asked",
+      "credentials": { "httpHeaderAuth": { "id": "sOse4EsI4Hy6KYi6", "name": "EspoCRM — crm.itsurgery.me" } },
+      "notes": "Stops the same customer being asked twice. EspoCRM silently discards unknown fields, so if this ever looks like it is doing nothing, check the field exists and is spelled cReviewRequested."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Asked</title><style>body{font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f4f5f7;color:#333;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}.c{background:#fff;border:1px solid #dcdfe3;border-radius:10px;padding:2rem;text-align:center;max-width:26rem}a{color:#990000}</style></head><body><div class=\"c\"><h1 style=\"font-size:1.1rem\">Review request sent</h1><p>{{ $('Get the customer').item.json.firstName }} has been asked, and will not be asked again.</p><p><a href=\"/webhook/dashboard\">Back to the dashboard</a></p></div></body></html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "text/html; charset=utf-8" },
+              { "name": "Cache-Control", "value": "no-store" }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [380, 0],
+      "id": "confirm",
+      "name": "Say it is done"
+    }
+  ],
+  "connections": {
+    "Button pressed": { "main": [[{ "node": "Get the job", "type": "main", "index": 0 }]] },
+    "Get the job": { "main": [[{ "node": "Get the customer", "type": "main", "index": 0 }]] },
+    "Get the customer": { "main": [[{ "node": "Ask them", "type": "main", "index": 0 }]] },
+    "Ask them": { "main": [[{ "node": "Remember we asked", "type": "main", "index": 0 }]] },
+    "Remember we asked": { "main": [[{ "node": "Say it is done", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "errorWorkflowName": "n8n error alert" }
+}
