@@ -30,6 +30,11 @@ n8n_request_certificate: true
 
 # ── Application settings ──────────────────────────────────────────────────
 n8n_domain: ""                      # e.g. n8n.itsurgery.me — REQUIRED
+
+# Vanity host for the dashboard. A separate name in front of the same n8n:
+# friendlier to type, and it keeps the workflow editor off a URL that gets
+# opened on a phone in a customer's kitchen. Leave empty to skip it.
+n8n_dashboard_domain: ""            # e.g. dashboard.itsurgery.me
 n8n_timezone: "Europe/London"       # governs Schedule Trigger wall-clock times
 n8n_db_name: n8n
 n8n_db_user: n8n

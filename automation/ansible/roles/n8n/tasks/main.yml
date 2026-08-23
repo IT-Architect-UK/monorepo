@@ -163,6 +163,96 @@
   changed_when: false
   when: n8n_cert_after.stat.exists
 
+# --- vanity host for the dashboard ----------------------------------------
+
+- name: Install the shared proxy snippet
+  ansible.builtin.template:
+    src: dashboard-proxy.conf.j2
+    dest: /etc/nginx/snippets/dashboard-proxy.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: n8n_dashboard_domain | default('', true) | length > 0
+  notify: Reload nginx
+
+- name: Check whether the dashboard certificate exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ n8n_dashboard_domain }}/fullchain.pem"
+  register: dashboard_cert
+  when: n8n_dashboard_domain | default('', true) | length > 0
+
+- name: Deploy the dashboard site (HTTP only until a certificate exists)
+  ansible.builtin.template:
+    src: dashboard.nginx.conf.j2
+    dest: /etc/nginx/sites-available/dashboard.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    dashboard_tls_ready: "{{ dashboard_cert.stat.exists | default(false) }}"
+  when: n8n_dashboard_domain | default('', true) | length > 0
+  notify: Reload nginx
+
+- name: Enable the dashboard site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/dashboard.conf
+    dest: /etc/nginx/sites-enabled/dashboard.conf
+    state: link
+  when: n8n_dashboard_domain | default('', true) | length > 0
+  notify: Reload nginx
+
+- name: Validate nginx before asking certbot for anything
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  when: n8n_dashboard_domain | default('', true) | length > 0
+
+- name: Apply pending nginx changes now
+  ansible.builtin.meta: flush_handlers
+
+- name: Obtain the dashboard certificate
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/certbot
+      - certonly
+      - --webroot
+      - -w
+      - "{{ n8n_acme_webroot }}"
+      - -d
+      - "{{ n8n_dashboard_domain }}"
+      - --non-interactive
+      - --agree-tos
+      - -m
+      - "{{ letsencrypt_email }}"
+    creates: "/etc/letsencrypt/live/{{ n8n_dashboard_domain }}/fullchain.pem"
+  when:
+    - n8n_dashboard_domain | default('', true) | length > 0
+    - n8n_request_certificate | default(true)
+
+- name: Re-check for the dashboard certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ n8n_dashboard_domain }}/fullchain.pem"
+  register: dashboard_cert_after
+  when: n8n_dashboard_domain | default('', true) | length > 0
+
+- name: Deploy the dashboard site again, now with TLS
+  ansible.builtin.template:
+    src: dashboard.nginx.conf.j2
+    dest: /etc/nginx/sites-available/dashboard.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    dashboard_tls_ready: "{{ dashboard_cert_after.stat.exists | default(false) }}"
+  when:
+    - n8n_dashboard_domain | default('', true) | length > 0
+    - dashboard_cert_after.stat.exists | default(false)
+  notify: Reload nginx
+
+- name: Validate the assembled nginx configuration with TLS
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  when: n8n_dashboard_domain | default('', true) | length > 0
+
 # --- backups --------------------------------------------------------------
 
 - name: Deploy the backup script

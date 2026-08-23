@@ -10,3 +10,4 @@
 # name. Changing it later means re-registering every external caller, so treat
 # it as permanent.
 n8n_domain: "n8n.itsurgery.me"
+n8n_dashboard_domain: "dashboard.itsurgery.me"

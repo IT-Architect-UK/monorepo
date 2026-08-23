@@ -1,0 +1,77 @@
+# {{ ansible_managed }}
+# Vanity host for the dashboard.
+#
+# dashboard.itsurgery.me is a friendlier thing to type, and to say out loud,
+# than n8n.itsurgery.me/webhook/dashboard. It is a reverse proxy in front of
+# the same n8n instance, not a second copy of anything: the page is still built
+# by the Dashboard workflow, and n8n's basic auth still guards it.
+
+server {
+    listen 80;
+{% if n8n_enable_ipv6 %}
+    listen [::]:80;
+{% endif %}
+    server_name {{ n8n_dashboard_domain }};
+
+    location /.well-known/acme-challenge/ {
+        root {{ n8n_acme_webroot }};
+    }
+
+{% if dashboard_tls_ready %}
+    location / {
+        return 301 https://$host$request_uri;
+    }
+{% else %}
+    location / {
+        # add_header would be ignored on a 503 without "always"; default_type
+        # is the honest way to say what this body is.
+        default_type text/plain;
+        return 503 "Certificate not issued yet.\n";
+    }
+{% endif %}
+}
+
+{% if dashboard_tls_ready %}
+server {
+    listen 443 ssl http2;
+{% if n8n_enable_ipv6 %}
+    listen [::]:443 ssl http2;
+{% endif %}
+    server_name {{ n8n_dashboard_domain }};
+
+    ssl_certificate     /etc/letsencrypt/live/{{ n8n_dashboard_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ n8n_dashboard_domain }}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    # The dashboard shows takings and customer names. It has no business being
+    # framed by anyone, or turning up in a search index.
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Robots-Tag "noindex, nofollow" always;
+
+    # The bare host is the dashboard itself.
+    location = / {
+        proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/dashboard;
+        include /etc/nginx/snippets/dashboard-proxy.conf;
+    }
+
+    # The buttons and forms on that page post back to /webhook/... paths. They
+    # are relative, so they arrive here rather than at n8n.itsurgery.me, and
+    # would 404 without this.
+    location /webhook/ {
+        proxy_pass http://127.0.0.1:{{ n8n_http_port }};
+        include /etc/nginx/snippets/dashboard-proxy.conf;
+    }
+
+    # Nothing else on this host. The n8n editor stays at its own name, so a
+    # leaked dashboard URL does not lead anyone to the workflow editor.
+    location / {
+        return 404;
+    }
+}
+{% endif %}
