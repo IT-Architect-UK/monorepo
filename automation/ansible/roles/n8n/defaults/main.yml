@@ -35,6 +35,10 @@ n8n_domain: ""                      # e.g. n8n.itsurgery.me — REQUIRED
 # friendlier to type, and it keeps the workflow editor off a URL that gets
 # opened on a phone in a customer's kitchen. Leave empty to skip it.
 n8n_dashboard_domain: ""            # e.g. dashboard.itsurgery.me
+
+# Where the vitals role writes its snapshot. nginx serves that file to the
+# n8n container so the monitoring page can see the host it runs on.
+n8n_vitals_dir: /opt/vitals
 n8n_timezone: "Europe/London"       # governs Schedule Trigger wall-clock times
 n8n_db_name: n8n
 n8n_db_user: n8n

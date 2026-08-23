@@ -1,0 +1,15 @@
+---
+# =============================================================================
+# deploy-vitals.yml — host facts for the monitoring page
+# =============================================================================
+# Runs on the VPS itself. See roles/vitals/tasks/main.yml for what it collects
+# and why it is a file on a timer rather than anything with a socket.
+#
+#   ansible-playbook playbooks/deploy-vitals.yml
+# =============================================================================
+
+- name: Collect host vitals
+  hosts: n8n
+  become: true
+  roles:
+    - vitals

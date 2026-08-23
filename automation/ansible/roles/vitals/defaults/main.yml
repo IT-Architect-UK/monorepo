@@ -1,0 +1,25 @@
+---
+# =============================================================================
+# roles/vitals — what the host knows about itself
+# =============================================================================
+# n8n runs in a container and cannot see the machine underneath it: not the
+# disk, not the certificates, not whether a reboot is pending. This role puts a
+# small script on the host that writes those facts to a JSON file on a timer,
+# and lets nginx serve that file to the container and nobody else.
+#
+# A read-only snapshot on a timer, deliberately. The alternative — giving a
+# container a socket or a shell on its host so a dashboard can run commands —
+# is a much larger hole than any dashboard is worth.
+# =============================================================================
+
+vitals_dir: /opt/vitals
+vitals_file: /opt/vitals/vitals.json
+vitals_schedule: "*:0/5"          # every five minutes
+vitals_disk_paths:
+  - /
+# Backup directories to report the age of the newest file in. A backup that
+# quietly stopped running looks exactly like one that is working.
+vitals_backup_dirs:
+  - /opt/n8n/backups
+  - /opt/espocrm/backups
+  - /opt/meshcentral/backups

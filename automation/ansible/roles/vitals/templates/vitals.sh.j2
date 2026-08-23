@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# Writes a snapshot of this machine to {{ vitals_file }} for the monitoring
+# page to read. Runs as root on a timer; makes no decisions and changes
+# nothing.
+#
+# Written without jq on purpose — one less package to be installed on a box
+# where this script is the thing that tells you when something is missing.
+
+set -uo pipefail
+OUT="{{ vitals_file }}"
+TMP="$(mktemp)"
+
+esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+# --- memory and swap, in MB ------------------------------------------------
+read -r _ MEM_TOTAL MEM_USED MEM_FREE MEM_SHARED MEM_BUFF MEM_AVAIL <<< "$(free -m | awk '/^Mem:/')"
+read -r _ SWAP_TOTAL SWAP_USED _ <<< "$(free -m | awk '/^Swap:/')"
+SWAP_TOTAL=${SWAP_TOTAL:-0}; SWAP_USED=${SWAP_USED:-0}
+
+# --- load and uptime -------------------------------------------------------
+LOAD1=$(awk '{print $1}' /proc/loadavg)
+CORES=$(nproc)
+UPTIME_S=$(awk '{print int($1)}' /proc/uptime)
+
+# --- disks -----------------------------------------------------------------
+DISKS=""
+{% for path in vitals_disk_paths %}
+if df -PB1 "{{ path }}" >/dev/null 2>&1; then
+  read -r _ D_SIZE D_USED D_AVAIL D_PCT _ <<< "$(df -PB1 "{{ path }}" | tail -1)"
+  [ -n "$DISKS" ] && DISKS="$DISKS,"
+  DISKS="$DISKS{\"path\":\"{{ path }}\",\"size\":$D_SIZE,\"used\":$D_USED,\"pct\":${D_PCT%\%}}"
+fi
+{% endfor %}
+
+# --- containers ------------------------------------------------------------
+CONTAINERS=""
+if command -v docker >/dev/null 2>&1; then
+  while IFS='|' read -r c_name c_state c_status c_image; do
+    [ -z "$c_name" ] && continue
+    [ -n "$CONTAINERS" ] && CONTAINERS="$CONTAINERS,"
+    CONTAINERS="$CONTAINERS{\"name\":\"$(esc "$c_name")\",\"state\":\"$(esc "$c_state")\",\"status\":\"$(esc "$c_status")\",\"image\":\"$(esc "$c_image")\"}"
+  done < <(docker ps -a --format '{% raw %}{{.Names}}|{{.State}}|{{.Status}}|{{.Image}}{% endraw %}' 2>/dev/null)
+fi
+
+# --- certificates ----------------------------------------------------------
+# Days remaining on each Let's Encrypt certificate. Renewal is automatic, so
+# this is here to notice when automatic renewal has quietly stopped working.
+CERTS=""
+if [ -d /etc/letsencrypt/live ]; then
+  for dir in /etc/letsencrypt/live/*/; do
+    [ -f "$dir/cert.pem" ] || continue
+    name=$(basename "$dir")
+    end=$(openssl x509 -enddate -noout -in "$dir/cert.pem" 2>/dev/null | cut -d= -f2)
+    [ -z "$end" ] && continue
+    days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+    [ -n "$CERTS" ] && CERTS="$CERTS,"
+    CERTS="$CERTS{\"name\":\"$(esc "$name")\",\"days\":$days}"
+  done
+fi
+
+# --- backups ---------------------------------------------------------------
+BACKUPS=""
+{% for dir in vitals_backup_dirs %}
+if [ -d "{{ dir }}" ]; then
+  newest=$(find "{{ dir }}" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1)
+  if [ -n "$newest" ]; then
+    age_h=$(( ( $(date +%s) - ${newest%.*} ) / 3600 ))
+  else
+    age_h=-1
+  fi
+  [ -n "$BACKUPS" ] && BACKUPS="$BACKUPS,"
+  BACKUPS="$BACKUPS{\"name\":\"$(basename $(dirname "{{ dir }}"))\",\"ageHours\":$age_h}"
+fi
+{% endfor %}
+
+# --- updates ---------------------------------------------------------------
+UPDATES=0; SECURITY=0
+if command -v apt-get >/dev/null 2>&1; then
+  pending=$(apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null | grep -c '^Inst ')
+  UPDATES=${pending:-0}
+  sec=$(apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null | grep '^Inst ' | grep -ci security)
+  SECURITY=${sec:-0}
+fi
+REBOOT=false
+[ -f /var/run/reboot-required ] && REBOOT=true
+
+cat > "$TMP" <<JSON
+{
+  "generated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "host": "$(esc "$(hostname)")",
+  "uptimeSeconds": $UPTIME_S,
+  "load1": $LOAD1,
+  "cores": $CORES,
+  "memory": { "totalMb": $MEM_TOTAL, "availableMb": $MEM_AVAIL },
+  "swap": { "totalMb": $SWAP_TOTAL, "usedMb": $SWAP_USED },
+  "disks": [ $DISKS ],
+  "containers": [ $CONTAINERS ],
+  "certificates": [ $CERTS ],
+  "backups": [ $BACKUPS ],
+  "updates": { "pending": $UPDATES, "security": $SECURITY, "rebootRequired": $REBOOT }
+}
+JSON
+
+# Written to a temp file and moved into place, so the monitoring page never
+# reads a half-written snapshot.
+chmod 0644 "$TMP"
+mv "$TMP" "$OUT"

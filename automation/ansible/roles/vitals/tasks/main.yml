@@ -1,0 +1,79 @@
+---
+# =============================================================================
+# roles/vitals — host facts for the monitoring page
+# =============================================================================
+
+- name: Create the vitals directory
+  ansible.builtin.file:
+    path: "{{ vitals_dir }}"
+    state: directory
+    owner: root
+    group: root
+    # World-readable: nginx reads the file to serve it, and there is nothing
+    # secret in it — sizes, states and dates.
+    mode: "0755"
+
+- name: Install the vitals script
+  ansible.builtin.template:
+    src: vitals.sh.j2
+    dest: /usr/local/bin/vps-vitals.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the vitals systemd unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/vps-vitals.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — automation/ansible/roles/vitals. Edits are overwritten.
+      [Unit]
+      Description=Write a snapshot of this host for the monitoring page
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/vps-vitals.sh
+  notify: Reload systemd
+
+- name: Install the vitals timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/vps-vitals.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — automation/ansible/roles/vitals. Edits are overwritten.
+      [Unit]
+      Description=Refresh the host snapshot on a schedule
+
+      [Timer]
+      OnCalendar={{ vitals_schedule }}
+      # So the page has something to show immediately after a reboot rather
+      # than waiting for the next five-minute mark.
+      OnBootSec=60
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
+- name: Enable the vitals timer
+  ansible.builtin.systemd:
+    name: vps-vitals.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Write the first snapshot now
+  # Otherwise the monitoring page is blank until the timer first fires, which
+  # looks exactly like the thing being broken.
+  ansible.builtin.command: /usr/local/bin/vps-vitals.sh
+  changed_when: true
+
+- name: Check the snapshot is valid JSON
+  # If this script ever emits something malformed, it should be caught here
+  # rather than by a monitoring page that silently shows nothing.
+  ansible.builtin.command: "python3 -c \"import json,sys; json.load(open('{{ vitals_file }}'))\""
+  changed_when: false
