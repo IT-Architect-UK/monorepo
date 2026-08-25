@@ -1,0 +1,36 @@
+---
+# =============================================================================
+# roles/webmin — defaults
+# =============================================================================
+# Webmin is root-level server administration through a web page. Everything
+# here exists to make sure the only way to reach it is one you chose.
+# =============================================================================
+
+# ── Reverse proxy ─────────────────────────────────────────────────────────
+# Leave empty and the role behaves as it always has: Webmin installed and
+# listening on 10000, which is right for a provisioned VM on a private
+# network. Set a domain and the role additionally puts nginx in front and
+# obtains a certificate, which is what a public VPS needs.
+webmin_domain: ""
+webmin_port: 10000
+
+# Shared with the espocrm, n8n and meshcentral roles. Creating it again is
+# harmless and means this role still works on a host without them.
+webmin_acme_webroot: /var/www/acme
+webmin_request_certificate: true
+webmin_enable_ipv6: false
+
+# ── Basic auth in front of Webmin's own login ─────────────────────────────
+# Not paranoia: Webmin has had pre-authentication remote code execution
+# (CVE-2019-15107). A scanner that cannot get past nginx never reaches
+# Webmin's code at all, whatever state that code is in this month.
+#
+# The file is NOT created by this role. Create it by hand so the password
+# never passes through the repo, the vault, or anyone else's hands:
+#
+#   sudo htpasswd -c /etc/nginx/.htpasswd-webmin <username>
+#
+# The role refuses to deploy if it is missing, rather than shipping an nginx
+# config that references a file that is not there.
+webmin_basic_auth: true
+webmin_htpasswd_file: /etc/nginx/.htpasswd-webmin

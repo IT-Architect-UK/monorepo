@@ -23,3 +23,12 @@ vitals_backup_dirs:
   - /opt/n8n/backups
   - /opt/espocrm/backups
   - /opt/meshcentral/backups
+
+# Units worth knowing about that are not containers. `systemctl is-active`
+# returns "inactive" for a unit that is installed and stopped, and nothing at
+# all for one that was never installed — the page tells those two apart.
+vitals_service_units:
+  - nginx
+  - docker
+  - webmin
+  - certbot.timer

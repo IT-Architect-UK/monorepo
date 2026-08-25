@@ -75,6 +75,20 @@ if [ -d "{{ dir }}" ]; then
 fi
 {% endfor %}
 
+# --- systemd services ------------------------------------------------------
+# Things that are not containers and would otherwise be invisible. A stopped
+# certbot.timer is how certificates quietly expire; a stopped webmin is
+# undetectable from outside, because nginx answers its own 401 first.
+SERVICES=""
+{% for unit in vitals_service_units %}
+if command -v systemctl >/dev/null 2>&1; then
+  u_state=$(systemctl is-active "{{ unit }}" 2>/dev/null || true)
+  [ -z "$u_state" ] && u_state="unknown"
+  [ -n "$SERVICES" ] && SERVICES="$SERVICES,"
+  SERVICES="$SERVICES{\"name\":\"{{ unit }}\",\"state\":\"$(esc "$u_state")\"}"
+fi
+{% endfor %}
+
 # --- updates ---------------------------------------------------------------
 UPDATES=0; SECURITY=0
 if command -v apt-get >/dev/null 2>&1; then
@@ -97,6 +111,7 @@ cat > "$TMP" <<JSON
   "swap": { "totalMb": $SWAP_TOTAL, "usedMb": $SWAP_USED },
   "disks": [ $DISKS ],
   "containers": [ $CONTAINERS ],
+  "services": [ $SERVICES ],
   "certificates": [ $CERTS ],
   "backups": [ $BACKUPS ],
   "updates": { "pending": $UPDATES, "security": $SECURITY, "rebootRequired": $REBOOT }

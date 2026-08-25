@@ -1,0 +1,181 @@
+---
+# =============================================================================
+# roles/webmin — reverse proxy
+# =============================================================================
+# Puts nginx and a Let's Encrypt certificate in front of Webmin so port 10000
+# never has to be opened to the internet.
+#
+# The three Webmin settings below are the ones Webmin's own documentation
+# calls for, and no more:
+#   https://webmin.com/docs/tutorials/proxying-to-webmin-with-nginx/
+#
+# Note that Webmin KEEPS its own TLS on the loopback hop — nginx proxies to
+# https://127.0.0.1:10000, not http. The tempting `ssl=0` is not part of the
+# supported recipe and is not set here.
+# =============================================================================
+
+- name: Fail early if the reverse proxy is misconfigured
+  ansible.builtin.assert:
+    that:
+      - webmin_domain | default('', true) | length > 0
+      - letsencrypt_email | default('', true) | length > 0
+    fail_msg: >-
+      webmin_domain and letsencrypt_email must both be set before the proxy
+      can be deployed.
+
+# --- packages first -------------------------------------------------------
+# Deliberately ahead of the password-file check below. apache2-utils is what
+# provides htpasswd, so checking for a file that can only be made with a tool
+# this task installs — and failing before installing it — leaves a clean host
+# unable to ever get past the first run. That trap was real; do not restore
+# the old order.
+
+- name: Install nginx, certbot and the htpasswd tool
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - certbot
+      - apache2-utils
+    state: present
+    update_cache: true
+
+- name: Check for the basic-auth password file
+  ansible.builtin.stat:
+    path: "{{ webmin_htpasswd_file }}"
+  register: webmin_htpasswd
+  when: webmin_basic_auth
+
+# Deliberately a hard stop. Deploying an nginx site that points at a missing
+# password file fails `nginx -t` later with a much less obvious message, and
+# in the worst case reloads a config that locks you out of the other sites.
+- name: Refuse to continue without it
+  ansible.builtin.assert:
+    that: webmin_htpasswd.stat.exists
+    fail_msg: >-
+      {{ webmin_htpasswd_file }} does not exist, so there is nothing to put in
+      front of Webmin and this run has stopped rather than expose it. htpasswd
+      has just been installed, so this will now work:
+      sudo htpasswd -c {{ webmin_htpasswd_file }} <username>
+      Then run this playbook again. Creating it by hand is deliberate — the
+      password stays out of the repo, out of the vault, and out of anyone
+      else's hands.
+  when: webmin_basic_auth
+
+# --- tell Webmin it is behind a proxy -------------------------------------
+
+- name: Trust the proxied hostname
+  # Without this Webmin rejects the request as a cross-site attempt and shows
+  # a bare "Error - Bad Request" that says nothing about referers.
+  ansible.builtin.lineinfile:
+    path: /etc/webmin/config
+    regexp: '^referers='
+    line: "referers={{ webmin_domain }}"
+    create: false
+  notify: Restart webmin
+
+- name: Generate links as https on the public hostname
+  # Webmin builds absolute URLs. Left alone it builds them for
+  # https://<internal-ip>:10000 and every redirect lands somewhere unreachable.
+  ansible.builtin.lineinfile:
+    path: /etc/webmin/miniserv.conf
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: false
+  loop:
+    - { key: redirect_ssl, value: "1" }
+    - { key: redirect_host, value: "{{ webmin_domain }}" }
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Restart webmin
+
+- name: Apply the Webmin changes before nginx is pointed at it
+  ansible.builtin.meta: flush_handlers
+
+# --- nginx and the certificate --------------------------------------------
+# Two passes, same as the espocrm, n8n and meshcentral roles: HTTP only until
+# the certificate exists, so the first run can answer the ACME challenge.
+
+- name: Create the ACME challenge webroot
+  ansible.builtin.file:
+    path: "{{ webmin_acme_webroot }}/.well-known/acme-challenge"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check whether a certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ webmin_domain }}/fullchain.pem"
+  register: webmin_cert
+
+- name: Deploy the nginx site (HTTP only until a certificate exists)
+  ansible.builtin.template:
+    src: webmin.nginx.conf.j2
+    dest: /etc/nginx/sites-available/webmin.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    webmin_tls_ready: "{{ webmin_cert.stat.exists }}"
+  notify: Reload nginx
+
+- name: Enable the Webmin nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/webmin.conf
+    dest: /etc/nginx/sites-enabled/webmin.conf
+    state: link
+  notify: Reload nginx
+
+- name: Validate the assembled nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Apply pending nginx changes now
+  # nginx must be serving the challenge path before certbot is asked.
+  ansible.builtin.meta: flush_handlers
+
+- name: Obtain the certificate
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/certbot
+      - certonly
+      - --webroot
+      - -w
+      - "{{ webmin_acme_webroot }}"
+      - -d
+      - "{{ webmin_domain }}"
+      - --non-interactive
+      - --agree-tos
+      - -m
+      - "{{ letsencrypt_email }}"
+    creates: "/etc/letsencrypt/live/{{ webmin_domain }}/fullchain.pem"
+  when: webmin_request_certificate | default(true)
+
+- name: Re-check for the certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ webmin_domain }}/fullchain.pem"
+  register: webmin_cert_after
+
+- name: Deploy the nginx site again, now with TLS
+  ansible.builtin.template:
+    src: webmin.nginx.conf.j2
+    dest: /etc/nginx/sites-available/webmin.conf
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    webmin_tls_ready: "{{ webmin_cert_after.stat.exists }}"
+  when: webmin_cert_after.stat.exists
+  notify: Reload nginx
+
+- name: Validate the assembled nginx configuration with TLS
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  when: webmin_cert_after.stat.exists
+
+- name: Where Webmin now lives
+  ansible.builtin.debug:
+    msg: >-
+      Webmin is at https://{{ webmin_domain }}/ — nginx asks for the basic-auth
+      password first, then Webmin asks for your Unix login. Port
+      {{ webmin_port }} stays closed to the internet.

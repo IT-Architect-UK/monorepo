@@ -38,5 +38,14 @@
 
 - name: Webmin access details
   ansible.builtin.debug:
-    msg: "Webmin ready — https://{{ ansible_default_ipv4.address | default(inventory_hostname) }}:10000"
+    msg: "Webmin ready — https://{{ ansible_default_ipv4.address | default(inventory_hostname) }}:{{ webmin_port | default(10000) }}"
+  when: not (webmin_domain | default('', true) | length > 0)
   tags: webmin
+
+# On a private network, reaching Webmin on its own port is fine and the role
+# stops here. On a public VPS it is not, so setting webmin_domain additionally
+# puts nginx and a certificate in front and leaves the port closed.
+- name: Put Webmin behind nginx
+  ansible.builtin.import_tasks: proxy.yml
+  when: webmin_domain | default('', true) | length > 0
+  tags: [webmin, proxy]

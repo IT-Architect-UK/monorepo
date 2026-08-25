@@ -1,0 +1,95 @@
+# {{ ansible_managed }}
+# Reverse proxy for Webmin.
+#
+# Same two-pass approach as the espocrm, n8n and meshcentral sites: Ansible
+# owns this file, certbot runs with "certonly --webroot" and never edits it,
+# and the TLS block only appears once the certificate exists so the first run
+# can answer the ACME HTTP-01 challenge over plain HTTP.
+
+server {
+    listen 80;
+{% if webmin_enable_ipv6 %}
+    listen [::]:80;
+{% endif %}
+    server_name {{ webmin_domain }};
+
+    location /.well-known/acme-challenge/ {
+        root {{ webmin_acme_webroot }};
+    }
+
+{% if webmin_tls_ready %}
+    location / {
+        return 301 https://$host$request_uri;
+    }
+{% else %}
+    # Before the certificate exists there is nothing here worth reaching, and
+    # server administration over plain HTTP is not something to offer even
+    # briefly. The challenge path above still works.
+    location / {
+        return 404;
+    }
+{% endif %}
+}
+
+{% if webmin_tls_ready %}
+server {
+    # "listen ... http2" rather than "http2 on;" — the latter needs nginx
+    # 1.25.1+ and Ubuntu 24.04 ships 1.24.
+    listen 443 ssl http2;
+{% if webmin_enable_ipv6 %}
+    listen [::]:443 ssl http2;
+{% endif %}
+    server_name {{ webmin_domain }};
+
+    ssl_certificate     /etc/letsencrypt/live/{{ webmin_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ webmin_domain }}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # This is server administration, not a website. Keep it out of search
+    # engines and out of other people's frames.
+    add_header X-Robots-Tag "noindex, nofollow" always;
+    add_header X-Frame-Options "DENY" always;
+
+    # Webmin's file manager and backup restore both upload whole archives.
+    client_max_body_size 1g;
+
+    location / {
+{% if webmin_basic_auth %}
+        # The outer door. Webmin's own Unix login is the inner one.
+        auth_basic "IT Surgery";
+        auth_basic_user_file {{ webmin_htpasswd_file }};
+{% endif %}
+
+        # https, not http: Webmin keeps its own TLS on the loopback hop, which
+        # is what Webmin's documented nginx recipe expects. Its certificate is
+        # self-signed and nginx does not verify it by default — the traffic
+        # never leaves the machine.
+        proxy_pass https://127.0.0.1:{{ webmin_port }}/;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Without these the Terminal and File Manager modules load and then sit
+        # there doing nothing, because both are websockets.
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # A shell session and a running backup are both long and both
+        # interactive. Buffering either one adds latency for no gain.
+        proxy_buffering         off;
+        proxy_request_buffering off;
+        proxy_read_timeout      330s;
+        proxy_send_timeout      330s;
+    }
+}
+{% endif %}

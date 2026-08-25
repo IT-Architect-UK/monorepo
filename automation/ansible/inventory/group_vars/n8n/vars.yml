@@ -11,3 +11,8 @@
 # it as permanent.
 n8n_domain: "n8n.itsurgery.me"
 n8n_dashboard_domain: "dashboard.itsurgery.me"
+
+# Webmin's own hostname. Named for the box it administers rather than
+# something generic, because there will be more than one server eventually and
+# "which admin panel is this" is a question worth never having to ask.
+webmin_domain: "webmin-crm-vps1.itsurgery.me"

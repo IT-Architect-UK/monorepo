@@ -1,0 +1,11 @@
+---
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+
+# Webmin ships its own restart script and it is the supported way to reload
+# the configuration files under /etc/webmin.
+- name: Restart webmin
+  ansible.builtin.command: /etc/webmin/restart
+  changed_when: true

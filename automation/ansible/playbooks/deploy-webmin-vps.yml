@@ -1,0 +1,30 @@
+---
+# =============================================================================
+# deploy-webmin-vps.yml
+# =============================================================================
+# Installs Webmin on the OVHcloud VPS and puts it behind nginx on its own
+# hostname, so port 10000 never opens to the internet.
+#
+# Different from deploy-webmin.yml, which takes a target_host and installs
+# Webmin on a provisioned VM reachable over SSH. This box runs Ansible on
+# itself, the same arrangement the espocrm, n8n and meshcentral playbooks use.
+#
+# Before the first run, create the basic-auth password file by hand so the
+# password never goes near this repo:
+#
+#   sudo htpasswd -c /etc/nginx/.htpasswd-webmin <username>
+#
+# Usage:
+#   ansible-playbook playbooks/deploy-webmin-vps.yml --ask-vault-pass
+#
+# You log in twice on purpose: nginx asks for that password, then Webmin asks
+# for your Unix login. Webmin authenticates any sudo-capable Unix user through
+# PAM, so there is no separate Webmin account to create or remember.
+# =============================================================================
+
+- name: Webmin behind nginx
+  hosts: n8n
+  become: true
+  gather_facts: true
+  roles:
+    - role: webmin
