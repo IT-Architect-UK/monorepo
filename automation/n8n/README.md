@@ -28,6 +28,7 @@ delete the orphan.
 | `cal-get-pay-link.json` | The `/booked/` page on itsurgery.me | Returns the Xero payment link for a booking, which the page polls for while the invoice is being raised |
 | `error-alert.json` | n8n itself, when another workflow fails | Emails the failure to Darren. Never runs on its own |
 | `dashboard.json` | Darren, in a browser | The business dashboard — money, upcoming bookings, unpaid invoices |
+| `monitoring.json` | Darren, in a browser | Whether the machinery is healthy — services, server, certificates, backups, updates |
 
 ## When something fails
 
@@ -95,6 +96,38 @@ TLS is not a factor either way: n8n has a Let's Encrypt certificate already.
 
 If a prettier address matters later, put `dash.itsurgery.me` in front of the
 n8n webhook with nginx. That keeps the security model and changes only the URL.
+
+## Where the monitoring page gets its facts
+
+`https://dashboard.itsurgery.me/monitoring` answers one question: is anything
+broken. It has three sources and no memory — every load is a fresh look.
+
+1. **The services**, checked by asking them. Anything that answers at all
+   counts as up, including a `401` from Stripe or Xero: an API that refuses an
+   unauthenticated request is working exactly as it should.
+2. **The server**, from `/vitals.json` — a snapshot the `vitals` Ansible role
+   writes every five minutes on the VPS itself. nginx serves that file only to
+   localhost and the Docker bridge, so n8n can read it and nobody else can.
+   The page shows how old the snapshot is and turns amber past 15 minutes and
+   red past an hour, because stale numbers that look fine are worse than none.
+3. **The last deploy**, from the GitHub Actions API.
+
+The thresholds are on the page itself rather than buried here: disks amber at
+80% and red at 90%, certificates amber at 21 days and red at 7, backups amber
+after 36 hours and red after 72.
+
+Every check node is set to `continueRegularOutput`, so a refused connection or
+a DNS failure becomes an item rather than an exception. Without that, one
+unreachable service would abort the run and the page would not render at all —
+monitoring that goes dark exactly when something is wrong. A check that fails
+that way is **red**, labelled "no answer": not being able to reach something is
+a down signal, not a mystery.
+
+Grey is reserved for a check that did not run at all. It is **not** treated as
+healthy — it turns the banner amber and is named in a panel above the diagram,
+because a blind spot is the one fault you cannot spot by reading the rest of
+the page. Grey should be rare; if it appears, the workflow has been edited or a
+node has been removed.
 
 ## Why a green deploy can be trusted
 

@@ -73,6 +73,13 @@ server {
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
 
+    # The monitoring page, given a name a person can type at the moment they
+    # least want to remember a /webhook/ prefix. Same workflow either way.
+    location = /monitoring {
+        proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/monitoring;
+        include /etc/nginx/snippets/dashboard-proxy.conf;
+    }
+
     # The buttons and forms on that page post back to /webhook/... paths. They
     # are relative, so they arrive here rather than at n8n.itsurgery.me, and
     # would 404 without this.
