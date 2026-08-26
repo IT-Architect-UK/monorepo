@@ -44,41 +44,11 @@ if command -v docker >/dev/null 2>&1; then
   done < <(docker ps -a --format '{% raw %}{{.Names}}|{{.State}}|{{.Status}}|{{.Image}}{% endraw %}' 2>/dev/null)
 fi
 
-# --- certificates ----------------------------------------------------------
-# Days remaining on each Let's Encrypt certificate. Renewal is automatic, so
-# this is here to notice when automatic renewal has quietly stopped working.
-CERTS=""
-if [ -d /etc/letsencrypt/live ]; then
-  for dir in /etc/letsencrypt/live/*/; do
-    [ -f "$dir/cert.pem" ] || continue
-    name=$(basename "$dir")
-    end=$(openssl x509 -enddate -noout -in "$dir/cert.pem" 2>/dev/null | cut -d= -f2)
-    [ -z "$end" ] && continue
-    days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
-    [ -n "$CERTS" ] && CERTS="$CERTS,"
-    CERTS="$CERTS{\"name\":\"$(esc "$name")\",\"days\":$days}"
-  done
-fi
-
-# --- backups ---------------------------------------------------------------
-BACKUPS=""
-{% for dir in vitals_backup_dirs %}
-if [ -d "{{ dir }}" ]; then
-  newest=$(find "{{ dir }}" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1)
-  if [ -n "$newest" ]; then
-    age_h=$(( ( $(date +%s) - ${newest%.*} ) / 3600 ))
-  else
-    age_h=-1
-  fi
-  [ -n "$BACKUPS" ] && BACKUPS="$BACKUPS,"
-  BACKUPS="$BACKUPS{\"name\":\"$(basename $(dirname "{{ dir }}"))\",\"ageHours\":$age_h}"
-fi
-{% endfor %}
-
 # --- systemd services ------------------------------------------------------
-# Things that are not containers and would otherwise be invisible. A stopped
-# certbot.timer is how certificates quietly expire; a stopped webmin is
-# undetectable from outside, because nginx answers its own 401 first.
+# Cheap, and belongs in the fast half: a stopped service is exactly the kind of
+# thing worth knowing about within a minute. A stopped certbot.timer is how
+# certificates quietly expire; a stopped webmin is undetectable from outside,
+# because nginx answers its own 401 first.
 SERVICES=""
 {% for unit in vitals_service_units %}
 if command -v systemctl >/dev/null 2>&1; then
@@ -89,14 +59,74 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 {% endfor %}
 
-# --- updates ---------------------------------------------------------------
-UPDATES=0; SECURITY=0
-if command -v apt-get >/dev/null 2>&1; then
-  pending=$(apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null | grep -c '^Inst ')
-  UPDATES=${pending:-0}
-  sec=$(apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null | grep '^Inst ' | grep -ci security)
-  SECURITY=${sec:-0}
+# --- the slow half ---------------------------------------------------------
+# Certificates, backup ages and pending updates are expensive to collect and
+# change on the scale of hours or days. `apt-get -s upgrade` alone parses the
+# whole package database. Recomputing that every minute would burn CPU on a box
+# that is also serving customers, to learn nothing new.
+#
+# So they are cached, and only recomputed when the cache is older than
+# {{ vitals_slow_max_age }} seconds. The fast half above still runs every time.
+SLOW_DIR="{{ vitals_dir }}/cache"
+mkdir -p "$SLOW_DIR"
+
+slow_age() {
+  [ -f "$SLOW_DIR/updates" ] || { echo 999999; return; }
+  echo $(( $(date +%s) - $(stat -c %Y "$SLOW_DIR/updates") ))
+}
+
+SLOW_AGE=$(slow_age)
+if [ "$SLOW_AGE" -ge {{ vitals_slow_max_age }} ]; then
+
+  # Days remaining on each Let's Encrypt certificate. Renewal is automatic, so
+  # this is here to notice when automatic renewal has quietly stopped working.
+  CERTS=""
+  if [ -d /etc/letsencrypt/live ]; then
+    for dir in /etc/letsencrypt/live/*/; do
+      [ -f "$dir/cert.pem" ] || continue
+      name=$(basename "$dir")
+      end=$(openssl x509 -enddate -noout -in "$dir/cert.pem" 2>/dev/null | cut -d= -f2)
+      [ -z "$end" ] && continue
+      days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+      [ -n "$CERTS" ] && CERTS="$CERTS,"
+      CERTS="$CERTS{\"name\":\"$(esc "$name")\",\"days\":$days}"
+    done
+  fi
+
+  BACKUPS=""
+{% for dir in vitals_backup_dirs %}
+  if [ -d "{{ dir }}" ]; then
+    newest=$(find "{{ dir }}" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1)
+    if [ -n "$newest" ]; then
+      age_h=$(( ( $(date +%s) - ${newest%.*} ) / 3600 ))
+    else
+      age_h=-1
+    fi
+    [ -n "$BACKUPS" ] && BACKUPS="$BACKUPS,"
+    BACKUPS="$BACKUPS{\"name\":\"$(basename $(dirname "{{ dir }}"))\",\"ageHours\":$age_h}"
+  fi
+{% endfor %}
+
+  # One simulation, parsed twice. Running apt-get -s upgrade a second time just
+  # to count the security lines doubled the most expensive thing here.
+  UPDATES=0; SECURITY=0
+  if command -v apt-get >/dev/null 2>&1; then
+    sim=$(apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null | grep '^Inst ')
+    UPDATES=$(printf '%s\n' "$sim" | grep -c '^Inst ')
+    SECURITY=$(printf '%s\n' "$sim" | grep -ci security)
+  fi
+
+  printf '%s' "$CERTS"    > "$SLOW_DIR/certs"
+  printf '%s' "$BACKUPS"  > "$SLOW_DIR/backups"
+  printf '%s' "$UPDATES $SECURITY" > "$SLOW_DIR/updates"
+  SLOW_AGE=0
 fi
+
+CERTS=$(cat "$SLOW_DIR/certs" 2>/dev/null || printf '')
+BACKUPS=$(cat "$SLOW_DIR/backups" 2>/dev/null || printf '')
+read -r UPDATES SECURITY <<< "$(cat "$SLOW_DIR/updates" 2>/dev/null || printf '0 0')"
+UPDATES=${UPDATES:-0}; SECURITY=${SECURITY:-0}
+
 REBOOT=false
 [ -f /var/run/reboot-required ] && REBOOT=true
 
@@ -114,7 +144,8 @@ cat > "$TMP" <<JSON
   "services": [ $SERVICES ],
   "certificates": [ $CERTS ],
   "backups": [ $BACKUPS ],
-  "updates": { "pending": $UPDATES, "security": $SECURITY, "rebootRequired": $REBOOT }
+  "updates": { "pending": $UPDATES, "security": $SECURITY, "rebootRequired": $REBOOT },
+  "slowAgeSeconds": $SLOW_AGE
 }
 JSON
 

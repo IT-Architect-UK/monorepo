@@ -14,7 +14,15 @@
 
 vitals_dir: /opt/vitals
 vitals_file: /opt/vitals/vitals.json
-vitals_schedule: "*:0/5"          # every five minutes
+# The fast half — memory, disks, containers, systemd units — is cheap enough
+# to run every minute. Anything sudden shows up within a minute of happening.
+vitals_schedule: "*:0/1"
+
+# The slow half — certificates, backup ages, pending updates — is cached and
+# only recomputed when older than this. These change on the scale of hours and
+# days; apt-get -s upgrade alone parses the whole package database, and doing
+# that sixty times an hour would cost real CPU to learn nothing.
+vitals_slow_max_age: 900          # fifteen minutes, in seconds
 vitals_disk_paths:
   - /
 # Backup directories to report the age of the newest file in. A backup that

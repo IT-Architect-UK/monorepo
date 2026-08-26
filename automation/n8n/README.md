@@ -138,7 +138,8 @@ fifteen minutes and compares it with the last one it saw. The health rules
 therefore exist in exactly one place, and the email can never disagree with
 what the page shows.
 
-It asks over the public URL rather than reaching into n8n directly, so nginx,
+It runs every five minutes and asks over the public URL rather than reaching
+into n8n directly, so nginx,
 the certificate and basic auth are all on the path being tested. If the
 monitoring page cannot be reached at all, that is the one email the watchdog
 sends on its own account — no other thing here can report that failure.
@@ -162,6 +163,28 @@ Two traps worth not rediscovering:
 - **Something newly appeared and already unhealthy is a problem, not a
   recovery.** An early version put it in the recovered list and produced the
   subject line "Recovered" for a container that had just died.
+
+## Two clocks, on purpose
+
+The host snapshot is rewritten **every minute**, but certificates, backup ages
+and pending-update counts inside it are **cached for fifteen**.
+
+That is not laziness. `apt-get -s upgrade` parses the entire package database
+and takes over a second; walking the backup directories and forking `openssl`
+once per certificate is not free either. Measured on a rendered copy of the
+script: **1216 ms on a cold run, 32 ms when the cache is warm.** Recomputing
+all of it sixty times an hour would cost real CPU on a box that is also serving
+customers, to learn nothing — those numbers move in hours and days.
+
+Everything that can change suddenly is in the fast half: memory, disks,
+containers and `systemctl is-active`. A stopped service shows up within a
+minute of stopping.
+
+The snapshot's own age is published as `generated`, and the cached half's age
+as `slowAgeSeconds`, so nothing has to be taken on trust. Because the timer now
+runs every minute, the page treats a snapshot as amber past five minutes and
+red past fifteen — against the old five-minute timer those thresholds were
+loose enough that a stopped timer could go unremarked for a quarter of an hour.
 
 ## Why a green deploy can be trusted
 
