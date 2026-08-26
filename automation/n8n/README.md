@@ -29,6 +29,7 @@ delete the orphan.
 | `error-alert.json` | n8n itself, when another workflow fails | Emails the failure to Darren. Never runs on its own |
 | `dashboard.json` | Darren, in a browser | The business dashboard — money, upcoming bookings, unpaid invoices |
 | `monitoring.json` | Darren, in a browser | Whether the machinery is healthy — services, server, certificates, backups, updates |
+| `watchdog.json` | A 15-minute schedule | Emails when the monitoring verdict *changes*. Never runs on demand |
 
 ## When something fails
 
@@ -128,6 +129,39 @@ healthy — it turns the banner amber and is named in a panel above the diagram,
 because a blind spot is the one fault you cannot spot by reading the rest of
 the page. Grey should be rare; if it appears, the workflow has been edited or a
 node has been removed.
+
+## The watchdog, and why it has no rules of its own
+
+`monitoring.json` answers `?format=json` with the same verdict it just
+rendered as a page — same run, same rules. `watchdog.json` fetches that every
+fifteen minutes and compares it with the last one it saw. The health rules
+therefore exist in exactly one place, and the email can never disagree with
+what the page shows.
+
+It asks over the public URL rather than reaching into n8n directly, so nginx,
+the certificate and basic auth are all on the path being tested. If the
+monitoring page cannot be reached at all, that is the one email the watchdog
+sends on its own account — no other thing here can report that failure.
+
+**Only transitions are reported.** Something that emails every fifteen minutes
+while a disk is full is something you filter into a folder and stop reading,
+and then it is worth nothing on the day it matters. Recoveries are reported
+too, so a problem that fixes itself closes rather than leaving you wondering.
+
+Previous state lives in `$getWorkflowStaticData('global')`, which survives
+between executions but **not** a redeploy of the workflow. That is deliberate:
+after a deploy the first run re-learns the world silently instead of emailing
+about things that were already true.
+
+Two traps worth not rediscovering:
+
+- **A Code node runs once for all items by default, and the bare `$json`
+  shorthand is undefined in that mode.** Use `$input.first().json`. Getting
+  this wrong fails at run time, in the background, and looks exactly like
+  nothing being wrong.
+- **Something newly appeared and already unhealthy is a problem, not a
+  recovery.** An early version put it in the recovered list and produced the
+  subject line "Recovered" for a container that had just died.
 
 ## Why a green deploy can be trusted
 

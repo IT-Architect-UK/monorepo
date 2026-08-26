@@ -1,0 +1,174 @@
+{
+  "name": "Monitoring watchdog",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "name": "Every 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Often enough to matter, rarely enough that a real problem does not arrive as a wall of mail."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://dashboard.itsurgery.me/monitoring?format=json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "name": "Ask how things are",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "Hi3G6E9Nx9HDAY2D",
+          "name": "Dashboard login"
+        }
+      },
+      "notes": "Deliberately over the public URL rather than a shortcut to n8n: this way nginx, the certificate and basic auth are all on the path being tested."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide whether anything has actually changed since the last look, and say\n// so in words rather than in colours.\n//\n// Only transitions are reported. A page that emails every fifteen minutes\n// while a disk is full is a page you filter into a folder and stop reading,\n// and then it is worth nothing on the day it matters.\n\nconst WORSE = { green: 0, amber: 1, red: 2, grey: 1 };\n\n// $input.first(), not the bare per-item shorthand: a Code node runs once for\n// all items by default, where that shorthand is undefined. Getting it wrong\n// fails at run time — which for a watchdog means failing silently, in the\n// background, and looking exactly like \"nothing is wrong\".\nconst input = $input.first().json;\nconst body = input.body ?? input;\nconst fetched = typeof body === 'string' ? JSON.parse(body) : body;\n\n// A watchdog that cannot see is itself a fault, and the one fault nothing\n// else will report.\nif (!fetched || !Array.isArray(fetched.parts)) {\n  return [{ json: {\n    changed: true,\n    subject: 'Monitoring is not answering',\n    html: `<p>The watchdog asked the monitoring page how things were and could\n           not get an answer, so nothing is being checked right now.</p>\n           <p>Status code: ${input.statusCode ?? 'none'}<br>\n           This is the one failure the monitoring page cannot report itself.</p>\n           <p><a href=\"https://dashboard.itsurgery.me/monitoring\">Open it</a></p>`,\n  } }];\n}\n\n// Static data survives between executions. It does not survive a redeploy of\n// the workflow, so the first run after one re-learns the world in silence\n// rather than emailing about things that were already true.\nconst store = $getWorkflowStaticData('global');\nconst previous = store.parts || null;\nconst now = {};\nfetched.parts.forEach(p => { now[p.what] = p.state; });\n\nif (!previous) {\n  store.parts = now;\n  return [{ json: { changed: false, learned: Object.keys(now).length } }];\n}\n\nconst worsened = [];\nconst recovered = [];\nconst appeared = [];\nconst vanished = [];\n\nfetched.parts.forEach(p => {\n  const was = previous[p.what];\n  if (was === undefined) { if (p.state !== 'green') appeared.push(p); return; }\n  if (was === p.state) return;\n  (WORSE[p.state] > WORSE[was] ? worsened : recovered)\n    .push({ ...p, was });\n});\nObject.keys(previous).forEach(what => {\n  if (!(what in now)) vanished.push({ what, was: previous[what] });\n});\n\nstore.parts = now;\n\nif (!worsened.length && !recovered.length && !appeared.length && !vanished.length) {\n  return [{ json: { changed: false } }];\n}\n\nconst line = (p) => `<li><strong>${p.what}</strong> — ${p.detail || ''}${\n  p.was ? ` <span style=\"color:#5a6068\">(was ${p.was})</span>` : ''}</li>`;\n\n// Something that has only just appeared and is already unhealthy is a\n// problem, not a recovery. Reading the subject line wrongly at a glance is\n// the whole failure mode this is meant to avoid.\nconst bad = worsened.concat(appeared);\nconst andMore = (list) => list.length > 1 ? ` and ${list.length - 1} more` : '';\nconst worstNow = bad.reduce((w, p) => WORSE[p.state] > WORSE[w] ? p.state : w, 'green');\n\nconst subject =\n    bad.length      ? `${worstNow === 'red' ? 'Problem' : 'Warning'} — ${bad[0].what}${andMore(bad)}`\n  : vanished.length ? `No longer being checked — ${vanished[0].what}${andMore(vanished)}`\n  :                   `Recovered — ${recovered[0].what}${andMore(recovered)}`;\n\nconst section = (title, items) => items.length\n  ? `<p><strong>${title}</strong></p><ul>${items.map(line).join('')}</ul>` : '';\n\nreturn [{ json: {\n  changed: true,\n  subject,\n  html: `\n    ${section('Gone wrong', worsened)}\n    ${section('Back to normal', recovered)}\n    ${section('New and not healthy', appeared)}\n    ${section('Stopped being reported', vanished)}\n    <p>Everything else is as it was. Overall: <strong>${fetched.overall}</strong>.</p>\n    <p><a href=\"https://dashboard.itsurgery.me/monitoring\">Open the monitoring page</a></p>`,\n} }];\n"
+      },
+      "name": "What changed?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.changed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Worth an email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "toRecipients": "darren.pilkington@it-architect.uk",
+        "subject": "={{ $json.subject }}",
+        "bodyContent": "={{ $json.html }}",
+        "additionalFields": {
+          "bodyContentType": "html"
+        }
+      },
+      "name": "Tell Darren",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -80
+      ],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "vFBlY5YMFquusk6v",
+          "name": "Microsoft 365 — help@itsurgery.me"
+        }
+      },
+      "notes": "bodyContentType must be set explicitly. The node's default is html but that default only applies when the field is present."
+    }
+  ],
+  "connections": {
+    "Every 15 minutes": {
+      "main": [
+        [
+          {
+            "node": "Ask how things are",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask how things are": {
+      "main": [
+        [
+          {
+            "node": "What changed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What changed?": {
+      "main": [
+        [
+          {
+            "node": "Worth an email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Worth an email?": {
+      "main": [
+        [
+          {
+            "node": "Tell Darren",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflowName": "n8n error alert"
+  }
+}
