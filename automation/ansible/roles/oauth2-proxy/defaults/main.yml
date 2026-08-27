@@ -37,3 +37,8 @@ oauth2_proxy_cookie_refresh: "1h"
 #   oauth2_proxy_client_id      app registration (Application) id
 #   oauth2_proxy_client_secret  its client secret
 #   oauth2_proxy_cookie_secret  32 url-safe bytes; openssl rand -base64 32 | tr '+/' '-_'
+
+# The uid the container runs as — distroless "nonroot". Pinned in the compose
+# file AND used as the config files' owner, so the two can never disagree.
+# Verified against the image itself: docker inspect ... '{{.Config.User}}'.
+oauth2_proxy_uid: 65532
