@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+# Config per the Entra ID provider documentation for v7.15:
+#   https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/ms_entra_id
+
+provider = "entra-id"
+oidc_issuer_url = "https://login.microsoftonline.com/{{ oauth2_proxy_tenant_id }}/v2.0"
+client_id = "{{ oauth2_proxy_client_id }}"
+client_secret = "{{ oauth2_proxy_client_secret }}"
+# profile and email so the address is present to check against the allow-list.
+scope = "openid profile email"
+
+redirect_url = "{{ oauth2_proxy_redirect_url }}"
+http_address = "0.0.0.0:4180"
+# nginx terminates TLS; without this the X-Forwarded-* headers are distrusted
+# and every redirect goes to http.
+reverse_proxy = true
+
+# Straight to the Microsoft page — an interstitial "sign in with" button with
+# exactly one provider on it is a click that buys nothing.
+skip_provider_button = true
+
+email_domains = ["*"]
+authenticated_emails_file = "/etc/oauth2-proxy-emails.txt"
+
+cookie_secret = "{{ oauth2_proxy_cookie_secret }}"
+cookie_secure = true
+cookie_expire = "{{ oauth2_proxy_cookie_expire }}"
+cookie_refresh = "{{ oauth2_proxy_cookie_refresh }}"

@@ -1,0 +1,5 @@
+---
+- name: Restart oauth2-proxy
+  community.docker.docker_compose_v2:
+    project_src: "{{ oauth2_proxy_base_dir }}"
+    state: restarted

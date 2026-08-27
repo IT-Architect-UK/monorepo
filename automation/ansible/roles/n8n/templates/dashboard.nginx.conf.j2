@@ -67,8 +67,55 @@ server {
         add_header Cache-Control "no-store" always;
     }
 
+{% if oauth2_proxy_enabled | default(false) %}
+    # --- Microsoft sign-in ------------------------------------------------
+    # oauth2-proxy holds the session; nginx asks it before serving anything
+    # administrative. A request with no session lands on the Microsoft login
+    # and comes back to where it was going.
+    location /oauth2/ {
+        proxy_pass http://127.0.0.1:{{ oauth2_proxy_http_port | default(4180) }};
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_set_header X-Forwarded-Uri   $request_uri;
+    }
+    location = /oauth2/auth {
+        proxy_pass http://127.0.0.1:{{ oauth2_proxy_http_port | default(4180) }};
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length    "";
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_set_header X-Forwarded-Uri   $request_uri;
+    }
+    error_page 401 = @sign_in;
+    location @sign_in {
+        return 302 /oauth2/start?rd=$scheme://$host$request_uri;
+    }
+
+    # The watchdog is a machine and cannot sign in with Microsoft. Its own
+    # door, locked with the same credential n8n's webhook checks anyway.
+    location = /monitoring.json {
+        auth_basic           "IT Surgery services";
+        auth_basic_user_file /etc/nginx/.htpasswd-services;
+        proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/monitoring?format=json;
+        include /etc/nginx/snippets/dashboard-proxy.conf;
+    }
+{% endif %}
+
     # The bare host is the dashboard itself.
     location = / {
+{% if oauth2_proxy_enabled | default(false) %}
+        auth_request /oauth2/auth;
+{% endif %}
+{% if oauth2_proxy_enabled | default(false) %}
+        # n8n's own basic auth stays on, satisfied invisibly. Kept because the
+        # webhook is also reachable at n8n.itsurgery.me, which this host's
+        # sign-in does not guard.
+        proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
+{% endif %}
         proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/dashboard;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
@@ -76,6 +123,15 @@ server {
     # The monitoring page, given a name a person can type at the moment they
     # least want to remember a /webhook/ prefix. Same workflow either way.
     location = /monitoring {
+{% if oauth2_proxy_enabled | default(false) %}
+        auth_request /oauth2/auth;
+{% endif %}
+{% if oauth2_proxy_enabled | default(false) %}
+        # n8n's own basic auth stays on, satisfied invisibly. Kept because the
+        # webhook is also reachable at n8n.itsurgery.me, which this host's
+        # sign-in does not guard.
+        proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
+{% endif %}
         proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/monitoring;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
@@ -85,8 +141,18 @@ server {
     # both serve the same /webmin/ layout because Webmin's webprefix is global.
     location = /webmin { return 301 /webmin/; }
     location /webmin/ {
+{% if oauth2_proxy_enabled | default(false) %}
+        auth_request /oauth2/auth;
+{% if webmin_unix_password is defined %}
+        # Passthrough: after the Microsoft sign-in, nginx presents the Unix
+        # login to Webmin itself. Root-only file on the box that credential
+        # already roots — it widens nothing.
+        proxy_set_header Authorization "Basic {{ ((webmin_unix_user | default('ubuntu')) ~ ':' ~ webmin_unix_password) | b64encode }}";
+{% endif %}
+{% else %}
         auth_basic "IT Surgery";
         auth_basic_user_file {{ webmin_htpasswd_file | default('/etc/nginx/.htpasswd-webmin') }};
+{% endif %}
 
         # https on the loopback hop — Webmin keeps its own TLS, per its
         # documented nginx recipe.
@@ -110,6 +176,9 @@ server {
     # NOTE: no dollar signs may appear in this string; nginx would treat them
     # as variables.
     location = /webmin-frame {
+{% if oauth2_proxy_enabled | default(false) %}
+        auth_request /oauth2/auth;
+{% endif %}
         default_type text/html;
         add_header Cache-Control "no-store" always;
         return 200 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>IT Surgery - Webmin</title><style>body{margin:0;font:14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}nav{background:#fff;border-bottom:3px solid #990000;padding:.55rem 1.25rem;display:flex;gap:1.1rem;align-items:center}nav img{height:28px}nav a{color:#990000;font-weight:600;text-decoration:none;font-size:.9rem;padding-bottom:.2rem}nav a.on{color:#222222;border-bottom:2px solid #990000}iframe{display:block;border:0;width:100%;height:calc(100vh - 51px)}</style></head><body><nav><img src="https://itsurgery.me/assets/logo.png" alt="IT Surgery"><a href="/">Dashboard</a><a href="/monitoring">Monitoring</a><a class="on" href="/webmin-frame">Webmin</a></nav><iframe src="/webmin/" title="Webmin"></iframe></body></html>';
@@ -119,6 +188,15 @@ server {
     # are relative, so they arrive here rather than at n8n.itsurgery.me, and
     # would 404 without this.
     location /webhook/ {
+{% if oauth2_proxy_enabled | default(false) %}
+        auth_request /oauth2/auth;
+{% endif %}
+{% if oauth2_proxy_enabled | default(false) %}
+        # n8n's own basic auth stays on, satisfied invisibly. Kept because the
+        # webhook is also reachable at n8n.itsurgery.me, which this host's
+        # sign-in does not guard.
+        proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
+{% endif %}
         proxy_pass http://127.0.0.1:{{ n8n_http_port }};
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }

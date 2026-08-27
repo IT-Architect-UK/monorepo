@@ -1,0 +1,39 @@
+---
+# =============================================================================
+# roles/oauth2-proxy — one Microsoft sign-in for every admin page
+# =============================================================================
+# Replaces the browser's basic-auth popups with the Microsoft 365 login Darren
+# already uses, including its MFA. nginx asks this service "is there a valid
+# session?" before serving anything administrative; behind that gate it
+# injects the per-service credentials, so n8n and Webmin keep their own locks
+# but nobody types them.
+# =============================================================================
+
+oauth2_proxy_image: quay.io/oauth2-proxy/oauth2-proxy
+# Pinned like every other container here.
+oauth2_proxy_image_tag: v7.15.4
+oauth2_proxy_base_dir: /opt/oauth2-proxy
+oauth2_proxy_http_port: 4180
+
+# Single tenant — the IT Solution Architecture one. Personal Microsoft
+# accounts cannot sign in, whatever they guess.
+oauth2_proxy_tenant_id: ""
+
+# Who is allowed through, by exact address. Everyone else authenticates with
+# Microsoft successfully and is then refused here — authentication is not
+# authorisation.
+oauth2_proxy_allowed_emails:
+  - darren.pilkington@it-architect.uk
+
+# The one registered callback. Sign-in from any admin page funnels through
+# this and returns to wherever the user was going.
+oauth2_proxy_redirect_url: "https://dashboard.itsurgery.me/oauth2/callback"
+
+# Sessions: refreshed hourly against Entra, dead after 12 hours regardless.
+oauth2_proxy_cookie_expire: "12h"
+oauth2_proxy_cookie_refresh: "1h"
+
+# From the vault, never from here:
+#   oauth2_proxy_client_id      app registration (Application) id
+#   oauth2_proxy_client_secret  its client secret
+#   oauth2_proxy_cookie_secret  32 url-safe bytes; openssl rand -base64 32 | tr '+/' '-_'

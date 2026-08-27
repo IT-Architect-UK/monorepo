@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+services:
+  oauth2-proxy:
+    image: {{ oauth2_proxy_image }}:{{ oauth2_proxy_image_tag }}
+    container_name: oauth2-proxy
+    restart: unless-stopped
+    # Loopback only — nginx is the only caller.
+    ports:
+      - "127.0.0.1:{{ oauth2_proxy_http_port }}:4180"
+    volumes:
+      - {{ oauth2_proxy_base_dir }}/oauth2-proxy.cfg:/etc/oauth2-proxy.cfg:ro
+      - {{ oauth2_proxy_base_dir }}/emails.txt:/etc/oauth2-proxy-emails.txt:ro
+    command: ["--config", "/etc/oauth2-proxy.cfg"]

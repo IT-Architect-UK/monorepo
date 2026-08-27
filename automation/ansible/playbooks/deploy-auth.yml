@@ -1,0 +1,22 @@
+---
+# =============================================================================
+# deploy-auth.yml
+# =============================================================================
+# Deploys oauth2-proxy — the Microsoft sign-in in front of the admin pages.
+# Prerequisites, in order:
+#   1. An Entra app registration with the callback
+#      https://dashboard.itsurgery.me/oauth2/callback
+#   2. Its client id and secret, a cookie secret, and the Dashboard login
+#      password added to the vault:  ansible-vault edit inventory/group_vars/n8n/vault.yml
+#   3. oauth2_proxy_enabled: true in inventory/group_vars/n8n/vars.yml
+# Then run this, followed by deploy-n8n.yml to wire nginx.
+#
+# Usage:
+#   ansible-playbook playbooks/deploy-auth.yml --ask-vault-pass
+# =============================================================================
+- name: Microsoft sign-in for the admin pages
+  hosts: n8n
+  become: true
+  gather_facts: true
+  roles:
+    - role: oauth2-proxy

@@ -1,0 +1,87 @@
+---
+- name: Fail early if the secrets are missing
+  ansible.builtin.assert:
+    that:
+      - oauth2_proxy_tenant_id | default('', true) | length > 0
+      - oauth2_proxy_client_id | default('', true) | length > 0
+      - oauth2_proxy_client_secret | default('', true) | length > 0
+      - oauth2_proxy_cookie_secret | default('', true) | length > 0
+      - n8n_dashboard_basic_password | default('', true) | length > 0
+    fail_msg: >-
+      oauth2_proxy_client_id, oauth2_proxy_client_secret and
+      oauth2_proxy_cookie_secret must be in the vault, oauth2_proxy_tenant_id
+      in group_vars, and n8n_dashboard_basic_password (the Dashboard login
+      password from Bitwarden) in the vault so the service htpasswd can be
+      generated. See the role README.
+
+- name: Create directories
+  ansible.builtin.file:
+    path: "{{ oauth2_proxy_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Write the allow-list
+  ansible.builtin.copy:
+    dest: "{{ oauth2_proxy_base_dir }}/emails.txt"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {% for e in oauth2_proxy_allowed_emails %}
+      {{ e }}
+      {% endfor %}
+  notify: Restart oauth2-proxy
+
+- name: Write the configuration
+  ansible.builtin.template:
+    src: oauth2-proxy.cfg.j2
+    dest: "{{ oauth2_proxy_base_dir }}/oauth2-proxy.cfg"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart oauth2-proxy
+
+- name: Write the compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ oauth2_proxy_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart oauth2-proxy
+
+- name: Start oauth2-proxy
+  community.docker.docker_compose_v2:
+    project_src: "{{ oauth2_proxy_base_dir }}"
+    state: present
+
+# --- the service-account door ----------------------------------------------
+# The watchdog is a machine: it cannot sign in with Microsoft. It gets its own
+# nginx door secured by the same credential n8n's webhook already checks, so
+# there is still exactly one password for that pairing.
+
+- name: Install passlib for htpasswd management
+  ansible.builtin.apt:
+    name: python3-passlib
+    state: present
+    update_cache: true
+
+- name: Write the service-account htpasswd
+  community.general.htpasswd:
+    path: /etc/nginx/.htpasswd-services
+    name: "{{ n8n_dashboard_basic_user | default('dashboard') }}"
+    password: "{{ n8n_dashboard_basic_password }}"
+    owner: root
+    group: www-data
+    mode: "0640"
+
+- name: Wait for oauth2-proxy to answer
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ oauth2_proxy_http_port }}/ping"
+    status_code: 200
+  register: o2p_ping
+  retries: 10
+  delay: 3
+  until: o2p_ping is succeeded
