@@ -63,14 +63,30 @@
 
 # --- tell Webmin it is behind a proxy -------------------------------------
 
-- name: Trust the proxied hostname
+- name: Trust both proxied hostnames
   # Without this Webmin rejects the request as a cross-site attempt and shows
   # a bare "Error - Bad Request" that says nothing about referers.
   ansible.builtin.lineinfile:
     path: /etc/webmin/config
     regexp: '^referers='
-    line: "referers={{ webmin_domain }}"
+    line: "referers={{ webmin_domain }} {{ n8n_dashboard_domain | default('') }}"
     create: false
+  notify: Restart webmin
+
+- name: Serve under the /webmin prefix
+  # Webmin's documented subdirectory mode. The prefix is global, which is why
+  # BOTH routes — its own hostname and the dashboard host — serve /webmin/.
+  # This is what lets the dashboard frame it same-origin.
+  ansible.builtin.lineinfile:
+    path: /etc/webmin/config
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: false
+  loop:
+    - { key: webprefix, value: "/webmin" }
+    - { key: webprefixnoredir, value: "1" }
+  loop_control:
+    label: "{{ item.key }}"
   notify: Restart webmin
 
 - name: Generate links as https on the public hostname
@@ -83,9 +99,20 @@
     create: false
   loop:
     - { key: redirect_ssl, value: "1" }
-    - { key: redirect_host, value: "{{ webmin_domain }}" }
+    - { key: redirect_prefix, value: "/webmin" }
+    - { key: cookiepath, value: "/webmin" }
   loop_control:
     label: "{{ item.key }}"
+  notify: Restart webmin
+
+- name: Do not pin redirects to one hostname
+  # redirect_host was right when there was one route in. With two, pinning
+  # every redirect to the standalone hostname would bounce the framed view out
+  # of its frame. Left unset, miniserv follows the Host header nginx passes.
+  ansible.builtin.lineinfile:
+    path: /etc/webmin/miniserv.conf
+    regexp: '^redirect_host='
+    state: absent
   notify: Restart webmin
 
 - name: Apply the Webmin changes before nginx is pointed at it
@@ -176,6 +203,7 @@
 - name: Where Webmin now lives
   ansible.builtin.debug:
     msg: >-
-      Webmin is at https://{{ webmin_domain }}/ — nginx asks for the basic-auth
-      password first, then Webmin asks for your Unix login. Port
-      {{ webmin_port }} stays closed to the internet.
+      Webmin is at https://{{ webmin_domain }}/webmin/ and framed inside
+      https://{{ n8n_dashboard_domain | default('the dashboard') }}/webmin-frame.
+      nginx asks for the basic-auth password first, then Webmin asks for your
+      Unix login. Port {{ webmin_port }} stays closed to the internet.

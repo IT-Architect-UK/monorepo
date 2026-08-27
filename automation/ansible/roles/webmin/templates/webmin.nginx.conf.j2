@@ -60,7 +60,13 @@ server {
     # Webmin's file manager and backup restore both upload whole archives.
     client_max_body_size 1g;
 
-    location / {
+    # webprefix is global, so this host serves the same /webmin/ layout as
+    # the dashboard host. The bare root just points at it.
+    location = / {
+        return 301 /webmin/;
+    }
+
+    location /webmin/ {
 {% if webmin_basic_auth %}
         # The outer door. Webmin's own Unix login is the inner one.
         auth_basic "IT Surgery";

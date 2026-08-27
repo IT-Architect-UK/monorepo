@@ -80,6 +80,41 @@ server {
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
 
+    # Webmin, same-origin, so the Webmin tab can hold it in a frame without
+    # cross-site cookie fights. The separate hostname stays as a second route —
+    # both serve the same /webmin/ layout because Webmin's webprefix is global.
+    location = /webmin { return 301 /webmin/; }
+    location /webmin/ {
+        auth_basic "IT Surgery";
+        auth_basic_user_file {{ webmin_htpasswd_file | default('/etc/nginx/.htpasswd-webmin') }};
+
+        # https on the loopback hop — Webmin keeps its own TLS, per its
+        # documented nginx recipe.
+        proxy_pass https://127.0.0.1:{{ webmin_port | default(10000) }}/;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_buffering         off;
+        proxy_request_buffering off;
+        proxy_read_timeout      330s;
+        proxy_send_timeout      330s;
+        client_max_body_size 1g;
+    }
+
+    # The Webmin tab: our header, with Webmin in a same-origin frame below it.
+    # Static HTML straight from nginx — no reason to wake n8n for chrome.
+    # NOTE: no dollar signs may appear in this string; nginx would treat them
+    # as variables.
+    location = /webmin-frame {
+        default_type text/html;
+        add_header Cache-Control "no-store" always;
+        return 200 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>IT Surgery - Webmin</title><style>body{margin:0;font:14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}nav{background:#fff;border-bottom:3px solid #990000;padding:.55rem 1.25rem;display:flex;gap:1.1rem;align-items:center}nav img{height:28px}nav a{color:#990000;font-weight:600;text-decoration:none;font-size:.9rem;padding-bottom:.2rem}nav a.on{color:#222222;border-bottom:2px solid #990000}iframe{display:block;border:0;width:100%;height:calc(100vh - 51px)}</style></head><body><nav><img src="https://itsurgery.me/assets/logo.png" alt="IT Surgery"><a href="/">Dashboard</a><a href="/monitoring">Monitoring</a><a class="on" href="/webmin-frame">Webmin</a></nav><iframe src="/webmin/" title="Webmin"></iframe></body></html>';
+    }
+
     # The buttons and forms on that page post back to /webhook/... paths. They
     # are relative, so they arrive here rather than at n8n.itsurgery.me, and
     # would 404 without this.
