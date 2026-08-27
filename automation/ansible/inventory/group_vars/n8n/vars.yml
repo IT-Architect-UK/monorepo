@@ -20,7 +20,7 @@ webmin_domain: "webmin-crm-vps1.itsurgery.me"
 # Microsoft sign-in for the admin pages. Off until the Entra app registration
 # exists and its secrets are in the vault — flipping this on without them
 # fails the deploy loudly rather than locking anyone out quietly.
-oauth2_proxy_enabled: false
+oauth2_proxy_enabled: true
 # The same tenant as the n8n mail app registration.
 oauth2_proxy_tenant_id: "0f8703ae-7d51-4894-b66e-75f73e64a903"
 # Whom nginx signs in to Webmin as, once webmin_unix_password is in the vault.

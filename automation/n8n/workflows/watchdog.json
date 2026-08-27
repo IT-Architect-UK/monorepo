@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "https://dashboard.itsurgery.me/monitoring?format=json",
+        "url": "https://dashboard.itsurgery.me/monitoring.json",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBasicAuth",
         "options": {
@@ -51,7 +51,7 @@
           "name": "Dashboard login"
         }
       },
-      "notes": "Deliberately over the public URL rather than a shortcut to n8n: this way nginx, the certificate and basic auth are all on the path being tested."
+      "notes": "The machine door: /monitoring.json is basic-auth for services, because a scheduled job cannot sign in with Microsoft. Same credential n8n's webhook checks — one password for the pairing. Still the public URL, so nginx and the certificate stay on the tested path."
     },
     {
       "parameters": {
