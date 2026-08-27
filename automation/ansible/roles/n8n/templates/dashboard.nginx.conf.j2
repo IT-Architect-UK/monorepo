@@ -73,6 +73,12 @@ server {
     # administrative. A request with no session lands on the Microsoft login
     # and comes back to where it was going.
     location /oauth2/ {
+        # Entra sessions are enormous — the tokens ride in chunked cookies,
+        # and the default 4k header buffer 502s the callback. Seen in the
+        # error log, not guessed.
+        proxy_buffer_size 32k;
+        proxy_buffers 8 32k;
+        proxy_busy_buffers_size 64k;
         proxy_pass http://127.0.0.1:{{ oauth2_proxy_http_port | default(4180) }};
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
@@ -81,6 +87,12 @@ server {
         proxy_set_header X-Forwarded-Uri   $request_uri;
     }
     location = /oauth2/auth {
+        # Entra sessions are enormous — the tokens ride in chunked cookies,
+        # and the default 4k header buffer 502s the callback. Seen in the
+        # error log, not guessed.
+        proxy_buffer_size 32k;
+        proxy_buffers 8 32k;
+        proxy_busy_buffers_size 64k;
         proxy_pass http://127.0.0.1:{{ oauth2_proxy_http_port | default(4180) }};
         proxy_pass_request_body off;
         proxy_set_header Content-Length    "";
