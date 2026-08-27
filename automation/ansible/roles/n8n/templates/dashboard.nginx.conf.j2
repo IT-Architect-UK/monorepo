@@ -153,6 +153,13 @@ server {
     # both serve the same /webmin/ layout because Webmin's webprefix is global.
     location = /webmin { return 301 /webmin/; }
     location /webmin/ {
+        # Webmin sends SAMEORIGIN itself; the server block above adds DENY,
+        # and a browser given both obeys the stricter — which blocked our own
+        # frame. Hide the upstream header and state SAMEORIGIN once. add_header
+        # here also stops inheritance of the server-level DENY, deliberately.
+        proxy_hide_header X-Frame-Options;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Robots-Tag "noindex, nofollow" always;
 {% if oauth2_proxy_enabled | default(false) %}
         auth_request /oauth2/auth;
 {% if webmin_unix_password is defined %}
