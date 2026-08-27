@@ -4,6 +4,9 @@ services:
     image: {{ oauth2_proxy_image }}:{{ oauth2_proxy_image_tag }}
     container_name: oauth2-proxy
     restart: unless-stopped
+    # Pinned to the same uid that owns the mounted config. Guessing this uid
+    # cost two deploys; docker inspect on the image is the truth.
+    user: "{{ oauth2_proxy_uid }}:{{ oauth2_proxy_uid }}"
     # Loopback only — nginx is the only caller.
     ports:
       - "127.0.0.1:{{ oauth2_proxy_http_port }}:4180"

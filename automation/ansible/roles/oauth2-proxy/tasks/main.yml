@@ -28,8 +28,8 @@
   # exact mistake cost a deploy.
   ansible.builtin.copy:
     dest: "{{ oauth2_proxy_base_dir }}/emails.txt"
-    owner: "2000"
-    group: "2000"
+    owner: "{{ oauth2_proxy_uid }}"
+    group: "{{ oauth2_proxy_uid }}"
     mode: "0400"
     content: |
       {% for e in oauth2_proxy_allowed_emails %}
@@ -43,8 +43,8 @@
   ansible.builtin.template:
     src: oauth2-proxy.cfg.j2
     dest: "{{ oauth2_proxy_base_dir }}/oauth2-proxy.cfg"
-    owner: "2000"
-    group: "2000"
+    owner: "{{ oauth2_proxy_uid }}"
+    group: "{{ oauth2_proxy_uid }}"
     mode: "0400"
   notify: Restart oauth2-proxy
 
