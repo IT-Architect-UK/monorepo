@@ -171,12 +171,11 @@ server {
         add_header X-Robots-Tag "noindex, nofollow" always;
 {% if oauth2_proxy_enabled | default(false) %}
         auth_request /oauth2/auth;
-{% if webmin_unix_password is defined %}
-        # Passthrough: after the Microsoft sign-in, nginx presents the Unix
-        # login to Webmin itself. Root-only file on the box that credential
-        # already roots — it widens nothing.
-        proxy_set_header Authorization "Basic {{ ((webmin_unix_user | default('ubuntu')) ~ ':' ~ webmin_unix_password) | b64encode }}";
-{% endif %}
+        # No credential injection here, by decision. miniserv refuses HTTP
+        # basic auth in session mode — deliberate upstream hardening — and the
+        # workaround (session=0) would collapse two independent credentials
+        # into one: a compromised Microsoft account would be root, one click
+        # deep. Webmin's own login IS the second factor. 2026-08-28.
 {% else %}
         auth_basic "IT Surgery";
         auth_basic_user_file {{ webmin_htpasswd_file | default('/etc/nginx/.htpasswd-webmin') }};
