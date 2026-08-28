@@ -117,6 +117,15 @@ server {
     }
 {% endif %}
 
+    # Where sign-out lands. Deliberately OUTSIDE the sign-in gate: sending a
+    # freshly signed-out person to a protected page bounces them straight back
+    # into the Microsoft login, which reads as "logout is broken".
+    location = /signed-out {
+        default_type text/html;
+        add_header Cache-Control "no-store" always;
+        return 200 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Signed out - IT Surgery</title><style>body{margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#f4f5f7;display:flex;min-height:100vh;align-items:center;justify-content:center}.box{background:#fff;border:1px solid #dcdfe3;border-top:4px solid #990000;border-radius:10px;padding:2rem 2.5rem;text-align:center;max-width:22rem}.box img{height:34px;margin-bottom:1rem}h1{font-size:1.1rem;color:#222222;margin:0 0 .4rem}p{color:#5a6068;margin:0 0 1.2rem}a{display:inline-block;background:#990000;color:#fff;text-decoration:none;padding:.5rem 1.1rem;border-radius:7px;font-weight:600}</style></head><body><div class="box"><img src="https://itsurgery.me/assets/logo.png" alt="IT Surgery"><h1>Signed out</h1><p>Your session has ended on this site and at Microsoft.</p><a href="/">Sign in again</a></div></body></html>';
+    }
+
     # The bare host is the dashboard itself.
     location = / {
 {% if oauth2_proxy_enabled | default(false) %}
