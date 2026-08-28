@@ -28,7 +28,6 @@ ansible/
 │   ├── deploy-docker.yml        # Install Docker Engine
 │   ├── configure-tls.yml        # Install Let's Encrypt certificates
 │   ├── deploy-monitoring.yml    # Deploy Prometheus node_exporter
-│   ├── setup-backup-restic.yml  # Configure Restic encrypted backups
 │   └── patch-and-reboot.yml     # Apply OS patches safely
 │
 ├── inventory/              # Where to do it (which servers)
@@ -40,7 +39,6 @@ ansible/
     ├── common/              # Base OS configuration (called by server-baseline)
     ├── tls/                 # TLS certificate management
     ├── monitoring-agent/    # Prometheus node_exporter
-    └── backup-restic/       # Restic backup configuration
 ```
 
 ## 🚀 Getting Started
@@ -73,7 +71,6 @@ web_servers:
 
 Open `inventory/group_vars/all.yml` and review the defaults. At minimum, change:
 - `admin_user` — the non-root user Ansible will create
-- `restic_password` — use Ansible Vault for this (see Security section below)
 
 ### 4. Test connectivity
 
@@ -103,7 +100,7 @@ Never store passwords in plain text. Use Ansible Vault to encrypt secrets:
 
 ```bash
 # Encrypt a single value (paste the output into your vars file)
-ansible-vault encrypt_string 'my-super-secret-password' --name 'restic_password'
+ansible-vault encrypt_string 'my-super-secret-password' --name 'some_password'
 
 # Encrypt an entire file
 ansible-vault encrypt inventory/group_vars/secrets.yml
@@ -112,7 +109,6 @@ ansible-vault encrypt inventory/group_vars/secrets.yml
 ansible-vault edit inventory/group_vars/secrets.yml
 
 # Run a playbook with vault (prompts for vault password)
-ansible-playbook -i inventory/hosts.yml playbooks/setup-backup-restic.yml --ask-vault-pass
 ```
 
 ## 📋 Playbook Reference
@@ -135,7 +131,6 @@ ansible-playbook -i inventory/hosts.yml playbooks/setup-backup-restic.yml --ask-
 | `configure-iptables.yml` | Firewall ruleset | Any host |
 | `configure-fail2ban.yml` | SSH brute-force protection | Any host |
 | `deploy-monitoring.yml` | Prometheus node_exporter | All servers |
-| `setup-backup-restic.yml` | Restic encrypted backup | All servers |
 | `deploy-webmin.yml` | Webmin administration UI | Where a GUI is wanted |
 | `deploy-vault.yml` | HashiCorp Vault | Secrets host |
 

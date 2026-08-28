@@ -30,7 +30,7 @@ espocrm_admin_username: "it-admin"
 espocrm_image_tag: "9.2.4"
 espocrm_mariadb_tag: "11.4"
 
-# 02:30 local, so the dump has finished before Restic ships it off-box.
+# 02:30 local, so the dump has finished before the nightly off-box ship.
 espocrm_backup_schedule: "*-*-* 02:30:00"
 espocrm_local_backup_keep_days: 7
 

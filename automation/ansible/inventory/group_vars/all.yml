@@ -1,15 +1,4 @@
 ---
-# =============================================================================
-# group_vars/all.yml — Variables for ALL hosts
-# =============================================================================
-# Variables defined here apply to every host in the inventory.
-# Override them per group in group_vars/<group_name>.yml
-# Override them per host in host_vars/<hostname>.yml
-#
-# SECURITY NOTE:
-# Never store secrets (passwords, API keys, tokens) in plain text here.
-# Use Ansible Vault instead:
-#   ansible-vault encrypt_string 'my-secret-password' --name 'restic_password'
 # Then paste the encrypted block where the value should be.
 # =============================================================================
 
@@ -76,27 +65,13 @@ unattended_upgrades_enabled: true
 unattended_upgrades_auto_reboot: false     # Reboot automatically? Set to true with caution
 unattended_upgrades_auto_reboot_time: "03:00"
 
-# ── Restic backup ─────────────────────────────────────────────────────────
-restic_backup_paths:
-  - /etc
-  - /home
-  - /var/log
-
-# Example: back up to a local path
-restic_repository: "/mnt/backup/restic-repo"
-
-# Example: back up to AWS S3
-# restic_repository: "s3:s3.amazonaws.com/my-backup-bucket/restic"
-# restic_aws_access_key_id: "AKIA..."            # Use Ansible Vault!
-# restic_aws_secret_access_key: !vault |         # Ansible Vault encrypted
 #   $ANSIBLE_VAULT;1.1;AES256
 #   ...
 
-# Encrypt this with: ansible-vault encrypt_string 'yourpassword' --name 'restic_password'
-restic_password: "CHANGE_ME_USE_ANSIBLE_VAULT"
+# =============================================================================
+# Backups
+# =============================================================================
+# Proxmox Backup Server in the garage-office estate, once that server is
+# online. The restic role formerly configured here never ran on any host —
+# audited 2026-08-28. See the pbs-client role when it lands.
 
-restic_backup_schedule: "02:00"    # Run daily at 2am
-restic_retention:
-  keep_daily: 7
-  keep_weekly: 4
-  keep_monthly: 3

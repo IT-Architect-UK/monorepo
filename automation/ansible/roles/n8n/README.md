@@ -12,7 +12,7 @@ in Xero.
 - n8n and Postgres as containers, bound to `127.0.0.1` only
 - nginx in front, with a Let's Encrypt certificate and HSTS
 - A nightly `pg_dump` plus an archive of the n8n data directory, written to
-  `/opt/n8n/backups/` for Restic to collect
+  `/opt/n8n/backups/` for the off-box backup to collect
 
 ## Before you run it
 

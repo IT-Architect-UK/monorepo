@@ -3,7 +3,7 @@
 #
 # MeshCentral backup. Everything that matters is files — the local database,
 # the server certificates it generated, device group keys and uploaded files —
-# so this is a straight archive of the data directories. Restic collects
+# so this is a straight archive of the data directories. The off-box backup (Proxmox Backup Server, once online) collects
 # {{ meshcentral_backup_dir }} afterwards and ships it off-box.
 #
 # The archive includes the server's own key material, because a restore without

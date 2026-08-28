@@ -10,7 +10,7 @@
 #     listening on the loopback interface only
 #   - Fronts them with nginx and a Let's Encrypt certificate
 #   - Installs a nightly consistent backup (database dump + application files)
-#     that Restic can then ship off-box
+#     for the off-box backup (Proxmox Backup Server) to collect
 #
 # What it deliberately does NOT do:
 #   - Invoicing or payments. Those live in Xero; EspoCRM holds the customer

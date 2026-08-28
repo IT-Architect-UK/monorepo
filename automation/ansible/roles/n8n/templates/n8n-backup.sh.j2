@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # {{ ansible_managed }}
 #
-# Consistent n8n backup: a Postgres dump plus the n8n data directory. Restic
+# Consistent n8n backup: a Postgres dump plus the n8n data directory. The off-box backup
 # collects {{ n8n_backup_dir }} afterwards and ships it off-box.
 #
 # What is NOT in here, deliberately: N8N_ENCRYPTION_KEY. It lives in the
@@ -38,7 +38,7 @@ docker run --rm \
   tar czf "/backup/n8n-data-$STAMP.tar.gz" -C /home/node .n8n
 
 # --- prune ----------------------------------------------------------------
-# Local copies only. Long-term retention is Restic's job, not this script's.
+# Local copies only. Long-term retention is the off-box backup's job, not this script's.
 find "$BACKUP_DIR" -name 'n8n-db-*.sql.gz'   -mtime "+$KEEP_DAYS" -delete
 find "$BACKUP_DIR" -name 'n8n-data-*.tar.gz' -mtime "+$KEEP_DAYS" -delete
 

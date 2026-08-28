@@ -11,7 +11,7 @@ can actually be restored.
   python3-certbot-nginx are installed by the playbook; apt's build registers
   its own renewal timer, so renewal needs no extra setup
 - A nightly `mariadb-dump` plus an archive of uploads and customisations,
-  written to `/opt/espocrm/backups/` for Restic to collect
+  written to `/opt/espocrm/backups/` for the off-box backup to collect
 
 ## Before you run it
 
@@ -199,8 +199,8 @@ elsewhere), set `espocrm_manage_firewall: false`.
 ## Backups
 
 The nightly timer only stages files locally. Shipping them off-box is
-`setup-backup-restic.yml`'s job — point `restic_backup_paths` at
-`/opt/espocrm/backups` and schedule Restic to run *after* this timer.
+the off-box backup's job — the pbs-client (Proxmox Backup Server) takes
+`/opt/espocrm/backups`, scheduled *after* this timer.
 
 Check it is working:
 

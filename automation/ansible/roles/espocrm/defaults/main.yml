@@ -36,8 +36,8 @@ espocrm_db_name: espocrm
 espocrm_db_user: espocrm
 
 # ── Backups ───────────────────────────────────────────────────────────────
-# Produces a consistent dump into espocrm_backup_dir; Restic then ships that
-# directory off-box. Schedule this BEFORE the Restic timer.
+# Produces a consistent dump into espocrm_backup_dir; the pbs-client ships
+# that directory to the Proxmox Backup Server once it exists.
 espocrm_backup_schedule: "*-*-* 02:30:00"
 espocrm_local_backup_keep_days: 7
 

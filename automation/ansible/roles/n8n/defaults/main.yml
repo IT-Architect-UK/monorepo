@@ -48,8 +48,8 @@ n8n_db_user: n8n
 n8n_webhook_url: "https://{{ n8n_domain }}/"
 
 # ── Backups ───────────────────────────────────────────────────────────────
-# Dump into n8n_backup_dir; Restic then ships that directory off-box. Schedule
-# BEFORE the Restic timer, and after the espocrm backup so the two do not
+# Dump into n8n_backup_dir; the pbs-client will ship that directory to the
+# Proxmox Backup Server once it exists. Schedule after the espocrm backup so the two do not
 # contend for the same disk at the same moment.
 n8n_backup_schedule: "*-*-* 02:45:00"
 n8n_local_backup_keep_days: 7

@@ -69,7 +69,7 @@ rather than arriving with it open.
 | `/opt/meshcentral/meshcentral-data` | Database, server certificates, `config.json` |
 | `/opt/meshcentral/meshcentral-files` | Files uploaded through the console |
 | `/opt/meshcentral/meshcentral-web` | Branding overrides, if any |
-| `/opt/meshcentral/backups` | Nightly archives, collected by Restic |
+| `/opt/meshcentral/backups` | Nightly archives, staged for the off-box backup (Proxmox Backup Server) |
 
 `config.json` is written by Ansible. Editing it on the server works until the
 next run overwrites it — change the template instead.

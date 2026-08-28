@@ -3,10 +3,10 @@
 #
 # espocrm-backup.sh — produce restorable EspoCRM backup artefacts.
 #
-# Why a dump rather than letting Restic take the raw files: MariaDB's data
+# Why a dump rather than backing up the raw files: MariaDB's data
 # files are written continuously, so a file-level copy of a running database
 # is a torn snapshot that may not restore. mysqldump gives a consistent point
-# in time. Restic then backs up THIS directory, not the live volumes.
+# in time. The off-box backup then takes THIS directory, not the live volumes.
 #
 # Usage:
 #   /usr/local/bin/espocrm-backup.sh
@@ -53,7 +53,7 @@ docker run --rm \
     tar czf "/dest/espocrm-files-${STAMP}.tar.gz" -C /src data custom
 
 # --- prune local copies ---------------------------------------------------
-# Restic holds the long-term history; this directory is only a staging area.
+# The off-box backup holds the long-term history; this is only a staging area.
 find "$BACKUP_DIR" -name 'espocrm-*' -type f -mtime "+${KEEP_DAYS}" -delete
 
 echo "espocrm backup complete: ${STAMP}"

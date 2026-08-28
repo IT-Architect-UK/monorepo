@@ -291,5 +291,5 @@ Priority order for the platform (this build is stage 1):
 2. ✅ **Golden images** — Ubuntu 24.04 pipeline proven end-to-end (lean baseline, group_vars flavour toggles); Ubuntu 26.04 and Windows 2025 built from the same pattern, first live validation pending.
 3. **Vault** — standalone secrets server, provisioned BY the toolbox (`Deploy Vault Server` job); Semaphore/Ansible secrets migrate to it.
 4. **PKI** — offline root CA + Vault PKI issuing CA; issue certificates for every site and service and retrofit TLS across the estate (toolbox UIs included — removes the self-signed workarounds). Let's Encrypt stays for public-facing certs. The AD CS issuing CA joins under the same root when AD DS arrives.
-5. **Additional infrastructure services** — backups (Restic playbooks exist), monitoring (Prometheus + Grafana with certificate-expiry alerting), AD DS (+ GPO certificate auto-enrolment), NetBox inventory, and whatever the lab needs next — each deployed as a toolbox workload.
+5. **Additional infrastructure services** — backups (Proxmox Backup Server), monitoring (Prometheus + Grafana with certificate-expiry alerting), AD DS (+ GPO certificate auto-enrolment), NetBox inventory, and whatever the lab needs next — each deployed as a toolbox workload.
 
