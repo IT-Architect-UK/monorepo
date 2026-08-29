@@ -64,3 +64,7 @@ n8n_local_backup_keep_days: 7
 # Keep a copy in Bitwarden as well as in the vault file.
 n8n_encryption_key: ""
 n8n_db_password: ""
+
+# Where the deployed copy of the admin guide lives; the Guide tab reads it
+# through nginx on the loopback/bridge-only /guide.md location.
+n8n_guide_dir: /opt/guide

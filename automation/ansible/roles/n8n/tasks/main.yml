@@ -163,6 +163,26 @@
   changed_when: false
   when: n8n_cert_after.stat.exists
 
+# --- the admin guide -------------------------------------------------------
+# The guide's source of truth is automation/itsurgery-admin-and-deployment-
+# guide.md in the repo; this ships the copy the Guide tab renders. nginx
+# serves it to loopback and the Docker bridge only, same as vitals.json.
+- name: Create the guide directory
+  ansible.builtin.file:
+    path: "{{ n8n_guide_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy the admin guide
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../itsurgery-admin-and-deployment-guide.md"
+    dest: "{{ n8n_guide_dir }}/guide.md"
+    owner: root
+    group: root
+    mode: "0644"
+
 # --- vanity host for the dashboard ----------------------------------------
 
 - name: Install the shared proxy snippet

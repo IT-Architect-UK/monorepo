@@ -208,7 +208,28 @@ server {
 {% endif %}
         default_type text/html;
         add_header Cache-Control "no-store" always;
-        return 200 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>IT Surgery - Webmin</title><style>body{margin:0;font:14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}nav{background:#fff;border-bottom:3px solid #990000;padding:.55rem 1.25rem;display:flex;gap:1.1rem;align-items:center}nav img{height:28px}nav a{color:#990000;font-weight:600;text-decoration:none;font-size:.9rem;padding-bottom:.2rem}nav a.on{color:#222222;border-bottom:2px solid #990000}iframe{display:block;border:0;width:100%;height:calc(100vh - 51px)}</style></head><body><nav><img src="https://itsurgery.me/assets/logo.png" alt="IT Surgery"><a href="/">Dashboard</a><a href="/monitoring">Monitoring</a><a class="on" href="/webmin-frame">Webmin</a><a href="/backup">Backup</a></nav><iframe src="/webmin/" title="Webmin"></iframe></body></html>';
+        return 200 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>IT Surgery - Webmin</title><style>body{margin:0;font:14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}nav{background:#fff;border-bottom:3px solid #990000;padding:.55rem 1.25rem;display:flex;gap:1.1rem;align-items:center}nav img{height:28px}nav a{color:#990000;font-weight:600;text-decoration:none;font-size:.9rem;padding-bottom:.2rem}nav a.on{color:#222222;border-bottom:2px solid #990000}iframe{display:block;border:0;width:100%;height:calc(100vh - 51px)}</style></head><body><nav><img src="https://itsurgery.me/assets/logo.png" alt="IT Surgery"><a href="/">Dashboard</a><a href="/monitoring">Monitoring</a><a class="on" href="/webmin-frame">Webmin</a><a href="/backup">Backup</a><a href="/guide">Guide</a></nav><iframe src="/webmin/" title="Webmin"></iframe></body></html>';
+    }
+
+    # The guide's markdown, served raw to the container that renders it.
+    # Same audience as vitals.json: loopback and the Docker bridge.
+    location = /guide.md {
+        allow 127.0.0.1;
+        allow 172.16.0.0/12;
+        deny all;
+        root {{ n8n_guide_dir }};
+        default_type text/markdown;
+        add_header Cache-Control "no-store" always;
+    }
+
+    # The rendered guide, behind the same sign-in as everything else.
+    location = /guide {
+{% if oauth2_proxy_enabled | default(false) %}
+        auth_request /oauth2/auth;
+        proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
+{% endif %}
+        proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/guide;
+        include /etc/nginx/snippets/dashboard-proxy.conf;
     }
 
     # The backup page — three layers of truth, including the two that do not

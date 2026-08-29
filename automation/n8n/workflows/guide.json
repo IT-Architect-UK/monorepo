@@ -1,0 +1,130 @@
+{
+  "name": "Guide",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "guide",
+        "authentication": "basicAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Open the guide",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "c9d4e2f1-5b77-4e3c-9f43-8d2a6b0f3c52",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "Hi3G6E9Nx9HDAY2D",
+          "name": "Dashboard login"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://dashboard.itsurgery.me/guide.md",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 8000
+        }
+      },
+      "name": "Fetch the guide",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "Served by nginx to loopback and the Docker bridge only — this container qualifies, nobody else does."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Render the deployed guide.md as the Guide tab. The markdown subset here is\n// exactly what the guide uses — headings, bold, code, fenced blocks, tables,\n// lists, rules, links — rendered by hand because pulling a CDN parser into an\n// admin page is a bigger dependency than sixty lines of string handling.\n\nconst esc = (s) => String(s == null ? '' : s)\n  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');\n\nlet raw = null;\ntry {\n  const j = $('Fetch the guide').first().json;\n  raw = typeof j === 'string' ? j : (j.data ?? j.body ?? null);\n  if (raw && typeof raw !== 'string') raw = null;\n} catch (e) { raw = null; }\n\nconst inline = (t) => esc(t)\n  .replace(/`([^`]+)`/g, '<code>$1</code>')\n  .replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>')\n  .replace(/\\*([^*]+)\\*/g, '<em>$1</em>')\n  .replace(/\\[([^\\]]+)\\]\\(([^)\\s]+)\\)/g, '<a href=\"$2\">$1</a>');\n\nfunction render(md) {\n  const out = [];\n  const lines = md.split('\\n');\n  let i = 0, para = [], list = null;\n  const flushPara = () => { if (para.length) { out.push('<p>'+inline(para.join(' '))+'</p>'); para = []; } };\n  const flushList = () => { if (list) { out.push('<ul>'+list.map(x=>'<li>'+inline(x)+'</li>').join('')+'</ul>'); list = null; } };\n  while (i < lines.length) {\n    const l = lines[i];\n    if (l.startsWith('```')) {\n      flushPara(); flushList();\n      const buf = []; i++;\n      while (i < lines.length && !lines[i].startsWith('```')) buf.push(lines[i++]);\n      out.push('<pre><code>'+esc(buf.join('\\n'))+'</code></pre>'); i++; continue;\n    }\n    if (/^\\|/.test(l)) {\n      flushPara(); flushList();\n      const rows = [];\n      while (i < lines.length && /^\\|/.test(lines[i])) rows.push(lines[i++]);\n      const cells = (r) => r.replace(/^\\||\\|$/g,'').split('|').map(c=>c.trim());\n      let html = '<table>';\n      rows.forEach((r, ri) => {\n        if (/^\\|[\\s\\-|:]+\\|$/.test(r)) return;           // separator row\n        const tag = ri === 0 ? 'th' : 'td';\n        html += '<tr>'+cells(r).map(c=>`<${tag}>`+inline(c)+`</${tag}>`).join('')+'</tr>';\n      });\n      out.push(html+'</table>'); continue;\n    }\n    const h = l.match(/^(#{1,3})\\s+(.*)/);\n    if (h) { flushPara(); flushList();\n      out.push(`<h${h[1].length}>`+inline(h[2])+`</h${h[1].length}>`); i++; continue; }\n    if (/^---+\\s*$/.test(l)) { flushPara(); flushList(); out.push('<hr>'); i++; continue; }\n    const li = l.match(/^[-*]\\s+(.*)/);\n    if (li) { flushPara(); (list = list || []).push(li[1]); i++; continue; }\n    if (l.trim() === '') { flushPara(); flushList(); i++; continue; }\n    para.push(l.trim()); i++;\n  }\n  flushPara(); flushList();\n  return out.join('\\n');\n}\n\nconst body = raw\n  ? render(raw)\n  : `<h1>The guide is not where it should be</h1>\n     <p>/guide.md did not answer. The guide deploys with the n8n playbook —\n     run <code>deploy-n8n.yml</code> on the VPS, and if this persists check\n     that <code>/opt/guide/guide.md</code> exists.</p>`;\n\nconst html = `<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<meta name=\"robots\" content=\"noindex\">\n<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n<link href=\"https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap\" rel=\"stylesheet\">\n<title>IT Surgery — Guide</title>\n<style>\n :root{--brand:#990000;--ink:#333;--strong:#222;--quiet:#5a6068;--line:#dcdfe3;--bg:#f4f5f7}\n *{box-sizing:border-box}\n body{margin:0;background:var(--bg);color:var(--ink);\n   font:14px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}\n header{background:#fff;border-bottom:3px solid var(--brand);padding:.85rem 1.25rem;\n   display:flex;align-items:center;gap:.9rem;flex-wrap:wrap}\n header img{height:34px}\n .tabs{display:flex;gap:1.1rem;align-items:center}\n .tabs a{color:var(--brand);font-weight:600;text-decoration:none;font-size:.9rem;padding-bottom:.2rem}\n .tabs a.on{color:var(--strong);border-bottom:2px solid var(--brand)}\n .out{margin-left:auto;color:var(--quiet);font-size:.85rem;text-decoration:none}\n .out:hover{color:var(--brand)}\n main{padding:1.25rem;max-width:880px;margin:0 auto;background:#fff;\n   border-left:1px solid var(--line);border-right:1px solid var(--line);min-height:100vh}\n @media(min-width:1100px){body{zoom:.85}}\n h1,h2,h3{font-family:Poppins,sans-serif;font-weight:600;color:var(--strong)}\n h1{font-size:1.4rem;border-bottom:2px solid var(--brand);padding-bottom:.4rem}\n h2{font-size:1.05rem;margin-top:1.8rem}\n h3{font-size:.95rem}\n code{background:var(--bg);border:1px solid var(--line);border-radius:4px;\n   padding:.05rem .3rem;font-size:.85em}\n pre{background:#2b2f36;color:#e8eaed;padding:.8rem 1rem;border-radius:8px;\n   overflow-x:auto}\n pre code{background:none;border:0;color:inherit;padding:0}\n table{width:100%;border-collapse:collapse;margin:.6rem 0}\n th{text-align:left;font-size:.8rem;color:var(--quiet);text-transform:uppercase;\n   letter-spacing:.03em}\n th,td{padding:.4rem .5rem;border-bottom:1px solid var(--line);font-size:.9rem;vertical-align:top}\n a{color:var(--brand)}\n hr{border:0;border-top:1px solid var(--line);margin:1.5rem 0}\n</style></head><body>\n<header>\n  <img src=\"https://itsurgery.me/assets/logo.png\" alt=\"IT Surgery\">\n  <nav class=\"tabs\"><a href=\"/\">Dashboard</a><a href=\"/monitoring\">Monitoring</a><a href=\"/webmin-frame\">Webmin</a><a href=\"/backup\">Backup</a><a class=\"on\" href=\"/guide\">Guide</a></nav>\n  <a class=\"out\" href=\"/oauth2/sign_out?rd=https%3A%2F%2Flogin.microsoftonline.com%2F0f8703ae-7d51-4894-b66e-75f73e64a903%2Foauth2%2Fv2.0%2Flogout%3Fpost_logout_redirect_uri%3Dhttps%253A%252F%252Fdashboard.itsurgery.me%252Fsigned-out\">Sign out</a>\n</header>\n<main>${body}</main></body></html>`;\n\nreturn [{ json: { html } }];\n"
+      },
+      "name": "Build the page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Serve it",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Open the guide": {
+      "main": [
+        [
+          {
+            "node": "Fetch the guide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch the guide": {
+      "main": [
+        [
+          {
+            "node": "Build the page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the page": {
+      "main": [
+        [
+          {
+            "node": "Serve it",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflowName": "n8n error alert"
+  }
+}
