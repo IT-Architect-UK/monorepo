@@ -31,7 +31,7 @@ description: Fixed-price business IT support in Penarth, Barry and Cardiff — M
             {# The catalogue owns slugs and bookability; the price list only
                displays. Join on the label so the two can never disagree
                silently — a missing join renders no button, not a wrong one. #}
-            {% set svc = catalogue.services | selectattr("name", "equalto", item.label) | first %}
+            {% set svc = bookmap[item.label] %}
             <li>
               {# "Quoted" is a word, not an amount — a £ in front of it would read as nonsense. #}
               <span class="item-price">{% if item.quoted %}{{ item.price }}{% else %}£{{ item.price }}{% endif %}</span>
