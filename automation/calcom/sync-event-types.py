@@ -82,6 +82,10 @@ def main():
         want = {"title": svc["name"],
                 "lengthInMinutes": svc["durationMinutes"],
                 "description": description(svc, fee),
+                # Invites come from help@itsurgery.me, the business identity —
+                # the UI calls this "Use 'Add to calendar' email as the
+                # organizer" and defaults it off on API-created event types.
+                "useDestinationCalendarEmail": True,
                 # In person by default — the customer gives their address when
                 # booking. Catalogue entries may override with "location":
                 # e.g. "video" for genuinely remote work. Decision 2026-08-30.
