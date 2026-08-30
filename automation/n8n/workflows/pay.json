@@ -1,0 +1,330 @@
+{
+  "name": "Pay an invoice",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "pay",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Pay link opened",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "d1e5f3a2-6c88-4f4d-a054-9e3b7c1d4e63",
+      "notes": "Public by design — it is the Pay now target on every invoice. Safety lives in the next node: nothing from the query string is believed."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.xero.com/api.xro/2.0/Invoices/{{ encodeURIComponent($json.query.invoice || 'none') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "name": "Get the invoice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide what this pay link may do. The query string is never trusted:\n// the invoice is fetched from Xero and THAT decides the amount and whether\n// payment is even due. A guessed URL can at worst pay somebody's invoice.\nconst q = $('Pay link opened').first().json.query || {};\nconst resp = $input.first().json;\nconst body = resp.body ?? resp;\nconst inv = (body.Invoices || [])[0];\n\nif (!inv || inv.Type !== 'ACCREC') {\n  return [{ json: { route: 'error' } }];\n}\nconst num = inv.InvoiceNumber;\nif (inv.Status === 'PAID' || Number(inv.AmountDue) <= 0) {\n  return [{ json: { route: 'already', num } }];\n}\nif (inv.Status !== 'AUTHORISED') {\n  return [{ json: { route: 'error' } }];\n}\nreturn [{ json: {\n  route: 'ok',\n  num,\n  id: inv.InvoiceID,\n  // Stripe takes minor units; round, never truncate — 5.00 * 100 can be\n  // 499.999... in floating point.\n  pence: Math.round(Number(inv.AmountDue) * 100),\n} }];"
+      },
+      "name": "Payable?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Due for payment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/checkout/sessions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "stripeApi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "mode",
+              "value": "payment"
+            },
+            {
+              "name": "success_url",
+              "value": "=https://itsurgery.me/paid/?inv={{ $json.num }}"
+            },
+            {
+              "name": "cancel_url",
+              "value": "=https://itsurgery.me/paid/?inv={{ $json.num }}&cancelled=1"
+            },
+            {
+              "name": "line_items[0][quantity]",
+              "value": "1"
+            },
+            {
+              "name": "line_items[0][price_data][currency]",
+              "value": "gbp"
+            },
+            {
+              "name": "line_items[0][price_data][unit_amount]",
+              "value": "={{ $json.pence }}"
+            },
+            {
+              "name": "line_items[0][price_data][product_data][name]",
+              "value": "=IT Surgery — invoice {{ $json.num }}"
+            },
+            {
+              "name": "metadata[invoice_number]",
+              "value": "={{ $json.num }}"
+            },
+            {
+              "name": "metadata[invoice_id]",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Create checkout session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        -80
+      ],
+      "credentials": {
+        "stripeApi": {
+          "id": "IQG0FuA3WWRhOICU",
+          "name": "Stripe account"
+        }
+      },
+      "notes": "The session amount is Xero's AmountDue, never the query string."
+    },
+    {
+      "parameters": {
+        "respondWith": "redirect",
+        "redirectURL": "={{ $json.url }}",
+        "options": {}
+      },
+      "name": "Off to Stripe",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "already",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Already paid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "redirect",
+        "redirectURL": "=https://itsurgery.me/paid/?inv={{ $json.num }}&already=1",
+        "options": {}
+      },
+      "name": "Nothing owed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "redirect",
+        "redirectURL": "https://itsurgery.me/paid/?error=1",
+        "options": {}
+      },
+      "name": "Could not offer payment",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Pay link opened": {
+      "main": [
+        [
+          {
+            "node": "Get the invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get the invoice": {
+      "main": [
+        [
+          {
+            "node": "Payable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payable?": {
+      "main": [
+        [
+          {
+            "node": "Due for payment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Due for payment?": {
+      "main": [
+        [
+          {
+            "node": "Create checkout session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Already paid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create checkout session": {
+      "main": [
+        [
+          {
+            "node": "Off to Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already paid?": {
+      "main": [
+        [
+          {
+            "node": "Nothing owed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Could not offer payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflowName": "n8n error alert"
+  }
+}

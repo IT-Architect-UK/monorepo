@@ -1,0 +1,56 @@
+---
+layout: layouts/base.njk
+title: Payment received
+heading: Payment received
+standfirst: Thank you — your payment has gone through and your booking is confirmed.
+permalink: /paid/
+eleventyExcludeFromCollections: true
+---
+
+{# Where Stripe Checkout sends people afterwards. Four states, decided by the
+   query string, defaulting to success — the state Stripe actually sends
+   customers to. No payment details ever reach this page; Stripe keeps those. #}
+<section class="section">
+  <div class="container narrow">
+    <div class="cta-panel" id="paid-panel">
+      <h2 id="paid-title">Payment received — you're booked in</h2>
+      <p id="paid-message">
+        A confirmation email is on its way to you. We look forward to helping —
+        and if anything changes, the reschedule and cancel links are in your
+        booking email.
+      </p>
+      <p>
+        <a href="/">Back to the home page</a> ·
+        <a href="tel:+447775580371">Call us on 07775 580371</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var q = new URLSearchParams(window.location.search);
+    var t = document.getElementById('paid-title');
+    var m = document.getElementById('paid-message');
+    var inv = (q.get('inv') || '').replace(/[^A-Za-z0-9-]/g, '');
+    if (q.get('cancelled')) {
+      t.textContent = 'Payment not completed';
+      m.textContent = 'No money was taken and your booking is still held. ' +
+        'You can pay any time using the link in your invoice email' +
+        (inv ? ' (' + inv + ')' : '') + ', or give us a call.';
+    } else if (q.get('already')) {
+      t.textContent = 'Nothing owed';
+      m.textContent = 'That invoice' + (inv ? ' (' + inv + ')' : '') +
+        ' is already paid in full. Nothing more to do — see you at your booking.';
+    } else if (q.get('error')) {
+      t.textContent = 'We could not take payment for that link';
+      m.textContent = 'The invoice could not be found or is not payable ' +
+        'online. Please use the link from your invoice email, or call us and ' +
+        'we will sort it together.';
+    } else if (inv) {
+      m.textContent = 'Your payment for invoice ' + inv + ' has gone through ' +
+        'and a confirmation email is on its way. If anything changes, the ' +
+        'reschedule and cancel links are in your booking email.';
+    }
+  })();
+</script>

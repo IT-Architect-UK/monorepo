@@ -312,7 +312,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"cPayUrl\": \"{{ $json.OnlineInvoices[0].OnlineInvoiceUrl }}\", \"cInvoiceId\": \"{{ $('Create invoice').item.json.Invoices[0].InvoiceID }}\"}"
+        "jsonBody": "={\"cPayUrl\": \"https://n8n.itsurgery.me/webhook/pay?invoice={{ $('Create invoice').item.json.Invoices[0].InvoiceNumber }}\", \"cInvoiceId\": \"{{ $('Create invoice').item.json.Invoices[0].InvoiceID }}\"}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
@@ -328,7 +328,7 @@
           "name": "EspoCRM — crm.itsurgery.me"
         }
       },
-      "notes": "The /booked/ page polls for cPayUrl; cInvoiceId is what the cancel branch voids."
+      "notes": "The saved link is OUR pay endpoint, which builds a Stripe Checkout for the amount due and returns the customer to /paid/ on itsurgery.me. Xero's online invoice page kept customers on Xero after paying — Darren's objection, 2026-08-30."
     },
     {
       "parameters": {
