@@ -942,6 +942,25 @@ input:focus-visible, textarea:focus-visible {
   color: var(--text);
 }
 .addon { color: var(--text); font-size: 0.85rem; }
+/* The Book button on price rows. Small on purpose: the price is the
+   information, the button is the exit. AA contrast on brand red. */
+.item-book {
+  margin-left: auto;
+  flex: 0 0 auto;
+  background: var(--brand, #990000);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.15rem 0.7rem;
+  border-radius: 6px;
+}
+.item-book:hover { filter: brightness(1.15); }
+.item-book.ghost {
+  background: #fff;
+  color: var(--brand, #990000);
+  border: 1px solid var(--brand, #990000);
+}
 /* Phones and small tablets. The breakpoint is 700px, not 560: at 600px the
    11rem category panel leaves under 400px for a three-column row, which wrapped
    the service names to two and three lines. Below this the panel becomes a
@@ -955,6 +974,7 @@ input:focus-visible, textarea:focus-visible {
      reordered above, which read as inconsistent between the two layouts. */
   .band-list li { flex-wrap: wrap; gap: 0 0.6rem; }
   .item-price { flex: 0 0 auto; }
+  .item-book { margin-left: 0; }
   .item-meta { flex: 0 0 auto; }
   .item-label { flex: 1 1 100%; }
 }

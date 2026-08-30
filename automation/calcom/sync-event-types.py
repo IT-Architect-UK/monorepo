@@ -2,7 +2,7 @@
 """Create/update Cal.com event types from the service catalogue.
 
 One catalogue drives the site, the booking workflow and Cal.com; this script
-is the Cal.com leg. It reads projects/web/itsurgery/src/_data/services.json,
+is the Cal.com leg. It reads projects/web/itsurgery/src/_data/catalogue.json,
 compares against the event types already on the account, and makes them match:
 one event type per bookable service, matched by slug, with the title, duration
 and a description carrying the price and the £5-fee terms.
@@ -66,7 +66,7 @@ def main():
     apply = "--apply" in sys.argv
     key = os.environ.get("CALCOM_API_KEY") or getpass.getpass("Cal.com API key: ")
     cat = json.loads((repo_root() /
-        "projects/web/itsurgery/src/_data/services.json").read_text())
+        "projects/web/itsurgery/src/_data/catalogue.json").read_text())
     fee = cat["bookingFeeGbp"]
     wanted = [s for s in cat["services"] if s.get("bookable")]
 

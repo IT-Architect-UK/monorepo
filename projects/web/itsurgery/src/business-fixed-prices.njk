@@ -28,11 +28,20 @@ description: Fixed-price business IT support in Penarth, Barry and Cardiff — M
           {% if group.blurb %}<p class="band-blurb">{{ group.blurb }}</p>{% endif %}
           <ul class="band-list">
             {% for item in group.items %}
+            {# The catalogue owns slugs and bookability; the price list only
+               displays. Join on the label so the two can never disagree
+               silently — a missing join renders no button, not a wrong one. #}
+            {% set svc = catalogue.services | selectattr("name", "equalto", item.label) | first %}
             <li>
               {# "Quoted" is a word, not an amount — a £ in front of it would read as nonsense. #}
               <span class="item-price">{% if item.quoted %}{{ item.price }}{% else %}£{{ item.price }}{% endif %}</span>
               <span class="item-meta">{{ item.time }}</span>
               <span class="item-label">{{ item.label }}{% if item.addon %} <span class="addon">({{ item.addon }})</span>{% endif %}</span>
+              {% if svc and svc.bookable and not svc.existing %}
+              <a class="item-book" href="https://cal.com/{{ catalogue.calUsername }}/{{ svc.slug }}">Book</a>
+              {% elif item.quoted %}
+              <a class="item-book ghost" href="/quote/">Get a quote</a>
+              {% endif %}
             </li>
             {% endfor %}
           </ul>
@@ -44,6 +53,7 @@ description: Fixed-price business IT support in Penarth, Barry and Cardiff — M
     <div class="cta-panel">
       <h2>What is and isn't included</h2>
       <ul class="ticks wide">
+        <li><strong>Booking takes a £5 fee</strong>, deducted from the final invoice — the rest is invoiced when the job is done. Need more than one service in a visit? <a href="/quote/">Ask for a custom quote</a> rather than booking twice.</li>
         <li><strong>All prices exclude VAT</strong>, which is how most businesses prefer to see them. VAT is added on the invoice.</li>
         <li>Hardware, parts and software licences are extra, and always agreed with you before anything is bought.</li>
         <li>No call-out charge anywhere in {{ site.areas | join(", ") }}.</li>

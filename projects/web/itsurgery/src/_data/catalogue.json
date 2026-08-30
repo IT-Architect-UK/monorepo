@@ -1,0 +1,254 @@
+{
+  "_readme": "One catalogue drives everything: the price pages and Book buttons render from it, automation/calcom/sync-event-types.py creates the Cal.com event types from it, and the booking workflow joins on the service name to describe the invoice. Every booking takes the same \u00a35 fee; the balance is invoiced after the work via the dashboard's New job form. Multiple services in one visit = custom quote, by decision 2026-08-29.",
+  "bookingFeeGbp": 5,
+  "calUsername": "it-surgery",
+  "services": [
+    {
+      "slug": "remote-support-session",
+      "name": "Remote Support Session",
+      "audience": "home",
+      "durationMinutes": 60,
+      "bookable": true,
+      "existing": true,
+      "note": "The original event type. The sync script matches it by slug and never alters it."
+    },
+    {
+      "slug": "m365-new-business-setup",
+      "name": "Microsoft 365 set up for a new business",
+      "group": "Microsoft 365 and your people",
+      "audience": "business",
+      "durationMinutes": 180,
+      "bookable": true,
+      "priceExVat": 180
+    },
+    {
+      "slug": "email-move-to-m365",
+      "name": "Email moved to Microsoft 365",
+      "group": "Microsoft 365 and your people",
+      "audience": "business",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceExVat": 60,
+      "unit": "per mailbox, up to 10GB"
+    },
+    {
+      "slug": "new-starter-setup",
+      "name": "New starter \u2014 account, mailbox, licence, device",
+      "group": "Microsoft 365 and your people",
+      "audience": "business",
+      "durationMinutes": 45,
+      "bookable": true,
+      "priceExVat": 45
+    },
+    {
+      "slug": "staff-leaver-offboarding",
+      "name": "Staff leaver \u2014 access removed, mailbox handled",
+      "group": "Microsoft 365 and your people",
+      "audience": "business",
+      "durationMinutes": 30,
+      "bookable": true,
+      "priceExVat": 35
+    },
+    {
+      "slug": "new-pc-setup",
+      "name": "New PC or laptop set up, joined to your systems",
+      "group": "Computers",
+      "audience": "business",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceExVat": 120
+    },
+    {
+      "slug": "windows-11-clean-install",
+      "name": "Windows 11 clean install, drivers and updates",
+      "group": "Computers",
+      "audience": "business",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceExVat": 90
+    },
+    {
+      "slug": "reinstall-keeping-data",
+      "name": "Reinstall keeping the data",
+      "group": "Computers",
+      "audience": "business",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceExVat": 120
+    },
+    {
+      "slug": "malware-removal",
+      "name": "Virus or malware cleaned off a work PC",
+      "group": "Computers",
+      "audience": "business",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceExVat": 120
+    },
+    {
+      "slug": "pc-health-check",
+      "name": "Health check",
+      "group": "Computers",
+      "audience": "business",
+      "durationMinutes": 45,
+      "bookable": true,
+      "priceExVat": 45,
+      "unit": "per PC"
+    },
+    {
+      "slug": "office-printer-setup",
+      "name": "Printer set up across the office",
+      "group": "Computers",
+      "audience": "business",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceExVat": 60,
+      "unit": "up to 5 PCs"
+    },
+    {
+      "slug": "router-firewall-setup",
+      "name": "Business router or firewall configured",
+      "group": "Networks",
+      "audience": "business",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceExVat": 120
+    },
+    {
+      "slug": "managed-switch-vlans",
+      "name": "Managed switch configured, VLANs set up",
+      "group": "Networks",
+      "audience": "business",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceExVat": 120
+    },
+    {
+      "slug": "wifi-access-point",
+      "name": "Wi-Fi access point installed and tuned",
+      "group": "Networks",
+      "audience": "business",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceExVat": 60,
+      "unit": "each"
+    },
+    {
+      "slug": "wifi-survey",
+      "name": "Wi-Fi survey for a small office",
+      "group": "Networks",
+      "audience": "business",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceExVat": 120
+    },
+    {
+      "slug": "remote-worker-vpn",
+      "name": "Remote-worker VPN set up",
+      "group": "Networks",
+      "audience": "business",
+      "durationMinutes": 180,
+      "bookable": true,
+      "priceExVat": 180
+    },
+    {
+      "slug": "server-build",
+      "name": "Server built, OS installed, patched and handed over",
+      "group": "Servers",
+      "audience": "business",
+      "durationMinutes": 240,
+      "bookable": true,
+      "priceExVat": 240
+    },
+    {
+      "slug": "windows-domain-setup",
+      "name": "Windows domain set up for a small office",
+      "group": "Servers",
+      "audience": "business",
+      "durationMinutes": 300,
+      "bookable": true,
+      "priceExVat": 300
+    },
+    {
+      "slug": "file-server-setup",
+      "name": "File server with shares and permissions",
+      "group": "Servers",
+      "audience": "business",
+      "durationMinutes": 180,
+      "bookable": true,
+      "priceExVat": 180
+    },
+    {
+      "slug": "windows-server-install",
+      "name": "Windows Server installed and configured",
+      "group": "Servers",
+      "audience": "business",
+      "durationMinutes": 180,
+      "bookable": true,
+      "priceExVat": 180
+    },
+    {
+      "slug": "linux-server-install",
+      "name": "Linux server installed and hardened",
+      "group": "Servers",
+      "audience": "business",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceExVat": 120
+    },
+    {
+      "slug": "server-migration",
+      "name": "Server replaced and data migrated",
+      "group": "Servers",
+      "audience": "business",
+      "durationMinutes": null,
+      "bookable": false,
+      "quoted": true
+    },
+    {
+      "slug": "vps-provisioning",
+      "name": "VPS provisioned, hardened, TLS and backups",
+      "group": "Virtual machines and hosting",
+      "audience": "business",
+      "durationMinutes": 180,
+      "bookable": true,
+      "priceExVat": 180
+    },
+    {
+      "slug": "vm-build",
+      "name": "Virtual machine built on your existing host",
+      "group": "Virtual machines and hosting",
+      "audience": "business",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceExVat": 60
+    },
+    {
+      "slug": "hypervisor-build",
+      "name": "Hypervisor host built \u2014 Proxmox or Hyper-V",
+      "group": "Virtual machines and hosting",
+      "audience": "business",
+      "durationMinutes": 240,
+      "bookable": true,
+      "priceExVat": 240
+    },
+    {
+      "slug": "backup-setup-and-test",
+      "name": "Backup set up, and tested by actually restoring it",
+      "group": "Backups and security",
+      "audience": "business",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceExVat": 90
+    },
+    {
+      "slug": "cyber-essentials-review",
+      "name": "Cyber Essentials readiness review",
+      "group": "Backups and security",
+      "audience": "business",
+      "durationMinutes": 180,
+      "bookable": true,
+      "priceExVat": 180
+    }
+  ]
+}
