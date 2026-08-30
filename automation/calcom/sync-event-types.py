@@ -81,7 +81,14 @@ def main():
     for svc in wanted:
         want = {"title": svc["name"],
                 "lengthInMinutes": svc["durationMinutes"],
-                "description": description(svc, fee)}
+                "description": description(svc, fee),
+                # In person by default — the customer gives their address when
+                # booking. Catalogue entries may override with "location":
+                # e.g. "video" for genuinely remote work. Decision 2026-08-30.
+                "locations": [{"type": "attendeeAddress"}]
+                             if svc.get("location", "inPerson") == "inPerson"
+                             else [{"type": "integration",
+                                    "integration": "cal-video"}]}
         if svc.get("existing"):
             # The original event type predates the catalogue and its
             # description was written by hand. Title and duration are still
@@ -90,9 +97,13 @@ def main():
         have = by_slug.get(svc["slug"])
         if have is None:
             creates.append((svc, want)); continue
-        drift = {k: v for k, v in want.items()
-                 if have.get(k if k != "lengthInMinutes" else "lengthInMinutes",
-                             have.get("length")) != v}
+        def differs(k, v):
+            if k == "locations":
+                have_types = sorted(l.get("type", "") for l in (have.get("locations") or []))
+                want_types = sorted(l.get("type", "") for l in v)
+                return have_types != want_types
+            return have.get(k, have.get("length") if k == "lengthInMinutes" else None) != v
+        drift = {k: v for k, v in want.items() if differs(k, v)}
         (updates if drift else ok).append((svc, drift, have))
 
     strangers = [s for s in by_slug if s not in {w["slug"] for w in wanted}]

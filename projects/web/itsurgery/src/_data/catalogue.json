@@ -10,7 +10,8 @@
       "durationMinutes": 60,
       "bookable": true,
       "existing": true,
-      "note": "The original event type. The sync script matches it by slug and never alters it."
+      "note": "The original event type. The sync script matches it by slug and never alters it.",
+      "location": "video"
     },
     {
       "slug": "m365-new-business-setup",
