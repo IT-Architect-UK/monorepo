@@ -1,5 +1,5 @@
 {
-  "_readme": "One catalogue drives everything: the price pages and Book buttons render from it, automation/calcom/sync-event-types.py creates the Cal.com event types from it, and the booking workflow joins on the service name to describe the invoice. Every booking takes the same \u00a35 fee; the balance is invoiced after the work via the dashboard's New job form. Multiple services in one visit = custom quote, by decision 2026-08-29.",
+  "_readme": "One catalogue drives everything: the home and business price pages and Book buttons render from it, automation/calcom/sync-event-types.py creates the Cal.com event types from it, and the booking workflow joins on the service name to describe the invoice. Every booking takes the same \u00a35 fee; the balance is invoiced after the work via the dashboard's New job form. Multiple services in one visit = custom quote, by decision 2026-08-29.",
   "bookingFeeGbp": 5,
   "calUsername": "it-surgery",
   "services": [
@@ -249,6 +249,186 @@
       "durationMinutes": 180,
       "bookable": true,
       "priceExVat": 180
+    },
+    {
+      "slug": "home-new-computer-setup",
+      "name": "New computer set up",
+      "group": "New Device Setup",
+      "audience": "home",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceIncVat": 70
+    },
+    {
+      "slug": "home-phone-tablet-setup",
+      "name": "Phone or tablet set up",
+      "group": "New Device Setup",
+      "audience": "home",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceIncVat": 50
+    },
+    {
+      "slug": "home-console-tv-setup",
+      "name": "Games console, TV or streaming hardware",
+      "group": "New Device Setup",
+      "audience": "home",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceIncVat": 35
+    },
+    {
+      "slug": "home-smart-devices",
+      "name": "Smart speakers, doorbells, thermostats & lights",
+      "group": "New Device Setup",
+      "audience": "home",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceIncVat": 50
+    },
+    {
+      "slug": "home-wifi-coverage",
+      "name": "WiFi \u2014 coverage in every room",
+      "group": "New Device Setup",
+      "audience": "home",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceIncVat": 70
+    },
+    {
+      "slug": "home-office-apps-setup",
+      "name": "Microsoft 365 or Google Office set up",
+      "group": "AI & Productivity Support",
+      "audience": "home",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceIncVat": 35
+    },
+    {
+      "slug": "home-ai-assistant-setup",
+      "name": "AI assistant set up \u2014 Claude, ChatGPT, Gemini or Copilot",
+      "group": "AI & Productivity Support",
+      "audience": "home",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceIncVat": 35
+    },
+    {
+      "slug": "home-ai-automation",
+      "name": "AI automation for repeat tasks, emails, documents & development",
+      "group": "AI & Productivity Support",
+      "audience": "home",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceIncVat": 70
+    },
+    {
+      "slug": "home-ai-scam-awareness",
+      "name": "Spotting AI scams \u2014 cloned voices & fake messages",
+      "group": "AI & Productivity Support",
+      "audience": "home",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceIncVat": 35
+    },
+    {
+      "slug": "home-backup-setup",
+      "name": "Backup & recovery set up for any device",
+      "group": "Data, Backup & Recovery",
+      "audience": "home",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceIncVat": 35
+    },
+    {
+      "slug": "home-data-recovery",
+      "name": "Data recovery \u2014 OS, disk & file restores",
+      "group": "Data, Backup & Recovery",
+      "audience": "home",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceIncVat": 50
+    },
+    {
+      "slug": "home-secure-wipe-recycle",
+      "name": "Old computer wiped & recycled safely",
+      "group": "Data, Backup & Recovery",
+      "audience": "home",
+      "durationMinutes": 60,
+      "bookable": true,
+      "priceIncVat": 35
+    },
+    {
+      "slug": "home-parental-controls",
+      "name": "Parental controls & oversight for consoles, phones & computers",
+      "group": "Family & Safety",
+      "audience": "home",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceIncVat": 50
+    },
+    {
+      "slug": "home-security-checkup",
+      "name": "Security \u2014 malware scanning, application reviews, password & authentication management & more",
+      "group": "Family & Safety",
+      "audience": "home",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceIncVat": 50
+    },
+    {
+      "slug": "home-pc-health-check",
+      "name": "PC Health Check \u2014 tune-up & clean-up",
+      "group": "Repairs & Troubleshooting",
+      "audience": "home",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceIncVat": 50
+    },
+    {
+      "slug": "home-malware-removal",
+      "name": "Malware scan, removal & protection",
+      "group": "Repairs & Troubleshooting",
+      "audience": "home",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceIncVat": 70
+    },
+    {
+      "slug": "home-os-reinstall",
+      "name": "Operating system reinstall or upgrade",
+      "group": "Repairs & Troubleshooting",
+      "audience": "home",
+      "durationMinutes": 120,
+      "bookable": true,
+      "priceIncVat": 99
+    },
+    {
+      "slug": "home-network-broadband",
+      "name": "Home network, broadband & WiFi",
+      "group": "Repairs & Troubleshooting",
+      "audience": "home",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceIncVat": 50
+    },
+    {
+      "slug": "home-printer-scanner",
+      "name": "Printers & scanners",
+      "group": "Repairs & Troubleshooting",
+      "audience": "home",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceIncVat": 50
+    },
+    {
+      "slug": "home-hardware-upgrade",
+      "name": "Hardware upgrade or repair \u2014 memory, disk, graphics etc.",
+      "group": "Repairs & Troubleshooting",
+      "audience": "home",
+      "durationMinutes": 90,
+      "bookable": true,
+      "priceIncVat": 50
     }
   ]
 }

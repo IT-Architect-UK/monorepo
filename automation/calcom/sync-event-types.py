@@ -54,9 +54,12 @@ def call(method, url, key, body=None):
 
 def description(svc, fee):
     lines = []
+    unit = f" {svc['unit']}" if svc.get("unit") else ""
     if "priceExVat" in svc:
-        unit = f" {svc['unit']}" if svc.get("unit") else ""
         lines.append(f"Fixed price £{svc['priceExVat']} ex VAT{unit}.")
+    elif "priceIncVat" in svc:
+        # Home prices include VAT — that is how home customers read a price.
+        lines.append(f"Fixed price £{svc['priceIncVat']}{unit}.")
     lines.append(f"A £{fee} booking fee is taken now and deducted from the "
                  "final invoice. Need more than one service? Ask for a custom "
                  "quote at itsurgery.me instead.")

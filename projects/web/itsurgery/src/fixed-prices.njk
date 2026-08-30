@@ -32,10 +32,17 @@ description: IT Surgery fixed price list for home users in Penarth, Barry and Ca
           {% if group.blurb %}<p class="band-blurb">{{ group.blurb }}{% if group.priceNote %} <strong>{{ group.priceNote }}</strong>{% endif %}</p>{% endif %}
           <ul class="band-list">
             {% for item in group.items %}
+            {# Same join as the business list: the catalogue owns slugs and
+               bookability, a missing join renders no button rather than a
+               wrong one. #}
+            {% set svc = bookmap[item.label] %}
             <li>
               <span class="item-price">£{{ item.price }}{% if item.note %} ({{ item.note }}){% endif %}</span>
               <span class="item-meta">{{ item.time }}</span>
               <span class="item-label">{{ item.label }}{% if item.addon %} <span class="addon">({{ item.addon }})</span>{% endif %}</span>
+              {% if svc and svc.bookable and not svc.existing %}
+              <a class="item-book" href="https://cal.com/{{ catalogue.calUsername }}/{{ svc.slug }}">Book</a>
+              {% endif %}
             </li>
             {% endfor %}
           </ul>
