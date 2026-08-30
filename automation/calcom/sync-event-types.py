@@ -40,7 +40,11 @@ def call(method, url, key, body=None):
         data=json.dumps(body).encode() if body is not None else None,
         headers={"Authorization": f"Bearer {key}",
                  "cal-api-version": VER,
-                 "Content-Type": "application/json"})
+                 "Content-Type": "application/json",
+                 # Cloudflare in front of api.cal.com bans urllib's default
+                 # User-Agent outright (error 1010) before the API ever sees
+                 # the request. Any honest identity passes.
+                 "User-Agent": "itsurgery-catalogue-sync/1.0 (+https://itsurgery.me)"})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.load(r)
