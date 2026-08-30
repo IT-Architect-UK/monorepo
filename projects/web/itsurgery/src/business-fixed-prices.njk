@@ -38,7 +38,7 @@ description: Fixed-price business IT support in Penarth, Barry and Cardiff — M
               <span class="item-meta">{{ item.time }}</span>
               <span class="item-label">{{ item.label }}{% if item.addon %} <span class="addon">({{ item.addon }})</span>{% endif %}</span>
               {% if svc and svc.bookable and not svc.existing %}
-              <a class="item-book" href="https://cal.com/{{ catalogue.calUsername }}/{{ svc.slug }}">Book</a>
+              <a class="item-book" href="/book/?service={{ svc.slug }}">Book</a>
               {% elif item.quoted %}
               <a class="item-book ghost" href="/quote/">Get a quote</a>
               {% endif %}

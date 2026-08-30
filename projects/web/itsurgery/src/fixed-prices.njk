@@ -41,7 +41,7 @@ description: IT Surgery fixed price list for home users in Penarth, Barry and Ca
               <span class="item-meta">{{ item.time }}</span>
               <span class="item-label">{{ item.label }}{% if item.addon %} <span class="addon">({{ item.addon }})</span>{% endif %}</span>
               {% if svc and svc.bookable and not svc.existing %}
-              <a class="item-book" href="https://cal.com/{{ catalogue.calUsername }}/{{ svc.slug }}">Book</a>
+              <a class="item-book" href="/book/?service={{ svc.slug }}">Book</a>
               {% endif %}
             </li>
             {% endfor %}
