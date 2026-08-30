@@ -79,6 +79,11 @@ def main():
         want = {"title": svc["name"],
                 "lengthInMinutes": svc["durationMinutes"],
                 "description": description(svc, fee)}
+        if svc.get("existing"):
+            # The original event type predates the catalogue and its
+            # description was written by hand. Title and duration are still
+            # kept honest; the wording is not ours to overwrite.
+            want.pop("description")
         have = by_slug.get(svc["slug"])
         if have is None:
             creates.append((svc, want)); continue
