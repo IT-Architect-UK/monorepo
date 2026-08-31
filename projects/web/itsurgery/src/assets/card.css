@@ -84,40 +84,25 @@ body {
   gap: 1.6mm;
 }
 
-.who { margin: 0; }
-.who .name {
-  display: block;
-  font-size: 11pt;
-  font-weight: 700;
-  line-height: 1.15;
-}
-.who .role {
-  display: block;
-  font-size: 7pt;
-  font-weight: 500;
-  color: var(--muted);
-  margin-top: 0.6mm;
-}
-
-.detail {
+/* One size, one colour, one weight for the whole contact block. The name is
+   bold because a name is a name; the website is red because it is the only
+   thing on the card we want acted on. Nothing else is allowed to differ —
+   an earlier version had four sizes and three colours here and read as
+   decoration. */
+.front-right p {
   margin: 0;
-  font-size: 8pt;
+  font-size: 8.5pt;
   font-weight: 500;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--ink);
 }
-.detail .label {
-  color: var(--muted);
-  font-weight: 500;
-}
 
-/* The one loud thing on the card, because it is where a booking happens. */
-.web {
-  margin: 0.8mm 0 0;
-  font-size: 10.5pt;
+.front-right .name { font-weight: 700; }
+
+.front-right .web {
   font-weight: 700;
   color: var(--brand);
-  letter-spacing: -0.01em;
+  margin-top: 2mm;
 }
 
 /* ---------- back ---------- */

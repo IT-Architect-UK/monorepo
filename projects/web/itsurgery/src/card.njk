@@ -13,18 +13,10 @@ eleventyExcludeFromCollections: true
   </div>
 
   <div class="front-right">
-    <p class="who">
-      <span class="name">Darren Pilkington</span>
-      <span class="role">IT engineer</span>
-    </p>
-
-    <p class="detail">
-      <span class="label">Call or WhatsApp</span><br />
-      {{ site.phoneDisplay }}
-    </p>
-
-    <p class="detail">{{ site.email }}</p>
-
+    <p class="name">Darren Pilkington</p>
+    <p>IT engineer</p>
+    <p>{{ site.phoneDisplay }} — call or WhatsApp</p>
+    <p>{{ site.email }}</p>
     <p class="web">{{ site.url | replace("https://", "") }}</p>
   </div>
 </div>
