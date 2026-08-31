@@ -216,3 +216,8 @@ body {
   margin: 2.5mm 0 0;
   text-align: center;
 }
+
+/* Side two starts on its own page when printed; on screen it just gets some
+   air between the two previews. */
+.sheet-break { page-break-before: always; }
+@media screen { .sheet-break { margin-top: 24px; } }

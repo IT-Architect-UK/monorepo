@@ -58,3 +58,60 @@ eleventyExcludeFromCollections: true
   </p>
 
 </div>
+
+{# Side two — the business reader. Same bones, different promises: a business
+   buys published prices, one accountable engineer and the 2008 heritage, not
+   patience. Printed duplex this is the reverse of the home side. #}
+<div class="sheet sheet-break">
+
+  <div class="mast">
+    <img src="/assets/logo@3x.png" alt="{{ site.name }}" />
+    <p class="mast-area">Business IT support<br />{{ site.areas | join(" · ") }}</p>
+  </div>
+  <div class="mast-rule"></div>
+
+  <h1 class="hook">IT that just works,<br /><em>priced before we start.</em></h1>
+  <p class="hook-sub">
+    Fixed prices for the jobs small businesses actually need — published on our
+    website, so you know the cost before you call.
+  </p>
+
+  <div class="promises">
+    <div class="promise">Fixed prices,<br />published</div>
+    <div class="promise">No call-out<br />charge</div>
+    <div class="promise">One engineer,<br />start to finish</div>
+    <div class="promise">Since<br />2008</div>
+  </div>
+
+  <h2 class="services-head">What we do for businesses</h2>
+  <p class="services-note">Every job below has one price (ex VAT) and the time
+    it should take. The full list, with online booking, is on our website.</p>
+
+  <div class="cats">
+    {% for group in businessprices.groups %}
+    <div class="cat">
+      <h3>{{ group.name }}</h3>
+      <ul>
+        {% for item in group.items %}
+        <li><span class="t">{{ item.time }}</span><span class="l">{{ item.label }} <span class="pill">{% if item.quoted %}Quoted{% else %}£{{ item.price }}{% endif %}</span>{% if item.addon %} <span class="addon">({{ item.addon }})</span>{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="cta">
+    <p class="cta-lead">Prices, details and online booking</p>
+    <p class="cta-site">{{ site.url }}</p>
+    <p class="cta-rest">
+      {{ site.phoneDisplay }} &nbsp;·&nbsp; {{ site.email }}
+    </p>
+    <p class="cta-fee">Ongoing cover from £{{ site.planBusinessRate }}/hr on a support plan — ask about plans.</p>
+  </div>
+
+  <p class="smallprint">
+    Business prices exclude VAT. Migrations and larger projects quoted up front.<br />
+    The IT Surgery name has been ours since 2008 · {{ site.legalName }} · Company {{ site.companyNumber }}
+  </p>
+
+</div>
