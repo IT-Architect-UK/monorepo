@@ -2,7 +2,7 @@
   "note": "Business fixed prices. Ex VAT, unlike the home list, because that is how businesses read a price. Each item carries the time it is expected to take, so the price can be checked against the hourly rate and so a customer can see what they are buying. Anything with real variance — migrations especially — is marked Quoted rather than guessed at.",
   "groups": [
     {
-      "name": "Microsoft 365 and your people",
+      "name": "Microsoft 365",
       "blurb": "Getting email, accounts and licences working, and keeping them tidy as staff come and go.",
       "items": [
         {
@@ -25,12 +25,17 @@
           "label": "Staff leaver — access removed, mailbox handled",
           "time": "30 min",
           "price": "35"
-        },
+        }
+      ]
+    },
+    {
+      "name": "Google Workspace",
+      "blurb": "The same jobs, done properly in Google's world — Gmail, Drive, Meet and accounts.",
+      "items": [
         {
           "label": "Google Workspace set up for a new business",
           "time": "3 hours",
-          "price": "180",
-          "addon": "if you prefer Google to Microsoft"
+          "price": "180"
         }
       ]
     },

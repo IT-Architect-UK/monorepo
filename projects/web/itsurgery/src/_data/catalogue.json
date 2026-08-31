@@ -16,7 +16,7 @@
     {
       "slug": "m365-new-business-setup",
       "name": "Microsoft 365 set up for a new business",
-      "group": "Microsoft 365 and your people",
+      "group": "Microsoft 365",
       "audience": "business",
       "durationMinutes": 180,
       "bookable": true,
@@ -25,7 +25,7 @@
     {
       "slug": "email-move-to-m365",
       "name": "Email moved to Microsoft 365",
-      "group": "Microsoft 365 and your people",
+      "group": "Microsoft 365",
       "audience": "business",
       "durationMinutes": 60,
       "bookable": true,
@@ -35,7 +35,7 @@
     {
       "slug": "new-starter-setup",
       "name": "New starter — account, mailbox, licence, device",
-      "group": "Microsoft 365 and your people",
+      "group": "Microsoft 365",
       "audience": "business",
       "durationMinutes": 45,
       "bookable": true,
@@ -44,7 +44,7 @@
     {
       "slug": "staff-leaver-offboarding",
       "name": "Staff leaver — access removed, mailbox handled",
-      "group": "Microsoft 365 and your people",
+      "group": "Microsoft 365",
       "audience": "business",
       "durationMinutes": 30,
       "bookable": true,
@@ -434,12 +434,11 @@
     {
       "slug": "google-workspace-setup",
       "name": "Google Workspace set up for a new business",
-      "group": "Microsoft 365 and your people",
+      "group": "Google Workspace",
       "audience": "business",
       "durationMinutes": 180,
       "bookable": true,
-      "priceExVat": 180,
-      "unit": "if you prefer Google to Microsoft"
+      "priceExVat": 180
     }
   ]
 }
