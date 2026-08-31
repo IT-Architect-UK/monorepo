@@ -65,15 +65,16 @@ body {
   margin: 0;
   font-size: 7.5pt;
   line-height: 1.3;
-  align-content: start;
+  align-content: center;
+  flex: 1;
 }
 /* Row spacing comes from padding, not row-gap: a gap breaks the vertical rule
    into segments, one per row, which looks like a mistake. Padding keeps the
    borders touching so the rule runs unbroken down the list. */
 .details dt,
 .details dd {
-  padding-top: 1mm;
-  padding-bottom: 1mm;
+  padding-top: 1.9mm;
+  padding-bottom: 1.9mm;
 }
 .details dt {
   color: var(--muted);
@@ -103,7 +104,7 @@ body {
   text-align: center;
 }
 .card-back h2 {
-  font-size: 12pt;
+  font-size: 11pt;
   font-weight: 700;
   line-height: 1.3;
   margin: 0 0 4mm;
