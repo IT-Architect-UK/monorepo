@@ -1,0 +1,38 @@
+---
+layout: layouts/card-portrait.njk
+title: Business card (portrait)
+permalink: /card-portrait/
+eleventyExcludeFromCollections: true
+---
+{# Two 55x85mm pages, front then back. #}
+
+<div class="card card-front">
+  <div class="brand">
+    <img src="/assets/logo@3x.png" alt="{{ site.name }}" />
+    <p class="strap">{{ site.tagline }}</p>
+  </div>
+
+  <hr class="divide" />
+
+  <dl class="details">
+    <dt>Name</dt>     <dd class="name">Darren Pilkington</dd>
+    <dt>Role</dt>     <dd>IT Engineer</dd>
+    <dt>Email</dt>    <dd>{{ site.email | lower }}</dd>
+    <dt>Phone</dt>    <dd>{{ site.phoneLink }}</dd>
+    <dt>WhatsApp</dt> <dd>@itsurgery</dd>
+    <dt>Website</dt>  <dd class="web">{{ site.url | replace("https://", "") }}</dd>
+  </dl>
+</div>
+
+<div class="card card-back">
+  <h2>Whatever your IT problem,<br />we'll sort it</h2>
+  <p class="what">
+    Computers, phones, Wi-Fi, printers and email — for homes and small
+    businesses across {{ site.areas | join(", ") }}.
+  </p>
+  <p class="promises">
+    <span>Fixed prices</span>
+    <span>No fix, no fee</span>
+    <span>Since 2008</span>
+  </p>
+</div>

@@ -1,0 +1,133 @@
+/* Business card, PORTRAIT — 55 x 85mm finished, no bleed.
+   Same content and discipline as the landscape version: one font, one text
+   size for the detail block, red used once. What changes is the structure —
+   a horizontal rule separates identity from details, and a vertical rule
+   separates labels from values, which is what makes a narrow card read
+   cleanly. */
+
+:root {
+  --brand: #990000;
+  --ink: #1d2024;
+  --muted: #6b7178;
+  --rule: #d3d7dc;
+}
+
+@page { size: 55mm 85mm; margin: 0; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #fff;
+  color: var(--ink);
+  font-family: Poppins, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.card {
+  width: 55mm;
+  height: 85mm;
+  background: #fff;
+  overflow: hidden;
+  page-break-after: always;
+}
+
+/* ---------- front ---------- */
+.card-front {
+  padding: 6mm 5mm;
+  display: flex;
+  flex-direction: column;
+  gap: 5mm;
+}
+
+.brand { text-align: center; }
+.brand img { display: block; width: 38mm; height: auto; margin: 0 auto; }
+.brand .strap {
+  margin: 1.5mm 0 0;
+  font-size: 7pt;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* The horizontal rule: identity above, details below. */
+.divide {
+  border: 0;
+  border-top: 0.3mm solid var(--rule);
+  margin: 0;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: 13mm 1fr;
+  row-gap: 2mm;
+  margin: 0;
+  font-size: 7.5pt;
+  line-height: 1.3;
+  align-content: center;
+  flex: 1;
+}
+.details dt {
+  color: var(--muted);
+  font-weight: 500;
+  /* The vertical rule sits on the label column, so it runs the full height of
+     the list without being a separate element to keep aligned. */
+  border-right: 0.3mm solid var(--rule);
+  padding-right: 2mm;
+  margin-right: 2mm;
+}
+.details dd {
+  margin: 0;
+  font-weight: 500;
+  color: var(--ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.details dd.name { font-weight: 700; }
+.details dd.web  { font-weight: 700; color: var(--brand); }
+
+/* ---------- back ---------- */
+.card-back {
+  background: var(--brand);
+  color: #fff;
+  padding: 8mm 5mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+.card-back h2 {
+  font-size: 12pt;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 4mm;
+}
+.card-back .what {
+  font-size: 8pt;
+  font-weight: 500;
+  line-height: 1.6;
+  margin: 0 0 5mm;
+  color: rgba(255, 255, 255, 0.94);
+}
+.card-back .promises {
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+  border-top: 0.3mm solid rgba(255, 255, 255, 0.4);
+  padding-top: 4mm;
+  margin: 0;
+  font-size: 8pt;
+  font-weight: 600;
+}
+
+@media screen {
+  body {
+    background: #eef0f3;
+    padding: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+  }
+  .card { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16); }
+}
