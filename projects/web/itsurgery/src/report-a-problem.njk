@@ -1,0 +1,63 @@
+---
+layout: layouts/base.njk
+title: Report a website problem
+heading: Spotted a problem with this site?
+standfirst: Tell us and we'll fix it. Broken links, pages that won't load, booking trouble — anything that didn't work the way it should.
+permalink: /report-a-problem/
+eleventyExcludeFromCollections: true
+---
+
+{# The site is new, and the people who find its bugs are the people using it.
+   Kept deliberately tiny: one box that matters, everything else optional. The
+   page URL and browser are captured automatically so the reporter never has
+   to answer "what browser are you on". Netlify Forms carries it — same
+   machinery as the quote form, no new moving parts. #}
+<section class="section">
+  <div class="container narrow">
+
+    <form name="site-issue" method="POST" action="/thanks/" data-netlify="true" data-netlify-honeypot="bot-field">
+      <input type="hidden" name="form-name" value="site-issue" />
+      <p hidden>
+        <label>Don't fill this in if you're human: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+      </p>
+
+      <p>
+        <label for="issue-what">What went wrong?</label><br />
+        <textarea id="issue-what" name="what" rows="5" required
+          placeholder="e.g. The Book button on the Health check row didn't do anything on my phone"></textarea>
+      </p>
+
+      <p>
+        <label for="issue-page">Which page? <span class="quiet">(filled in for you if we can tell)</span></label><br />
+        <input id="issue-page" type="text" name="page" placeholder="e.g. the fixed prices page" />
+      </p>
+
+      <p>
+        <label for="issue-email">Your email <span class="quiet">(optional — only if you'd like to hear it's fixed)</span></label><br />
+        <input id="issue-email" type="email" name="email" autocomplete="email" />
+      </p>
+
+      {# Captured silently: which browser/device, so nobody has to know what
+         a user agent is. No other data is collected. #}
+      <input type="hidden" name="browser" id="issue-browser" />
+
+      <p><button class="btn btn-primary" type="submit">Send it</button></p>
+      <p class="quiet" style="font-size:.85rem">
+        We only use your email to reply about this problem — nothing else.
+        Thank you for helping make the site better.
+      </p>
+    </form>
+
+  </div>
+</section>
+
+<script>
+  (function () {
+    var b = document.getElementById('issue-browser');
+    if (b) { b.value = navigator.userAgent; }
+    var p = document.getElementById('issue-page');
+    if (p && document.referrer && document.referrer.indexOf('itsurgery.me') !== -1) {
+      p.value = document.referrer;
+    }
+  })();
+</script>
