@@ -7,18 +7,21 @@ eleventyExcludeFromCollections: true
 {# Two 85x55mm pages, front then back — exactly what a printer asks for. #}
 
 <div class="card card-front">
-  <div class="front-left">
+  <div class="brand">
     <img src="/assets/logo@3x.png" alt="{{ site.name }}" />
     <p class="strap">{{ site.tagline }}</p>
   </div>
 
-  <div class="front-right">
-    <p class="name">Darren Pilkington</p>
-    <p>IT engineer</p>
-    <p>{{ site.phoneDisplay }} — call or WhatsApp</p>
-    <p>{{ site.email }}</p>
-    <p class="web">{{ site.url | replace("https://", "") }}</p>
-  </div>
+  {# A description list, because that is what this is: labels and values.
+     The grid gives every value the same left edge. #}
+  <dl class="details">
+    <dt>Name</dt>     <dd class="name">Darren Pilkington</dd>
+    <dt>Role</dt>     <dd>IT Engineer</dd>
+    <dt>Email</dt>    <dd>{{ site.email | lower }}</dd>
+    <dt>Phone</dt>    <dd>{{ site.phoneLink }}</dd>
+    <dt>WhatsApp</dt> <dd>@itsurgery</dd>
+    <dt>Website</dt>  <dd class="web">{{ site.url | replace("https://", "") }}</dd>
+  </dl>
 </div>
 
 <div class="card card-back">

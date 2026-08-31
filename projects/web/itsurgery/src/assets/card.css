@@ -1,21 +1,19 @@
-/* Business card, print-first.
-   85 x 55mm finished size, everything inside a 5mm safety margin — a
-   guillotine wanders a millimetre or two and a phone number cut in half is a
-   wasted print run.
+/* Business card — 85 x 55mm finished, no bleed (white background, nothing to
+   bleed). All content sits 6mm from the edge: guillotines wander, and a phone
+   number cut in half is a wasted print run.
 
-   Layout: the front is a two-column split, not a stack. A stacked card leaves
-   the right half empty and makes the eye travel down a ragged left edge; a
-   split gives the identity one column and the contact details the other, which
-   is why almost every professional card is built this way.
+   Layout: logo across the top, then a two-column label/value grid. The grid is
+   what makes the details line up — labels in one column, values starting on a
+   single shared left edge, so the eye reads straight down instead of down a
+   ragged edge.
 
-   Discipline: ONE font family, ONE accent colour used deliberately, three type
-   sizes. An earlier version had five type treatments on one side and read as
-   decoration rather than information. */
+   Discipline, learned the hard way on earlier drafts: ONE font, ONE text size
+   for the whole detail block, and red used exactly once per side. */
 
 :root {
   --brand: #990000;
   --ink: #1d2024;
-  --muted: #5a6068;
+  --muted: #6b7178;
   --rule: #dcdfe3;
 }
 
@@ -36,74 +34,51 @@ body {
   width: 85mm;
   height: 55mm;
   background: #fff;
-  position: relative;
   overflow: hidden;
   page-break-after: always;
 }
 
-/* ---------- front: identity | contact ---------- */
+/* ---------- front ---------- */
 .card-front {
-  display: grid;
-  grid-template-columns: 40mm 45mm;
-  align-items: stretch;
-}
-/* Both tracks must be allowed to shrink below their content, or a wide logo
-   pushes its column past the card edge — which is exactly what happened. */
-.card-front > * { min-width: 0; }
-
-.front-left {
-  padding: 6mm 4mm 6mm 6mm;
+  padding: 6mm;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 1.5mm;
-  /* A hairline rather than a heavy divider: it separates without shouting. */
-  border-right: 0.25mm solid var(--rule);
+  justify-content: space-between;
 }
 
-.front-left img {
-  display: block;
-  width: 100%;
-  max-width: 32mm;
-  height: auto;
-}
-
-.front-left .strap {
+.brand { display: flex; align-items: baseline; gap: 3mm; }
+.brand img { display: block; width: 30mm; height: auto; }
+.brand .strap {
+  margin: 0;
   font-size: 7pt;
   font-weight: 500;
   color: var(--muted);
-  letter-spacing: 0.02em;
-  margin: 0;
 }
 
-.front-right {
-  padding: 6mm 6mm 6mm 4mm;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1.6mm;
-}
-
-/* One size, one colour, one weight for the whole contact block. The name is
-   bold because a name is a name; the website is red because it is the only
-   thing on the card we want acted on. Nothing else is allowed to differ —
-   an earlier version had four sizes and three colours here and read as
-   decoration. */
-.front-right p {
+/* The alignment: a fixed label column, values sharing one left edge. */
+.details {
+  display: grid;
+  grid-template-columns: 17mm 1fr;
+  row-gap: 1.3mm;
+  column-gap: 2mm;
   margin: 0;
-  font-size: 8.5pt;
+  font-size: 8pt;
+  line-height: 1.35;
+}
+.details dt {
+  color: var(--muted);
   font-weight: 500;
-  line-height: 1.55;
+}
+.details dd {
+  margin: 0;
+  font-weight: 500;
   color: var(--ink);
+  /* Long values must not widen the grid or push off the card. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-
-.front-right .name { font-weight: 700; }
-
-.front-right .web {
-  font-weight: 700;
-  color: var(--brand);
-  margin-top: 2mm;
-}
+.details dd.name { font-weight: 700; }
+.details dd.web  { font-weight: 700; color: var(--brand); }
 
 /* ---------- back ---------- */
 .card-back {
@@ -126,19 +101,20 @@ body {
   font-weight: 500;
   line-height: 1.6;
   margin: 0 0 4mm;
-  color: rgba(255,255,255,0.94);
+  color: rgba(255, 255, 255, 0.94);
 }
 .card-back .promises {
   display: flex;
   justify-content: center;
   gap: 4mm;
-  border-top: 0.25mm solid rgba(255,255,255,0.4);
+  border-top: 0.25mm solid rgba(255, 255, 255, 0.4);
   padding-top: 3mm;
+  margin: 0;
   font-size: 7.5pt;
   font-weight: 600;
 }
 
-/* Screen preview only. */
+/* Screen preview only — print ignores all of this. */
 @media screen {
   body {
     background: #eef0f3;
@@ -148,5 +124,5 @@ body {
     gap: 16px;
     justify-content: center;
   }
-  .card { box-shadow: 0 2px 10px rgba(0,0,0,0.16); }
+  .card { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16); }
 }
