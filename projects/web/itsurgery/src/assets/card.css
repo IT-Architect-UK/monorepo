@@ -44,21 +44,29 @@ body {
 /* ---------- front: identity | contact ---------- */
 .card-front {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 40mm 45mm;
   align-items: stretch;
 }
+/* Both tracks must be allowed to shrink below their content, or a wide logo
+   pushes its column past the card edge — which is exactly what happened. */
+.card-front > * { min-width: 0; }
 
 .front-left {
   padding: 6mm 4mm 6mm 6mm;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2mm;
+  gap: 1.5mm;
   /* A hairline rather than a heavy divider: it separates without shouting. */
   border-right: 0.25mm solid var(--rule);
 }
 
-.front-left img { width: 34mm; height: auto; }
+.front-left img {
+  display: block;
+  width: 100%;
+  max-width: 32mm;
+  height: auto;
+}
 
 .front-left .strap {
   font-size: 7pt;
