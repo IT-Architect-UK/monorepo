@@ -101,11 +101,10 @@ body {
   font-weight: 500;
   line-height: 1.6;
   margin: 0 0 4mm;
-  color: rgba(255, 255, 255, 0.94);
+  color: #ffffff;
 }
 .card-back .where {
   margin-top: -2mm;
-  color: rgba(255, 255, 255, 0.85);
 }
 .card-back .promises {
   display: flex;
