@@ -26,7 +26,7 @@ noindex: true
     <div id="pay-action" hidden>
       <p class="pay-message">
         Taking you to our secure payment page in
-        <span id="countdown">5</span> seconds…
+        <span id="countdown">5</span><span id="countdown-unit"> seconds</span>…
       </p>
 
       {# Decorative: the countdown text above already carries the meaning. #}
@@ -36,8 +36,8 @@ noindex: true
         <a class="btn btn-primary" id="pay-link" href="#">Pay £{{ site.bookingFee }} now</a>
       </p>
       <p class="pay-note">
-        The payment page is run by Xero, our accounting provider. You can pay by
-        card, Apple Pay or Google Pay.
+        Payment is handled by Stripe on a secure checkout page, and you'll be
+        brought straight back here when it's done. Card, Apple Pay or Google Pay.
       </p>
     </div>
 
@@ -132,6 +132,8 @@ noindex: true
     var tick = setInterval(function () {
       seconds--;
       counter.textContent = seconds > 0 ? seconds : 0;
+      document.getElementById('countdown-unit').textContent =
+        seconds === 1 ? ' second' : ' seconds';
       if (seconds <= 0) {
         clearInterval(tick);
         window.location.href = url;
