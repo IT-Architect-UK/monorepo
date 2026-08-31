@@ -664,19 +664,9 @@
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "stripeApi",
         "sendBody": true,
-        "contentType": "form-urlencoded",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "charge",
-              "value": "={{ ($('Get the payment').item.json.Payments[0].Reference || '').match(/ch_[A-Za-z0-9]+/)?.[0] }}"
-            },
-            {
-              "name": "reason",
-              "value": "requested_by_customer"
-            }
-          ]
-        },
+        "contentType": "raw",
+        "rawContentType": "application/x-www-form-urlencoded",
+        "body": "={{ (() => { const r = $('Get the payment').item.json.Payments[0].Reference || ''; const ch = r.match(/ch_[A-Za-z0-9]+/); const pi = r.match(/pi_[A-Za-z0-9]+/); const id = ch ? 'charge=' + ch[0] : pi ? 'payment_intent=' + pi[0] : ''; return id + '&reason=requested_by_customer'; })() }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -693,7 +683,7 @@
           "name": "Stripe account"
         }
       },
-      "notes": "Money first, books second. If this succeeds and Xero then fails, the ledger lags by minutes and the error alert says so. The other order would have the accounts claiming a refund that never left. The charge id is extracted with a regex so a reference carrying extra text cannot send the wrong value to Stripe."
+      "notes": "Xero's native Stripe integration writes pi_ payment-intent ids into the payment Reference; our own checkout path writes ch_ charge ids. Stripe's refund API takes either, so both are accepted — the 2026-08-30 failure was insisting on ch_ against a pi_ reference. An empty id still fails the call, which still alerts: right answer for a payment with no Stripe reference at all."
     },
     {
       "parameters": {

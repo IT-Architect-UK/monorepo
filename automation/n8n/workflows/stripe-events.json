@@ -63,7 +63,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://api.xero.com/api.xro/2.0/Accounts?where={{ encodeURIComponent('Type==\"BANK\" AND Name.StartsWith(\"Stripe\")') }}",
+        "url": "=https://api.xero.com/api.xro/2.0/Payments?order=Date%20DESC&pageSize=1&where={{ encodeURIComponent('PaymentType==\"ACCRECPAYMENT\" AND Status==\"AUTHORISED\"') }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "xeroOAuth2Api",
         "sendHeaders": true,
@@ -83,7 +83,7 @@
           "timeout": 15000
         }
       },
-      "name": "Find the Stripe account",
+      "name": "Where do payments go?",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
@@ -96,7 +96,7 @@
           "name": "Xero — IT Solution Architecture Ltd"
         }
       },
-      "notes": "Looked up, not hardcoded: the Xero-Stripe integration created this bank account and its id belongs to the instance. No account found fails the run and alerts, deliberately — a payment recorded against the wrong account is worse than an email to Darren."
+      "notes": "Not a Stripe clearing account — this org has none; Xero's native integration settled invoice payments straight into the Starling bank account (verified on the box 2026-08-31). Rather than hardcode a name, ask Xero where the most recent customer payment went and follow suit. First payment on a fresh instance fails loudly and is set by hand once."
     },
     {
       "parameters": {
@@ -119,7 +119,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"Payments\": [{\"Invoice\": {\"InvoiceID\": \"{{ $('Shape the facts').item.json.invoiceId }}\"}, \"Account\": {\"AccountID\": \"{{ $json.Accounts[0].AccountID }}\"}, \"Date\": \"{{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"Amount\": {{ $('Shape the facts').item.json.amount }}, \"Reference\": \"Stripe {{ $('Shape the facts').item.json.charge }}\"}]}",
+        "jsonBody": "={\"Payments\": [{\"Invoice\": {\"InvoiceID\": \"{{ $('Shape the facts').item.json.invoiceId }}\"}, \"Account\": {\"AccountID\": \"{{ $json.Payments[0].Account.AccountID }}\"}, \"Date\": \"{{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"Amount\": {{ $('Shape the facts').item.json.amount }}, \"Reference\": \"Stripe {{ $('Shape the facts').item.json.charge }}\"}]}",
         "options": {
           "timeout": 15000
         }
@@ -191,18 +191,7 @@
       "main": [
         [
           {
-            "node": "Find the Stripe account",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Find the Stripe account": {
-      "main": [
-        [
-          {
-            "node": "Record the payment",
+            "node": "Where do payments go?",
             "type": "main",
             "index": 0
           }
@@ -214,6 +203,17 @@
         [
           {
             "node": "Confirm to the customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Where do payments go?": {
+      "main": [
+        [
+          {
+            "node": "Record the payment",
             "type": "main",
             "index": 0
           }
