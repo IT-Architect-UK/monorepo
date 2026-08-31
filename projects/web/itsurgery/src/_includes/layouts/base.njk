@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ title }} | {{ site.name }} — {{ site.tagline }}</title>
+  {# seoTitle lets a page set the whole search-result title. The default
+     pattern is "Page | IT Surgery — Curing IT Headaches", whose 33-char
+     suffix pushes some pages past the ~60 chars Google shows. #}
+  <title>{% if seoTitle %}{{ seoTitle }}{% else %}{{ title }} | {{ site.name }} — {{ site.tagline }}{% endif %}</title>
   <meta name="description" content="{{ description }}" />
   <meta name="theme-color" content="#990000" />
   <link rel="canonical" href="{{ site.url }}{{ page.url }}" />

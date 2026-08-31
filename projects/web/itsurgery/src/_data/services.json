@@ -153,7 +153,6 @@
       "Ongoing maintenance and patching"
     ]
   },
-
   {
     "slug": "pc-repair-maintenance",
     "title": "PC Repair & Maintenance",
@@ -201,7 +200,7 @@
   },
   {
     "slug": "malware-protection-recovery",
-    "title": "Malware Protection & Recovery",
+    "title": "Malware Removal",
     "group": "personal",
     "summary": "Viruses and scam pop-ups removed, and protection put in place.",
     "intro": "If your computer is covered in pop-ups, behaving oddly, or showing alarming warnings, we can clean it up. We will also tell you honestly whether a warning you have seen is genuine or a scam.",
