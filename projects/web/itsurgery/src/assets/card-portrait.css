@@ -8,7 +8,7 @@
 :root {
   --brand: #990000;
   --ink: #1d2024;
-  --muted: #6b7178;
+  --muted: #222222;
   --rule: #d3d7dc;
 }
 
@@ -45,7 +45,7 @@ body {
 .brand img { display: block; width: 38mm; height: auto; margin: 0 auto; }
 .brand .strap {
   margin: 1.5mm 0 0;
-  font-size: 7pt;
+  font-size: 9pt;
   font-weight: 500;
   color: var(--muted);
 }
@@ -114,6 +114,10 @@ body {
   line-height: 1.6;
   margin: 0 0 5mm;
   color: rgba(255, 255, 255, 0.94);
+}
+.card-back .where {
+  margin-top: -2mm;
+  color: rgba(255, 255, 255, 0.85);
 }
 .card-back .promises {
   display: flex;
