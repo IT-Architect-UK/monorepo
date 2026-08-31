@@ -221,3 +221,24 @@ body {
    air between the two previews. */
 .sheet-break { page-break-before: always; }
 @media screen { .sheet-break { margin-top: 24px; } }
+
+/* The audience word, centred in the masthead between logo and areas. Big and
+   plain: the first thing the eye should settle on after the logo. */
+.mast-audience {
+  font-family: Poppins, sans-serif;
+  font-weight: 700;
+  font-size: 20pt;
+  color: #990000;
+  margin: 0;
+  text-align: center;
+  flex: 1;
+}
+/* Turn-over prompt: quiet but findable, sat above the smallprint. */
+.pto {
+  text-align: center;
+  font-family: Poppins, sans-serif;
+  font-weight: 600;
+  font-size: 9pt;
+  color: #990000;
+  margin: 2mm 0 1mm;
+}
