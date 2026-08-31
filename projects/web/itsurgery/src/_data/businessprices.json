@@ -182,6 +182,18 @@
           "price": "180"
         }
       ]
+    },
+    {
+      "name": "Advanced IT Services",
+      "blurb": "Not everything fits on a list. Automation, AI, integrations, cloud, security hardening, bespoke tooling — if your business needs it and it computes, we can likely build it, fix it or advise on it.",
+      "items": [
+        {
+          "label": "Anything not listed — tell us the problem, we'll price the fix",
+          "time": "varies",
+          "price": "Quoted",
+          "quoted": true
+        }
+      ]
     }
   ]
 }
