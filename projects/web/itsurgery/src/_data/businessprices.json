@@ -5,62 +5,177 @@
       "name": "Microsoft 365 and your people",
       "blurb": "Getting email, accounts and licences working, and keeping them tidy as staff come and go.",
       "items": [
-        { "label": "Microsoft 365 set up for a new business", "time": "3 hours", "price": "180" },
-        { "label": "Email moved to Microsoft 365", "time": "1 hour", "price": "60", "addon": "per mailbox, up to 10GB" },
-        { "label": "New starter — account, mailbox, licence, device", "time": "45 min", "price": "45" },
-        { "label": "Staff leaver — access removed, mailbox handled", "time": "30 min", "price": "35" }
+        {
+          "label": "Microsoft 365 set up for a new business",
+          "time": "3 hours",
+          "price": "180"
+        },
+        {
+          "label": "Email moved to Microsoft 365",
+          "time": "1 hour",
+          "price": "60",
+          "addon": "per mailbox, up to 10GB"
+        },
+        {
+          "label": "New starter — account, mailbox, licence, device",
+          "time": "45 min",
+          "price": "45"
+        },
+        {
+          "label": "Staff leaver — access removed, mailbox handled",
+          "time": "30 min",
+          "price": "35"
+        },
+        {
+          "label": "Google Workspace set up for a new business",
+          "time": "3 hours",
+          "price": "180",
+          "addon": "if you prefer Google to Microsoft"
+        }
       ]
     },
     {
       "name": "Computers",
       "blurb": "The everyday machines your staff actually work on.",
       "items": [
-        { "label": "New PC or laptop set up, joined to your systems", "time": "2 hours", "price": "120" },
-        { "label": "Windows 11 clean install, drivers and updates", "time": "90 min", "price": "90" },
-        { "label": "Reinstall keeping the data", "time": "2 hours", "price": "120" },
-        { "label": "Virus or malware cleaned off a work PC", "time": "2 hours", "price": "120" },
-        { "label": "Health check", "time": "45 min", "price": "45", "addon": "per PC" },
-        { "label": "Printer set up across the office", "time": "1 hour", "price": "60", "addon": "up to 5 PCs" }
+        {
+          "label": "New PC or laptop set up, joined to your systems",
+          "time": "2 hours",
+          "price": "120"
+        },
+        {
+          "label": "Windows 11 clean install, drivers and updates",
+          "time": "90 min",
+          "price": "90"
+        },
+        {
+          "label": "Reinstall keeping the data",
+          "time": "2 hours",
+          "price": "120"
+        },
+        {
+          "label": "Virus or malware cleaned off a work PC",
+          "time": "2 hours",
+          "price": "120"
+        },
+        {
+          "label": "Health check",
+          "time": "45 min",
+          "price": "45",
+          "addon": "per PC"
+        },
+        {
+          "label": "Printer set up across the office",
+          "time": "1 hour",
+          "price": "60",
+          "addon": "up to 5 PCs"
+        }
       ]
     },
     {
       "name": "Networks",
       "blurb": "The kit everything else depends on, configured properly rather than left on defaults.",
       "items": [
-        { "label": "Business router or firewall configured", "time": "2 hours", "price": "120" },
-        { "label": "Managed switch configured, VLANs set up", "time": "2 hours", "price": "120" },
-        { "label": "Wi-Fi access point installed and tuned", "time": "1 hour", "price": "60", "addon": "each" },
-        { "label": "Wi-Fi survey for a small office", "time": "2 hours", "price": "120" },
-        { "label": "Remote-worker VPN set up", "time": "3 hours", "price": "180" }
+        {
+          "label": "Business router or firewall configured",
+          "time": "2 hours",
+          "price": "120"
+        },
+        {
+          "label": "Managed switch configured, VLANs set up",
+          "time": "2 hours",
+          "price": "120"
+        },
+        {
+          "label": "Wi-Fi access point installed and tuned",
+          "time": "1 hour",
+          "price": "60",
+          "addon": "each"
+        },
+        {
+          "label": "Wi-Fi survey for a small office",
+          "time": "2 hours",
+          "price": "120"
+        },
+        {
+          "label": "Remote-worker VPN set up",
+          "time": "3 hours",
+          "price": "180"
+        }
       ]
     },
     {
       "name": "Servers",
       "blurb": "Built and documented, so the next person to touch it is not starting from nothing.",
       "items": [
-        { "label": "Server built, OS installed, patched and handed over", "time": "4 hours", "price": "240" },
-        { "label": "Windows domain set up for a small office", "time": "5 hours", "price": "300" },
-        { "label": "File server with shares and permissions", "time": "3 hours", "price": "180" },
-        { "label": "Windows Server installed and configured", "time": "3 hours", "price": "180" },
-        { "label": "Linux server installed and hardened", "time": "2 hours", "price": "120" },
-        { "label": "Server replaced and data migrated", "time": "varies", "price": "Quoted", "quoted": true }
+        {
+          "label": "Server built, OS installed, patched and handed over",
+          "time": "4 hours",
+          "price": "240"
+        },
+        {
+          "label": "Windows domain set up for a small office",
+          "time": "5 hours",
+          "price": "300"
+        },
+        {
+          "label": "File server with shares and permissions",
+          "time": "3 hours",
+          "price": "180"
+        },
+        {
+          "label": "Windows Server installed and configured",
+          "time": "3 hours",
+          "price": "180"
+        },
+        {
+          "label": "Linux server installed and hardened",
+          "time": "2 hours",
+          "price": "120"
+        },
+        {
+          "label": "Server replaced and data migrated",
+          "time": "varies",
+          "price": "Quoted",
+          "quoted": true
+        }
       ]
     },
     {
       "name": "Virtual machines and hosting",
       "blurb": "Cloud servers and on-site hosts, set up the way they would be in a proper data centre.",
       "items": [
-        { "label": "VPS provisioned, hardened, TLS and backups", "time": "3 hours", "price": "180" },
-        { "label": "Virtual machine built on your existing host", "time": "1 hour", "price": "60" },
-        { "label": "Hypervisor host built — Proxmox or Hyper-V", "time": "4 hours", "price": "240" }
+        {
+          "label": "VPS provisioned, hardened, TLS and backups",
+          "time": "3 hours",
+          "price": "180"
+        },
+        {
+          "label": "Virtual machine built on your existing host",
+          "time": "1 hour",
+          "price": "60"
+        },
+        {
+          "label": "Hypervisor host built — Proxmox or Hyper-V",
+          "time": "4 hours",
+          "price": "240"
+        }
       ]
     },
     {
       "name": "Backups and security",
       "blurb": "The two things nobody thinks about until the morning they matter.",
       "items": [
-        { "label": "Backup set up, and tested by actually restoring it", "time": "90 min", "price": "90" },
-        { "label": "Cyber Essentials readiness review", "time": "3 hours", "price": "180" }
+        {
+          "label": "Backup set up, and tested by actually restoring it",
+          "time": "90 min",
+          "price": "90"
+        },
+        {
+          "label": "Cyber Essentials readiness review",
+          "time": "3 hours",
+          "price": "180"
+        }
       ]
     }
   ]

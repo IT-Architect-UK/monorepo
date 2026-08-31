@@ -1,5 +1,5 @@
 {
-  "_readme": "One catalogue drives everything: the home and business price pages and Book buttons render from it, automation/calcom/sync-event-types.py creates the Cal.com event types from it, and the booking workflow joins on the service name to describe the invoice. Every booking takes the same \u00a35 fee; the balance is invoiced after the work via the dashboard's New job form. Multiple services in one visit = custom quote, by decision 2026-08-29.",
+  "_readme": "One catalogue drives everything: the home and business price pages and Book buttons render from it, automation/calcom/sync-event-types.py creates the Cal.com event types from it, and the booking workflow joins on the service name to describe the invoice. Every booking takes the same £5 fee; the balance is invoiced after the work via the dashboard's New job form. Multiple services in one visit = custom quote, by decision 2026-08-29.",
   "bookingFeeGbp": 5,
   "calUsername": "it-surgery",
   "services": [
@@ -34,7 +34,7 @@
     },
     {
       "slug": "new-starter-setup",
-      "name": "New starter \u2014 account, mailbox, licence, device",
+      "name": "New starter — account, mailbox, licence, device",
       "group": "Microsoft 365 and your people",
       "audience": "business",
       "durationMinutes": 45,
@@ -43,7 +43,7 @@
     },
     {
       "slug": "staff-leaver-offboarding",
-      "name": "Staff leaver \u2014 access removed, mailbox handled",
+      "name": "Staff leaver — access removed, mailbox handled",
       "group": "Microsoft 365 and your people",
       "audience": "business",
       "durationMinutes": 30,
@@ -226,7 +226,7 @@
     },
     {
       "slug": "hypervisor-build",
-      "name": "Hypervisor host built \u2014 Proxmox or Hyper-V",
+      "name": "Hypervisor host built — Proxmox or Hyper-V",
       "group": "Virtual machines and hosting",
       "audience": "business",
       "durationMinutes": 240,
@@ -289,7 +289,7 @@
     },
     {
       "slug": "home-wifi-coverage",
-      "name": "WiFi \u2014 coverage in every room",
+      "name": "WiFi — coverage in every room",
       "group": "New Device Setup",
       "audience": "home",
       "durationMinutes": 120,
@@ -307,7 +307,7 @@
     },
     {
       "slug": "home-ai-assistant-setup",
-      "name": "AI assistant set up \u2014 Claude, ChatGPT, Gemini or Copilot",
+      "name": "AI assistant set up — Claude, ChatGPT, Gemini or Copilot",
       "group": "AI & Productivity Support",
       "audience": "home",
       "durationMinutes": 60,
@@ -325,7 +325,7 @@
     },
     {
       "slug": "home-ai-scam-awareness",
-      "name": "Spotting AI scams \u2014 cloned voices & fake messages",
+      "name": "Spotting AI scams — cloned voices & fake messages",
       "group": "AI & Productivity Support",
       "audience": "home",
       "durationMinutes": 60,
@@ -343,7 +343,7 @@
     },
     {
       "slug": "home-data-recovery",
-      "name": "Data recovery \u2014 OS, disk & file restores",
+      "name": "Data recovery — OS, disk & file restores",
       "group": "Data, Backup & Recovery",
       "audience": "home",
       "durationMinutes": 90,
@@ -370,7 +370,7 @@
     },
     {
       "slug": "home-security-checkup",
-      "name": "Security \u2014 malware scanning, application reviews, password & authentication management & more",
+      "name": "Security — malware scanning, application reviews, password & authentication management & more",
       "group": "Family & Safety",
       "audience": "home",
       "durationMinutes": 90,
@@ -379,7 +379,7 @@
     },
     {
       "slug": "home-pc-health-check",
-      "name": "PC Health Check \u2014 tune-up & clean-up",
+      "name": "PC Health Check — tune-up & clean-up",
       "group": "Repairs & Troubleshooting",
       "audience": "home",
       "durationMinutes": 90,
@@ -424,12 +424,22 @@
     },
     {
       "slug": "home-hardware-upgrade",
-      "name": "Hardware upgrade or repair \u2014 memory, disk, graphics etc.",
+      "name": "Hardware upgrade or repair — memory, disk, graphics etc.",
       "group": "Repairs & Troubleshooting",
       "audience": "home",
       "durationMinutes": 90,
       "bookable": true,
       "priceIncVat": 50
+    },
+    {
+      "slug": "google-workspace-setup",
+      "name": "Google Workspace set up for a new business",
+      "group": "Microsoft 365 and your people",
+      "audience": "business",
+      "durationMinutes": 180,
+      "bookable": true,
+      "priceExVat": 180,
+      "unit": "if you prefer Google to Microsoft"
     }
   ]
 }
