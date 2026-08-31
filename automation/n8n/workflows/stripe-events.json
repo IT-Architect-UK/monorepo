@@ -1,0 +1,228 @@
+{
+  "name": "Stripe payment landed",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "checkout.session.completed"
+        ]
+      },
+      "name": "Checkout completed",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "e2f6a4b3-7d99-4a5e-b165-af4c8d2e5f74",
+      "credentials": {
+        "stripeApi": {
+          "id": "IQG0FuA3WWRhOICU",
+          "name": "Stripe account"
+        }
+      },
+      "notes": "Registers its own signed webhook with Stripe on activation — why this workflow could not ship until the key could write webhook endpoints."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.stripe.com/v1/checkout/sessions/{{ $json.data.object.id }}?expand[]=payment_intent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "stripeApi",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Get the full session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "stripeApi": {
+          "id": "IQG0FuA3WWRhOICU",
+          "name": "Stripe account"
+        }
+      },
+      "notes": "Expanded for the charge id — the refund flow finds ch_... in the payment Reference, so it must be written there."
+    },
+    {
+      "parameters": {
+        "jsCode": "// One paid checkout session -> everything the books and the email need.\nconst full = $('Get the full session').first().json;\nconst pi = full.payment_intent || {};\nreturn [{ json: {\n  invoiceNumber: (full.metadata || {}).invoice_number || '',\n  invoiceId: (full.metadata || {}).invoice_id || '',\n  amount: (full.amount_total || 0) / 100,\n  charge: pi.latest_charge || '',\n  email: (full.customer_details || {}).email || '',\n  name: (full.customer_details || {}).name || '',\n} }];"
+      },
+      "name": "Shape the facts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.xero.com/api.xro/2.0/Accounts?where={{ encodeURIComponent('Type==\"BANK\" AND Name.StartsWith(\"Stripe\")') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Find the Stripe account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        0
+      ],
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      },
+      "notes": "Looked up, not hardcoded: the Xero-Stripe integration created this bank account and its id belongs to the instance. No account found fails the run and alerts, deliberately — a payment recorded against the wrong account is worse than an email to Darren."
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://api.xero.com/api.xro/2.0/Payments",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "xeroOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "a758211a-256c-4b52-a2b6-b8c7568c2cb8"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"Payments\": [{\"Invoice\": {\"InvoiceID\": \"{{ $('Shape the facts').item.json.invoiceId }}\"}, \"Account\": {\"AccountID\": \"{{ $json.Accounts[0].AccountID }}\"}, \"Date\": \"{{ $now.setZone('Europe/London').toFormat('yyyy-MM-dd') }}\", \"Amount\": {{ $('Shape the facts').item.json.amount }}, \"Reference\": \"Stripe {{ $('Shape the facts').item.json.charge }}\"}]}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Record the payment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "xeroOAuth2Api": {
+          "id": "DCxryEtuSrcWPmFu",
+          "name": "Xero — IT Solution Architecture Ltd"
+        }
+      },
+      "notes": "Reference carries the charge id in the exact shape the cancellation refund flow greps for."
+    },
+    {
+      "parameters": {
+        "toRecipients": "={{ $('Shape the facts').item.json.email }}",
+        "subject": "=Payment received — {{ $('Shape the facts').item.json.invoiceNumber }} — IT Surgery",
+        "bodyContent": "=<p>Hello {{ $('Shape the facts').item.json.name || 'there' }},</p><p>Thank you — your payment of <strong>£{{ $('Shape the facts').item.json.amount.toFixed(2) }}</strong> for invoice <strong>{{ $('Shape the facts').item.json.invoiceNumber }}</strong> has gone through, and if this was a booking fee your booking is confirmed.</p><p>Need to change anything? The reschedule and cancel links are in your booking email, or just reply to this one.</p><p>IT Surgery — Curing IT Headaches<br>07775 580371 · <a href=\"https://itsurgery.me\">itsurgery.me</a></p>",
+        "additionalFields": {
+          "bodyContentType": "html"
+        }
+      },
+      "name": "Confirm to the customer",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "vFBlY5YMFquusk6v",
+          "name": "Microsoft 365 — help@itsurgery.me"
+        }
+      },
+      "notes": "bodyContentType must be explicit — the node's html default only applies when the field is present."
+    }
+  ],
+  "connections": {
+    "Checkout completed": {
+      "main": [
+        [
+          {
+            "node": "Get the full session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get the full session": {
+      "main": [
+        [
+          {
+            "node": "Shape the facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape the facts": {
+      "main": [
+        [
+          {
+            "node": "Find the Stripe account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find the Stripe account": {
+      "main": [
+        [
+          {
+            "node": "Record the payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record the payment": {
+      "main": [
+        [
+          {
+            "node": "Confirm to the customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflowName": "n8n error alert"
+  }
+}
