@@ -6,14 +6,16 @@
       "items": [],
       "pill": "£20",
       "blurb": "Any problem, any device. Half an hour to find out what is required and what it will cost. If we can fix it within the 30 minute session we will.",
-      "priceNote": "£25 at your home, or £20 if you come to us — and it comes off your bill."
+      "priceNote": "£25 at your home, or £20 if you come to us — and it comes off your bill.",
+      "flyerBlurb": "Any problem, any device. Half an hour to find out what is required and what it will cost — and if we can fix it within the session, we will."
     },
     {
       "name": "Remote IT Support",
       "pill": "",
       "items": [],
       "blurb": "We connect remotely while you watch and fix your IT issue. Cost agreed before we start — no fix, no fee.",
-      "priceNote": "£36 an hour."
+      "priceNote": "£36 an hour.",
+      "flyerBlurb": "We connect remotely while you watch and fix your IT issue. Cost agreed before we start — no fix, no fee."
     },
     {
       "name": "New Device Setup",
