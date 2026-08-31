@@ -15,47 +15,53 @@ eleventyExcludeFromCollections: true
 <section class="section">
   <div class="container narrow">
 
-    <form name="site-issue" method="POST" action="/thanks/" data-netlify="true" data-netlify-honeypot="bot-field">
-      <input type="hidden" name="form-name" value="site-issue" />
-      <p hidden>
-        <label>Don't fill this in if you're human: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
-      </p>
+    {# Same components as the quote form — form-wrap, field, optional, btn,
+       form-note. Written from scratch the first time and it looked it:
+       browser-default inputs and a monospace textarea on a site that uses
+       neither. #}
+    <div class="form-wrap">
+      <h2>What went wrong?</h2>
 
-      <p>
-        <label for="issue-what">What went wrong?</label><br />
-        <textarea id="issue-what" name="what" rows="5" required
-          placeholder="e.g. The Book button on the Health check row didn't do anything on my phone"></textarea>
-      </p>
+      <form name="site-issue" method="POST" action="/thanks/" data-netlify="true" data-netlify-honeypot="bot-field">
+        <p class="hidden-field" aria-hidden="true">
+          <label>Don't fill this in if you're human: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+        </p>
 
-      <p>
-        <label for="issue-page">Which page? <span class="quiet">(filled in for you if we can tell)</span></label><br />
-        <input id="issue-page" type="text" name="page" placeholder="e.g. the fixed prices page" />
-      </p>
+        <div class="field">
+          <label for="what">Tell us what happened</label>
+          <textarea id="what" name="what" rows="5" required
+            placeholder="A sentence is plenty — for example: the Book button on the health check row did nothing on my phone."></textarea>
+        </div>
 
-      <p>
-        <label for="issue-email">Your email <span class="quiet">(optional — only if you'd like to hear it's fixed)</span></label><br />
-        <input id="issue-email" type="email" name="email" autocomplete="email" />
-      </p>
+        <div class="field">
+          <label for="page">Which page? <span class="optional">(filled in for you if we can tell)</span></label>
+          <input id="page" name="page" type="text" placeholder="e.g. the fixed prices page" />
+        </div>
 
-      {# Captured silently: which browser/device, so nobody has to know what
-         a user agent is. No other data is collected. #}
-      <input type="hidden" name="browser" id="issue-browser" />
+        <div class="field">
+          <label for="email">Your email <span class="optional">(optional — only if you would like to hear it is fixed)</span></label>
+          <input id="email" name="email" type="email" autocomplete="email" />
+        </div>
 
-      <p><button class="btn btn-primary" type="submit">Send it</button></p>
-      <p class="quiet" style="font-size:.85rem">
-        We only use your email to reply about this problem — nothing else.
-        Thank you for helping make the site better.
-      </p>
-    </form>
+        {# Captured quietly so nobody is ever asked what a browser version is. #}
+        <input type="hidden" name="browser" id="browser" />
+
+        <button class="btn btn-primary" type="submit">Send it</button>
+        <p class="form-note">
+          We will only use your email to reply about this problem — nothing
+          else. Thank you for helping make the site better.
+        </p>
+      </form>
+    </div>
 
   </div>
 </section>
 
 <script>
   (function () {
-    var b = document.getElementById('issue-browser');
+    var b = document.getElementById('browser');
     if (b) { b.value = navigator.userAgent; }
-    var p = document.getElementById('issue-page');
+    var p = document.getElementById('page');
     if (p && document.referrer && document.referrer.indexOf('itsurgery.me') !== -1) {
       p.value = document.referrer;
     }
