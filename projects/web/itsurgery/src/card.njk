@@ -18,8 +18,8 @@ eleventyExcludeFromCollections: true
     <dt>Name</dt>     <dd class="name">Darren Pilkington</dd>
     <dt>Role</dt>     <dd>IT Engineer</dd>
     <dt>Email</dt>    <dd>{{ site.email | lower }}</dd>
-    <dt>Phone</dt>    <dd>{{ site.phoneLink }}</dd>
-    <dt>WhatsApp</dt> <dd>@itsurgery</dd>
+    <dt>Phone</dt>    <dd>{{ site.phoneDisplay }}</dd>
+    <dt>WhatsApp</dt> <dd class="web">@itsurgery</dd>
     <dt>Website</dt>  <dd class="web">{{ site.url | replace("https://", "") }}</dd>
   </dl>
 </div>
@@ -27,14 +27,14 @@ eleventyExcludeFromCollections: true
 <div class="card card-back">
   <h2>Whatever your IT problem,<br />we'll sort it</h2>
   <p class="what">
-    Computers, networks and Wi-Fi · Cloud and Microsoft 365 · AI · Smart home and IoT · Software and web design
+    Computers, Networks and Wi-Fi · Cloud and Microsoft 365 · AI · Smart Home and IoT · Software and Web Design
   </p>
   <p class="what where">
-    For homes and small businesses across {{ site.areas | join(", ") }}.
+    For homes and small businesses across Penarth, Barry, Cardiff &amp; Online.
   </p>
   <p class="promises">
     <span>Fixed prices</span>
     <span>No fix, no fee</span>
-    <span>No call-out charge</span>
+    <span>Plain English, always</span>
   </p>
 </div>
