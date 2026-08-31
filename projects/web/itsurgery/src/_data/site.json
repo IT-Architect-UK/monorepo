@@ -81,6 +81,10 @@
     {
       "text": "About Us",
       "url": "/about-us/"
+    },
+    {
+      "text": "Report a Problem",
+      "url": "/report-a-problem/"
     }
   ],
   "privacyUpdated": "August 2026",
