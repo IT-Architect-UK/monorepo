@@ -4,33 +4,40 @@ title: Business card
 permalink: /card/
 eleventyExcludeFromCollections: true
 ---
-{# Two 85x55mm pages: front then back. Printed as a PDF this gives a printer
-   exactly what they ask for — one page per side, finished size, no bleed. #}
+{# Two 85x55mm pages, front then back — exactly what a printer asks for. #}
 
 <div class="card card-front">
-  <div>
-    <img class="card-logo" src="/assets/logo@3x.png" alt="{{ site.name }}" />
-    <p class="card-strap">{{ site.tagline }}</p>
+  <div class="front-left">
+    <img src="/assets/logo@3x.png" alt="{{ site.name }}" />
+    <p class="strap">{{ site.tagline }}</p>
   </div>
 
-  <div>
-    <p class="card-name">Darren Pilkington</p>
-    <p class="card-role">IT engineer · {{ site.areas | join(" · ") }}</p>
-  </div>
+  <div class="front-right">
+    <p class="who">
+      <span class="name">Darren Pilkington</span>
+      <span class="role">IT engineer</span>
+    </p>
 
-  <p class="card-contact">
-    <span class="site">{{ site.url | replace("https://", "") }}</span>
-    <strong>{{ site.phoneDisplay }}</strong> — call or WhatsApp<br />
-    {{ site.email }}
-  </p>
+    <p class="detail">
+      <span class="label">Call or WhatsApp</span><br />
+      {{ site.phoneDisplay }}
+    </p>
+
+    <p class="detail">{{ site.email }}</p>
+
+    <p class="web">{{ site.url | replace("https://", "") }}</p>
+  </div>
 </div>
 
 <div class="card card-back">
   <h2>Whatever your IT problem,<br />we'll sort it</h2>
-  <ul>
-    <li>Computers, phones, Wi-Fi, printers, email</li>
-    <li>Homes and small businesses</li>
-    <li>Fixed prices · No fix, no fee</li>
-  </ul>
-  <p class="promise">Plain English, always · Trading since 2008</p>
+  <p class="what">
+    Computers, phones, Wi-Fi, printers and email — for homes and small
+    businesses across {{ site.areas | join(", ") }}.
+  </p>
+  <p class="promises">
+    <span>Fixed prices</span>
+    <span>No fix, no fee</span>
+    <span>Since 2008</span>
+  </p>
 </div>
