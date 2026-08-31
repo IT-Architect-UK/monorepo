@@ -38,7 +38,7 @@ body {
   padding: 6mm 5mm;
   display: flex;
   flex-direction: column;
-  gap: 5mm;
+  gap: 4mm;
 }
 
 .brand { text-align: center; }
@@ -59,25 +59,31 @@ body {
 
 .details {
   display: grid;
-  grid-template-columns: 13mm 1fr;
-  row-gap: 2mm;
+  /* 16mm, because "WhatsApp" at this size needs it — 13mm collided with the
+     rule. Measured, not guessed. */
+  grid-template-columns: 16mm 1fr;
   margin: 0;
   font-size: 7.5pt;
   line-height: 1.3;
-  align-content: center;
-  flex: 1;
+  align-content: start;
+}
+/* Row spacing comes from padding, not row-gap: a gap breaks the vertical rule
+   into segments, one per row, which looks like a mistake. Padding keeps the
+   borders touching so the rule runs unbroken down the list. */
+.details dt,
+.details dd {
+  padding-top: 1mm;
+  padding-bottom: 1mm;
 }
 .details dt {
   color: var(--muted);
   font-weight: 500;
-  /* The vertical rule sits on the label column, so it runs the full height of
-     the list without being a separate element to keep aligned. */
   border-right: 0.3mm solid var(--rule);
   padding-right: 2mm;
-  margin-right: 2mm;
 }
 .details dd {
   margin: 0;
+  padding-left: 2.5mm;
   font-weight: 500;
   color: var(--ink);
   min-width: 0;
