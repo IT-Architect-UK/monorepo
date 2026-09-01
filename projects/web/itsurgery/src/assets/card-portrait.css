@@ -104,6 +104,8 @@ body {
   text-align: center;
 }
 .card-back h2 {
+  border-bottom: 0.3mm dotted #ffffff;
+  padding-bottom: 3mm;
   /* 9.5pt because "Got an IT requirement?" measures wider than the 45mm text
      column at 11pt and wrapped to three lines. Measured, not guessed. */
   font-size: 10pt;
@@ -118,14 +120,20 @@ body {
   margin: 0 0 5mm;
   color: #ffffff;
 }
+/* Dotted white rules divide the three sections. Dotted rather than solid so
+   they separate without competing with the headline. */
+.card-back .what {
+  border-bottom: 0.3mm dotted #ffffff;
+  padding-bottom: 3mm;
+}
 .card-back .where {
-  margin-top: -2mm;
+  border-bottom: 0.3mm dotted #ffffff;
+  padding-bottom: 3mm;
 }
 .card-back .promises {
   display: flex;
   flex-direction: column;
   gap: 2mm;
-  border-top: 0.3mm solid rgba(255, 255, 255, 0.4);
   padding-top: 4mm;
   margin: 0;
   font-size: 8pt;

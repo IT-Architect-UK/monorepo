@@ -91,6 +91,8 @@ body {
   text-align: center;
 }
 .card-back h2 {
+  border-bottom: 0.3mm dotted #ffffff;
+  padding-bottom: 3mm;
   font-size: 12.5pt;
   font-weight: 700;
   line-height: 1.25;
@@ -103,14 +105,20 @@ body {
   margin: 0 0 4mm;
   color: #ffffff;
 }
+/* Dotted white rules divide the three sections. Dotted rather than solid so
+   they separate without competing with the headline. */
+.card-back .what {
+  border-bottom: 0.3mm dotted #ffffff;
+  padding-bottom: 3mm;
+}
 .card-back .where {
-  margin-top: -2mm;
+  border-bottom: 0.3mm dotted #ffffff;
+  padding-bottom: 3mm;
 }
 .card-back .promises {
   display: flex;
   justify-content: center;
   gap: 4mm;
-  border-top: 0.25mm solid rgba(255, 255, 255, 0.4);
   padding-top: 3mm;
   margin: 0;
   font-size: 7.5pt;
