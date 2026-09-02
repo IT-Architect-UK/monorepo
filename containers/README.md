@@ -15,7 +15,7 @@ Container runtime and orchestration installers for Ubuntu. Full usage in each sc
 |--------|---------|
 | `docker/swarm/setup-docker-swarm.sh` | Interactive Swarm cluster setup — first manager (leader) or join an existing cluster |
 | `docker/swarm/docker-swarm-node.sh` | Prepare an Ubuntu node for Swarm membership |
-| `docker/swarm/deploy-ds-portainer-agent.sh` | Deploy the Portainer Agent across a Swarm cluster (prompts for SSH credentials once) |
+| `docker/swarm/deploy-ds-portainer-agent.sh` | Deploy the Portainer Agent across a Swarm cluster — nodes discovered from the Swarm, SSH key + passwordless sudo only |
 
 ## Kubernetes
 
