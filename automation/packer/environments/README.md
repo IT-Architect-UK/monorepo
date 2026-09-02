@@ -54,6 +54,7 @@ All variables are defined in `../variables.pkr.hcl`. Sensitive values (passwords
 | Variable | Default | Description |
 |---|---|---|
 | `proxmox_url` | `https://192.168.1.10:8006/api2/json` | Proxmox API endpoint |
+| `proxmox_skip_tls_verify` | `false` | Skip the Proxmox API certificate check. `true` only for a self-signed host (the home-lab file sets it); better: trust the Proxmox CA on the build machine |
 | `proxmox_username` | `root@pam` | Proxmox API user |
 | `proxmox_password` | — | **Set via `PKR_VAR_proxmox_password` env var** |
 | `proxmox_node` | `pve` | Proxmox node to build on |

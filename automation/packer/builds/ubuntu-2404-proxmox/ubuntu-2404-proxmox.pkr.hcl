@@ -47,11 +47,11 @@ packer {
 
   required_plugins {
     proxmox = {
-      version = ">= 1.1.8"
+      version = "~> 1.2"
       source  = "github.com/hashicorp/proxmox"
     }
     ansible = {
-      version = ">= 1.1.1"
+      version = "~> 1.1"
       source  = "github.com/hashicorp/ansible"
     }
   }
@@ -75,7 +75,7 @@ source "proxmox-iso" "ubuntu-2404" {
   username                 = var.proxmox_username
   password                 = var.proxmox_password == "" ? null : var.proxmox_password
   token                    = var.proxmox_token == "" ? null : var.proxmox_token
-  insecure_skip_tls_verify = true    # Set to false in production with valid cert
+  insecure_skip_tls_verify = var.proxmox_skip_tls_verify   # false unless the site file says otherwise
   node                     = var.proxmox_node
 
   # ── VM settings ─────────────────────────────────────────────────────────

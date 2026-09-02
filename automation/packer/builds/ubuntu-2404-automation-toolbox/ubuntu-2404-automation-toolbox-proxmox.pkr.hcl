@@ -28,7 +28,7 @@ packer {
   required_version = ">= 1.10.0"
   required_plugins {
     proxmox = {
-      version = ">= 1.1.8"
+      version = "~> 1.2"
       source  = "github.com/hashicorp/proxmox"
     }
   }
@@ -51,7 +51,7 @@ source "proxmox-iso" "automation-toolbox" {
   proxmox_url              = var.proxmox_url
   username                 = var.proxmox_username
   password                 = var.proxmox_password
-  insecure_skip_tls_verify = true
+  insecure_skip_tls_verify = var.proxmox_skip_tls_verify   # false unless the site file says otherwise
   node                     = var.proxmox_node
 
   vm_id                = var.proxmox_vm_id

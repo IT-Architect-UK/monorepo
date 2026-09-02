@@ -111,6 +111,18 @@ variable "win_vm_id" {
   default = 9003
 }
 
+variable "proxmox_skip_tls_verify" {
+  # Skip verification of the Proxmox API's TLS certificate. Off by default:
+  # a MITM between the build machine and Proxmox could then capture the API
+  # credentials. A Proxmox host with its default self-signed certificate
+  # needs either this set to true (see environments/homelab.pkrvars.hcl) or,
+  # better, its CA trusted on the build machine:
+  #   scp root@<proxmox>:/etc/pve/pve-root-ca.pem /usr/local/share/ca-certificates/pve-root-ca.crt
+  #   sudo update-ca-certificates
+  type    = bool
+  default = false
+}
+
 variable "proxmox_url" {
   type    = string
   default = "https://192.168.1.10:8006/api2/json"

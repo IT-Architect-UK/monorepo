@@ -18,6 +18,11 @@ proxmox_iso_storage     = "NFS-10GB-PROXMOX-1"
 proxmox_vm_id           = 106
 proxmox_network_bridge  = "VLANs"
 proxmox_vlan_tag        = "4"
+# The home-lab Proxmox host presents its default self-signed certificate, so
+# Packer cannot verify it. This is the ONE place that trade-off is made — the
+# templates default to verifying. Remove it once the build machine trusts the
+# Proxmox CA (see proxmox_skip_tls_verify in any Proxmox variables.pkr.hcl).
+proxmox_skip_tls_verify = true
 
 # ── Ubuntu ISO (pre-uploaded to Proxmox) ──────────────────────────────────────
 # Run on Proxmox host to list available ISOs:
