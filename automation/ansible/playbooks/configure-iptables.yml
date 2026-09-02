@@ -17,6 +17,8 @@
 #   allowed_tcp_ports    e.g. 22,80,443 (strict mode; default: SSH only)
 #   trusted_subnets      e.g. 192.168.4.0/24 — baseline mode; all ports open
 #                        (default: the TRUSTED_SUBNETS environment variable)
+#   extra_rules          e.g. "tcp:10000:192.168.4.0/24;tcp:9100" — extra
+#                        ACCEPTs (proto:port[:source]), both modes
 #
 # WARNING: strict mode cuts off connections from outside mgmt_subnets —
 # including yours, if you run this from elsewhere.
@@ -49,6 +51,7 @@
         MGMT_SUBNETS: "{{ mgmt_subnets | default('') }}"
         ALLOWED_TCP_PORTS: "{{ allowed_tcp_ports | default('') }}"
         TRUSTED_SUBNETS: "{{ trusted_subnets | default(lookup('env', 'TRUSTED_SUBNETS'), true) }}"
+        EXTRA_RULES: "{{ extra_rules | default('') }}"
       changed_when: true
 
     - name: Summary

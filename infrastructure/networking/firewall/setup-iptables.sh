@@ -26,6 +26,16 @@
 #                      Ignored in strict mode. If unset, a .env file beside
 #                      this script is sourced (see .env.example) — keep your
 #                      subnets there, never in the repo.
+#   EXTRA_RULES        Additional ACCEPT rules, both modes. Semicolon-separated
+#                      entries of proto:port[:source], e.g.
+#                      "tcp:10000:192.168.4.0/24;tcp:9100". Declared in
+#                      Ansible as firewall_extra_rules, so they are part of
+#                      the baseline and survive every re-apply.
+#
+# Hand-added rules survive too: the script owns a LOCAL-INPUT chain that
+# INPUT jumps to after the baseline. Anything you add there by hand or via
+# Webmin (iptables -A LOCAL-INPUT ...) is saved before the flush and
+# restored after it. Rules added directly to INPUT are NOT preserved.
 #
 # Example (Deployment Toolbox, strict):
 #   sudo MGMT_SUBNETS="192.168.4.0/24" ALLOWED_TCP_PORTS="22,80,3002,10000" \
@@ -50,6 +60,7 @@
 #   - SSH (port auto-detected from sshd_config, default 22)
 #   - ICMP from 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 #   - Everything from TRUSTED_SUBNETS, if set
+#   - EXTRA_RULES, then whatever is in LOCAL-INPUT (both modes)
 #
 # Usage:
 #   sudo ./setup-iptables.sh
@@ -59,7 +70,7 @@
 #   --ssh-port <port>   Override SSH port (auto-detected by default)
 #
 # Author:            Darren Pilkington
-# Version:           1.2
+# Version:           1.3
 # Date:              02-09-2026
 # =============================================================================
 
@@ -109,6 +120,8 @@ PRIVATE_SUBNETS=("10.0.0.0/8" "172.16.0.0/12" "192.168.0.0/16")
 MGMT_SUBNETS="${MGMT_SUBNETS:-}"
 ALLOWED_TCP_PORTS="${ALLOWED_TCP_PORTS:-}"
 TRUSTED_SUBNETS="${TRUSTED_SUBNETS:-}"
+EXTRA_RULES="${EXTRA_RULES:-}"
+LOCAL_CHAIN="LOCAL-INPUT"
 
 # Site values live in a git-ignored .env beside this script (see .env.example).
 # Only consulted when nothing was passed in the environment.
@@ -118,8 +131,34 @@ if [[ -z "${TRUSTED_SUBNETS}" ]]; then
         # shellcheck disable=SC1090
         source "${ENV_FILE}"
         TRUSTED_SUBNETS="${TRUSTED_SUBNETS:-}"
+        EXTRA_RULES="${EXTRA_RULES:-}"
         log "Loaded site values from ${ENV_FILE}"
     fi
+fi
+
+# ─── Validate EXTRA_RULES before touching anything ───────────────────────────
+# A typo must fail here, not after the flush with a half-built ruleset.
+EXTRA_LIST=()
+if [[ -n "${EXTRA_RULES}" ]]; then
+    IFS=';' read -ra _raw <<< "${EXTRA_RULES}"
+    for entry in "${_raw[@]}"; do
+        entry="$(echo "${entry}" | xargs)"
+        [[ -n "${entry}" ]] || continue
+        IFS=':' read -r e_proto e_port e_src <<< "${entry}"
+        [[ "${e_proto}" =~ ^(tcp|udp)$ ]] || fail "EXTRA_RULES: bad protocol in '${entry}' (tcp or udp)"
+        [[ "${e_port}" =~ ^[0-9]+(:[0-9]+)?$ ]] || fail "EXTRA_RULES: bad port in '${entry}'"
+        [[ -z "${e_src:-}" || "${e_src}" =~ ^[0-9a-fA-F.:]+(/[0-9]+)?$ ]] || fail "EXTRA_RULES: bad source in '${entry}'"
+        EXTRA_LIST+=("${entry}")
+    done
+fi
+
+# ─── Preserve the LOCAL-INPUT chain across the flush ─────────────────────────
+# Hand-added rules live in LOCAL-INPUT (see header). Capture them now so the
+# rebuild below can put them back; anything added straight to INPUT is lost.
+LOCAL_RULES=()
+if iptables -S "${LOCAL_CHAIN}" &>/dev/null; then
+    mapfile -t LOCAL_RULES < <(iptables -S "${LOCAL_CHAIN}" | grep -E "^-A ${LOCAL_CHAIN} " || true)
+    log "Preserving ${#LOCAL_RULES[@]} rule(s) from ${LOCAL_CHAIN}"
 fi
 
 # ─── Flush existing rules and reset policies ─────────────────────────────────
@@ -189,6 +228,39 @@ else
         log "No TRUSTED_SUBNETS set — private subnets get ICMP only."
     fi
     log "All other inbound traffic is DROPPED."
+fi
+
+# ─── Extra rules (both modes) ────────────────────────────────────────────────
+# Declared per host/group in Ansible (firewall_extra_rules) and passed in as
+# EXTRA_RULES: "proto:port[:source];..." — part of the baseline, so they are
+# re-applied every time rather than lost to the flush.
+if [[ ${#EXTRA_LIST[@]} -gt 0 ]]; then
+    log "Applying extra rules..."
+    for entry in "${EXTRA_LIST[@]}"; do
+        IFS=':' read -r e_proto e_port e_src <<< "${entry}"
+        if [[ -n "${e_src:-}" ]]; then
+            iptables -A INPUT -s "${e_src}" -p "${e_proto}" --dport "${e_port}" -j ACCEPT
+            log "  Allowed: ${e_proto}/${e_port} from ${e_src}"
+        else
+            iptables -A INPUT -p "${e_proto}" --dport "${e_port}" -j ACCEPT
+            log "  Allowed: ${e_proto}/${e_port} from anywhere"
+        fi
+    done
+fi
+
+# ─── LOCAL-INPUT: the chain for hand-added rules ─────────────────────────────
+# Rebuilt last, and INPUT jumps to it last, so it can only ever ADD accepts on
+# top of the baseline. Anything it does not match returns to INPUT's DROP.
+iptables -N "${LOCAL_CHAIN}"
+for rule in "${LOCAL_RULES[@]}"; do
+    # shellcheck disable=SC2086  # each saved rule is a ready-made argv line
+    iptables ${rule}
+done
+iptables -A INPUT -j "${LOCAL_CHAIN}"
+if [[ ${#LOCAL_RULES[@]} -gt 0 ]]; then
+    log "${LOCAL_CHAIN} restored with ${#LOCAL_RULES[@]} rule(s). Add site-specific rules there: iptables -A ${LOCAL_CHAIN} ..."
+else
+    log "${LOCAL_CHAIN} created (empty). Add site-specific rules there: iptables -A ${LOCAL_CHAIN} ..."
 fi
 
 # ─── Install iptables-persistent ─────────────────────────────────────────────

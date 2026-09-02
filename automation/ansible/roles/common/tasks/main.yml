@@ -63,31 +63,72 @@
 # a default-drop INPUT policy. Default mode allows SSH from anywhere and ICMP
 # from RFC-1918 ranges only; set firewall_trusted_subnets to open a LAN fully,
 # or firewall_mgmt_subnets (+ firewall_allowed_tcp_ports) for strict mode.
-# Managed via Webmin post-deployment for role-specific rule additions.
+#
+# Re-applied only when something relevant changed: the script itself or any
+# of its inputs. A fingerprint of both is kept on the host, so the step is
+# idempotent yet a new trusted subnet, port or script fix does reach hosts
+# that were built before it (a plain `creates:` guard never re-ran it).
+#
+# Extra ACCEPT rules belong in firewall_extra_rules (group_vars/host_vars):
+# they are part of the declared state and survive every re-apply. Rules
+# added by hand go in the LOCAL-INPUT chain, which the script preserves.
+
+- name: Compute the firewall fingerprint (script + inputs)
+  ansible.builtin.set_fact:
+    _fw_extra_rules: >-
+      {%- set out = [] -%}
+      {%- for r in (firewall_extra_rules | default([])) -%}
+      {%- set _ = out.append((r.proto | default('tcp')) ~ ':' ~ r.port ~ ':' ~ (r.source | default(''))) -%}
+      {%- endfor -%}
+      {{ out | join(';') }}
+  when: baseline_firewall | default(true) | bool
+  tags: firewall
+
+- name: Compute the firewall fingerprint (hash)
+  ansible.builtin.set_fact:
+    _fw_fingerprint: >-
+      {{ (lookup('file', playbook_dir ~ '/../../../infrastructure/networking/firewall/setup-iptables.sh')
+          ~ '|' ~ firewall_mgmt_subnets | default('')
+          ~ '|' ~ firewall_allowed_tcp_ports | default('')
+          ~ '|' ~ firewall_trusted_subnets | default('')
+          ~ '|' ~ _fw_extra_rules
+          ~ '|' ~ ssh_port | default(22)) | hash('sha256') }}
+  when: baseline_firewall | default(true) | bool
+  tags: firewall
+
+- name: Read the fingerprint of the last applied ruleset
+  ansible.builtin.slurp:
+    src: /etc/iptables/.baseline-fingerprint
+  register: _fw_applied
+  failed_when: false
+  when: baseline_firewall | default(true) | bool
+  tags: firewall
 
 - name: Copy iptables setup script to target
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../../../infrastructure/networking/firewall/setup-iptables.sh"
-    dest: /tmp/setup-iptables.sh
-    mode: "0755"
+    dest: /usr/local/sbin/setup-iptables.sh
+    mode: "0750"
   when: baseline_firewall | default(true) | bool
   tags: firewall
 
-- name: Apply iptables baseline ruleset
-  ansible.builtin.command: /tmp/setup-iptables.sh
-  args:
-    creates: /etc/iptables/rules.v4
+- name: Apply iptables baseline ruleset (script or inputs changed — hand-added rules outside LOCAL-INPUT are lost)
+  ansible.builtin.command: /usr/local/sbin/setup-iptables.sh
   environment:
     MGMT_SUBNETS: "{{ firewall_mgmt_subnets | default('') }}"
     ALLOWED_TCP_PORTS: "{{ firewall_allowed_tcp_ports | default('') }}"
     TRUSTED_SUBNETS: "{{ firewall_trusted_subnets | default('') }}"
-  when: baseline_firewall | default(true) | bool
+    EXTRA_RULES: "{{ _fw_extra_rules }}"
+  when:
+    - baseline_firewall | default(true) | bool
+    - (_fw_applied.content | default('') | b64decode | trim) != _fw_fingerprint
   tags: firewall
 
-- name: Remove iptables setup script
-  ansible.builtin.file:
-    path: /tmp/setup-iptables.sh
-    state: absent
+- name: Record the fingerprint of the applied ruleset
+  ansible.builtin.copy:
+    dest: /etc/iptables/.baseline-fingerprint
+    content: "{{ _fw_fingerprint }}\n"
+    mode: "0644"
   when: baseline_firewall | default(true) | bool
   tags: firewall
 

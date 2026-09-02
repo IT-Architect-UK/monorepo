@@ -29,6 +29,14 @@ firewall_trusted_subnets: "{{ lookup('env', 'TRUSTED_SUBNETS') | default('', tru
 # Strict mode (only these ports, only from these subnets, SSH included):
 firewall_mgmt_subnets: ""
 firewall_allowed_tcp_ports: ""
+# Extra ACCEPT rules on top of the baseline, per group or host. Declared here
+# they are part of the baseline and survive every re-apply; rules added by
+# hand belong in the LOCAL-INPUT chain instead. proto defaults to tcp,
+# source to anywhere.
+#   firewall_extra_rules:
+#     - { port: 10000, source: "192.168.4.0/24" }      # Webmin from the LAN
+#     - { port: 9100, proto: tcp }                     # node exporter
+firewall_extra_rules: []
 baseline_fail2ban: true               # SSH brute-force protection
 baseline_create_admin: false          # bake a fixed admin account into images
                                       # (normally OFF — logins arrive per-clone via cloud-init)
