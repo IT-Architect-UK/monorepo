@@ -341,7 +341,7 @@ function Invoke-ToolboxBootstrap {
         [hashtable]$WriteHeaders, [hashtable]$AuthHeaders,
         [string]$SemaphorePassword, [string]$PveHost, [string]$PveUser,
         [string]$TokenId, [string]$TokenSecret, [string]$PvePassword,
-        [string]$MgmtSubnet, [bool]$AutoBuildGolden = $false,
+        [string]$MgmtSubnet, [string]$TrustedSubnets = "", [bool]$AutoBuildGolden = $false,
         [string]$WinrmPassword = "",
         [string]$AdminUser = "", [string]$AdminPassword = ""
     )
@@ -364,6 +364,7 @@ function Invoke-ToolboxBootstrap {
         $lines += "PROXMOX_PASSWORD=$(ConvertTo-ShellSingleQuoted $PvePassword)"
     }
     if ($MgmtSubnet) { $lines += "MGMT_SUBNET=$(ConvertTo-ShellSingleQuoted $MgmtSubnet)" }
+    if ($TrustedSubnets) { $lines += "TRUSTED_SUBNETS=$(ConvertTo-ShellSingleQuoted $TrustedSubnets)" }
     if ($WinrmPassword) { $lines += "WINRM_PASSWORD=$(ConvertTo-ShellSingleQuoted $WinrmPassword)" }
     if ($AdminUser)     { $lines += "DEPLOY_ADMIN_USER=$(ConvertTo-ShellSingleQuoted $AdminUser)" }
     if ($AdminPassword) { $lines += "DEPLOY_ADMIN_PASSWORD=$(ConvertTo-ShellSingleQuoted $AdminPassword)" }
@@ -485,7 +486,7 @@ $ProxmoxTemplateVmId  = [int](Get-LayeredPkrVarValue -VarName "proxmox_vm_id" -D
 
 # ── Deployment answers, collected up-front so the whole run is hands-off ─────
 $deployAfterBuild = $false
-$vmName = "POSLXPDEPLOY01"; $pveTokenId = ""; $pveTokenSecret = ""; $pveTokenUser = ""; $mgmtSubnet = ""; $winrmPassword = ""; $autoBuildGolden = $false
+$vmName = "POSLXPDEPLOY01"; $pveTokenId = ""; $pveTokenSecret = ""; $pveTokenUser = ""; $mgmtSubnet = ""; $trustedSubnets = ""; $winrmPassword = ""; $autoBuildGolden = $false
 if (-not $DryRun) {
     Write-Host ""
     Write-Host "  After the build this script can clone the template, start the VM and" -ForegroundColor Yellow
@@ -539,6 +540,17 @@ if (-not $DryRun) {
             }
         }
         $mgmtSubnet = (Read-Host "  Management subnet for firewall lockdown, e.g. 192.168.4.0/24 (Enter = skip)").Trim()
+        # Trusted subnets: the LAN(s) every server built from here opens all
+        # ports to. Stored in Semaphore's Proxmox variable group, never in the
+        # repo. Read from TRUSTED_SUBNETS if set (persistent env var), else asked.
+        $trustedSubnets = [System.Environment]::GetEnvironmentVariable("TRUSTED_SUBNETS")
+        if ([string]::IsNullOrWhiteSpace($trustedSubnets)) {
+            $trustedSubnets = (Read-Host "  Trusted subnet(s) for the server firewall, e.g. 192.168.4.0/24 (Enter = same as management subnet)").Trim()
+            if (-not $trustedSubnets) { $trustedSubnets = $mgmtSubnet }
+        } else {
+            $trustedSubnets = $trustedSubnets.Trim()
+            Write-Host "  Trusted subnets: $trustedSubnets (from the TRUSTED_SUBNETS env var)" -ForegroundColor DarkGray
+        }
         if ($sharedPassword) {
             $winrmPassword = $sharedPassword
         } else {
@@ -647,6 +659,7 @@ try {
                     -TokenSecret       $pveTokenSecret `
                     -PvePassword       $proxmoxPassword `
                     -MgmtSubnet        $mgmtSubnet `
+                    -TrustedSubnets    $trustedSubnets `
                     -AutoBuildGolden   $autoBuildGolden `
                     -WinrmPassword     $winrmPassword `
                     -AdminUser         $AdminUsername `

@@ -4,7 +4,8 @@
 # =============================================================================
 # Applies the repo's iptables ruleset to a server, standalone and explicit.
 # Two modes (same as infrastructure/networking/firewall/setup-iptables.sh):
-#   baseline — SSH from anywhere, everything from private RFC-1918 ranges
+#   baseline — SSH from anywhere, ICMP from private RFC-1918 ranges, and
+#              everything from trusted_subnets if given
 #   strict   — ONLY the listed TCP ports + ICMP, ONLY from mgmt_subnets
 #
 # Required variables (Survey or -e):
@@ -14,6 +15,8 @@
 #   target_ssh_user      SSH user (default: sysadmin)
 #   mgmt_subnets         e.g. 192.168.4.0/24 — setting this = strict mode
 #   allowed_tcp_ports    e.g. 22,80,443 (strict mode; default: SSH only)
+#   trusted_subnets      e.g. 192.168.4.0/24 — baseline mode; all ports open
+#                        (default: the TRUSTED_SUBNETS environment variable)
 #
 # WARNING: strict mode cuts off connections from outside mgmt_subnets —
 # including yours, if you run this from elsewhere.
@@ -45,10 +48,11 @@
       environment:
         MGMT_SUBNETS: "{{ mgmt_subnets | default('') }}"
         ALLOWED_TCP_PORTS: "{{ allowed_tcp_ports | default('') }}"
+        TRUSTED_SUBNETS: "{{ trusted_subnets | default(lookup('env', 'TRUSTED_SUBNETS'), true) }}"
       changed_when: true
 
     - name: Summary
       ansible.builtin.debug:
         msg: >-
           iptables applied to {{ inventory_hostname }} in
-          {{ (mgmt_subnets | default('') | length > 0) | ternary('STRICT mode (' ~ mgmt_subnets | default('') ~ ')', 'baseline mode (private ranges allowed)') }}
+          {{ (mgmt_subnets | default('') | length > 0) | ternary('STRICT mode (' ~ mgmt_subnets | default('') ~ ')', 'baseline mode (SSH + ICMP' ~ ((trusted_subnets | default('') | length > 0) | ternary(', all from ' ~ trusted_subnets | default(''), '')) ~ ')') }}

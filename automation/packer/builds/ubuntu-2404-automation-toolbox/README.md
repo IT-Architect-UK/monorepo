@@ -40,6 +40,9 @@ Run once in PowerShell — survives reboots, never written to disk or GitHub:
 [System.Environment]::SetEnvironmentVariable("PKR_VAR_proxmox_password",         "your-proxmox-root-password",  "User")
 [System.Environment]::SetEnvironmentVariable("PKR_VAR_semaphore_admin_password", "your-semaphore-password",     "User")
 [System.Environment]::SetEnvironmentVariable("PKR_VAR_admin_password",           "your-admin-login-password",   "User")
+# Optional: the LAN(s) every server built from the toolbox opens all ports to.
+# Prompted for during the build if unset; stored in Semaphore, never in Git.
+[System.Environment]::SetEnvironmentVariable("TRUSTED_SUBNETS",                   "192.168.4.0/24",              "User")
 ```
 
 Open a **new** PowerShell terminal after setting these. If you skip this step the build script will prompt for each value at runtime (input is hidden).

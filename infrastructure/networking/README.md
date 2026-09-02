@@ -6,7 +6,7 @@ Baseline network configuration for Ubuntu servers (22.04+, systemd-based). All a
 |--------|---------|
 | `dns/dns-default-gateway.sh` | Set the DNS server on all active interfaces via `resolvectl` (defaults to the default gateway) |
 | `ntp/setup-ntp.sh` | Point `systemd-timesyncd` at an NTP server (defaults to the default gateway) |
-| `firewall/setup-iptables.sh` | Defence-in-depth iptables baseline: SSH + ICMP + RFC-1918 allowed, persisted with `iptables-persistent` |
+| `firewall/setup-iptables.sh` | Defence-in-depth iptables baseline: SSH from anywhere, ICMP from RFC-1918, all ports only from `TRUSTED_SUBNETS`; strict mode via `MGMT_SUBNETS`; persisted with `iptables-persistent` |
 
 ```bash
 sudo ./<area>/<script>.sh

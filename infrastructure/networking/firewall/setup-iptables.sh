@@ -4,22 +4,35 @@
 # Applies a defence-in-depth iptables ruleset suitable for infrastructure
 # servers. Two modes:
 #
-#   Default mode (no env vars): allows SSH from anywhere, ICMP and ALL
-#   traffic from RFC-1918 private subnets. Suitable as a first-boot baseline.
+#   Default mode (no MGMT_SUBNETS): allows SSH from anywhere and ICMP from
+#   RFC-1918 private subnets. Nothing else. Suitable as a first-boot baseline
+#   for a server whose LAN you have not yet vetted — including a cloud VM,
+#   where "private" ranges may belong to other tenants.
+#
+#     TRUSTED_SUBNETS (optional) opens ALL ports to the listed CIDRs on top of
+#     that baseline — the old "trust the whole LAN" behaviour, now explicit.
 #
 #   Strict mode (MGMT_SUBNETS set): allows ONLY the listed TCP ports and
 #   ICMP, ONLY from the listed subnets. Everything else is dropped —
-#   including other private/RFC-1918 addresses.
+#   including other private/RFC-1918 addresses and SSH from the internet.
 #
 # Environment variables:
 #   MGMT_SUBNETS       Comma-separated CIDRs allowed in (e.g. "192.168.4.0/24")
 #                      Setting this switches the script to strict mode.
 #   ALLOWED_TCP_PORTS  Comma-separated TCP ports to allow from MGMT_SUBNETS
 #                      (default: the SSH port only)
+#   TRUSTED_SUBNETS    Default mode only. Comma-separated CIDRs allowed in on
+#                      every port and protocol (e.g. "192.168.4.0/24").
+#                      Ignored in strict mode. If unset, a .env file beside
+#                      this script is sourced (see .env.example) — keep your
+#                      subnets there, never in the repo.
 #
-# Example (Deployment Toolbox):
+# Example (Deployment Toolbox, strict):
 #   sudo MGMT_SUBNETS="192.168.4.0/24" ALLOWED_TCP_PORTS="22,80,3002,10000" \
 #        ./setup-iptables.sh
+#
+# Example (home lab server, baseline plus a trusted LAN):
+#   sudo TRUSTED_SUBNETS="192.168.4.0/24" ./setup-iptables.sh
 #
 # WARNING: in strict mode, run this from the console or from a host INSIDE
 # MGMT_SUBNETS — an SSH session from outside it will be cut off.
@@ -31,12 +44,12 @@
 #   FORWARD — DROP
 #   OUTPUT  — ACCEPT
 #
-# Allowed inbound:
+# Allowed inbound (default mode):
 #   - Loopback (lo)
 #   - Established / related connections
-#   - All traffic from 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 #   - SSH (port auto-detected from sshd_config, default 22)
-#   - ICMP from private subnets
+#   - ICMP from 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+#   - Everything from TRUSTED_SUBNETS, if set
 #
 # Usage:
 #   sudo ./setup-iptables.sh
@@ -46,8 +59,8 @@
 #   --ssh-port <port>   Override SSH port (auto-detected by default)
 #
 # Author:            Darren Pilkington
-# Version:           1.1
-# Date:              31-05-2026
+# Version:           1.2
+# Date:              02-09-2026
 # =============================================================================
 
 set -euo pipefail
@@ -95,6 +108,19 @@ log "SSH port: ${SSH_PORT}"
 PRIVATE_SUBNETS=("10.0.0.0/8" "172.16.0.0/12" "192.168.0.0/16")
 MGMT_SUBNETS="${MGMT_SUBNETS:-}"
 ALLOWED_TCP_PORTS="${ALLOWED_TCP_PORTS:-}"
+TRUSTED_SUBNETS="${TRUSTED_SUBNETS:-}"
+
+# Site values live in a git-ignored .env beside this script (see .env.example).
+# Only consulted when nothing was passed in the environment.
+if [[ -z "${TRUSTED_SUBNETS}" ]]; then
+    ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.env"
+    if [[ -f "${ENV_FILE}" ]]; then
+        # shellcheck disable=SC1090
+        source "${ENV_FILE}"
+        TRUSTED_SUBNETS="${TRUSTED_SUBNETS:-}"
+        log "Loaded site values from ${ENV_FILE}"
+    fi
+fi
 
 # ─── Flush existing rules and reset policies ─────────────────────────────────
 log "Flushing existing iptables rules..."
@@ -139,11 +165,7 @@ if [[ -n "${MGMT_SUBNETS}" ]]; then
     log "All other inbound traffic (including other private subnets) is DROPPED."
 else
     # ─── DEFAULT MODE: baseline for freshly built servers ────────────────────
-    log "Allowing all inbound traffic from private subnets..."
-    for subnet in "${PRIVATE_SUBNETS[@]}"; do
-        iptables -A INPUT -s "${subnet}" -j ACCEPT
-        log "  Allowed: ${subnet}"
-    done
+    log "DEFAULT mode: SSH from anywhere, ICMP from private subnets"
 
     log "Allowing SSH on port ${SSH_PORT}..."
     iptables -A INPUT -p tcp --dport "${SSH_PORT}" -j ACCEPT
@@ -151,7 +173,22 @@ else
     log "Allowing ICMP from private subnets..."
     for subnet in "${PRIVATE_SUBNETS[@]}"; do
         iptables -A INPUT -s "${subnet}" -p icmp -j ACCEPT
+        log "  Allowed: icmp from ${subnet}"
     done
+
+    if [[ -n "${TRUSTED_SUBNETS}" ]]; then
+        log "Allowing ALL inbound traffic from trusted subnets..."
+        IFS=',' read -ra TRUSTED_LIST <<< "${TRUSTED_SUBNETS}"
+        for subnet in "${TRUSTED_LIST[@]}"; do
+            subnet="$(echo "${subnet}" | xargs)"
+            [[ -n "${subnet}" ]] || continue
+            iptables -A INPUT -s "${subnet}" -j ACCEPT
+            log "  Allowed: all from ${subnet}"
+        done
+    else
+        log "No TRUSTED_SUBNETS set — private subnets get ICMP only."
+    fi
+    log "All other inbound traffic is DROPPED."
 fi
 
 # ─── Install iptables-persistent ─────────────────────────────────────────────

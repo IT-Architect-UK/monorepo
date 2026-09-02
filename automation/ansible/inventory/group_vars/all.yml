@@ -20,6 +20,15 @@ ssh_password_auth_users: []           # Accounts allowed SSH *password* login (e
 # The golden image baseline is LEAN by default: hardened SSH/kernel, patched,
 # cloud-init ready — and nothing opinionated. Turn site flavour on here.
 baseline_firewall: true               # iptables baseline ruleset
+# Baseline mode is SSH from anywhere + ICMP from RFC-1918 only. Your trusted
+# LAN(s) — every port open — come from the TRUSTED_SUBNETS environment
+# variable, never from this file: the Semaphore "Proxmox" variable group
+# supplies it on the toolbox, and a git-ignored .env (see ../../.env.example)
+# supplies it for CLI runs. Empty = baseline only.
+firewall_trusted_subnets: "{{ lookup('env', 'TRUSTED_SUBNETS') | default('', true) }}"
+# Strict mode (only these ports, only from these subnets, SSH included):
+firewall_mgmt_subnets: ""
+firewall_allowed_tcp_ports: ""
 baseline_fail2ban: true               # SSH brute-force protection
 baseline_create_admin: false          # bake a fixed admin account into images
                                       # (normally OFF — logins arrive per-clone via cloud-init)

@@ -60,7 +60,9 @@
 
 # ── Firewall — iptables ───────────────────────────────────────────────────────
 # Uses setup-iptables.sh from infrastructure/networking/firewall/ which applies
-# a default-drop INPUT policy and allows all RFC-1918 private subnet traffic.
+# a default-drop INPUT policy. Default mode allows SSH from anywhere and ICMP
+# from RFC-1918 ranges only; set firewall_trusted_subnets to open a LAN fully,
+# or firewall_mgmt_subnets (+ firewall_allowed_tcp_ports) for strict mode.
 # Managed via Webmin post-deployment for role-specific rule additions.
 
 - name: Copy iptables setup script to target
@@ -75,6 +77,10 @@
   ansible.builtin.command: /tmp/setup-iptables.sh
   args:
     creates: /etc/iptables/rules.v4
+  environment:
+    MGMT_SUBNETS: "{{ firewall_mgmt_subnets | default('') }}"
+    ALLOWED_TCP_PORTS: "{{ firewall_allowed_tcp_ports | default('') }}"
+    TRUSTED_SUBNETS: "{{ firewall_trusted_subnets | default('') }}"
   when: baseline_firewall | default(true) | bool
   tags: firewall
 

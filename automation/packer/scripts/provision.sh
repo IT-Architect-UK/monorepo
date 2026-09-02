@@ -16,7 +16,7 @@
 #   4.  apply-branding.sh   — MOTD, login banner, shell prompt colour
 #   5.  disable-cloud-init.sh — Prevent cloud-init re-runs (fixes VMware networking)
 #   6.  disable-ipv6.sh     — Disable IPv6 system-wide
-#   7.  setup-iptables.sh   — iptables baseline ruleset (default-drop, RFC-1918 allow)
+#   7.  setup-iptables.sh   — iptables baseline ruleset (default-drop, SSH + RFC-1918 ICMP)
 #   8.  SSH hardening       — Disable root login, key-only auth, enable banner
 #   9.  Timezone            — IP geolocation detect, fall back to UTC
 #   10. Kernel hardening    — sysctl: RP filter, SYN cookies, ASLR, no redirects
@@ -162,7 +162,7 @@ if [[ "${BUILD_PROFILE}" == "toolbox" ]]; then
     [[ -f /tmp/setup-iptables.sh ]] || fail "setup-iptables.sh not found in /tmp/ — check Packer file provisioner"
     chmod +x /tmp/setup-iptables.sh
     /tmp/setup-iptables.sh
-    log "iptables baseline applied (default-drop INPUT, RFC-1918 allowed)"
+    log "iptables baseline applied (default-drop INPUT, SSH + RFC-1918 ICMP)"
 else
     log "Deferred to the Ansible baseline (baseline_firewall, default ON)"
 fi

@@ -23,6 +23,8 @@
 #   1. The Semaphore admin password (set at image build time)
 #   2. Proxmox API host (default read from environments/homelab.pkrvars.hcl)
 #   3. Proxmox API credentials — an API token (recommended) or password
+#   4. Trusted subnet(s) — the LAN(s) servers built from here open all ports
+#      to (stored in the Proxmox variable group as TRUSTED_SUBNETS)
 #
 # To create a Proxmox API token (recommended over the root password):
 #   Proxmox UI → Datacenter → Permissions → API Tokens → Add
@@ -92,6 +94,7 @@ PVE_TOKEN_SECRET="${PROXMOX_TOKEN_SECRET:-}"
 PVE_PASSWORD="${PROXMOX_PASSWORD:-}"
 PVE_NODE="${PROXMOX_NODE:-}"
 MGMT_SUBNET="${MGMT_SUBNET:-}"
+TRUSTED_SUBNETS="${TRUSTED_SUBNETS:-}"
 # Default login for VMs deployed from goldens (passed from the build wrapper).
 DEPLOY_ADMIN_USER="${DEPLOY_ADMIN_USER:-it-admin}"
 DEPLOY_ADMIN_PASSWORD="${DEPLOY_ADMIN_PASSWORD:-}"
@@ -298,10 +301,10 @@ if [[ -z "${ENV_ID}" ]]; then
         --arg pub "${PROV_PUBKEY}" --arg winrm "${WINRM_PW}" \
         --arg surl "${SEMAPHORE_URL}" --arg spid "${PROJECT_ID}" --arg dtok "${DEPLOY_TOKEN}" \
         --arg dauser "${DEPLOY_ADMIN_USER}" --arg dapass "${DEPLOY_ADMIN_PASSWORD}" \
-        --arg glt "${GITHUB_LOGS_TOKEN}" \
+        --arg glt "${GITHUB_LOGS_TOKEN}" --arg trusted "${TRUSTED_SUBNETS}" \
         '{
           name: "Proxmox", project_id: $pid, json: "{}",
-          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub, SEMAPHORE_URL: $surl, SEMAPHORE_PROJECT_ID: $spid, DEPLOY_ADMIN_USER: $dauser} | tojson),
+          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub, SEMAPHORE_URL: $surl, SEMAPHORE_PROJECT_ID: $spid, DEPLOY_ADMIN_USER: $dauser, TRUSTED_SUBNETS: $trusted} | tojson),
           secrets: ([
             (if $tsec  != "" then {type: "env", name: "PROXMOX_TOKEN_SECRET", secret: $tsec,  operation: "create"} else empty end),
             (if $pw    != "" then {type: "env", name: "PROXMOX_PASSWORD",     secret: $pw,    operation: "create"} else empty end),
@@ -893,10 +896,21 @@ else
     log "SSH per-user password override already present."
 fi
 
+# Add/update a plaintext KEY=VALUE in a Semaphore environment group without
+# touching its encrypted secrets (secrets are separate rows; PUTting env/json
+# leaves them intact). Returns non-zero if the API call fails.
+set_semaphore_env_var() { # set_semaphore_env_var <env_id> <key> <value>
+    local eid="$1" key="$2" val="$3" cur envstr body
+    cur=$(api GET "${P}/environment/${eid}" 2>/dev/null) || return 1
+    envstr=$(echo "${cur}" | jq -r '.env // "{}"' | jq -c --arg k "${key}" --arg v "${val}" '. + {($k):$v}' 2>/dev/null) || return 1
+    body=$(echo "${cur}" | jq -c --arg e "${envstr}" '{id, name, project_id, json: (.json // "{}"), env: $e}' 2>/dev/null) || return 1
+    api PUT "${P}/environment/${eid}" "${body}" >/dev/null 2>&1
+}
+
 # ─── 9. Firewall lockdown ────────────────────────────────────────────────────
 echo ""
-log "Firewall: the build baseline allows all private-subnet traffic. You can"
-log "lock this server down so that ONLY a management subnet may reach it"
+log "Firewall: the build baseline allows SSH from anywhere and ICMP from private"
+log "subnets. You can lock this server down so that ONLY a management subnet may reach it"
 log "(SSH 22, Semaphore 80, Homepage 3002, Webmin 10000, ICMP)."
 warn "Run this from the Proxmox console or from a host INSIDE that subnet —"
 warn "an SSH session from anywhere else will be cut off when rules apply."
@@ -915,6 +929,24 @@ if [[ -n "${MGMT_SUBNET}" ]]; then
     fi
 else
     log "Firewall unchanged (baseline rules still in effect)."
+fi
+
+# ─── 9b. Trusted subnets for servers built from here ────────────────────────
+# Every Ansible job on this toolbox reads TRUSTED_SUBNETS from the Proxmox
+# variable group; the common role opens all ports to those LAN(s) on the
+# servers it builds. Kept in Semaphore, never in the repo.
+if [[ -z "${TRUSTED_SUBNETS}" && "${NONINTERACTIVE}" != "1" ]]; then
+    read -r -p "Trusted subnet(s) for servers' firewalls, e.g. 192.168.4.0/24 (Enter = same as management subnet): " TRUSTED_SUBNETS
+    TRUSTED_SUBNETS="${TRUSTED_SUBNETS:-${MGMT_SUBNET}}"
+fi
+if [[ -n "${TRUSTED_SUBNETS}" ]]; then
+    if set_semaphore_env_var "${ENV_ID}" TRUSTED_SUBNETS "${TRUSTED_SUBNETS}"; then
+        log "TRUSTED_SUBNETS=${TRUSTED_SUBNETS} saved to the Proxmox variable group."
+    else
+        warn "Could not save TRUSTED_SUBNETS to Semaphore — add it under Environment > Proxmox, or servers get the SSH+ICMP baseline only."
+    fi
+else
+    warn "No trusted subnets set — servers built from here get SSH + ICMP only until TRUSTED_SUBNETS is added under Semaphore > Environment > Proxmox."
 fi
 
 # ─── 10. Golden image templates ──────────────────────────────────────────────
@@ -957,17 +989,6 @@ proxmox_iso_present() { # proxmox_iso_present <volid>
     [[ -n "${node}" ]] || return 2
     curl -sk --max-time 20 -H "${hdr}" "https://${PVE_HOST}:8006/api2/json/nodes/${node}/storage/${storage}/content?content=iso" 2>/dev/null \
         | jq -e --arg v "${volid}" '.data[]? | select(.volid == $v)' >/dev/null 2>&1
-}
-
-# Add/update a plaintext KEY=VALUE in a Semaphore environment group without
-# touching its encrypted secrets (secrets are separate rows; PUTting env/json
-# leaves them intact). Returns non-zero if the API call fails.
-set_semaphore_env_var() { # set_semaphore_env_var <env_id> <key> <value>
-    local eid="$1" key="$2" val="$3" cur envstr body
-    cur=$(api GET "${P}/environment/${eid}" 2>/dev/null) || return 1
-    envstr=$(echo "${cur}" | jq -r '.env // "{}"' | jq -c --arg k "${key}" --arg v "${val}" '. + {($k):$v}' 2>/dev/null) || return 1
-    body=$(echo "${cur}" | jq -c --arg e "${envstr}" '{id, name, project_id, json: (.json // "{}"), env: $e}' 2>/dev/null) || return 1
-    api PUT "${P}/environment/${eid}" "${body}" >/dev/null 2>&1
 }
 
 if [[ "${BUILD_GOLDEN}" == "1" ]]; then
