@@ -45,8 +45,23 @@ UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || echo "noble")
 section "Veeam Agent for Linux — Installation"
 
 section "1 — Add Veeam Repository"
-wget -qO - https://www.veeam.com/downloads/add_veeam_repos_ubuntu.sh | bash
-log "Veeam repository added"
+# Veeam's add_veeam_repos_ubuntu.sh (piped into bash here before) only
+# installed this package: the apt source plus the signing key. Install it
+# directly, pinned and checksummed — Veeam publishes no checksum, so this
+# SHA256 was computed from the package as downloaded on 2026-09-02 and
+# guards against any later change; bump both lines together on upgrade.
+VEEAM_RELEASE_VERSION="${VEEAM_RELEASE_VERSION:-1.0.11}"
+VEEAM_RELEASE_SHA256="${VEEAM_RELEASE_SHA256:-37849f2af797d15bf6e1f571b503bc54cd90cf8d8324dcadf11c97195ad84bd1}"
+VEEAM_RELEASE_DEB="veeam-release-deb_${VEEAM_RELEASE_VERSION}_amd64.deb"
+VEEAM_TMP="$(mktemp -d)"
+trap 'rm -rf "${VEEAM_TMP}"' EXIT
+wget -q -O "${VEEAM_TMP}/${VEEAM_RELEASE_DEB}" \
+    "https://repository.veeam.com/backup/linux/agent/dpkg/debian/public/pool/veeam/v/veeam-release-deb/${VEEAM_RELEASE_DEB}" \
+    || error "Could not download ${VEEAM_RELEASE_DEB}"
+echo "${VEEAM_RELEASE_SHA256}  ${VEEAM_TMP}/${VEEAM_RELEASE_DEB}" | sha256sum -c - >/dev/null \
+    || error "Checksum mismatch for ${VEEAM_RELEASE_DEB} — refusing to install. Verify the package and update VEEAM_RELEASE_SHA256."
+dpkg -i "${VEEAM_TMP}/${VEEAM_RELEASE_DEB}"
+log "Veeam repository added (veeam-release-deb ${VEEAM_RELEASE_VERSION}, checksum verified)"
 
 section "2 — Install Veeam Agent"
 apt-get update -q

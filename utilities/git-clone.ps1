@@ -55,10 +55,23 @@ if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
     Write-Log "Installing Chocolatey ..."
     Set-ExecutionPolicy Bypass -Scope Process -Force
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-    $chocoInstallScript = (Invoke-WebRequest -Uri 'https://chocolatey.org/install.ps1' -UseBasicParsing).Content
-    if ($chocoInstallScript) {
-        Invoke-Expression $chocoInstallScript
-    } else {Write-Log "Failed to download Chocolatey installation script."}
+    # Chocolatey's installer, pinned: downloaded to a file, SHA256-checked
+    # against the hash recorded here, then run as a file — never Invoke-
+    # Expression of whatever the URL returns today. Chocolatey publishes no
+    # checksum; this one was computed from install.ps1 on 2026-09-02. The
+    # Chocolatey version itself is pinned via chocolateyVersion. Bump the
+    # hash and version together.
+    $chocoInstallSha256 = '44E045ED5350758616D664C5AF631E7F2CD10165F5BF2BD82CBF3A0BB8F63462'
+    $env:chocolateyVersion = '2.7.4'
+    $chocoInstaller = Join-Path $env:TEMP "choco-install-$([guid]::NewGuid()).ps1"
+    Invoke-WebRequest -Uri 'https://community.chocolatey.org/install.ps1' -UseBasicParsing -OutFile $chocoInstaller
+    $actual = (Get-FileHash -Path $chocoInstaller -Algorithm SHA256).Hash
+    if ($actual -ne $chocoInstallSha256) {
+        Remove-Item $chocoInstaller -Force -ErrorAction SilentlyContinue
+        throw "Chocolatey install.ps1 checksum mismatch (got $actual) — refusing to run it. Verify the script and update chocoInstallSha256."
+    }
+    & $chocoInstaller
+    Remove-Item $chocoInstaller -Force -ErrorAction SilentlyContinue
 }
 Write-Log "Chocolatey is installed. Continuing with script ..."
 

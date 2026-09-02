@@ -39,9 +39,20 @@ install_k8s_components() {
 }
 
 # Function to install Helm
+# Pinned release, verified against Helm's published SHA256 — not the
+# get-helm-3 script from a moving branch piped into bash.
+HELM_VERSION="${HELM_VERSION:-v3.21.3}"
 install_helm() {
-  log "Installing Helm..."
-  curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash | tee -a $LOG_FILE
+  log "Installing Helm ${HELM_VERSION}..."
+  local tmp; tmp="$(mktemp -d)"
+  local tgz="helm-${HELM_VERSION}-linux-amd64.tar.gz"
+  curl -fsSL -o "${tmp}/${tgz}" "https://get.helm.sh/${tgz}"
+  curl -fsSL -o "${tmp}/${tgz}.sha256sum" "https://get.helm.sh/${tgz}.sha256sum"
+  (cd "${tmp}" && sha256sum -c "${tgz}.sha256sum") | tee -a "$LOG_FILE" || { log "Helm checksum FAILED — not installing"; rm -rf "${tmp}"; exit 1; }
+  tar -xzf "${tmp}/${tgz}" -C "${tmp}" linux-amd64/helm
+  sudo install -m 0755 "${tmp}/linux-amd64/helm" /usr/local/bin/helm
+  rm -rf "${tmp}"
+  log "Helm installed: $(helm version --short)"
 }
 
 # Function to deploy Rancher

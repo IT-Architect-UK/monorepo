@@ -46,10 +46,17 @@ log "Cleanup done."
 SETUP_SCRIPT=$(mktemp /tmp/webmin-setup-XXXXXX.sh)
 trap 'rm -f "${SETUP_SCRIPT}"' EXIT
 
-log "Downloading official Webmin repository setup script..."
-curl -fsSL https://raw.githubusercontent.com/webmin/webmin/master/webmin-setup-repo.sh \
+# Pinned to a release tag and checksummed rather than fetched from master:
+# the SHA256 was computed from the tagged file on 2026-09-02 (Webmin publishes
+# none). Bump the tag and the hash together.
+WEBMIN_SETUP_TAG="${WEBMIN_SETUP_TAG:-2.660}"
+WEBMIN_SETUP_SHA256="${WEBMIN_SETUP_SHA256:-c752127dcd345494432979eb13140f358243b95b249e9fb7744034393dbccab9}"
+log "Downloading official Webmin repository setup script (tag ${WEBMIN_SETUP_TAG})..."
+curl -fsSL "https://raw.githubusercontent.com/webmin/webmin/${WEBMIN_SETUP_TAG}/webmin-setup-repo.sh" \
     -o "${SETUP_SCRIPT}"
-log "Setup script downloaded."
+echo "${WEBMIN_SETUP_SHA256}  ${SETUP_SCRIPT}" | sha256sum -c - >/dev/null \
+    || fail "Checksum mismatch for webmin-setup-repo.sh — refusing to run it. Verify the script and update WEBMIN_SETUP_SHA256."
+log "Setup script downloaded and checksum verified."
 
 log "Running Webmin repository setup (non-interactive)..."
 echo "y" | bash "${SETUP_SCRIPT}" 2>&1 | tee -a "${LOG_FILE}"

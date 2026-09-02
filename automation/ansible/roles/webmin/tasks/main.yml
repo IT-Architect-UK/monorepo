@@ -8,11 +8,15 @@
 # Idempotent — the repo step is guarded by `creates`.
 # =============================================================================
 
-- name: Download the official Webmin repo setup script
+# Pinned to a release tag and checksummed rather than fetched from master.
+# The SHA256 was computed from the tagged file on 2026-09-02 (Webmin publishes
+# none); bump webmin_setup_tag and webmin_setup_sha256 together.
+- name: Download the official Webmin repo setup script (pinned, checksummed)
   ansible.builtin.get_url:
-    url: https://raw.githubusercontent.com/webmin/webmin/master/webmin-setup-repo.sh
+    url: "https://raw.githubusercontent.com/webmin/webmin/{{ webmin_setup_tag | default('2.660') }}/webmin-setup-repo.sh"
     dest: /usr/local/sbin/webmin-setup-repo.sh
     mode: "0755"
+    checksum: "sha256:{{ webmin_setup_sha256 | default('c752127dcd345494432979eb13140f358243b95b249e9fb7744034393dbccab9') }}"
   tags: webmin
 
 - name: Configure the official Webmin apt repository

@@ -167,8 +167,17 @@ curl -fsSLo /usr/local/bin/kubectl \
 chmod +x /usr/local/bin/kubectl
 ok "kubectl ${KUBECTL_VERSION} installed"
 
-# Helm — via official install script
-curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+# Helm — pinned release, verified against Helm's published SHA256 (not the
+# get-helm-3 script from a moving branch piped into bash)
+HELM_VERSION="${HELM_VERSION:-v3.21.3}"
+HELM_TGZ="helm-${HELM_VERSION}-linux-amd64.tar.gz"
+HELM_TMP="$(mktemp -d)"
+curl -fsSL -o "${HELM_TMP}/${HELM_TGZ}" "https://get.helm.sh/${HELM_TGZ}"
+curl -fsSL -o "${HELM_TMP}/${HELM_TGZ}.sha256sum" "https://get.helm.sh/${HELM_TGZ}.sha256sum"
+(cd "${HELM_TMP}" && sha256sum -c "${HELM_TGZ}.sha256sum")
+tar -xzf "${HELM_TMP}/${HELM_TGZ}" -C "${HELM_TMP}" linux-amd64/helm
+install -m 0755 "${HELM_TMP}/linux-amd64/helm" /usr/local/bin/helm
+rm -rf "${HELM_TMP}"
 ok "Helm $(helm version --short) installed"
 
 # ─── 11. Install GitHub CLI ───────────────────────────────────────────────────
