@@ -11,10 +11,10 @@
 #
 # Sensitive values via environment variables:
 #   export PKR_VAR_proxmox_password="your-proxmox-root-password"
-#   export PKR_VAR_winrm_password="PackerBuild2025!"
+#   export PKR_VAR_winrm_password="<12+ chars, build-only>"
 #
-# IMPORTANT: PKR_VAR_winrm_password must match the password hardcoded in:
-#   automation/packer/http/win2025-proxmox/autounattend.xml
+# PKR_VAR_winrm_password is injected into autounattend.xml at build time (no
+# password lives in Git). The build wrappers generate a random one if unset.
 # =============================================================================
 
 image_name        = "t-win2025"

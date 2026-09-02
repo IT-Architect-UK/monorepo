@@ -31,9 +31,9 @@
 #
 #   3. Set credentials:
 #        export PKR_VAR_proxmox_password="your-root-password"
-#        export PKR_VAR_winrm_password="PackerBuild2025!"
-#      The winrm_password MUST match the password in:
-#        http/win2025-proxmox/autounattend.xml
+#        export PKR_VAR_winrm_password="<12+ chars, build-only>"
+#      Injected into http/win2025-proxmox/autounattend.xml at build time;
+#      the build wrappers generate one if you set nothing.
 #
 # Build:
 #   packer init win2025-proxmox.pkr.hcl
@@ -163,7 +163,7 @@ source "proxmox-iso" "win2025" {
       "autounattend.xml" = replace(
         replace(
           file("${path.root}/../../http/win2025-proxmox/autounattend.xml"),
-          "PackerBuild2025!",
+          "WINRM_PASSWORD_PLACEHOLDER",
           var.winrm_password
         ),
         "WINDOWS_IMAGE_INDEX",
@@ -229,6 +229,7 @@ build {
   # (sysprep picks up the Cloudbase-Init Unattend.xml staged in step 2)
   provisioner "powershell" {
     script = abspath("${path.root}/../../scripts/cleanup-windows.ps1")
+    environment_vars = ["KEEP_ADMINISTRATOR=${var.keep_administrator}"]
   }
 
   # Record what was built

@@ -342,7 +342,7 @@ function Invoke-ToolboxBootstrap {
         [string]$SemaphorePassword, [string]$PveHost, [string]$PveUser,
         [string]$TokenId, [string]$TokenSecret, [string]$PvePassword,
         [string]$MgmtSubnet, [string]$TrustedSubnets = "", [bool]$AutoBuildGolden = $false,
-        [string]$WinrmPassword = "",
+        [string]$WinrmPassword = "", [bool]$KeepWindowsAdmin = $false,
         [string]$AdminUser = "", [string]$AdminPassword = ""
     )
 
@@ -366,6 +366,7 @@ function Invoke-ToolboxBootstrap {
     if ($MgmtSubnet) { $lines += "MGMT_SUBNET=$(ConvertTo-ShellSingleQuoted $MgmtSubnet)" }
     if ($TrustedSubnets) { $lines += "TRUSTED_SUBNETS=$(ConvertTo-ShellSingleQuoted $TrustedSubnets)" }
     if ($WinrmPassword) { $lines += "WINRM_PASSWORD=$(ConvertTo-ShellSingleQuoted $WinrmPassword)" }
+    if ($KeepWindowsAdmin) { $lines += "KEEP_WINDOWS_ADMIN='1'" }
     if ($AdminUser)     { $lines += "DEPLOY_ADMIN_USER=$(ConvertTo-ShellSingleQuoted $AdminUser)" }
     if ($AdminPassword) { $lines += "DEPLOY_ADMIN_PASSWORD=$(ConvertTo-ShellSingleQuoted $AdminPassword)" }
     if ($env:GITHUB_LOGS_TOKEN) { $lines += "GITHUB_LOGS_TOKEN=$(ConvertTo-ShellSingleQuoted $env:GITHUB_LOGS_TOKEN)" }
@@ -486,7 +487,7 @@ $ProxmoxTemplateVmId  = [int](Get-LayeredPkrVarValue -VarName "proxmox_vm_id" -D
 
 # ── Deployment answers, collected up-front so the whole run is hands-off ─────
 $deployAfterBuild = $false
-$vmName = "POSLXPDEPLOY01"; $pveTokenId = ""; $pveTokenSecret = ""; $pveTokenUser = ""; $mgmtSubnet = ""; $trustedSubnets = ""; $winrmPassword = ""; $autoBuildGolden = $false
+$vmName = "POSLXPDEPLOY01"; $pveTokenId = ""; $pveTokenSecret = ""; $pveTokenUser = ""; $mgmtSubnet = ""; $trustedSubnets = ""; $winrmPassword = ""; $keepWindowsAdmin = $false; $autoBuildGolden = $false
 if (-not $DryRun) {
     Write-Host ""
     Write-Host "  After the build this script can clone the template, start the VM and" -ForegroundColor Yellow
@@ -554,8 +555,21 @@ if (-not $DryRun) {
         if ($sharedPassword) {
             $winrmPassword = $sharedPassword
         } else {
-            $sec = Read-Host "  WinRM password for Windows golden builds (Enter = skip; injected into the unattended install automatically)" -AsSecureString
+            $sec = Read-Host "  WinRM password for Windows golden builds (Enter = random per build; injected into the unattended install automatically)" -AsSecureString
             $winrmPassword = [System.Net.NetworkCredential]::new("", $sec).Password
+        }
+        # Windows goldens disable the built-in Administrator on first boot.
+        # While the toolbox is in development it can be useful to keep it
+        # enabled (with the WinRM password above) to troubleshoot a clone.
+        $ans = Read-Host "  Keep the built-in Administrator enabled on Windows golden images, for troubleshooting? (y/N)"
+        $keepWindowsAdmin = ($ans -match '^[Yy]')
+        if ($keepWindowsAdmin -and -not $winrmPassword) {
+            Write-Host "  A known password is needed for that — Administrator would otherwise keep a random one." -ForegroundColor Yellow
+            while ($winrmPassword.Length -lt 12) {
+                $sec = Read-Host "  WinRM/Administrator password for Windows goldens (12+ chars, input hidden)" -AsSecureString
+                $winrmPassword = [System.Net.NetworkCredential]::new("", $sec).Password
+                if ($winrmPassword.Length -lt 12) { Write-Host "  12 or more characters required." -ForegroundColor Red }
+            }
         }
         $ans = Read-Host "  Build the golden image templates right after bootstrap (Ubuntu 24.04 + 26.04, and Windows if its ISO is present)? (Y/n)"
         $autoBuildGolden = ($ans -notmatch '^[Nn]')
@@ -662,6 +676,7 @@ try {
                     -TrustedSubnets    $trustedSubnets `
                     -AutoBuildGolden   $autoBuildGolden `
                     -WinrmPassword     $winrmPassword `
+                    -KeepWindowsAdmin  $keepWindowsAdmin `
                     -AdminUser         $AdminUsername `
                     -AdminPassword     $adminPassword | Out-Null
             } catch {

@@ -83,6 +83,24 @@ Set-ItemProperty -Path $runOncePath `
                  -ErrorAction SilentlyContinue
 Write-OK "Packer account deletion scheduled for first boot (via RunOnce)"
 
+# ── 6b. Built-in Administrator ────────────────────────────────────────────────
+# autounattend.xml gives Administrator the build password. That must not
+# outlive the build: schedule the account's disabling alongside the packer
+# account removal, so clones log in via cloud-init / the deploy playbook.
+# KEEP_ADMINISTRATOR=true (Packer var keep_administrator) skips this — for
+# troubleshooting while the toolbox is in development; Administrator then
+# keeps the build password.
+Write-Step "Built-in Administrator"
+if ("$env:KEEP_ADMINISTRATOR" -eq 'true') {
+    Write-Host "  ⚠  keep_administrator=true — Administrator stays ENABLED with the build password" -ForegroundColor Yellow
+} else {
+    Set-ItemProperty -Path $runOncePath `
+                     -Name "DisableBuiltinAdministrator" `
+                     -Value 'net user Administrator /active:no' `
+                     -ErrorAction SilentlyContinue
+    Write-OK "Administrator disable scheduled for first boot (via RunOnce)"
+}
+
 # ── 7. Defragment and zero-fill free space (shrinks the template disk) ────────
 Write-Step "Optimise disk for thin provisioning"
 

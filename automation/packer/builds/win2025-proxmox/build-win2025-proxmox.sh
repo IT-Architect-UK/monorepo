@@ -14,8 +14,14 @@
 #   PROXMOX_HOST / PROXMOX_USER / PROXMOX_TOKEN_ID+SECRET or PROXMOX_PASSWORD
 #   PROXMOX_NODE           Proxmox node name
 #   WINRM_PASSWORD         Build-account password — injected into the
-#                          unattended install automatically (default:
-#                          PackerBuild2025!); no XML editing needed
+#                          unattended install automatically. Unset = a
+#                          random one is generated for this build (the
+#                          account is removed on first boot, so nobody
+#                          needs it). Required if keep_administrator=true.
+#   PKR_VAR_keep_administrator  true = leave the built-in Administrator
+#                          enabled with WINRM_PASSWORD (troubleshooting
+#                          while in development); default false = disabled
+#                          on first boot
 #   PKR_VAR_win_iso_file   volid of the Windows Server 2025 ISO — MANUAL
 #                          upload required (Microsoft licensing; grab an eval
 #                          ISO from the Microsoft Evaluation Center), e.g.:
@@ -94,20 +100,42 @@ if [[ -f "${SITE_FILE}" ]]; then
     done
 fi
 
-# ── WinRM password (must match autounattend.xml) ─────────────────────────────
+# ── WinRM password (injected into autounattend.xml at build time) ────────────
+# Never defaulted to a fixed value: anything fixed here would be public. If
+# nothing is supplied a random password is generated for this build — the
+# build account is removed on first boot and Administrator is disabled, so
+# nobody needs to know it. With keep_administrator=true it must be supplied.
+random_password() {
+    local core
+    core="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)"
+    echo "${core}Aa1!"    # guarantee Windows complexity classes
+}
+KEEP_ADMIN="${PKR_VAR_keep_administrator:-false}"
 if [[ -z "${PKR_VAR_winrm_password:-}" ]]; then
     if [[ -n "${WINRM_PASSWORD:-}" ]]; then
         export PKR_VAR_winrm_password="${WINRM_PASSWORD}"
+    elif [[ "${KEEP_ADMIN}" == "true" ]]; then
+        if [[ "${NONINTERACTIVE}" == "1" ]]; then
+            fail "keep_administrator=true but WINRM_PASSWORD is not set — Administrator would keep an unknown password. Set WINRM_PASSWORD in the Semaphore variable group."
+        fi
+        read -r -s -p "WinRM build-account password (Administrator keeps it — keep_administrator=true): " wp; echo
+        [[ ${#wp} -ge 12 ]] || fail "12 or more characters required."
+        export PKR_VAR_winrm_password="${wp}"
     elif [[ "${NONINTERACTIVE}" == "1" ]]; then
-        # The build account is temporary (removed at seal) and the password
-        # is injected into the unattended install from ONE source, so the
-        # packer default is safe — no need to hard-require a custom one.
-        log "WINRM_PASSWORD not set — using the build default (temporary account, removed when the image is sealed)"
+        export PKR_VAR_winrm_password="$(random_password)"
+        log "WINRM_PASSWORD not set — generated a random build-only password (account removed on first boot)"
     else
-        read -r -s -p "WinRM build-account password (injected into the unattended install) [PackerBuild2025!]: " wp; echo
-        export PKR_VAR_winrm_password="${wp:-PackerBuild2025!}"
+        read -r -s -p "WinRM build-account password (Enter = random, build-only): " wp; echo
+        if [[ -z "${wp}" ]]; then
+            export PKR_VAR_winrm_password="$(random_password)"
+            log "Generated a random build-only password"
+        else
+            [[ ${#wp} -ge 12 ]] || fail "12 or more characters required."
+            export PKR_VAR_winrm_password="${wp}"
+        fi
     fi
 fi
+[[ "${KEEP_ADMIN}" == "true" ]] && log "keep_administrator=true — the built-in Administrator stays enabled on this image" || true
 
 # ── Windows ISO: pick from storage or upload from a local folder ─────────────
 # (Microsoft licensing means no auto-download — but if the ISO is already on

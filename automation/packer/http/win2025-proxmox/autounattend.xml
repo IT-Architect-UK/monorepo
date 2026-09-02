@@ -16,11 +16,11 @@
       the QEMU Guest Agent (required for Proxmox 'qm agent' commands)
 
   IMPORTANT — password:
-    The packer account password is hardcoded here as a placeholder.
-    Change "PackerBuild2025!" to a strong password and set the SAME value
-    in PKR_VAR_winrm_password before running the build:
-
-      export PKR_VAR_winrm_password="PackerBuild2025!"
+    WINRM_PASSWORD_PLACEHOLDER is replaced at build time with the value of
+    PKR_VAR_winrm_password (the template's cd_content does the substitution),
+    so no real password is ever stored in this file. The same value is set
+    for the built-in Administrator; cleanup-windows.ps1 disables that
+    account on first boot unless keep_administrator=true.
 
   Edition names (use with packer validate to confirm yours):
     Windows Server 2025 Standard Evaluation
@@ -185,7 +185,7 @@
       <!-- Auto-login as packer so FirstLogonCommands run without prompting -->
       <AutoLogon>
         <Password>
-          <Value>PackerBuild2025!</Value>
+          <Value>WINRM_PASSWORD_PLACEHOLDER</Value>
           <PlainText>true</PlainText>
         </Password>
         <Enabled>true</Enabled>
@@ -210,7 +210,7 @@
       <UserAccounts>
         <!-- Built-in Administrator password (disabled after packer user created) -->
         <AdministratorPassword>
-          <Value>PackerBuild2025!</Value>
+          <Value>WINRM_PASSWORD_PLACEHOLDER</Value>
           <PlainText>true</PlainText>
         </AdministratorPassword>
 
@@ -218,7 +218,7 @@
         <LocalAccounts>
           <LocalAccount wcm:action="add">
             <Password>
-              <Value>PackerBuild2025!</Value>
+              <Value>WINRM_PASSWORD_PLACEHOLDER</Value>
               <PlainText>true</PlainText>
             </Password>
             <Group>Administrators</Group>

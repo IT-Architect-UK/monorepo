@@ -12,6 +12,9 @@
 #   $env:PKR_VAR_proxmox_username = "user@pam!tokenid"
 #   $env:PKR_VAR_proxmox_token    = "<secret>"
 #   $env:PKR_VAR_winrm_password               # injected into the unattended install
+#                                             # (Enter at the prompt = random, build-only)
+#   $env:PKR_VAR_keep_administrator = "true"  # keep built-in Administrator enabled
+#                                             # (troubleshooting; needs a known password)
 #
 # ISOs:
 #   $env:PKR_VAR_win_iso_file    — Windows Server 2025 ISO volid; MANUAL
@@ -44,12 +47,26 @@ if (-not ($hasToken -or $hasPassword)) {
     $env:PKR_VAR_proxmox_password = [System.Net.NetworkCredential]::new("", $secure).Password
 }
 
+# No fixed default: a password in Git is public. Enter = random, build-only
+# (the account is removed on first boot and Administrator disabled). With
+# keep_administrator=true a known password is required.
+$keepAdmin = ("$env:PKR_VAR_keep_administrator" -eq "true")
 if ([string]::IsNullOrWhiteSpace($env:PKR_VAR_winrm_password)) {
-    $secure = Read-Host "WinRM build-account password — injected into the unattended install [PackerBuild2025!] (input hidden)" -AsSecureString
+    $prompt = if ($keepAdmin) { "WinRM build-account password — Administrator keeps it (keep_administrator=true; 12+ chars, input hidden)" }
+              else            { "WinRM build-account password — injected into the unattended install (Enter = random, build-only; input hidden)" }
+    $secure = Read-Host $prompt -AsSecureString
     $wp = [System.Net.NetworkCredential]::new("", $secure).Password
-    if ([string]::IsNullOrWhiteSpace($wp)) { $wp = "PackerBuild2025!" }
+    if ([string]::IsNullOrWhiteSpace($wp)) {
+        if ($keepAdmin) { Write-Error "keep_administrator=true needs a known password."; exit 1 }
+        $chars = [char[]]"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+        $wp = (-join (1..20 | ForEach-Object { $chars | Get-Random })) + "Aa1!"
+        Write-Host "Generated a random build-only password." -ForegroundColor DarkGray
+    } elseif ($wp.Length -lt 12) {
+        Write-Error "12 or more characters required."; exit 1
+    }
     $env:PKR_VAR_winrm_password = $wp
 }
+if ($keepAdmin) { Write-Host "keep_administrator=true — the built-in Administrator stays enabled on this image." -ForegroundColor Yellow }
 
 if ([string]::IsNullOrWhiteSpace($env:PKR_VAR_win_iso_file)) {
     Write-Host "Choose the Windows Server 2025 ISO — pick one already on Proxmox storage, or upload from a local folder." -ForegroundColor Yellow

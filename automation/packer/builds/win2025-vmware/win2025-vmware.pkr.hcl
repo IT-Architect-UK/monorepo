@@ -21,9 +21,8 @@
 #
 #   2. Set credentials:
 #        export PKR_VAR_vsphere_password="your-vcenter-password"
-#        export PKR_VAR_winrm_password="PackerBuild2025!"
-#      The winrm_password MUST match the password in:
-#        http/win2025-vmware/autounattend.xml
+#        export PKR_VAR_winrm_password="<12+ chars, build-only>"
+#      Injected into http/win2025-vmware/autounattend.xml at build time.
 #
 # Build:
 #   packer init win2025-vmware.pkr.hcl
@@ -99,7 +98,15 @@ source "vsphere-iso" "win2025" {
   # ── autounattend.xml delivery via virtual CD ──────────────────────────────
   # Packer creates a virtual CD-ROM from the listed files.
   # Windows installer automatically searches attached drives for autounattend.xml.
-  cd_files = [abspath("${path.root}/../../http/win2025-vmware/autounattend.xml")]
+  # The password is injected INTO the autounattend at build time (the XML's
+  # placeholder is replaced), so there is exactly ONE source of truth.
+  cd_content = {
+    "autounattend.xml" = replace(
+      file("${path.root}/../../http/win2025-vmware/autounattend.xml"),
+      "WINRM_PASSWORD_PLACEHOLDER",
+      var.winrm_password
+    )
+  }
   cd_label = "autounattend"
 
   # ── Boot settings ────────────────────────────────────────────────────────
@@ -152,6 +159,7 @@ build {
   # Step 3: Seal — clear logs/temp, remove build account, sysprep + shutdown
   provisioner "powershell" {
     script = abspath("${path.root}/../../scripts/cleanup-windows.ps1")
+    environment_vars = ["KEEP_ADMINISTRATOR=${var.keep_administrator}"]
   }
 
   post-processor "manifest" {

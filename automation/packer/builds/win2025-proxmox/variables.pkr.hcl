@@ -41,11 +41,26 @@ variable "winrm_username" {
 
 variable "winrm_password" {
   # Injected into autounattend.xml at build time (single source of truth —
-  # whatever you set here IS the build account's password). The default
-  # matches the XML placeholder so a bare 'packer build .' still works.
+  # whatever you set here IS the build account's password, and the built-in
+  # Administrator's until first boot). No default on purpose: a password
+  # that lives in Git is public. The build wrappers generate a random one
+  # when nothing is supplied.
   type      = string
-  default   = "PackerBuild2025!"
+  default   = ""
   sensitive = true
+  validation {
+    condition     = length(var.winrm_password) >= 12
+    error_message = "Set winrm_password to 12 or more characters (export PKR_VAR_winrm_password=...), or use the build wrapper, which generates one."
+  }
+}
+
+variable "keep_administrator" {
+  # false (default): cleanup-windows.ps1 disables the built-in Administrator
+  # on the clone's first boot — logins come from cloud-init / the deploy
+  # playbook. true: keep it enabled with winrm_password, for troubleshooting
+  # while the toolbox is in development. Set from the toolbox build prompt.
+  type    = bool
+  default = false
 }
 
 variable "vm_cpu_count" {

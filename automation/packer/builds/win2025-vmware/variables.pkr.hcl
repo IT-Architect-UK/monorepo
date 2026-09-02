@@ -11,9 +11,21 @@ variable "winrm_username" {
 }
 
 variable "winrm_password" {
+  # Injected into autounattend.xml at build time; no default on purpose.
   type      = string
   default   = ""
   sensitive = true
+  validation {
+    condition     = length(var.winrm_password) >= 12
+    error_message = "Set winrm_password to 12 or more characters (export PKR_VAR_winrm_password=...)."
+  }
+}
+
+variable "keep_administrator" {
+  # false (default): the built-in Administrator is disabled on first boot.
+  # true: keep it enabled with winrm_password, for troubleshooting.
+  type    = bool
+  default = false
 }
 
 variable "vm_cpu_count" {

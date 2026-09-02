@@ -55,7 +55,7 @@ The build is fully unattended — no custom "no-prompt" ISO is required. Disk-fi
 boot order means the post-install reboot boots Windows directly and never hits the
 "Press any key" DVD prompt. (`scripts/make-windows-noprompt-iso.sh` remains available
 as optional belt-and-braces if a specific ISO ever misbehaves.)
-| WinRM password | Whatever you set as `winrm_password` **is** the build account's password — it's injected into the unattended install at build time. Default `PackerBuild2025!`; the account is removed when the image is sealed |
+| WinRM password | Whatever you set as `winrm_password` **is** the build account's password — it's injected into the unattended install at build time. No default: the wrappers generate a random one if you set nothing (the account is removed on first boot). Set `keep_administrator=true` to leave the built-in Administrator enabled with that password for troubleshooting; otherwise it is disabled on first boot. The account is removed when the image is sealed |
 
 ## Key variables (`variables.pkr.hcl`)
 
@@ -65,7 +65,8 @@ as optional belt-and-braces if a specific ISO ever misbehaves.)
 | `image_name` | `t-win2025` | Template name prefix (timestamp appended) |
 | `win_iso_file` | `local:iso/windows-server-2025.iso` | Windows ISO volid |
 | `virtio_iso_file` | `local:iso/virtio-win.iso` | VirtIO drivers ISO volid |
-| `winrm_username` / `winrm_password` | `packer` / — | Build account (must match autounattend.xml) |
+| `winrm_username` / `winrm_password` | `packer` / — | Build account (injected into autounattend.xml; random if unset) |
+| `keep_administrator` | `false` | Keep the built-in Administrator enabled (troubleshooting); default disables it on first boot |
 
 ## After the build
 

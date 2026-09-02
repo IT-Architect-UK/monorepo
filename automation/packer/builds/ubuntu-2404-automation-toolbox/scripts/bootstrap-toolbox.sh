@@ -155,8 +155,26 @@ fi
 # manual UI setup; the build injects it into the unattended install)
 WINRM_PW="${WINRM_PASSWORD:-}"
 if [[ -z "${WINRM_PW}" && "${NONINTERACTIVE}" != "1" ]]; then
-    read -r -s -p "WinRM password for Windows golden builds (Enter = skip): " WINRM_PW; echo
+    read -r -s -p "WinRM password for Windows golden builds (Enter = random per build): " WINRM_PW; echo
 fi
+# Windows goldens disable the built-in Administrator on first boot. Keeping it
+# enabled (with WINRM_PASSWORD) helps troubleshooting while in development.
+KEEP_WINDOWS_ADMIN="${KEEP_WINDOWS_ADMIN:-0}"
+if [[ "${KEEP_WINDOWS_ADMIN}" != "1" && "${NONINTERACTIVE}" != "1" ]]; then
+    read -r -p "Keep the built-in Administrator enabled on Windows golden images, for troubleshooting? (y/N): " ans
+    [[ "${ans}" =~ ^[Yy] ]] && KEEP_WINDOWS_ADMIN=1
+fi
+if [[ "${KEEP_WINDOWS_ADMIN}" == "1" && -z "${WINRM_PW}" ]]; then
+    if [[ "${NONINTERACTIVE}" == "1" ]]; then
+        warn "KEEP_WINDOWS_ADMIN=1 but no WINRM_PASSWORD — Administrator would keep a random password; NOT enabling it."
+        KEEP_WINDOWS_ADMIN=0
+    else
+        while [[ ${#WINRM_PW} -lt 12 ]]; do
+            read -r -s -p "WinRM/Administrator password for Windows goldens (12+ chars): " WINRM_PW; echo
+        done
+    fi
+fi
+KEEP_ADMIN_VAL="false"; [[ "${KEEP_WINDOWS_ADMIN}" == "1" ]] && KEEP_ADMIN_VAL="true"
 
 # ─── Validate the Proxmox credential BEFORE storing it anywhere ──────────────
 # A wrong user/token pairing (e.g. token owned by claude@pam entered against
@@ -301,10 +319,10 @@ if [[ -z "${ENV_ID}" ]]; then
         --arg pub "${PROV_PUBKEY}" --arg winrm "${WINRM_PW}" \
         --arg surl "${SEMAPHORE_URL}" --arg spid "${PROJECT_ID}" --arg dtok "${DEPLOY_TOKEN}" \
         --arg dauser "${DEPLOY_ADMIN_USER}" --arg dapass "${DEPLOY_ADMIN_PASSWORD}" \
-        --arg glt "${GITHUB_LOGS_TOKEN}" --arg trusted "${TRUSTED_SUBNETS}" \
+        --arg glt "${GITHUB_LOGS_TOKEN}" --arg trusted "${TRUSTED_SUBNETS}" --arg keepadm "${KEEP_ADMIN_VAL}" \
         '{
           name: "Proxmox", project_id: $pid, json: "{}",
-          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub, SEMAPHORE_URL: $surl, SEMAPHORE_PROJECT_ID: $spid, DEPLOY_ADMIN_USER: $dauser, TRUSTED_SUBNETS: $trusted} | tojson),
+          env: ({PROXMOX_HOST: $host, PROXMOX_USER: $user, PROXMOX_NODE: $node, PROXMOX_TOKEN_ID: $tid, PROVISION_SSH_PUBKEY: $pub, SEMAPHORE_URL: $surl, SEMAPHORE_PROJECT_ID: $spid, DEPLOY_ADMIN_USER: $dauser, TRUSTED_SUBNETS: $trusted, PKR_VAR_keep_administrator: $keepadm} | tojson),
           secrets: ([
             (if $tsec  != "" then {type: "env", name: "PROXMOX_TOKEN_SECRET", secret: $tsec,  operation: "create"} else empty end),
             (if $pw    != "" then {type: "env", name: "PROXMOX_PASSWORD",     secret: $pw,    operation: "create"} else empty end),
@@ -491,7 +509,7 @@ else
 fi
 
 for GOLD in "Build Golden Image — Ubuntu 26.04|automation/packer/builds/ubuntu-2604-proxmox/build-ubuntu-2604-proxmox.sh|Packer-build a fresh Ubuntu 26.04 template on Proxmox." \
-            "Build Golden Image — Windows 2025|automation/packer/builds/win2025-proxmox/build-win2025-proxmox.sh|Packer-build a Windows Server 2025 template. Requires the Windows ISO pre-uploaded and WINRM_PASSWORD in the variable group."; do
+            "Build Golden Image — Windows 2025|automation/packer/builds/win2025-proxmox/build-win2025-proxmox.sh|Packer-build a Windows Server 2025 template. Requires the Windows ISO pre-uploaded. WINRM_PASSWORD in the variable group is optional (random per build if unset) unless PKR_VAR_keep_administrator=true."; do
     G_NAME="${GOLD%%|*}"; G_REST="${GOLD#*|}"; G_PLAY="${G_REST%%|*}"; G_DESC="${G_REST#*|}"
     G_VIEW="${VIEW_TOOLBOX_ID:-0}"   # golden image builds live under Deployment Toolbox
     G_ID=$(echo "${TPL_JSON}" | find_id "${G_NAME}")
@@ -947,6 +965,18 @@ if [[ -n "${TRUSTED_SUBNETS}" ]]; then
     fi
 else
     warn "No trusted subnets set — servers built from here get SSH + ICMP only until TRUSTED_SUBNETS is added under Semaphore > Environment > Proxmox."
+fi
+
+# ─── 9c. Built-in Administrator on Windows goldens ──────────────────────────
+# Recorded in the variable group so the Windows build job picks it up.
+if set_semaphore_env_var "${ENV_ID}" PKR_VAR_keep_administrator "${KEEP_ADMIN_VAL}"; then
+    if [[ "${KEEP_ADMIN_VAL}" == "true" ]]; then
+        warn "Windows goldens will keep the built-in Administrator ENABLED (password = WINRM_PASSWORD). Set PKR_VAR_keep_administrator=false in Semaphore > Environment > Proxmox when done troubleshooting."
+    else
+        log "Windows goldens will disable the built-in Administrator on first boot (PKR_VAR_keep_administrator=false)."
+    fi
+else
+    warn "Could not save PKR_VAR_keep_administrator to Semaphore — set it under Environment > Proxmox if needed."
 fi
 
 # ─── 10. Golden image templates ──────────────────────────────────────────────

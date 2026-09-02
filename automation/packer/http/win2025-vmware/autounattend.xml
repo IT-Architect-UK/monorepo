@@ -9,8 +9,11 @@
   VMware Tools are installed by provision-windows.ps1 after the OS is up.
 
   IMPORTANT — password:
-    Change "PackerBuild2025!" here and set the same value in the env var:
-      export PKR_VAR_winrm_password="PackerBuild2025!"
+    WINRM_PASSWORD_PLACEHOLDER is replaced at build time with the value of
+    PKR_VAR_winrm_password (the template's cd_content does the substitution),
+    so no real password is ever stored in this file. The same value is set
+    for the built-in Administrator; cleanup-windows.ps1 disables that
+    account on first boot unless keep_administrator=true.
 -->
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
 
@@ -161,7 +164,7 @@
 
       <AutoLogon>
         <Password>
-          <Value>PackerBuild2025!</Value>
+          <Value>WINRM_PASSWORD_PLACEHOLDER</Value>
           <PlainText>true</PlainText>
         </Password>
         <Enabled>true</Enabled>
@@ -183,13 +186,13 @@
 
       <UserAccounts>
         <AdministratorPassword>
-          <Value>PackerBuild2025!</Value>
+          <Value>WINRM_PASSWORD_PLACEHOLDER</Value>
           <PlainText>true</PlainText>
         </AdministratorPassword>
         <LocalAccounts>
           <LocalAccount wcm:action="add">
             <Password>
-              <Value>PackerBuild2025!</Value>
+              <Value>WINRM_PASSWORD_PLACEHOLDER</Value>
               <PlainText>true</PlainText>
             </Password>
             <Group>Administrators</Group>
