@@ -23,7 +23,7 @@ Container runtime and orchestration installers for Ubuntu. Full usage in each sc
 |--------|---------|
 | `kubernetes/install-master-node.sh` | kubeadm control-plane node |
 | `kubernetes/install-worker-node.sh` | kubeadm worker node (join an existing cluster) |
-| `kubernetes/install-management-node.sh` | Management workstation: kubectl + tooling |
+| `kubernetes/install-management-node.sh` | Management workstation: kubectl + tooling. Helm is pinned (`HELM_VERSION`, default v3.21.3) and verified against its published SHA256 |
 | `kubernetes/install-minikube-kubectl-dashboard.sh` | Single-node Minikube with dashboard, auto-restart on reboot (8 CPU / 16 GB) |
 
 ## Portainer

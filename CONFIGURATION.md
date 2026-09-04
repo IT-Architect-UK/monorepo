@@ -264,7 +264,21 @@ all:
 Edit `automation/ansible/inventory/group_vars/all.yml`:
 - `admin_user` — the username Ansible will use on managed hosts
 - `ssh_port` — usually 22
-- `ufw_rules` — ports to open in the firewall
+- `firewall_extra_rules` — extra ACCEPT rules on top of the iptables baseline (per group or host)
+- `firewall_mgmt_subnets` / `firewall_allowed_tcp_ports` — only for strict mode
+
+Your trusted subnets are private and are **not** kept in the repo. Set them as
+the `TRUSTED_SUBNETS` environment variable (comma-separated CIDRs):
+
+```bash
+cp automation/ansible/.env.example automation/ansible/.env   # git-ignored
+# edit .env, then before each CLI run:
+source automation/ansible/.env
+```
+
+On the Deployment Toolbox the value is prompted for during the build and stored
+in Semaphore's *Proxmox* variable group, so nothing needs sourcing there.
+Details: `automation/ansible/README.md` → Firewall.
 
 ### Step 3 — Distribute your SSH key
 

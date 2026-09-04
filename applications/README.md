@@ -9,7 +9,7 @@ All scripts target Ubuntu 24.04 unless noted. Docker-based installers assume Doc
 | `awx/install-awx.sh` | AWX (Ansible web UI) on Minikube via AWX Operator — needs 8 CPU / 16 GB RAM | Kubernetes |
 | `bacula/install-bacula.sh` | Bacula backup server (Director, Storage & File daemons), optional Bacularis web UI | apt |
 | `homepage/install-homepage.sh` | Homepage status dashboard (gethomepage.dev) on port 3002 — the Deployment Toolbox launcher page | Docker |
-| `webmin/install-webmin.sh` | Webmin server administration UI on port 10000 | apt (vendor repo) |
+| `webmin/install-webmin.sh` | Webmin server administration UI on port 10000. Repo setup script pinned to a release tag (`WEBMIN_SETUP_TAG`) and SHA256-checked, never fetched from master | apt (vendor repo) |
 | `wordpress/install-wordpress.sh` | WordPress with MySQL | Docker |
 
 ## Usage

@@ -2,6 +2,7 @@
 
 [![Validate](https://github.com/IT-Architect-UK/monorepo/actions/workflows/validate.yml/badge.svg)](https://github.com/IT-Architect-UK/monorepo/actions/workflows/validate.yml)
 [![Lint](https://github.com/IT-Architect-UK/monorepo/actions/workflows/lint.yml/badge.svg)](https://github.com/IT-Architect-UK/monorepo/actions/workflows/lint.yml)
+[![Test](https://github.com/IT-Architect-UK/monorepo/actions/workflows/test.yml/badge.svg)](https://github.com/IT-Architect-UK/monorepo/actions/workflows/test.yml)
 
 A production-grade infrastructure automation library built by a Senior IT Infrastructure & Security Architect. This repository demonstrates end-to-end automation across on-premises hypervisors, public cloud, and everything in between — from bare-metal provisioning to golden image pipelines, configuration management, monitoring, and secure certificate management.
 
@@ -23,7 +24,7 @@ Everything here is written to be used in real environments, not just demonstrate
 | **Backup & Recovery** | Restic · Veeam · AWS Backup |
 | **Linux Administration** | Ubuntu · Debian · Bash · server hardening · storage · networking |
 | **Windows Administration** | PowerShell · Windows Server 2025 · AD DS · RDS · Chocolatey |
-| **CI/CD** | GitHub Actions · automated syntax validation on every push |
+| **CI/CD** | GitHub Actions · syntax validation, linting and tests on every push · n8n workflow deployment |
 
 ---
 
@@ -33,12 +34,16 @@ Everything here is written to be used in real environments, not just demonstrate
 monorepo/
 │
 ├── .github/workflows/
-│   └── validate.yml              # CI: bash -n, ansible --syntax-check, packer validate
+│   ├── validate.yml              # CI: bash -n, ansible --syntax-check, packer validate, PowerShell parse
+│   ├── lint.yml                  # CI: shellcheck, yamllint, ansible-lint, PSScriptAnalyzer
+│   ├── test.yml                  # CI: pytest suites + py_compile of every Python file
+│   └── deploy-n8n.yml            # CD: push automation/n8n/workflows to the n8n instance on merge to main
 │
 ├── automation/
 │   ├── ansible/                  # Ansible playbooks and roles
-│   │   ├── playbooks/            # server-baseline, TLS, monitoring, backup, Docker, SSH keys
-│   │   ├── roles/                # common, tls, monitoring-agent, backup-restic
+│   │   ├── playbooks/            # server-baseline, TLS, firewall, monitoring, Docker, Windows, EspoCRM, n8n
+│   │   ├── roles/                # common, tls, monitoring-agent, webmin, swapfile, vitals, microsoft,
+│   │   │                         #   oauth2-proxy, meshcentral, espocrm, n8n
 │   │   └── inventory/            # hosts.yml + group_vars
 │   ├── packer/                   # Golden image pipelines — one subdirectory per template
 │   │   ├── builds/
@@ -54,12 +59,15 @@ monorepo/
 │   │   ├── environments/         # Var files shared across more than one template
 │   │   ├── scripts/              # Shell + PowerShell provisioners (shared)
 │   │   └── http/                 # cloud-init user-data + Windows autounattend.xml
-│   └── python/                   # Azure inventory, infrastructure health checks, Prometheus queries
+│   ├── python/                   # Azure inventory, infrastructure health checks, Prometheus queries
+│   ├── n8n/                      # n8n workflow definitions (source of truth) + deploy.py + tests
+│   └── calcom/                   # Cal.com event-type sync (sync-event-types.py) + tests
 │
 ├── infrastructure/
 │   ├── hypervisors/
 │   │   ├── proxmox/              # VM + LXC deployment scripts
-│   │   └── vmware/               # vSphere templates and provisioning scripts
+│   │   ├── vmware/               # vSphere templates and provisioning scripts
+│   │   └── hyper-v/              # Scaffolded — empty placeholder
 │   ├── identity/                 # Active Directory forest, OUs, groups, GPO baselines
 │   ├── servers/
 │   │   ├── linux/configuration/  # Baseline hardening, users, TLS, branding, IPv6
@@ -96,7 +104,10 @@ monorepo/
 │
 ├── image-maintenance/            # Golden image refresh: AWS AMI, Azure/GCP images, Proxmox templates, sysprep
 ├── applications/                 # AWX, Bacula, Homepage, Webmin, WordPress deployment scripts
-├── projects/blockchain/          # Cardano, COTI, World Mobile node deployment
+├── projects/
+│   ├── web/                      # itsurgery.me and it-architect.uk — Eleventy static sites on Netlify
+│   ├── blockchain/               # Cardano, COTI, World Mobile node deployment
+│   └── trading/                  # wmtx-arbitrage — PAUSED, not maintained (see projects/README.md)
 ├── scripts/ & utilities/         # Standalone helper scripts (repo sync, RDS certs, etc.)
 └── CONFIGURATION.md              # Full credentials/setup guide for every platform above
 ```
@@ -107,7 +118,7 @@ monorepo/
 
 ### Packer Golden Image Pipeline
 
-A complete multi-platform image factory. One set of Ansible playbooks and shell provisioners, eight build targets — each template lives in its own self-contained `builds/<template>/` directory:
+A complete multi-platform image factory. One set of Ansible playbooks and shell provisioners, nine build targets — each template lives in its own self-contained `builds/<template>/` directory:
 
 ```bash
 cd automation/packer/builds/ubuntu-2604-proxmox
@@ -149,12 +160,12 @@ Covers: system updates · SSH hardening · fail2ban · unattended-upgrades · NT
 
 ### GitHub Actions CI
 
-Every push runs two workflows in parallel. **Validate** asks "does it parse?":
+Every push runs three workflows in parallel. **Validate** asks "does it parse?":
 
 ```
 ✔ Shell script syntax    (bash -n on all .sh files)
 ✔ Ansible syntax         (ansible-playbook --syntax-check on all playbooks)
-✔ Packer validate        (all 8 templates validated independently)
+✔ Packer validate        (all 9 templates validated independently)
 ✔ PowerShell syntax      (parser-based check on all .ps1 files)
 ```
 
@@ -165,6 +176,13 @@ Every push runs two workflows in parallel. **Validate** asks "does it parse?":
 ✔ yamllint               (every YAML file — .yamllint)
 ✔ ansible-lint           (playbooks + roles, production profile — .ansible-lint)
 ✔ PSScriptAnalyzer       (all .ps1 files, Warning + Error — PSScriptAnalyzerSettings.psd1)
+```
+
+**Test** asks "does it work?":
+
+```
+✔ pytest                 (automation/n8n and automation/calcom suites, fake HTTP — no live services)
+✔ py_compile             (every .py file in the repository)
 ```
 
 Each linter's config file at the repository root names the rules that are

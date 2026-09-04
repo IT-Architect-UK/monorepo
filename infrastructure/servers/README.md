@@ -29,4 +29,4 @@ Elevated PowerShell; all have comment-based help (`Get-Help .\<script>.ps1 -Full
 | `os/setup-hdds.ps1` | Initialise, partition, and format new disks |
 | `os/reset-local-policies.ps1` | Reset local security policies to defaults |
 | `os/Sync-Monorepo.ps1` | Clone/pull this repo locally |
-| `packages/install-chocolatey-packages.ps1` | Install Chocolatey + a standard package set |
+| `packages/install-chocolatey-packages.ps1` | Install Chocolatey + a standard package set. The Chocolatey installer is pinned (2.7.4) and SHA256-checked before it runs |

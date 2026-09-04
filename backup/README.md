@@ -12,7 +12,7 @@ backup/
 │   │   ├── backup-to-local.sh       # Back up to local disk/NAS
 │   │   └── backup-to-s3.sh          # Back up to AWS S3 / Backblaze B2
 │   └── veeam-agent/
-│       └── install-veeam-agent-linux.sh  # Veeam Agent for Linux (free)
+│       └── install-veeam-agent-linux.sh  # Veeam Agent for Linux (free) — repo package pinned (VEEAM_RELEASE_VERSION) + SHA256-checked
 └── cloud/
     ├── aws/
     │   └── aws-backup-setup.sh      # AWS Backup centralised policy

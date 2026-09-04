@@ -23,8 +23,9 @@ Ansible automates repetitive IT tasks: server configuration, software deployment
 
 ```
 ansible/
-├── playbooks/              # What to do
+├── playbooks/              # What to do (full list below, and in playbooks/README.md)
 │   ├── server-baseline.yml      # Harden and configure new servers
+│   ├── configure-iptables.yml   # Firewall ruleset, standalone
 │   ├── deploy-docker.yml        # Install Docker Engine
 │   ├── configure-tls.yml        # Install Let's Encrypt certificates
 │   ├── deploy-monitoring.yml    # Deploy Prometheus node_exporter
@@ -35,10 +36,18 @@ ansible/
 │   └── group_vars/
 │       └── all.yml              # Default variables for all servers
 │
-└── roles/                  # Reusable task libraries
-    ├── common/              # Base OS configuration (called by server-baseline)
-    ├── tls/                 # TLS certificate management
-    ├── monitoring-agent/    # Prometheus node_exporter
+├── roles/                  # Reusable task libraries
+│   ├── common/              # Base OS configuration + firewall (called by server-baseline)
+│   ├── tls/                 # TLS certificate management
+│   ├── monitoring-agent/    # Prometheus node_exporter
+│   ├── webmin/              # Webmin admin UI (pinned, checksummed repo setup)
+│   ├── swapfile/, vitals/   # Swap file; system vitals
+│   ├── microsoft/           # Windows baseline pieces
+│   ├── oauth2-proxy/, meshcentral/, espocrm/, n8n/   # Business/platform services
+│
+├── requirements.yml        # Galaxy collections the roles need
+├── .env.example            # Site values for CLI runs (copy to .env — git-ignored)
+└── .yamllint / ansible-lint config lives at the repo root (.ansible-lint)
 ```
 
 ## 🚀 Getting Started
@@ -67,12 +76,24 @@ web_servers:
       ansible_host: 192.168.1.11   # ← change this to your server's IP
 ```
 
-### 3. Set your variables
+### 3. Install the collections
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+```
+
+### 4. Set your variables
 
 Open `inventory/group_vars/all.yml` and review the defaults. At minimum, change:
 - `admin_user` — the non-root user Ansible will create
 
-### 4. Test connectivity
+Private network detail (your trusted subnets) is **not** stored in the repo.
+For CLI runs, copy `.env.example` to `.env`, edit it, and `source .env` before
+running a playbook. On the Deployment Toolbox the same values come from
+Semaphore's *Proxmox* variable group and are set during the toolbox build.
+See [Firewall](#-firewall) below.
+
+### 5. Test connectivity
 
 ```bash
 # Test that Ansible can reach all servers
@@ -81,7 +102,7 @@ ansible all -i inventory/hosts.yml -m ping
 
 You should see `"ping": "pong"` for each server.
 
-### 5. Run your first playbook
+### 6. Run your first playbook
 
 ```bash
 # Apply baseline configuration to all servers
@@ -93,6 +114,40 @@ ansible-playbook -i inventory/hosts.yml playbooks/server-baseline.yml --limit we
 # Dry run — show what would change without making changes
 ansible-playbook -i inventory/hosts.yml playbooks/server-baseline.yml --check
 ```
+
+## 🔥 Firewall
+
+The `common` role applies the repo's iptables baseline
+(`infrastructure/networking/firewall/setup-iptables.sh`) to every host it
+builds. `configure-iptables.yml` applies the same script standalone.
+
+**Default (baseline) mode** — SSH from anywhere, ICMP from RFC-1918 ranges,
+and every port from the trusted subnets. **Strict mode** — only the listed
+ports, only from the management subnets (setting `firewall_mgmt_subnets`
+switches to strict).
+
+| Variable (`group_vars/all.yml`) | Source | Meaning |
+|---|---|---|
+| `firewall_trusted_subnets` | `TRUSTED_SUBNETS` env var (`.env` locally, Semaphore on the toolbox) | Comma-separated CIDRs that get every port. Empty = SSH + ICMP only. |
+| `firewall_mgmt_subnets` | inventory | Strict mode: the only source CIDRs allowed at all |
+| `firewall_allowed_tcp_ports` | inventory | Strict mode: the only TCP ports opened. Defaults to the SSH port; if you set it, include SSH yourself |
+| `firewall_extra_rules` | inventory (per group or host) | Extra ACCEPTs on top of the baseline in either mode, e.g. `- { port: 10000, source: "192.168.4.0/24" }`. `proto` defaults to `tcp`, `source` to anywhere. |
+
+How re-applies work:
+
+- The role writes the script to `/usr/local/sbin/setup-iptables.sh` and records
+  a fingerprint of the script plus the effective variables in
+  `/etc/iptables/.baseline-fingerprint`. The ruleset is re-applied only when
+  that fingerprint changes, so a routine run does not flush a working firewall
+  and the play reports `changed` only when it actually did something.
+- Rules declared in `firewall_extra_rules` are part of the baseline and survive
+  every re-apply. Rules added by hand on the host belong in the `LOCAL-INPUT`
+  chain, which the script preserves across re-applies; anything added by hand
+  directly to `INPUT` is lost on the next apply.
+- The ruleset is persisted with `iptables-persistent`.
+
+Never commit real CIDRs: `.env` is git-ignored and `.env.example` carries
+only placeholders.
 
 ## 🔐 Security — Ansible Vault
 
@@ -187,8 +242,8 @@ ansible web_servers -i inventory/hosts.yml -m shell -a "df -h /"
 → Configure passwordless sudo for the Ansible user, or add `--ask-become-pass` to the command.
 
 **Module not found errors?**
-→ Some tasks use community modules. Install them:
-  `ansible-galaxy collection install community.general`
+→ The roles use community collections. Install them all:
+  `ansible-galaxy collection install -r requirements.yml`
 
 **Playbook makes changes every run (not idempotent)?**
 → Check tasks for `command:` or `shell:` modules — these always report "changed".
