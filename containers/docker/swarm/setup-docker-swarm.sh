@@ -136,7 +136,7 @@ fi
     sudo iptables -A DOCKER-SWARM -p udp --dport 7946 -j ACCEPT
     sudo iptables -A DOCKER-SWARM -p udp --dport 4789 -j ACCEPT
     sudo iptables -A DOCKER-SWARM -p icmp --icmp-type echo-request -j ACCEPT
-    if sudo iptables-save > /etc/iptables/rules.v4; then
+    if sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null; then
         echo "IPTABLES rules saved successfully." | tee -a "$LOG_FILE"
     else
         echo "Error saving IPTABLES rules." | tee -a "$LOG_FILE"

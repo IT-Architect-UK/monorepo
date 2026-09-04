@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Installs Chocolatey and a standard set of software packages.
 
@@ -64,7 +64,8 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
 
 # ─── Connectivity check ──────────────────────────────────────────────────────
 Write-Log "Checking internet connectivity..."
-if (-not (Test-Connection -ComputerName '8.8.8.8' -Count 2 -Quiet)) {
+$connectivityTarget = '8.8.8.8'   # any always-up public address; only reachability is tested
+if (-not (Test-Connection -ComputerName $connectivityTarget -Count 2 -Quiet)) {
     Write-Log "No internet connectivity detected. Ensure the server has outbound access before running this script." -Level ERROR
     exit 1
 }

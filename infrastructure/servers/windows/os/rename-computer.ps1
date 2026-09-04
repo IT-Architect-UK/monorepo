@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Renames the local computer and restarts it to apply the change.
 

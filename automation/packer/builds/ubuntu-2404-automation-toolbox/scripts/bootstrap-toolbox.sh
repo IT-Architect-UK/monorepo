@@ -45,6 +45,7 @@
 # the ERR trap names the exact line and command that killed it.
 echo "[$(basename "${BASH_SOURCE[0]:-$0}")] starting as $(id -un 2>/dev/null || echo '?') in $(pwd)"
 set -euo pipefail
+# shellcheck disable=SC2154  # s is assigned inside the trap string itself
 trap 's=$?; echo "[$(basename "${BASH_SOURCE[0]:-$0}")] FATAL exit=$s at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
@@ -558,7 +559,6 @@ SEED_WTPL() { # SEED_WTPL <name> <playbook> <description> <survey-json> [invento
 WIN_TARGET='[{"name":"target_host","title":"Server IP/FQDN (blank = all Windows Baseline hosts)","type":"","required":false},
              {"name":"target_user","title":"WinRM user (blank = it-admin)","type":"","required":false},
              {"name":"target_password","title":"WinRM password (blank = deploy default)","type":"secret","required":false}]'
-WYESNO='{"type":"enum","required":false,"values":[{"name":"Yes","value":"true"},{"name":"No","value":"false"}]}'
 
 SEED_WTPL "Configure Windows Disks" \
     "automation/ansible/playbooks/configure-windows-disks.yml" \

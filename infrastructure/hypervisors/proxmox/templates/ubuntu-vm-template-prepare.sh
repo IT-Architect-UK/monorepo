@@ -38,7 +38,7 @@ sudo rm -rf /tmp/*
 sudo rm -rf /var/tmp/*
 
 # Clear command history
-sudo cat /dev/null > ~/.bash_history
+: > ~/.bash_history
 
 # Shutdown the system
 sudo shutdown now

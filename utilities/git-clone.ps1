@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 This script ensures a fresh copy of a specified Git repository is downloaded to the local system.
 

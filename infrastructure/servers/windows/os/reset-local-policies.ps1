@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Resets all local Group Policy and security policy settings to Windows defaults.
 

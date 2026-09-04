@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Installs Active Directory Domain Services and promotes the server to a new forest root DC.
 

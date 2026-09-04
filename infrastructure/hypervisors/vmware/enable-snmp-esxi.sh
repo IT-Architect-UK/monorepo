@@ -1,3 +1,5 @@
+#!/bin/sh
+# Run in the ESXi shell (busybox sh — there is no bash on ESXi).
 # Enable SNMP service
 esxcli system snmp set --enable true
 

@@ -198,7 +198,7 @@
 - name: Check whether the dashboard certificate exists
   ansible.builtin.stat:
     path: "/etc/letsencrypt/live/{{ n8n_dashboard_domain }}/fullchain.pem"
-  register: dashboard_cert
+  register: n8n_dashboard_cert
   when: n8n_dashboard_domain | default('', true) | length > 0
 
 - name: Deploy the dashboard site (HTTP only until a certificate exists)
@@ -209,7 +209,7 @@
     group: root
     mode: "0644"
   vars:
-    dashboard_tls_ready: "{{ dashboard_cert.stat.exists | default(false) }}"
+    dashboard_tls_ready: "{{ n8n_dashboard_cert.stat.exists | default(false) }}"
   when: n8n_dashboard_domain | default('', true) | length > 0
   notify: Reload nginx
 
@@ -251,7 +251,7 @@
 - name: Re-check for the dashboard certificate
   ansible.builtin.stat:
     path: "/etc/letsencrypt/live/{{ n8n_dashboard_domain }}/fullchain.pem"
-  register: dashboard_cert_after
+  register: n8n_dashboard_cert_after
   when: n8n_dashboard_domain | default('', true) | length > 0
 
 - name: Deploy the dashboard site again, now with TLS
@@ -262,10 +262,10 @@
     group: root
     mode: "0644"
   vars:
-    dashboard_tls_ready: "{{ dashboard_cert_after.stat.exists | default(false) }}"
+    dashboard_tls_ready: "{{ n8n_dashboard_cert_after.stat.exists | default(false) }}"
   when:
     - n8n_dashboard_domain | default('', true) | length > 0
-    - dashboard_cert_after.stat.exists | default(false)
+    - n8n_dashboard_cert_after.stat.exists | default(false)
   notify: Reload nginx
 
 - name: Validate the assembled nginx configuration with TLS

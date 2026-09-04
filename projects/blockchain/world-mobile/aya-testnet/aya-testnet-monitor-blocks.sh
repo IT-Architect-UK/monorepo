@@ -98,7 +98,7 @@ while true; do
             node_id=$(decode_node_id $hex_part)
             echo "Hex part: $hex_part"
             echo "Node ID: $node_id"
-            if [[ $node_id == $local_node_id ]]; then
+            if [[ $node_id == "$local_node_id" ]]; then
               echo "New Block Produced by: Your Node ($node_id): $i"
             else
               echo "New Block Produced by: $node_id: $i"

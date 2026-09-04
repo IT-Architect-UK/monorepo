@@ -63,7 +63,7 @@
       run_once: true
 
     - name: Authorise control node public key on managed host
-      ansible.builtin.authorized_key:
+      ansible.posix.authorized_key:
         user: "{{ remote_ansible_user }}"
         key: "{{ control_node_pub_key }}"
         state: present

@@ -44,7 +44,7 @@ master_setup() {
   log "Setting up kubeconfig..."
   mkdir -p $HOME/.kube | tee -a $LOG_FILE
   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config | tee -a $LOG_FILE
-  sudo chown $(id -u):$(id -g) $HOME/.kube/config | tee -a $LOG_FILE
+  sudo chown "$(id -u):$(id -g)" "$HOME/.kube/config" | tee -a "$LOG_FILE"
 
   log "Deploying Calico network..."
   kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml | tee -a $LOG_FILE

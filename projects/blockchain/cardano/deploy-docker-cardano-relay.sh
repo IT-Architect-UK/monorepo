@@ -81,7 +81,7 @@ EOF
 echo "Running Prometheus container..."
 docker run --detach --name prometheus \
   --network cardano-network \
-  -v $(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml \
+  -v "$(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml" \
   -p 9090:9090 \
   prom/prometheus
 

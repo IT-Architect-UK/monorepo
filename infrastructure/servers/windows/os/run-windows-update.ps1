@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Installs all available Windows Updates and optionally reboots.
 

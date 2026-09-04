@@ -78,7 +78,7 @@
       vm.swappiness = {{ swapfile_swappiness }}
   register: swapfile_swappiness_file
 
-- name: Apply swappiness now
+- name: Apply swappiness now  # noqa: no-handler — must take effect before the swap tasks below, not at play end
   ansible.builtin.command: sysctl -p /etc/sysctl.d/60-swappiness.conf
   changed_when: true
   when: swapfile_swappiness_file is changed

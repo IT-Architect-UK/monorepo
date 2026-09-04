@@ -1,0 +1,97 @@
+# =============================================================================
+# lint.yml — Static analysis for every push and pull request
+# =============================================================================
+# validate.yml answers "does it parse?". These four jobs answer "is it sound?":
+#   1. shellcheck        — every .sh, warning level and above   (.shellcheckrc)
+#   2. yamllint          — every YAML file                      (.yamllint)
+#   3. ansible-lint      — playbooks and roles, production profile (.ansible-lint)
+#   4. PSScriptAnalyzer  — every .ps1, Warning + Error   (PSScriptAnalyzerSettings.psd1)
+#
+# All four are blocking. The backlog was cleared when they were introduced;
+# each config file records the rules that are deliberately relaxed and why.
+# Run any of them locally with the commands in the matching config file.
+# =============================================================================
+
+name: Lint
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  shellcheck:
+    name: shellcheck (bash)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install shellcheck
+        run: sudo apt-get update -q && sudo apt-get install -y shellcheck && shellcheck --version | head -2
+
+      - name: Check all .sh files
+        run: |
+          # -print0/-d '' because some script names contain spaces.
+          FAIL=0
+          while IFS= read -r -d '' f; do
+            if shellcheck -S warning "$f"; then
+              echo "  ✔  $f"
+            else
+              echo "  ✘  $f"
+              FAIL=$((FAIL + 1))
+            fi
+          done < <(find . -name "*.sh" -not -path "./.git/*" -print0 | sort -z)
+          echo ""
+          echo "Failed: $FAIL"
+          exit $FAIL
+
+  yamllint:
+    name: yamllint (YAML)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install yamllint
+        run: pip install --quiet yamllint && yamllint --version
+
+      - name: Lint all YAML
+        run: yamllint --strict .
+
+  ansible-lint:
+    name: ansible-lint (playbooks + roles)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: automation/ansible
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install ansible-lint and the collections the code uses
+        run: |
+          pip install --quiet ansible-lint yamllint
+          ansible-galaxy collection install -r requirements.yml
+          ansible-lint --version
+
+      - name: Lint
+        run: ansible-lint
+
+  psscriptanalyzer:
+    name: PSScriptAnalyzer (PowerShell)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Analyse all .ps1 files
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+          $results | Format-Table -AutoSize ScriptName, Line, Severity, RuleName, Message | Out-String -Width 200 | Write-Host
+          Write-Host ""
+          Write-Host "Findings: $($results.Count)"
+          if ($results.Count -gt 0) { exit 1 }

@@ -8,6 +8,11 @@
 # Queries RDS configuration for Connection Broker and Certificate Common Name dynamically.
 # Supports diagnostic mode: Run with -diagnostic to simulate actions without making changes.
 
+# The temporary PFX exists only for the seconds between export and import, so
+# its password is a random throwaway generated per run; Export/Import-PfxCertificate
+# require it as a SecureString, hence the plaintext conversion the rule flags.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '',
+    Justification = 'Random per-run password for a temporary PFX that is deleted after import.')]
 param(
     [switch]$diagnostic
 )
@@ -18,7 +23,7 @@ $ArchiveDir = "$ScriptDir\Archive"
 $StateFile = "$ScriptDir\current_thumbprint.txt"
 $LogFile = "$ScriptDir\RdsCertRenew.log"
 $TempPfxPath = "$ScriptDir\rds_cert_temp.pfx"
-$TempPfxPassword = "TempPassword123!"  # Change to a secure password; consider using SecureString from a vault in production
+$TempPfxPassword = -join ((48..57 + 65..90 + 97..122) | Get-Random -Count 24 | ForEach-Object { [char]$_ })  # random, per run, never stored
 
 # Ensure directories exist
 if (-not (Test-Path $ArchiveDir)) { New-Item -Path $ArchiveDir -ItemType Directory | Out-Null }

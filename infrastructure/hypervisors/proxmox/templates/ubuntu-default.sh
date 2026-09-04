@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 # --- Helpers ---
@@ -12,7 +12,6 @@ elif [ x$1 = x"postcustomization" ]; then
     echo "Do Postcustomization tasks"
 
 echo "Setting Variables"
-LOG_FILE="/logs/vmware-customisation-github-clone.log"
 SOURCE_FILES_DIR="/source-files"
 REPO_URL="https://github.com/IT-Architect-UK/monorepo.git"
 REPO_NAME=$(basename -s .git "$REPO_URL")

@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Imports a TLS certificate into Windows and binds it to an IIS website.
@@ -54,6 +54,13 @@
 #>
 
 [CmdletBinding()]
+# The PFX is an intermediate created and deleted by this script; its password
+# is a random throwaway by default and only needs to reach Import-PfxCertificate
+# as a SecureString, hence the plaintext parameter and conversion.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', 'PfxPassword',
+    Justification = 'Random per-run password for a temporary PFX deleted after import.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '',
+    Justification = 'Same temporary PFX password; Import-PfxCertificate requires a SecureString.')]
 param(
     [Parameter(Mandatory)] [string]$CertPath,
     [Parameter()]          [string]$KeyPath,

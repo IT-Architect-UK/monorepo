@@ -37,7 +37,7 @@ Write-Output "Creating Baseline AD OU Objects"
 # Pre-execution checks
 # Check if the script is running on a domain member server
 try {
-    $domainCheck = Get-WmiObject Win32_ComputerSystem
+    $domainCheck = Get-CimInstance -ClassName Win32_ComputerSystem
     if ($domainCheck.PartOfDomain -eq $false) {
         Write-Error "This script requires the server it's running on to be a domain member."
         exit
@@ -48,7 +48,6 @@ try {
 }
 # Check if the user is a domain admin
 try {
-    $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
     $domainAdminGroupSID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-21domain-512")
     $domainAdmins = [System.Security.Principal.WindowsPrincipal]::new([System.Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole($domainAdminGroupSID)
     if (-not $domainAdmins) {

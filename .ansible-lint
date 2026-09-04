@@ -1,0 +1,16 @@
+# ansible-lint configuration — enforced by .github/workflows/lint.yml.
+# Run locally from automation/ansible with: ansible-lint
+profile: production
+skip_list:
+  # Task names here put the variable where the sentence needs it ("Grow OS
+  # disk to {{ vm_disk_gb }}G", "Apply VLAN tag {{ vm_vlan_tag }} to net0").
+  # Forcing every template to the end makes the log line worse, not better.
+  - name[template]
+  # Roles monitoring-agent and oauth2-proxy use hyphens. Renaming them
+  # touches every playbook that references them and any Semaphore template
+  # built on those names, so it is a deliberate change of its own, not a
+  # lint fix.
+  - role-name
+exclude_paths:
+  - .git/
+  - .cache/

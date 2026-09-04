@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Initialises and formats all unformatted (RAW) hard disks on the server.
 

@@ -14,7 +14,7 @@ mkdir -p "$TARGET_DIR" || { echo "Error: Failed to create $TARGET_DIR"; exit 1; 
 mkdir -p "$TMP_DIR" || { echo "Error: Failed to create $TMP_DIR"; exit 1; }
 
 # Clear out the cli directory to start fresh
-rm -rf "$TARGET_DIR"/* || { echo "Error: Failed to remove contents of $TARGET_DIR"; exit 1; }
+rm -rf "${TARGET_DIR:?}"/* || { echo "Error: Failed to remove contents of $TARGET_DIR"; exit 1; }
 
 # Fetch the latest release information from GitHub
 RELEASE_INFO=$(curl -s https://api.github.com/repos/IntersectMBO/cardano-cli/releases/latest)

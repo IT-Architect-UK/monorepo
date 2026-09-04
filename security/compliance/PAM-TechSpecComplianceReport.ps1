@@ -1,4 +1,4 @@
-# Introduction Section
+﻿# Introduction Section
 <#
 .SYNOPSIS
     This script audits system PAM hardening settings against desired values without modifying them.

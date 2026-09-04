@@ -91,4 +91,3 @@ unattended_upgrades_auto_reboot_time: "03:00"
 # Proxmox Backup Server in the garage-office estate, once that server is
 # online. The restic role formerly configured here never ran on any host —
 # audited 2026-08-28. See the pbs-client role when it lands.
-

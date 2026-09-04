@@ -1,0 +1,17 @@
+# yamllint configuration — enforced by .github/workflows/lint.yml.
+# Run locally with: yamllint .
+extends: relaxed
+rules:
+  # Long lines are mostly deliberate (URLs, one-line jq/jinja); not worth
+  # wrapping for the linter's sake.
+  line-length: disable
+  # Aligned tables (key:   value) are used on purpose in var files and the
+  # CI workflow; allow any spacing after a colon or comma.
+  colons:
+    max-spaces-after: -1
+  commas:
+    max-spaces-after: -1
+ignore: |
+  .git/
+  node_modules/
+  _site/

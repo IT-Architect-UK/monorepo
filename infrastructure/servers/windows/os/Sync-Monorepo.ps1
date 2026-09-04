@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Clones or pulls the latest IT-Architect monorepo to C:\Git\Monorepo.
 

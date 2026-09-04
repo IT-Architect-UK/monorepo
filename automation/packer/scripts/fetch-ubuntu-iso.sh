@@ -46,6 +46,7 @@
 # the ERR trap names the exact line and command that killed it.
 echo "[$(basename "${BASH_SOURCE[0]:-$0}")] starting as $(id -un 2>/dev/null || echo '?') in $(pwd)"
 set -euo pipefail
+# shellcheck disable=SC2154  # s is assigned inside the trap string itself
 trap 's=$?; echo "[$(basename "${BASH_SOURCE[0]:-$0}")] FATAL exit=$s at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
 log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*" >&2; }

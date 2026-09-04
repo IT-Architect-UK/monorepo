@@ -40,7 +40,6 @@ section() { echo -e "\n${BLUE}${BOLD}━━━ $* ━━━${NC}"; }
 
 [[ $EUID -ne 0 ]] && error "Run as root: sudo $0"
 
-UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || echo "noble")
 
 section "Veeam Agent for Linux — Installation"
 

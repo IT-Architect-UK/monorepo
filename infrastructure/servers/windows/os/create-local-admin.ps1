@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Creates a local administrator account on the server.
 

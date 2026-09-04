@@ -166,7 +166,7 @@ if ! kubectl get secret ingress-nginx-admission -n ingress-nginx --no-headers 2>
     check_success $? "Recreating ingress-nginx-admission secret"
 fi
 log "Waiting for ingress controller to be ready..."
-for i in {1..120}; do
+for _ in {1..120}; do
     if kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --no-headers 2>/dev/null | grep -q Running; then
         log "Ingress controller is ready."
         break
@@ -281,7 +281,7 @@ check_success $? "Checking AWX custom resource status"
 
 # Wait for AWX custom resource to be created
 log "Waiting for AWX custom resource to be created..."
-for i in {1..60}; do
+for _ in {1..60}; do
     if kubectl get awx awx-demo -n $NAMESPACE --no-headers 2>/dev/null | grep -q awx-demo; then
         log "AWX custom resource created."
         break
@@ -296,7 +296,7 @@ fi
 
 # Wait for AWX pods to be created (extended to 20 minutes)
 log "Waiting for AWX pods to be created..."
-for i in {1..240}; do
+for _ in {1..240}; do
     if kubectl get pods -n $NAMESPACE -l app.kubernetes.io/part-of=awx --no-headers 2>/dev/null | grep -q .; then
         log "AWX pods found."
         break
@@ -346,7 +346,7 @@ log "AWX admin password: $AWX_PASSWORD"
 
 # Poll AWX to verify availability
 log "Polling AWX to verify availability..."
-for i in {1..120}; do
+for _ in {1..120}; do
     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$AWX_URL" --max-time 5)
     if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 302 ]; then
         log "AWX is available (HTTP status: $HTTP_STATUS)."

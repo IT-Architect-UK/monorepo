@@ -102,7 +102,7 @@ aws ec2 wait instance-running --instance-ids "$INSTANCE_ID" --region "$REGION"
 
 # Wait for SSM agent
 log "Waiting for SSM agent (up to 5 minutes)..."
-for i in $(seq 1 30); do
+for _ in $(seq 1 30); do
     STATUS=$(aws ssm describe-instance-information \
         --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
         --query 'InstanceInformationList[0].PingStatus' --output text --region "$REGION" 2>/dev/null || echo "None")

@@ -41,18 +41,18 @@
 - name: Verify certificate was obtained
   ansible.builtin.stat:
     path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
-  register: cert_file
+  register: tls_cert_file
 
 - name: Display certificate info
   ansible.builtin.command: "certbot certificates"
-  register: cert_info
+  register: tls_cert_info
   changed_when: false
-  when: cert_file.stat.exists
+  when: tls_cert_file.stat.exists
 
 - name: Show certificate details
   ansible.builtin.debug:
-    var: cert_info.stdout_lines
-  when: cert_file.stat.exists
+    var: tls_cert_info.stdout_lines
+  when: tls_cert_file.stat.exists
 
 - name: Ensure Certbot renewal timer is enabled (auto-renewal)
   # systemd timer replaces the old cron job approach

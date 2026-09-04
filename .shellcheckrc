@@ -1,0 +1,7 @@
+# shellcheck configuration — enforced by .github/workflows/lint.yml at
+# warning level and above; run locally with: shellcheck -S warning <file>
+#
+# SC1090/SC1091: scripts source a git-ignored .env beside themselves (see
+# CONFIGURATION.md). The path is computed at run time, so shellcheck cannot
+# follow it; that is by design, not a fault.
+disable=SC1090,SC1091

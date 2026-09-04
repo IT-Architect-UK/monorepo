@@ -1,6 +1,7 @@
 # Infrastructure Automation Monorepo
 
 [![Validate](https://github.com/IT-Architect-UK/monorepo/actions/workflows/validate.yml/badge.svg)](https://github.com/IT-Architect-UK/monorepo/actions/workflows/validate.yml)
+[![Lint](https://github.com/IT-Architect-UK/monorepo/actions/workflows/lint.yml/badge.svg)](https://github.com/IT-Architect-UK/monorepo/actions/workflows/lint.yml)
 
 A production-grade infrastructure automation library built by a Senior IT Infrastructure & Security Architect. This repository demonstrates end-to-end automation across on-premises hypervisors, public cloud, and everything in between — from bare-metal provisioning to golden image pipelines, configuration management, monitoring, and secure certificate management.
 
@@ -148,7 +149,7 @@ Covers: system updates · SSH hardening · fail2ban · unattended-upgrades · NT
 
 ### GitHub Actions CI
 
-Every push triggers four validation jobs in parallel:
+Every push runs two workflows in parallel. **Validate** asks "does it parse?":
 
 ```
 ✔ Shell script syntax    (bash -n on all .sh files)
@@ -156,6 +157,18 @@ Every push triggers four validation jobs in parallel:
 ✔ Packer validate        (all 8 templates validated independently)
 ✔ PowerShell syntax      (parser-based check on all .ps1 files)
 ```
+
+**Lint** asks "is it sound?", and blocks on any finding:
+
+```
+✔ shellcheck             (all .sh files, warning level and above — .shellcheckrc)
+✔ yamllint               (every YAML file — .yamllint)
+✔ ansible-lint           (playbooks + roles, production profile — .ansible-lint)
+✔ PSScriptAnalyzer       (all .ps1 files, Warning + Error — PSScriptAnalyzerSettings.psd1)
+```
+
+Each linter's config file at the repository root names the rules that are
+deliberately relaxed and why, and gives the command to run it locally.
 
 Each template lives in its own subdirectory (`automation/packer/builds/<template>/`), so `packer init`/`packer validate` run against a single, isolated `.pkr.hcl` file per template — no shared-directory HCL merge conflicts to work around.
 

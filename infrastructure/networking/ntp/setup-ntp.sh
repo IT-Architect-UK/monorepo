@@ -110,7 +110,7 @@ log "systemd-timesyncd restarted."
 # ─── Verify synchronisation ───────────────────────────────────────────────────
 log "Waiting up to 30 seconds for NTP synchronisation..."
 SYNCED=false
-for i in $(seq 1 6); do
+for _ in $(seq 1 6); do
     SYNC_STATUS=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo "unknown")
     if [[ "${SYNC_STATUS}" == "yes" ]]; then
         SYNCED=true

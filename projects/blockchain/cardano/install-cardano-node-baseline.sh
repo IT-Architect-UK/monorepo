@@ -55,7 +55,8 @@ check_ubuntu_version() {
 
 # Check available disk space
 check_disk_space() {
-    local available_space=$(df -m / | tail -1 | awk '{print $4}')
+    local available_space
+    available_space=$(df -m / | tail -1 | awk '{print $4}')
     if [ "$available_space" -lt "$MIN_DISK_SPACE_MB" ]; then
         write_log "Error: Insufficient disk space. Required: ${MIN_DISK_SPACE_MB}MB, Available: ${available_space}MB"
         exit 1

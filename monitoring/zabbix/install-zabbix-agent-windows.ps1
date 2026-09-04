@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 This script installs the latest Zabbix agent v2 on a Windows operating system using Chocolatey.
 

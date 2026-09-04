@@ -28,7 +28,7 @@ param(
 
 # Check if the computer is part of a domain
 try {
-    $domainCheck = (Get-WmiObject Win32_ComputerSystem).PartOfDomain
+    $domainCheck = (Get-CimInstance -ClassName Win32_ComputerSystem).PartOfDomain
     if (-not $domainCheck) {
         Write-Warning "This server is not a member of any AD domain. Please join a domain before running this script."
         exit

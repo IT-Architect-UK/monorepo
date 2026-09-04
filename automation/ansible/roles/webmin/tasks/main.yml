@@ -20,8 +20,9 @@
   tags: webmin
 
 - name: Configure the official Webmin apt repository
-  ansible.builtin.shell: "echo y | bash /usr/local/sbin/webmin-setup-repo.sh"
+  ansible.builtin.shell: "set -o pipefail && echo y | bash /usr/local/sbin/webmin-setup-repo.sh"
   args:
+    executable: /bin/bash
     creates: /etc/apt/sources.list.d/webmin.list
   tags: webmin
 

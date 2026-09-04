@@ -83,6 +83,7 @@ VAULT_ARN=$(aws backup describe-backup-vault \
     --backup-vault-name "$VAULT_NAME" \
     --region "$REGION" \
     --query 'BackupVaultArn' --output text)
+log "Backup vault ARN: ${VAULT_ARN}"
 
 section "2 — Create Backup Role"
 ROLE_NAME="AWSBackupDefaultRole"

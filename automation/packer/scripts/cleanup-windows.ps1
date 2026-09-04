@@ -143,7 +143,7 @@ if (Test-Path "C:\Windows.old") {
     # plain Remove-Item can't touch it. DISM's cleanup is the supported route.
     try {
         Start-Process cmd.exe -ArgumentList '/c','takeown /F C:\Windows.old /R /A /D Y >nul 2>&1 & icacls C:\Windows.old /grant Administrators:F /T /C >nul 2>&1 & rmdir /S /Q C:\Windows.old' -Wait -NoNewWindow
-    } catch {}
+    } catch { Write-Host "  ⚠  Windows.old removal raised: $($_.Exception.Message)" -ForegroundColor Yellow }
     if (Test-Path "C:\Windows.old") {
         Write-Warn "Windows.old still present — DISM/Disk Cleanup may be needed; not baked-in blocker"
     } else {
@@ -170,7 +170,7 @@ try {
         if ($_.InstallLocation) {
             $manifest = Join-Path $_.InstallLocation 'AppXManifest.xml'
             if (Test-Path $manifest) {
-                try { Add-AppxPackage -DisableDevelopmentMode -Register $manifest -ErrorAction SilentlyContinue } catch {}
+                try { Add-AppxPackage -DisableDevelopmentMode -Register $manifest -ErrorAction SilentlyContinue } catch { Write-Verbose "AppX re-register skipped: $($_.Exception.Message)" }
             }
         }
     }

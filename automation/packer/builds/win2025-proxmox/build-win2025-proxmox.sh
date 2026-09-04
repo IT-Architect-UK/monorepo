@@ -43,6 +43,7 @@
 # the ERR trap names the exact line and command that killed it.
 echo "[$(basename "${BASH_SOURCE[0]:-$0}")] starting as $(id -un 2>/dev/null || echo '?') in $(pwd)"
 set -euo pipefail
+# shellcheck disable=SC2154  # s is assigned inside the trap string itself
 trap 's=$?; echo "[$(basename "${BASH_SOURCE[0]:-$0}")] FATAL exit=$s at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO]  $*"; }
 fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2; exit 1; }
@@ -122,12 +123,12 @@ if [[ -z "${PKR_VAR_winrm_password:-}" ]]; then
         [[ ${#wp} -ge 12 ]] || fail "12 or more characters required."
         export PKR_VAR_winrm_password="${wp}"
     elif [[ "${NONINTERACTIVE}" == "1" ]]; then
-        export PKR_VAR_winrm_password="$(random_password)"
+        PKR_VAR_winrm_password="$(random_password)"; export PKR_VAR_winrm_password
         log "WINRM_PASSWORD not set — generated a random build-only password (account removed on first boot)"
     else
         read -r -s -p "WinRM build-account password (Enter = random, build-only): " wp; echo
         if [[ -z "${wp}" ]]; then
-            export PKR_VAR_winrm_password="$(random_password)"
+            PKR_VAR_winrm_password="$(random_password)"; export PKR_VAR_winrm_password
             log "Generated a random build-only password"
         else
             [[ ${#wp} -ge 12 ]] || fail "12 or more characters required."

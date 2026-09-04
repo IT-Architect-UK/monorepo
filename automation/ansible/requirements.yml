@@ -14,3 +14,10 @@ collections:
   # — nothing else in the repo used it before EspoCRM, so an existing toolbox
   # may not have it installed.
   - name: community.docker
+
+  # Used by playbooks/provision-vm.yml (community.proxmox.proxmox_kvm).
+  - name: community.proxmox
+
+  # Used by playbooks/distribute-ssh-key.yml (authorized_key lives here,
+  # not in ansible-core).
+  - name: ansible.posix

@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Deploys multiple VMs from a VMware template in a single operation.
@@ -24,14 +24,8 @@
 .PARAMETER CsvPath
     Path to the CSV file defining the VMs to deploy. See description for format.
 
-.PARAMETER WaitForCompletion
-    If specified, wait for all clones to complete before returning.
-
 .EXAMPLE
     .\deploy-vm-from-template.ps1 -vCenterServer "vcenter.lab.local" -CsvPath ".\vms.csv"
-
-.EXAMPLE
-    .\deploy-vm-from-template.ps1 -vCenterServer "vcenter.lab.local" -CsvPath ".\vms.csv" -WaitForCompletion
 
 .NOTES
     Author  : IT-Architect-UK
@@ -43,8 +37,7 @@
 param(
     [Parameter(Mandatory)] [string]$vCenterServer,
     [Parameter()]          [PSCredential]$Credential,
-    [Parameter(Mandatory)] [string]$CsvPath,
-    [Parameter()]          [switch]$WaitForCompletion
+    [Parameter(Mandatory)] [string]$CsvPath
 )
 
 Set-StrictMode -Version Latest

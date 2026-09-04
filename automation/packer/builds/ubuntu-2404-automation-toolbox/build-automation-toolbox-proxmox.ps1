@@ -218,6 +218,8 @@ function Invoke-ProxmoxCloneAndStart {
     # guest hostname to match $NewVmName automatically on first boot.
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', '',
         Justification = 'Value must be plaintext for the Proxmox REST body / bootstrap env-file; it is collected securely via Read-Host -AsSecureString upstream.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingUsernameAndPasswordParams', '',
+        Justification = 'The Proxmox REST API and the bootstrap env-file take a separate user and password; a PSCredential would be unpacked into exactly these two strings.')]
     param(
         [string]$ProxmoxUrl,
         [string]$ProxmoxNode,
@@ -285,7 +287,7 @@ function Wait-ProxmoxGuestAgent {
                     }
                 }
             }
-        } catch { }  # agent not up yet -- keep waiting
+        } catch { Write-Verbose "Guest agent not up yet: $($_.Exception.Message)" }  # keep waiting
         Start-Sleep -Seconds 5
         $elapsed += 5
     }
@@ -336,6 +338,8 @@ function Invoke-ToolboxBootstrap {
     # bootstrap non-interactively, and streams its output back.
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', '',
         Justification = 'Value must be plaintext for the Proxmox REST body / bootstrap env-file; it is collected securely via Read-Host -AsSecureString upstream.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingUsernameAndPasswordParams', '',
+        Justification = 'The Proxmox REST API and the bootstrap env-file take a separate user and password; a PSCredential would be unpacked into exactly these two strings.')]
     param(
         [string]$ProxmoxUrl, [string]$ProxmoxNode, [int]$VmId,
         [hashtable]$WriteHeaders, [hashtable]$AuthHeaders,
