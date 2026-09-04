@@ -1,0 +1,44 @@
+# =============================================================================
+# test.yml — Unit tests for the Python automation on every push and PR
+# =============================================================================
+# Runs pytest over every tests/ directory under automation/, with no network,
+# credentials or live services: the tools' HTTP layer is replaced by fakes.
+# Also compiles every Python file in the repository so a syntax error in a
+# tool without tests still fails here rather than on the box that runs it.
+#
+# projects/trading is paused and deliberately not run (see its README).
+# =============================================================================
+
+name: Test
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  python:
+    name: pytest (automation)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest
+        run: pip install --quiet pytest
+
+      - name: Compile every Python file
+        run: |
+          # -print0 because some paths carry spaces.
+          find . -name "*.py" -not -path "./.git/*" -print0 \
+            | xargs -0 python3 -m py_compile
+          echo "All Python files compile."
+
+      - name: Run the automation test suites
+        run: python3 -m pytest -q automation

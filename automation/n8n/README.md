@@ -213,3 +213,17 @@ python3 deploy.py             # apply it
 
 No dependencies beyond Python 3 — it uses the standard library only, so it runs
 on a bare CI runner or a client's server without a package install.
+
+## Tests
+
+`tests/test_deploy.py` exercises the deployer with the n8n API replaced by a
+fake: name matching, create vs update, activation, error-handler linking by
+name, dry-run, the read-back drift check, and a sanity pass over every file in
+`workflows/` (unique node names, connections that resolve, error-workflow
+names that exist in this directory). CI runs it on every push (`Test`
+workflow); locally:
+
+```bash
+python3 -m pytest -q automation/n8n/tests
+```
+
