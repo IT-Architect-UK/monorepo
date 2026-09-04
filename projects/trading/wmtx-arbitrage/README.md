@@ -1,5 +1,9 @@
 # WMTX Cross-Chain Arbitrage Monitor
 
+> **Status: PAUSED (2026-09-04).** Not under active development. Left in place
+> as-is; it is excluded from the test-coverage work and from the ongoing review
+> until it is deliberately picked up again.
+
 Read-only monitor for World Mobile Token (WMTX) price spreads between
 **Cardano (Minswap, WMTX/ADA)** and **Base (Aerodrome)**. Polls live pool
 data, computes *executable* prices for a configured trade size — not spot

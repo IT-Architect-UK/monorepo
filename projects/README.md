@@ -27,6 +27,9 @@ live in each script's header or the project's own README.
 
 ## Trading — `trading/wmtx-arbitrage/`
 
+> **Paused (2026-09-04).** Not under active development; left as-is and
+> excluded from the current review and test work.
+
 Read-only WMTX (World Mobile Token) arbitrage monitor between Cardano
 (Minswap) and Base (Aerodrome). Models executable prices at a configured
 trade size from live pool reserves, nets off fees, logs spreads to CSV,
