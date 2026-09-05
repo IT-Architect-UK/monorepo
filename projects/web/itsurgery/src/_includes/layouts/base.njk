@@ -162,6 +162,30 @@
 
   {% include "partials/footer.njk" %}
 
+  {# Cookie consent. Rendered only when a Google tag ID is configured. Hidden
+     until consent.js decides it is needed (no stored choice); with scripting
+     off it stays hidden and nothing is ever loaded, which is the safe default. #}
+  {% if site.gaMeasurementId or site.adsConversionId %}
+  <div class="consent-banner" id="consent-banner" role="dialog" aria-labelledby="consent-title" aria-describedby="consent-text" hidden
+       data-ga="{{ site.gaMeasurementId }}" data-ads="{{ site.adsConversionId }}">
+    <div class="container consent-inner">
+      <div>
+        <p class="consent-title" id="consent-title">Can we use cookies?</p>
+        <p class="consent-text" id="consent-text">
+          Only to see how the site is used and whether our adverts work. Nothing is
+          set until you say yes, and you can change your mind any time from the
+          footer. <a href="/privacy/#cookies">How we use cookies</a>.
+        </p>
+      </div>
+      <div class="consent-actions">
+        <button type="button" class="btn btn-primary" data-consent="accept">Yes, that's fine</button>
+        <button type="button" class="btn btn-secondary" data-consent="decline">No thanks</button>
+      </div>
+    </div>
+  </div>
+  <script src="{{ '/assets/consent.js' | v }}" defer></script>
+  {% endif %}
+
   <script>
     // Mobile menu toggle. Progressive enhancement: without JS the nav is
     // simply always visible, so nothing becomes unreachable.

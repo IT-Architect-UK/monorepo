@@ -38,7 +38,7 @@ description: Request a quote or a callback from IT Surgery — friendly IT help 
         deployed markup and injects a hidden form-name input — that is how you
         can tell from the page source whether it is switched on.
       #}
-      <form name="quote" method="POST" action="/thanks/" data-netlify="true" data-netlify-honeypot="bot-field">
+      <form name="quote" method="POST" action="/thanks/?form=quote" data-netlify="true" data-netlify-honeypot="bot-field">
         {# Honeypot. Off-screen rather than display:none, because some bots skip
            hidden fields. aria-hidden and tabindex="-1" keep it out of the tab order
            and the accessibility tree — without them a keyboard user tabs into an

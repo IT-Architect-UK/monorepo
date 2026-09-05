@@ -129,6 +129,17 @@ followed live, but only until the visitor makes a choice of their own. The
 toggle is hidden until JS reveals it, so it is never shown in a state where it
 cannot work.
 
+## Analytics and cookie consent
+
+Google Analytics (and Google Ads, once `adsConversionId` is set) load only after
+the visitor accepts the cookie banner. `src/assets/consent.js` owns the banner,
+the stored choice (one year, in `localStorage`) and the Google tag; the IDs live
+in `site.json` (`gaMeasurementId`, `adsConversionId`). Leave both empty and the
+banner, the script and the footer "Cookie settings" link all disappear. Events
+sent: `book_click`, `contact_whatsapp`, `generate_lead` (forms land on
+`/thanks/?form=…`) and `booking_confirmed`. The privacy policy's Cookies section
+describes the same behaviour and must change if this does.
+
 ## Deploy (Netlify)
 
 1. Create a Netlify site from the `IT-Architect-UK/monorepo` repository.

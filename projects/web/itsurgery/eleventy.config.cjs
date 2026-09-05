@@ -103,14 +103,15 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.on("eleventy.after", ({ dir }) => {
     const csp = [
       "default-src 'self'",
-      `script-src 'self' https://app.cal.com ${[...scriptHashes].sort().join(" ")}`,
+      // Google tag (Analytics / Ads) loads only after cookie consent; see consent.js.
+      `script-src 'self' https://app.cal.com https://www.googletagmanager.com ${[...scriptHashes].sort().join(" ")}`,
       // The Cal.com embed writes <style> elements and style attributes into
       // the page; inline styles cannot be hashed the way scripts can.
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https://app.cal.com",
+      "img-src 'self' data: https://app.cal.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://www.google.co.uk https://googleads.g.doubleclick.net",
       "font-src 'self' https://cal.com",
-      "connect-src 'self' https://app.cal.com https://n8n.itsurgery.me",
-      "frame-src https://app.cal.com",
+      "connect-src 'self' https://app.cal.com https://n8n.itsurgery.me https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.google.com https://googleads.g.doubleclick.net https://www.googleadservices.com",
+      "frame-src https://app.cal.com https://td.doubleclick.net",
       "form-action 'self'",
       "frame-ancestors 'none'",
       "base-uri 'self'",

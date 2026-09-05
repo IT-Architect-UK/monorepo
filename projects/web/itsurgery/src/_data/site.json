@@ -87,7 +87,7 @@
       "url": "/report-a-problem/"
     }
   ],
-  "privacyUpdated": "August 2026",
+  "privacyUpdated": "September 2026",
   "bookingUrl": "https://cal.com/it-surgery/remote-support-session",
   "payLinkEndpoint": "https://n8n.itsurgery.me/webhook/pay-link",
   "reviewUrl": "https://g.page/r/CbTS5cA_a6nhEBM/review",
@@ -96,5 +96,7 @@
     "https://www.google.com/search?kgmid=/g/11yc6p7xc3&q=IT+Surgery",
     "https://g.page/r/CbTS5cA_a6nhEBM",
     "https://www.facebook.com/profile.php?id=61561583180722"
-  ]
+  ],
+  "gaMeasurementId": "G-48BXC0QKL9",
+  "adsConversionId": ""
 }

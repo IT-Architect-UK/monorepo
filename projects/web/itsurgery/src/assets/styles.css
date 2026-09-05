@@ -454,6 +454,29 @@ input:focus-visible, textarea:focus-visible {
 .has-children.open > .submenu { display: flex; }
 .submenu a { font-size: 1rem; font-weight: 500; padding: 0.5rem 0.75rem; }
 
+/* ---------- Cookie consent banner ---------- */
+/* Bottom of the viewport, full width, above everything. Plain surface rather
+   than an invert panel so it reads as part of the page asking a question, not
+   a notice from someone else. Buttons are the site's own. */
+.consent-banner {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
+  background: var(--surface); color: var(--text);
+  border-top: 3px solid var(--accent-rule);
+  box-shadow: 0 -6px 18px var(--shadow);
+}
+.consent-inner {
+  display: flex; align-items: center; justify-content: space-between; gap: 1.25rem;
+  padding-top: 0.9rem; padding-bottom: 0.9rem;
+}
+.consent-title { margin: 0 0 0.2rem; font-family: var(--font-head); font-weight: 600; font-size: 1.05rem; color: var(--text-strong); }
+.consent-text { margin: 0; font-size: 0.95rem; }
+.consent-actions { display: flex; gap: 0.5rem; flex: 0 0 auto; }
+.consent-actions .btn { width: auto; }
+@media (max-width: 640px) {
+  .consent-inner { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+  .consent-actions .btn { flex: 1 1 0; }
+}
+
 /* ---------- Page head ---------- */
 .page-head {
   background: linear-gradient(180deg, var(--brand-wash), var(--surface));
