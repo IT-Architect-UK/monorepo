@@ -71,17 +71,30 @@
      on font preloads even for same-origin files, or the browser fetches twice. #}
   <link rel="preload" href="/assets/fonts/poppins-v24-latin-600.woff2" as="font" type="font/woff2" crossorigin />
 
+  {# Structured data for search engines. @id gives the business one stable
+     identity across every page; image/logo feed the knowledge panel; sameAs
+     ties this site to the Google Business Profile and social pages so Google
+     treats them as one business. Opening hours are deliberately absent: work
+     is by appointment, and schema.org has no honest way to say that - a made-up
+     09:00-17:00 would show "Closed" in search results outside those hours. #}
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
+    "@id": "{{ site.url }}/#business",
     "name": "{{ site.name }}",
     "slogan": "{{ site.tagline }}",
+    "description": "Friendly, plain-English IT help for homes and small businesses in {{ site.areas | join(', ') }}, with remote support across the UK. Fixed prices, no fix no fee.",
     "url": "{{ site.url }}",
+    "logo": "{{ site.url }}/assets/logo@3x.png",
+    "image": "{{ site.url }}{{ '/assets/og-image.png' | v }}",
     "telephone": "{{ site.phoneLink }}",
     "email": "{{ site.email }}",
     "legalName": "{{ site.legalName }}",
-    "priceRange": "£{{ site.hourlyRate }} per hour",
+    "vatID": "GB{{ site.vatNumber | replace(' ', '') }}",
+    "priceRange": "££",
+    "currenciesAccepted": "GBP",
+    "paymentAccepted": "Card, Bank transfer",
     "address": {
       "@type": "PostalAddress",
       "streetAddress": "{{ site.address.street }}",
@@ -90,9 +103,40 @@
       "postalCode": "{{ site.address.postcode }}",
       "addressCountry": "GB"
     },
-    "areaServed": [{% for a in site.areas %}"{{ a }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+    "areaServed": [
+      {% for a in site.areas %}{ "@type": "City", "name": "{{ a }}" },
+      {% endfor %}{ "@type": "Country", "name": "United Kingdom", "description": "Remote support" }
+    ],
+    "sameAs": {{ site.sameAs | dump | safe }}
   }
   </script>
+  {# Fixed-price pages also publish their catalogue as an OfferCatalog so the
+     prices are machine-readable. Rendered from catalogue.json, so it can never
+     disagree with the list on the page. #}
+  {% if offerAudience %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "OfferCatalog",
+    "name": "{{ title }} — {{ site.name }}",
+    "url": "{{ site.url }}{{ page.url }}",
+    "itemListElement": [
+      {% set first = true %}{% for c in catalogue.services %}{% if c.audience == offerAudience and c.bookable and not c.existing %}{% if not first %},{% endif %}{% set first = false %}
+      {
+        "@type": "Offer",
+        "itemOffered": { "@type": "Service", "name": {{ c.name | dump | safe }}, "provider": { "@id": "{{ site.url }}/#business" } },
+        "url": "{{ site.url }}/book/?service={{ c.slug }}",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "price": "{{ c.priceIncVat or c.priceExVat }}",
+          "priceCurrency": "GBP",
+          "valueAddedTaxIncluded": {{ "true" if c.priceIncVat else "false" }}
+        }
+      }{% endif %}{% endfor %}
+    ]
+  }
+  </script>
+  {% endif %}
 
   {# ?v= is a content hash — see the cache-busting note in eleventy.config.cjs #}
   <link rel="stylesheet" href="{{ '/assets/fonts.css' | v }}" />
