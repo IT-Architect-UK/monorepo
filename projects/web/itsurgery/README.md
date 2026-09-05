@@ -42,6 +42,11 @@ Add an object to `src/_data/services.json` with `slug`, `title`, `group`
 the menu entry, the hub-page card, the footer link and the site map all appear
 automatically. No template edits needed.
 
+Optionally add `fixedPrices`, a list of catalogue slugs from `catalogue.json`.
+Those jobs render on the service page as a "Fixed prices for this" box with
+prices, times and Book buttons, joined via `src/_data/catbyslug.js`. Leave it
+out and the page shows a "Get a quote" button instead.
+
 ## Pages
 
 `/` · `/pricing/` · `/about-us/` · `/quote/` · `/site-map/`

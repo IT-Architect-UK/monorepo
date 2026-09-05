@@ -31,6 +31,11 @@
       "Help with photos, recipes, hobbies and learning something new",
       "Staying safe: what not to share, and how to spot AI-generated scams, fake voices and images",
       "Honest advice on whether a paid subscription is worth it for you, or whether the free version is plenty"
+    ],
+    "fixedPrices": [
+      "home-ai-assistant-setup",
+      "home-ai-automation",
+      "home-ai-scam-awareness"
     ]
   },
   {
@@ -46,6 +51,13 @@
       "On-premise, cloud and hybrid networks",
       "Wi-Fi coverage and performance",
       "Ongoing monitoring and maintenance"
+    ],
+    "fixedPrices": [
+      "router-firewall-setup",
+      "managed-switch-vlans",
+      "wifi-access-point",
+      "wifi-survey",
+      "remote-worker-vpn"
     ]
   },
   {
@@ -76,6 +88,12 @@
       "Migration from on-premise servers",
       "Cost review and right-sizing",
       "Ongoing cloud management"
+    ],
+    "fixedPrices": [
+      "m365-new-business-setup",
+      "google-workspace-setup",
+      "email-move-to-m365",
+      "vps-provisioning"
     ]
   },
   {
@@ -91,6 +109,11 @@
       "Patching and vulnerability management",
       "Backup and recovery testing",
       "Staff awareness and phishing guidance"
+    ],
+    "fixedPrices": [
+      "cyber-essentials-review",
+      "backup-setup-and-test",
+      "malware-removal"
     ]
   },
   {
@@ -106,6 +129,12 @@
       "SharePoint and OneDrive file storage",
       "Teams setup and configuration",
       "Security hardening and multi-factor authentication"
+    ],
+    "fixedPrices": [
+      "m365-new-business-setup",
+      "email-move-to-m365",
+      "new-starter-setup",
+      "staff-leaver-offboarding"
     ]
   },
   {
@@ -151,6 +180,12 @@
       "High availability and resilience",
       "Backup, replication and tested recovery",
       "Ongoing maintenance and patching"
+    ],
+    "fixedPrices": [
+      "hypervisor-build",
+      "vm-build",
+      "vps-provisioning",
+      "server-build"
     ]
   },
   {
@@ -166,6 +201,12 @@
       "Hardware faults, replacements and upgrades",
       "Software problems and Windows issues",
       "Health checks and preventative maintenance"
+    ],
+    "fixedPrices": [
+      "home-pc-health-check",
+      "home-os-reinstall",
+      "home-hardware-upgrade",
+      "home-printer-scanner"
     ]
   },
   {
@@ -181,6 +222,12 @@
       "Printers and devices connected",
       "Accounts, passwords and backups configured",
       "A walk-through so you know your way around"
+    ],
+    "fixedPrices": [
+      "home-new-computer-setup",
+      "home-phone-tablet-setup",
+      "home-console-tv-setup",
+      "home-smart-devices"
     ]
   },
   {
@@ -196,6 +243,10 @@
       "Router replacement and configuration",
       "Smart TVs, speakers and devices connected",
       "Guest networks and parental controls"
+    ],
+    "fixedPrices": [
+      "home-wifi-coverage",
+      "home-network-broadband"
     ]
   },
   {
@@ -211,6 +262,11 @@
       "Suspicious email and message checks",
       "Protection installed and configured",
       "Plain-English advice on staying safe"
+    ],
+    "fixedPrices": [
+      "home-malware-removal",
+      "home-security-checkup",
+      "home-ai-scam-awareness"
     ]
   },
   {
@@ -226,6 +282,11 @@
       "Memory cards and USB drives",
       "Honest assessment of the likely outcome",
       "Backups set up so it does not happen again"
+    ],
+    "fixedPrices": [
+      "home-data-recovery",
+      "home-backup-setup",
+      "home-secure-wipe-recycle"
     ]
   },
   {
@@ -241,6 +302,10 @@
       "Shopping and banking online safely",
       "Getting comfortable with a new device",
       "Notes to refer back to afterwards"
+    ],
+    "fixedPrices": [
+      "home-ai-assistant-setup",
+      "home-office-apps-setup"
     ]
   },
   {

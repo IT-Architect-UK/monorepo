@@ -32,6 +32,52 @@ eleventyComputed:
         {% for p in service.points %}<li>{{ p }}</li>{% endfor %}
       </ul>
 
+      {# Fixed prices for the jobs this service most often turns into, pulled
+         from the catalogue by slug so a price change there shows here too.
+         Services with no fixed-price jobs get the quote box below instead. #}
+      {% if service.fixedPrices %}
+      <div class="service-prices">
+        <h2>Fixed prices for this</h2>
+        <p>
+          {% if service.group == "business" %}
+          Set prices for the common jobs, {{ site.vatExLabel }}. Anything not listed is quoted or charged at £{{ site.businessHourlyRate }} an hour.
+          {% else %}
+          Set prices for the common jobs, {{ site.vatIncLabel }}, so you know the cost before we start. Anything not listed is £{{ site.hourlyRate }} an hour.
+          {% endif %}
+        </p>
+        <ul class="band-list">
+          {% for slug in service.fixedPrices %}
+            {% set svc = catbyslug[slug] %}
+            {% if svc %}
+            <li>
+              <span class="item-price">£{{ svc.priceIncVat or svc.priceExVat }}</span>
+              <span class="item-meta">{{ svc.durationMinutes | duration }}</span>
+              <span class="item-label">{{ svc.name }}{% if svc.unit %} <span class="addon">({{ svc.unit }})</span>{% endif %}</span>
+              {% if svc.bookable and not svc.existing %}
+              <a class="item-book" href="/book/?service={{ svc.slug }}">Book</a>
+              {% endif %}
+            </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+        <p class="service-prices-more">
+          <a href="{{ '/business-fixed-prices/' if service.group == 'business' else '/fixed-prices/' }}">See the full {{ "business" if service.group == "business" else "home" }} price list</a>
+        </p>
+      </div>
+      {% else %}
+      {# Quoted work. No prices to show, so the same slot carries the route to
+         a price instead: a button to the quote form, per Darren, 2026-09-05. #}
+      <div class="service-prices">
+        <h2>Priced for your job</h2>
+        <p>
+          This kind of work varies too much for a set price, so we quote it.
+          Tell us what you need and we will come back with a clear price, or
+          phone you to talk it through first.
+        </p>
+        <a class="btn btn-primary" href="/quote/">Get a quote</a>
+      </div>
+      {% endif %}
+
       <div class="cta-panel">
         <h2>Talk to us about {{ service.title }}</h2>
         <p>

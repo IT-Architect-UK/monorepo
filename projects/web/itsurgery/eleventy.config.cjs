@@ -53,6 +53,17 @@ module.exports = function (eleventyConfig) {
     return `${assetPath}?v=${hash}`;
   });
 
+  // Minutes from the catalogue -> "45 min", "1 hour", "1½ hours", "2 hours".
+  eleventyConfig.addFilter("duration", (mins) => {
+    if (!mins) return "";
+    if (mins < 60) return `${mins} min`;
+    const h = mins / 60;
+    const whole = Math.floor(h);
+    const half = h - whole >= 0.5;
+    const label = half ? `${whole}½ hours` : `${whole} hour${whole === 1 ? "" : "s"}`;
+    return label;
+  });
+
   // Current year, for the footer copyright line.
   eleventyConfig.addShortcode("year", () => `${new Date().getFullYear()}`);
 
