@@ -160,6 +160,14 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+/* Desktop scale. Every size on the site is in rem, so this one rule scales
+   text, spacing and controls together. 75% (12px body) was Darren's call after
+   seeing the site at 100% zoom on a laptop: it was still too large to read
+   without zooming out. Phones and small tablets keep the browser default (16px)
+   because 12px on a handset is hard for the site's older customers. */
+@media (min-width: 961px) {
+  html { font-size: 75%; }
+}
 
 body {
   margin: 0;
