@@ -7,7 +7,7 @@
  * Produces:
  *   brand/social-square-1200.png       1200x1200  Google Ads / Instagram / any square slot
  *   brand/facebook-profile-720.png      720x720   Facebook Page profile picture (the cross; FB crops to a circle)
- *   brand/facebook-cover-1640x924.png  1640x924   Facebook Page cover (text kept central for the mobile crop)
+ *   brand/facebook-cover-1640x624.png  1640x624   Facebook Page cover (2x of the 820x312 desktop display; content central for the phone crop)
  *
  * The on-site share image (src/assets/og-image.png) has its own script,
  * tools/build-og-image.js, because it ships with the site; these do not.
@@ -40,12 +40,21 @@ const assets = [
     <div style="font-weight:600;font-size:34px;color:#990000;letter-spacing:2px;text-transform:uppercase;line-height:1.5">${areas}<br>Remote support UK-wide</div>`)],
   ["facebook-profile-720.png", 720, 720, body(720, 720,
     `<div style="width:400px;height:400px">${icon.replace("<svg", '<svg width="400" height="400"')}</div>`)],
-  ["facebook-cover-1640x924.png", 1640, 924, body(1640, 924, `${bars(26)}
-    <img src="data:image/png;base64,${logo}" style="width:640px;height:auto;margin-bottom:40px">
-    <div style="font-weight:600;font-size:64px;color:#222;margin-bottom:40px">${site.tagline}</div>
-    <div style="font-weight:500;font-size:34px;color:#5a6068;margin-bottom:40px">Friendly IT help for homes &amp; small businesses</div>
-    <div style="font-weight:600;font-size:30px;color:#990000;letter-spacing:2px;text-transform:uppercase;line-height:1.6;margin-bottom:40px">${areas}<br>Remote support UK-wide</div>
-    <div style="font-weight:600;font-size:34px;color:#222">${site.url.replace(/^https?:\/\//, "")}</div>`)],
+  // Facebook shows Page covers at 820x312 on desktop (2.63:1) and about
+  // 640x360 on phones, which trims the sides. So: 1640x624 (2x desktop),
+  // laid out sideways - logo left, text right - with everything inside the
+  // central 1200px so the phone crop keeps it.
+  ["facebook-cover-1640x624.png", 1640, 624, `<body style="margin:0;width:1640px;height:624px;background:#fff;font-family:Poppins,sans-serif;position:relative">
+    ${bars(18)}
+    <div style="position:absolute;left:220px;top:0;bottom:0;width:1200px;display:flex;align-items:center;justify-content:center;gap:64px">
+      <img src="data:image/png;base64,${logo}" style="width:520px;height:auto;flex:0 0 auto">
+      <div style="text-align:left">
+        <div style="font-weight:600;font-size:56px;color:#222;line-height:1.1;margin-bottom:18px">${site.tagline}</div>
+        <div style="font-weight:500;font-size:28px;color:#5a6068;margin-bottom:22px">Friendly IT help for homes &amp; businesses</div>
+        <div style="font-weight:600;font-size:22px;color:#990000;letter-spacing:2px;text-transform:uppercase;line-height:1.6">${areas}<br>Remote support UK-wide</div>
+        <div style="font-weight:600;font-size:26px;color:#222;margin-top:22px">${site.url.replace(/^https?:\/\//, "")}</div>
+      </div>
+    </div></body>`],
 ];
 
 (async () => {
