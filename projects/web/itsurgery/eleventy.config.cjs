@@ -108,9 +108,9 @@ module.exports = function (eleventyConfig) {
       // The Cal.com embed writes <style> elements and style attributes into
       // the page; inline styles cannot be hashed the way scripts can.
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https://app.cal.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://www.google.co.uk https://googleads.g.doubleclick.net",
+      "img-src 'self' data: https://app.cal.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://www.google.com https://www.google.co.uk https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com",
       "font-src 'self' https://cal.com",
-      "connect-src 'self' https://app.cal.com https://n8n.itsurgery.me https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.google.com https://googleads.g.doubleclick.net https://www.googleadservices.com",
+      "connect-src 'self' https://app.cal.com https://n8n.itsurgery.me https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.google.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com",
       "frame-src https://app.cal.com https://td.doubleclick.net",
       "form-action 'self'",
       "frame-ancestors 'none'",
