@@ -49,8 +49,12 @@ canvas before dilating; edge alpha is now 11/4/5/4.
 
 Because the artwork now carries that margin, the CSS height went 3.2rem to
 3.4rem. Without it the letters would render 4% smaller at the same canvas
-height. This keeps the cap height as approved **and** the lockup at 177px wide,
-so the strapline breakpoints below still hold.
+height. This kept the cap height as approved **and** the lockup at 177px wide.
+
+**September 2026:** the header was compacted to a single row and the CSS height
+is now 2.75rem, painting the lockup at 143px wide. The 179px 1x asset therefore
+downscales by about 1.25 on 1x displays; 2x and 3x are unaffected. If the master
+is to hand, regenerating the 1x file at 143px removes that last resample.
 
 ## Two things not to break
 

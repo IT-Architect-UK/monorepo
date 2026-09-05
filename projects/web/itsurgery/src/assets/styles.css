@@ -165,7 +165,7 @@ body {
   margin: 0;
   font-family: var(--font-body);
   font-size: 1rem;      /* matches the original site; users can zoom */
-  line-height: 1.65;
+  line-height: 1.55;
   color: var(--text);
   background: var(--surface);
   /* Keeps small text crisp rather than slightly soft on some displays. */
@@ -279,11 +279,18 @@ input:focus-visible, textarea:focus-visible {
   background: var(--surface-invert-deep);
   color: var(--on-invert-strong);
   font-size: 0.95rem;
+  /* This bar, not the header, is what stays pinned while the page scrolls. It
+     is 40px tall and carries Book, Get a Quote and WhatsApp - the actions we
+     want in reach at any scroll depth. The header used to be sticky instead,
+     and at 137px it took a sixth of a laptop screen on every page. Below 760px
+     the bar wraps to two rows, then three, so there it goes static and the
+     one-row header takes over again - see the 760px block. */
+  position: sticky; top: 0; z-index: 100;
 }
 .utility-inner {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1rem; flex-wrap: wrap;
-  padding-top: 0.4rem; padding-bottom: 0.4rem;
+  padding-top: 0.25rem; padding-bottom: 0.25rem;
 }
 /* About Us and the theme toggle share the left of the utility bar. The toggle
    is deliberately not styled like the contact chips — it does a different kind
@@ -301,8 +308,8 @@ input:focus-visible, textarea:focus-visible {
    bar, which on its own would leave the button shape vague. */
 .ubtn {
   display: inline-block;
-  padding: 0.3rem 0.85rem;
-  min-width: 7.5rem;
+  padding: 0.2rem 0.8rem;
+  min-width: 7rem;
   text-align: center;
   background: var(--chip-bg);
   color: var(--chip-fg);
@@ -343,12 +350,11 @@ input:focus-visible, textarea:focus-visible {
 .site-header {
   background: var(--surface);
   border-bottom: 3px solid var(--accent-rule);
-  position: sticky; top: 0; z-index: 100;
 }
 .header-inner {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1rem; flex-wrap: wrap;
-  padding-top: 0.6rem; padding-bottom: 0.6rem;
+  padding-top: 0.45rem; padding-bottom: 0.45rem;
 }
 .brand { display: inline-flex; align-items: center; gap: 0.8rem; text-decoration: none; }
 /* The wordmark. Height drives the lockup; width follows the 3.26:1 aspect.
@@ -356,12 +362,14 @@ input:focus-visible, textarea:focus-visible {
    is (0,1,0) and loses to `.brand img` (0,1,1), which would leave both logos
    rendered and double the header height.
 
-   3.4rem, not 3.2rem: the artwork now carries a margin so the outer strokes and
-   the drop shadow are not shaved off at the canvas edge (they were). That margin
-   is part of the image, so at an identical canvas height the letters themselves
-   would render 4% smaller. 3.4rem restores the cap height Darren approved and
-   keeps the lockup 177px wide, so the strapline breakpoints below still hold. */
-.brand img { height: 3.4rem; width: auto; display: block; }
+   The artwork carries a margin so the outer strokes and the drop shadow are not
+   shaved off at the canvas edge (they were). 2.75rem paints the lockup 143px
+   wide, which is what lets the logo and the seven-item menu share one 60px row
+   at the 1140px container; at the previous 3.4rem / 177px the header wrapped to
+   two rows on every desktop. The 1x asset is still 179px, so a 1x display now
+   downscales it by 1.25 - a small softening, and the 2x/3x files are unaffected.
+   Regenerating 1x at 143px (tools/build-logo.py) would remove even that. */
+.brand img { height: 2.75rem; width: auto; display: block; }
 .brand .logo-dark { display: none; }
 [data-theme="dark"] .brand .logo-light { display: none; }
 [data-theme="dark"] .brand .logo-dark { display: block; }
@@ -386,13 +394,13 @@ input:focus-visible, textarea:focus-visible {
 /* Direct child only. A descendant selector here would also match the nested
    submenu <ul> and, being more specific than `.submenu`, would force it
    permanently visible. */
-.main-nav > ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.25rem; }
+.main-nav > ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.1rem; }
 .main-nav .submenu { list-style: none; margin: 0; padding: 0; }
 .main-nav li { position: relative; }
 .main-nav a {
-  display: block; padding: 0.55rem 0.68rem;
+  display: block; padding: 0.5rem 0.6rem;
   text-decoration: none; color: var(--text-strong);
-  font-family: var(--font-head); font-weight: 600; font-size: 1rem;
+  font-family: var(--font-head); font-weight: 600; font-size: 0.95rem;
   border-radius: 6px;
 }
 .main-nav a:hover { background: var(--brand-wash); color: var(--brand-accent); }
@@ -423,6 +431,13 @@ input:focus-visible, textarea:focus-visible {
 @media (hover: hover) and (min-width: 961px) {
   .has-children:hover > .submenu { display: flex; }
 }
+/* Logo (143px) plus the seven menu items in Poppins (807px) need a 966px
+   content box, which the container only gives from 1024px up. In the narrow
+   desktop band just above the collapse point the items tighten slightly so
+   the header stays one row instead of wrapping to two. */
+@media (min-width: 961px) and (max-width: 1023px) {
+  .main-nav a { padding: 0.5rem 0.4rem; font-size: 0.9rem; }
+}
 .has-children:focus-within > .submenu,
 .has-children.open > .submenu { display: flex; }
 .submenu a { font-size: 1rem; font-weight: 500; padding: 0.5rem 0.75rem; }
@@ -430,14 +445,14 @@ input:focus-visible, textarea:focus-visible {
 /* ---------- Page head ---------- */
 .page-head {
   background: linear-gradient(180deg, var(--brand-wash), var(--surface));
-  padding: 2.25rem 0 1.75rem;
+  padding: 1.5rem 0 1.25rem;
   border-bottom: 1px solid var(--border);
 }
-.page-head h1 { font-size: clamp(1.6rem, 3vw, 2rem); margin: 0; }
+.page-head h1 { font-size: clamp(1.5rem, 2.6vw, 1.8rem); margin: 0; }
 .standfirst { font-size: 1.05rem; margin: 0.75rem 0 0; max-width: var(--measure); color: var(--text); }
 
 /* ---------- Hero (home) ---------- */
-.hero { background: linear-gradient(180deg, var(--brand-wash), var(--surface)); padding: 2.25rem 0 1.25rem; }
+.hero { background: linear-gradient(180deg, var(--brand-wash), var(--surface)); padding: 1.5rem 0 1rem; }
 /* The lead is the last thing in the hero, so drop its trailing margin to avoid
    a large empty band above the pricing banner. */
 .hero .lead:last-child { margin-bottom: 0; }
@@ -445,18 +460,18 @@ input:focus-visible, textarea:focus-visible {
   text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
   color: var(--brand-accent); margin: 0 0 0.5rem; font-size: 0.95rem;
 }
-.hero h1 { font-size: clamp(1.75rem, 3.4vw, 2.25rem); line-height: 1.2; margin: 0 0 0.85rem; }
-.lead { font-size: 1.05rem; max-width: var(--measure); margin: 0 0 1.5rem; }
+.hero h1 { font-size: clamp(1.6rem, 2.8vw, 1.9rem); line-height: 1.2; margin: 0 0 0.6rem; }
+.lead { font-size: 1rem; max-width: var(--measure); margin: 0 0 1.1rem; }
 
 /* ---------- Prominent pricing banner ---------- */
-.price-banner { background: var(--banner-bg); color: #ffffff; padding: 1.5rem 0; }
+.price-banner { background: var(--banner-bg); color: #ffffff; padding: 1.1rem 0; }
 .price-banner-inner {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1.25rem; flex-wrap: wrap;
 }
 .price-banner h2 {
   color: #ffffff; margin: 0;
-  font-size: clamp(1.5rem, 2.8vw, 1.9rem); line-height: 1;
+  font-size: clamp(1.35rem, 2.4vw, 1.6rem); line-height: 1;
 }
 .price-banner p { margin: 0.4rem 0 0; font-size: 1rem; max-width: var(--measure); }
 /* Inline links here sit on the banner, which is dark in both themes, so they
@@ -485,7 +500,7 @@ input:focus-visible, textarea:focus-visible {
 .btn-secondary:hover { background: var(--brand-wash); }
 
 /* ---------- Promises strip ---------- */
-.promises { background: var(--surface-invert-strong); color: var(--on-invert-strong); padding: 1.75rem 0; }
+.promises { background: var(--surface-invert-strong); color: var(--on-invert-strong); padding: 1.15rem 0; }
 /* Explicit column counts rather than auto-fit: auto-fit produced a 3 + 1
    split at some widths, leaving one promise stranded on its own row. */
 .promise-list {
@@ -495,12 +510,12 @@ input:focus-visible, textarea:focus-visible {
 }
 /* The strapline is decorative, so it is the first thing to go when the header
    is tight. The desktop nav appears at 961px and needs 709px; with the strapline
-   the brand lockup is 352px, and 352 + 709 + 16 = 1077 needs a 1080px content
-   box. A 1120px threshold left only 3px, which a scrollbar swallowed, so the
-   cut-off is 1180px — about 60px of headroom. Between 961 and 1180 the strapline
-   hides so the nav stays on one row; below 961 the nav collapses to the toggle
-   and there is room again. */
-@media (min-width: 961px) and (max-width: 1179px) {
+   with the strapline the brand lockup is ~316px and the seven-item nav ~884px,
+   which never fits the 1100px content box the container allows, at any desktop
+   width - the header wrapped to two rows everywhere. So the strapline hides on
+   every desktop width; the tagline still appears in the footer. Below 961 the
+   nav collapses to the toggle and the tag hides for the phone reason above. */
+@media (min-width: 961px) {
   .brand-tag { display: none; }
 }
 
@@ -511,9 +526,9 @@ input:focus-visible, textarea:focus-visible {
 .promise-detail { font-size: 0.98rem; color: var(--text-on-invert); }
 
 /* ---------- Sections and cards ---------- */
-.section { padding: 2.25rem 0; }
+.section { padding: 1.6rem 0; }
 .section-tint { background: var(--surface-sunken); }
-.section h2 { font-size: clamp(1.25rem, 2.2vw, 1.55rem); margin: 0 0 1rem; }
+.section h2 { font-size: clamp(1.2rem, 2vw, 1.4rem); margin: 0 0 0.75rem; }
 .section h2 + .cards, .section h2 + .ticks { margin-top: 0; }
 
 .cards { display: grid; gap: 1.25rem; }
@@ -766,6 +781,15 @@ input:focus-visible, textarea:focus-visible {
   }
   .has-children.open > .submenu { display: block; }
   .submenu a { padding-left: 1.75rem; }
+}
+
+/* The utility bar wraps to two rows below ~740px (308px of links and toggle,
+   373px of buttons, plus the gap) and three below 640px - too much to pin.
+   Swap roles: the bar scrolls away and the one-row header (logo + Menu) is
+   what sticks. */
+@media (max-width: 760px) {
+  .utility-bar { position: static; }
+  .site-header { position: sticky; top: 0; z-index: 100; }
 }
 
 @media (max-width: 640px) {

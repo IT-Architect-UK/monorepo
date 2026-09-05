@@ -54,9 +54,11 @@
             at 177px, so every visitor saw a 6x browser downscale, and that
             resampling was most of the "blurred" look. Each display now gets an
             asset at its own density and never upscales.
-         2. The 1x file is 179px for a 177px paint area. Deliberately just over,
-            never under — upscaling a bitmap reintroduces exactly the blur this
-            change removes. If you regenerate these, keep 1x >= the painted size. #}
+         2. The 1x file is 179px wide. The paint area was 177px when it was made
+            and is now 143px (2.75rem tall, see .brand img in styles.css), so a
+            1x display downscales it slightly. Never go the other way: upscaling
+            a bitmap reintroduces exactly the blur this change removes. If you
+            regenerate these, keep 1x >= the painted size. #}
       <img class="logo-light" src="{{ '/assets/logo.png' | v }}" alt="" width="179" height="55"
            srcset="{{ '/assets/logo.png' | v }} 1x, {{ '/assets/logo@2x.png' | v }} 2x, {{ '/assets/logo@3x.png' | v }} 3x" />
       <img class="logo-dark" src="{{ '/assets/logo-dark.png' | v }}" alt="" width="179" height="55"
