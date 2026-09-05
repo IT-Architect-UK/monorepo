@@ -294,9 +294,9 @@ input:focus-visible, textarea:focus-visible {
      is 40px tall and carries Book, Get a Quote and WhatsApp - the actions we
      want in reach at any scroll depth. The header used to be sticky instead,
      and at 137px it took a sixth of a laptop screen on every page. Between
-     641 and 760px the bar wraps to two rows, so from 760px down it goes static
-     and the one-row header takes over again - see the 760px block. (Below
-     640px the bar is a single compact row again, see that block.) */
+     641 and 800px the bar wraps to two rows, so from 800px down it goes static
+     and the one-row header takes over again - see the 800px block. (Below
+     640px the bar is a single compact row and both bars pin.) */
   position: sticky; top: 0; z-index: 100;
 }
 .utility-inner {
@@ -836,12 +836,11 @@ input:focus-visible, textarea:focus-visible {
   .submenu a { padding-left: 1.75rem; }
 }
 
-/* The utility bar wraps to two rows below ~740px (308px of links and toggle,
-   373px of buttons, plus the gap) - too much to pin. Swap roles: the bar
-   scrolls away and the one-row header (logo + Menu) is what sticks. Kept the
-   same below 640px, where the bar is compact again, so the Menu button stays
-   reachable while scrolling on a phone. */
-@media (max-width: 760px) {
+/* The utility bar wraps to two rows below ~790px (three links and the toggle
+   at ~365px, 373px of buttons, plus the gap) - too much to pin. Swap roles:
+   the bar scrolls away and the one-row header (logo + Menu) is what sticks.
+   Below 640px both bars pin again, see that block. */
+@media (max-width: 800px) {
   .utility-bar { position: static; }
   .site-header { position: sticky; top: 0; z-index: 100; }
 }

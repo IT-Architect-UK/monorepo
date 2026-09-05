@@ -1,0 +1,58 @@
+<section class="section faq">
+  <div class="container">
+    {# Native details/summary: works without JavaScript and is keyboard and
+       screen-reader accessible. The same text is emitted below as FAQPage
+       schema, which is why faq.json is plain text with no markup. #}
+    <div class="faq-list">
+      {% for item in faq.items %}
+      <details class="disclosure faq-item">
+        <summary>{{ item.q | fill }}</summary>
+        <p>{{ item.a | fill }}</p>
+      </details>
+      {% endfor %}
+    </div>
+
+    {# Questions not answered above. A Netlify form, like the quote form: the
+       question arrives by email, Darren replies to the person, and if it is
+       one others would ask he adds it to faq.json. Nothing is published
+       automatically - a public answer is a considered one. #}
+    <details class="disclosure faq-ask">
+      <summary>Not answered here? Ask us a question</summary>
+      <form name="question" method="POST" action="/thanks/?form=question" data-netlify="true" data-netlify-honeypot="bot-field" class="faq-form">
+        <p class="hidden-field" aria-hidden="true">
+          <label>Don't fill this in if you're human: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+        </p>
+        <div class="field">
+          <label for="faq-question">Your question</label>
+          <textarea id="faq-question" name="question" rows="3" required
+            placeholder="e.g. Can you set up a printer that only works on one computer?"></textarea>
+        </div>
+        <div class="field">
+          <label for="faq-email">Email, if you would like a reply <span class="optional">(optional)</span></label>
+          <input id="faq-email" name="email" type="email" autocomplete="email" />
+        </div>
+        <button class="btn btn-primary" type="submit">Send question</button>
+        <p class="form-note">
+          We answer personally, usually the same working day. If it is a
+          question others might have too, we may add it to this list.
+        </p>
+      </form>
+    </details>
+  </div>
+</section>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {% for item in faq.items %}{
+      "@type": "Question",
+      "name": {{ item.q | fill | dump | safe }},
+      "acceptedAnswer": { "@type": "Answer", "text": {{ item.a | fill | dump | safe }} }
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+
