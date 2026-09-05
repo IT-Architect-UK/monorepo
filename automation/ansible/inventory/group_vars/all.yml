@@ -56,12 +56,6 @@ ntp_servers:
   - 0.pool.ntp.org
   - 1.pool.ntp.org
 
-# ── UFW Firewall ──────────────────────────────────────────────────────────
-ufw_rules:
-  - { rule: allow, port: "{{ ssh_port }}", proto: tcp, comment: "SSH" }
-  - { rule: allow, port: 80,   proto: tcp, comment: "HTTP" }
-  - { rule: allow, port: 443,  proto: tcp, comment: "HTTPS" }
-
 # ── Common packages installed on every server ────────────────────────────
 common_packages:
   - curl
