@@ -13,13 +13,30 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Sensible security headers for a static marketing site.
+# Security headers for a static marketing site. The Content-Security-Policy is
+# NOT here: it carries per-build hashes of the inline scripts, so Eleventy
+# writes it to _site/_headers at build time (see eleventy.config.cjs). Netlify
+# merges that file with the headers below.
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "SAMEORIGIN"
+    # Kept alongside CSP frame-ancestors for browsers that predate CSP 2.
+    X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # The site asks for none of these. Denying them up front means a
+    # compromised or mistaken script cannot ask for them either. "payment" is
+    # the browser Payment Request API (Apple/Google Pay buttons on a page) -
+    # payments today happen on Stripe's own site after a redirect, so nothing
+    # here uses it, but it stays allowed for this origin and the Cal.com frame
+    # so an in-page payment could be added later without a header change.
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), usb=(), interest-cohort=(), payment=(self \"https://app.cal.com\")"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    # Netlify sends a one-year HSTS by default; includeSubDomains extends it to
+    # crm., n8n. and every other itsurgery.me host, all of which are HTTPS-only
+    # (Darren, 2026-09-05). No "preload": that is a browser-registry commitment
+    # that cannot be undone quickly.
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
 
 [[headers]]
   for = "/assets/*"

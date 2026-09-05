@@ -33,7 +33,8 @@ npm run build   # production build into _site/
 | `src/_includes/partials/footer.njk` | Footer with full service listings and contact details. |
 | `src/assets/styles.css` | All styling. No CSS framework. |
 | `eleventy.config.cjs` | Eleventy config — input `src/`, output `_site/`. |
-| `netlify.toml` | Netlify build settings and security headers. |
+| `netlify.toml` | Netlify build settings and the static security headers (HSTS, Permissions-Policy, frame and sniffing protection). |
+| `_site/_headers` (generated) | The Content-Security-Policy, written by `eleventy.config.cjs` at build time because it carries a hash of every inline script. Add an inline `<script>` to a page and the next build allows it automatically; anything not built in is refused by the browser. |
 | `tools/build-og-image.js` | Regenerates `src/assets/og-image.png`, the 1200x630 share image every page declares in its Open Graph and Twitter card tags. Run it after a logo or tagline change (needs Playwright and Poppins installed locally). |
 
 ### Adding a service page
