@@ -15,6 +15,27 @@
      that matter, so it stays out of the index until it earns its place. #}
   {% if noindex %}<meta name="robots" content="noindex, follow" />{% endif %}
 
+  {# Share cards. Without these a link pasted into WhatsApp, Facebook, LinkedIn
+     or Messenger shows as a bare URL. og:title is the short page name; the
+     apps show og:site_name beside it, so the long title pattern would repeat
+     "IT Surgery" twice on the card. One image for every page, rebuilt by
+     tools/build-og-image.js; the ?v= hash makes a replaced image show at once
+     rather than after the platform's cache expires. #}
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="{{ site.name }}" />
+  <meta property="og:locale" content="en_GB" />
+  <meta property="og:title" content="{{ title }}" />
+  <meta property="og:description" content="{{ description }}" />
+  <meta property="og:url" content="{{ site.url }}{{ page.url }}" />
+  <meta property="og:image" content="{{ site.url }}{{ '/assets/og-image.png' | v }}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="{{ site.name }} — {{ site.tagline }}. Friendly IT help for homes and small businesses in {{ site.areas | join(', ') }}, and remote support UK-wide." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ title }}" />
+  <meta name="twitter:description" content="{{ description }}" />
+  <meta name="twitter:image" content="{{ site.url }}{{ '/assets/og-image.png' | v }}" />
+
   {# Theme must be resolved BEFORE first paint. Inline and blocking on purpose:
      from an external file this runs after the stylesheet has already painted,
      and a dark-mode visitor gets a white flash on every navigation. #}

@@ -34,6 +34,7 @@ npm run build   # production build into _site/
 | `src/assets/styles.css` | All styling. No CSS framework. |
 | `eleventy.config.cjs` | Eleventy config — input `src/`, output `_site/`. |
 | `netlify.toml` | Netlify build settings and security headers. |
+| `tools/build-og-image.js` | Regenerates `src/assets/og-image.png`, the 1200x630 share image every page declares in its Open Graph and Twitter card tags. Run it after a logo or tagline change (needs Playwright and Poppins installed locally). |
 
 ### Adding a service page
 
