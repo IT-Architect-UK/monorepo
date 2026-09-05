@@ -821,6 +821,14 @@ input:focus-visible, textarea:focus-visible {
      bar before the logo on every page. About Us and Report a Problem move into
      the menu (.nav-utility). */
   .utility-links { display: none; }
+  /* Both bars stay in view on a phone (Darren, 2026-09-05): the contact bar
+     pins at the top and the logo/Menu bar pins directly beneath it. The bar is
+     given a fixed rem height so the header's offset can be the same value and
+     the two never overlap or gap, whatever the button text does. */
+  .utility-bar { position: sticky; top: 0; z-index: 101; }
+  .utility-inner { height: 2.6rem; padding-top: 0; padding-bottom: 0; }
+  .site-header { top: 2.6rem; }
+  .main-nav.is-collapsible.is-open { max-height: calc(100vh - 11rem); }
   .utility-inner { flex-wrap: nowrap; gap: 0.4rem; }
   .utility-left { flex: 0 0 auto; }
   .utility-contact { flex: 1 1 auto; flex-wrap: nowrap; gap: 0.3rem; }
