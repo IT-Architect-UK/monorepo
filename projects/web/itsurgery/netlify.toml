@@ -26,6 +26,13 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
+# Font files carry their version in the filename, so they never change in
+# place and can be cached for a year.
+[[headers]]
+  for = "/assets/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 # Netlify serves .webmanifest as application/octet-stream. Because
 # X-Content-Type-Options: nosniff is set above, the browser will not fall back
 # to sniffing, so the manifest has to be given its correct type explicitly.

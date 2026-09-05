@@ -65,9 +65,11 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+  {# Poppins is self-hosted (see @font-face in styles.css). Preloading the
+     600 weight, which every heading and menu item uses, lets it download in
+     parallel with the stylesheet instead of after it. crossorigin is required
+     on font preloads even for same-origin files, or the browser fetches twice. #}
+  <link rel="preload" href="/assets/fonts/poppins-v24-latin-600.woff2" as="font" type="font/woff2" crossorigin />
 
   <script type="application/ld+json">
   {
@@ -93,6 +95,7 @@
   </script>
 
   {# ?v= is a content hash — see the cache-busting note in eleventy.config.cjs #}
+  <link rel="stylesheet" href="{{ '/assets/fonts.css' | v }}" />
   <link rel="stylesheet" href="/assets/styles.css?v={{ assetHash }}" />
 </head>
 <body>

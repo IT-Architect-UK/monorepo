@@ -1,0 +1,22 @@
+/* Poppins, self-hosted. Linked by every layout - base, business card, flyer -
+   so the font is declared once. It used to come from Google Fonts, which meant
+   a third-party connection on every visit (a UK GDPR grey area since the 2022
+   Munich ruling), two DNS lookups before the first heading could paint, and a
+   dependency the site did not control. Latin subset only: the site is English
+   and every character it uses - including £, ½, · and the em dash - sits in
+   the latin range. font-display: swap shows the system fallback for the
+   instant the file takes to arrive, rather than leaving headings blank. The
+   version is in the filename so a future replacement is a new URL and the
+   year-long cache in netlify.toml is safe. */
+@font-face {
+  font-family: "Poppins"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("/assets/fonts/poppins-v24-latin-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Poppins"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("/assets/fonts/poppins-v24-latin-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Poppins"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("/assets/fonts/poppins-v24-latin-700.woff2") format("woff2");
+}

@@ -69,8 +69,9 @@ Carried over from the original site:
 | Dark panels | `#3f444b` / `#2f3338` |
 | Logo | Inline SVG cross (sharp at any size, no image file) |
 
-Poppins loads from Google Fonts. To drop that third-party dependency, self-host
-the `woff2` files and add an `@font-face` rule — the body stack needs no webfont.
+Poppins is self-hosted from `src/assets/fonts/` (latin subset, weights 500,
+600 and 700, declared with `@font-face` in `src/assets/fonts.css`, linked by all three layouts). Nothing is
+loaded from Google Fonts. The body stack needs no webfont.
 
 ## Pricing shown on the site
 

@@ -16,6 +16,9 @@
    panels and still separate. Anything sitting ON an invert surface keeps fixed
    light values, because that surface is dark in both themes. */
 
+/* Poppins is self-hosted; the @font-face rules live in fonts.css, which the
+   page layouts link before this file (the print layouts use it too). */
+
 :root {
   color-scheme: light;
 
