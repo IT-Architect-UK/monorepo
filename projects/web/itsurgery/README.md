@@ -129,6 +129,17 @@ followed live, but only until the visitor makes a choice of their own. The
 toggle is hidden until JS reveals it, so it is never shown in a state where it
 cannot work.
 
+## FAQ and "Ask us a question"
+
+The home-page FAQ is `src/_data/faq.json`: plain-text questions and answers
+with `{hourlyRate}`-style placeholders filled from `site.json`. The same text is
+emitted as FAQPage schema. Beneath it, an "Ask us a question" Netlify form
+(`question`) lets a visitor ask anything not covered; it arrives like a quote
+enquiry. **Publishing is deliberate:** reply to the person, then, if the
+question is one others would ask, add it to `faq.json` and commit. Nothing
+reaches the page until it is in that file. Enable a Netlify form notification
+for `question` so the emails arrive.
+
 ## Analytics and cookie consent
 
 Google Analytics (and Google Ads, once `adsConversionId` is set) load only after

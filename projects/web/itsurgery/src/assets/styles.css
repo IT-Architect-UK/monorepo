@@ -454,6 +454,18 @@ input:focus-visible, textarea:focus-visible {
 .has-children.open > .submenu { display: flex; }
 .submenu a { font-size: 1rem; font-weight: 500; padding: 0.5rem 0.75rem; }
 
+/* ---------- Home page FAQ ---------- */
+/* Reuses .disclosure. Rows are separated by rules rather than boxed so eight
+   questions read as one list, and the open answer sits under its question in
+   the body colour. The ask-a-question form is a narrower panel beneath. */
+.faq-list { border-top: 1px solid var(--border); margin-bottom: 1.25rem; }
+.faq-item { margin: 0; border-bottom: 1px solid var(--border); }
+.faq-item > summary { font-family: var(--font-head); font-weight: 600; text-decoration: none; color: var(--text-strong); width: 100%; }
+.faq-item > summary:hover { color: var(--brand-accent); }
+.faq-item > p { margin: 0 0 0.9rem 2rem; max-width: 60rem; }
+.faq-ask { margin: 0; }
+.faq-form { max-width: var(--panel); margin-top: 0.75rem; }
+
 /* ---------- Cookie consent banner ---------- */
 /* Bottom of the viewport, full width, above everything. Plain surface rather
    than an invert panel so it reads as part of the page asking a question, not

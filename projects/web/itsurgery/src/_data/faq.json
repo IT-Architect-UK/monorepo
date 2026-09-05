@@ -1,0 +1,37 @@
+{
+  "_readme": "Home-page FAQ. Plain text only (no HTML) because the same answers go into the FAQPage schema. Placeholders in braces are filled from site.json by the `fill` filter: {hourlyRate} {businessHourlyRate} {bookingFee} {areas}. To publish a question a visitor asked through the 'Ask a question' form, reply to them first, then add it here and commit - nothing appears on the site until it is in this file.",
+  "items": [
+    {
+      "q": "How much does it cost?",
+      "a": "Home users pay £{hourlyRate} an hour including VAT, and many common jobs have a fixed price so you know the cost before we start. Business support is £{businessHourlyRate} an hour plus VAT, with fixed prices and monthly support plans available."
+    },
+    {
+      "q": "What is the £{bookingFee} booking fee?",
+      "a": "It holds your slot and comes straight off your first hour, so it is not an extra charge. If we can't fix the problem, you get it back in full."
+    },
+    {
+      "q": "What if you can't fix it?",
+      "a": "You don't pay. No fix, no fee. We will also tell you honestly if a repair isn't worth the money."
+    },
+    {
+      "q": "Do you come to me?",
+      "a": "Yes. We visit homes and businesses across {areas} and the surrounding Vale of Glamorgan, and travel within that area is included in the price."
+    },
+    {
+      "q": "Can you help if I'm not local?",
+      "a": "Yes. Most software, email, Wi-Fi and security problems can be fixed remotely, and remote support covers the whole of the UK."
+    },
+    {
+      "q": "Is remote support safe?",
+      "a": "A session only ever happens when you have contacted us and agreed a time. You download the program from our own website, you approve the connection, you watch every step, and closing the window ends it. We never ring out of the blue asking for access, and we never need your banking details."
+    },
+    {
+      "q": "What can you help with?",
+      "a": "Computers, laptops, phones, tablets, printers, Wi-Fi, email, backups, viruses, smart home devices and AI tools. If it plugs in, switches on or connects to the internet, we can probably help."
+    },
+    {
+      "q": "How quickly can you help?",
+      "a": "Remote sessions are often the same day. For visits, book online and pick a time that suits you, or send a WhatsApp and we will come back to you quickly."
+    }
+  ]
+}
