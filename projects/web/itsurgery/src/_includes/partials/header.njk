@@ -95,6 +95,12 @@
           <li><a href="{{ item.url }}"{% if page.url == item.url %} aria-current="page"{% endif %}>{{ item.text }}</a></li>
           {% endif %}
         {% endfor %}
+        {# On phones the utility bar is one row of contact buttons and has no
+           room for About Us / Report a Problem, so they join the menu here.
+           Hidden above 640px, where the utility bar still shows them. #}
+        {% for item in site.utilityNav %}
+          <li class="nav-utility"><a href="{{ item.url }}"{% if page.url == item.url %} aria-current="page"{% endif %}>{{ item.text }}</a></li>
+        {% endfor %}
       </ul>
     </nav>
   </div>

@@ -293,9 +293,10 @@ input:focus-visible, textarea:focus-visible {
   /* This bar, not the header, is what stays pinned while the page scrolls. It
      is 40px tall and carries Book, Get a Quote and WhatsApp - the actions we
      want in reach at any scroll depth. The header used to be sticky instead,
-     and at 137px it took a sixth of a laptop screen on every page. Below 760px
-     the bar wraps to two rows, then three, so there it goes static and the
-     one-row header takes over again - see the 760px block. */
+     and at 137px it took a sixth of a laptop screen on every page. Between
+     641 and 760px the bar wraps to two rows, so from 760px down it goes static
+     and the one-row header takes over again - see the 760px block. (Below
+     640px the bar is a single compact row again, see that block.) */
   position: sticky; top: 0; z-index: 100;
 }
 .utility-inner {
@@ -801,29 +802,29 @@ input:focus-visible, textarea:focus-visible {
 }
 
 /* The utility bar wraps to two rows below ~740px (308px of links and toggle,
-   373px of buttons, plus the gap) and three below 640px - too much to pin.
-   Swap roles: the bar scrolls away and the one-row header (logo + Menu) is
-   what sticks. */
+   373px of buttons, plus the gap) - too much to pin. Swap roles: the bar
+   scrolls away and the one-row header (logo + Menu) is what sticks. Kept the
+   same below 640px, where the bar is compact again, so the Menu button stays
+   reachable while scrolling on a phone. */
 @media (max-width: 760px) {
   .utility-bar { position: static; }
   .site-header { position: sticky; top: 0; z-index: 100; }
 }
 
+/* The secondary links live in the mobile menu instead of the utility bar
+   below 640px; above that the bar shows them and the menu copies hide. */
+.nav-utility { display: none; }
 @media (max-width: 640px) {
-  .utility-inner { justify-content: center; }
-  /* Book takes a full-width row as the primary action; Contact Us and WhatsApp
-     share the row beneath. (This previously described a phone button, which was
-     removed when the number came off the site.) */
-  /* Flex wrap rather than a two-column grid: same result in a browser, but it
-     can be verified by tools/render-viewport.py, which does not place grid
-     items reliably. Book takes the full row as the primary action. */
-  .utility-contact {
-    width: 100%;
-    display: flex; flex-wrap: wrap; gap: 0.4rem;
-  }
-  .utility-contact .ubtn { flex: 1 1 40%; }   /* percentage, not calc(): calc in flex-basis is unevenly supported */
-  .utility-contact .ubtn:first-child { flex: 1 1 100%; }
-  .ubtn { min-width: 0; }
+  .nav-utility { display: block; }
+  /* One row: theme toggle, then Book / Get a Quote / WhatsApp sharing the
+     width. It was three rows (links, Book, then two buttons) - 126px of dark
+     bar before the logo on every page. About Us and Report a Problem move into
+     the menu (.nav-utility). */
+  .utility-links { display: none; }
+  .utility-inner { flex-wrap: nowrap; gap: 0.4rem; }
+  .utility-left { flex: 0 0 auto; }
+  .utility-contact { flex: 1 1 auto; flex-wrap: nowrap; gap: 0.3rem; }
+  .utility-contact .ubtn { flex: 1 1 0; min-width: 0; padding: 0.3rem 0.3rem; font-size: 0.85rem; }
   .hero { padding: 2.25rem 0 1.75rem; }
   .section { padding: 2rem 0; }
   .page-head { padding: 1.75rem 0 1.25rem; }
