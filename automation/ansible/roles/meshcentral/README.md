@@ -89,6 +89,24 @@ means these archives are worth stealing. Treat them accordingly.
 Restore: stop the container, unpack the archive over `/opt/meshcentral`, start
 it again.
 
+## Configuration
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `meshcentral_domain` | `""`, required | `help.itsurgery.me` in `inventory/group_vars/meshcentral/vars.yml` |
+| `meshcentral_image` / `meshcentral_image_tag` | `ghcr.io/ylianst/meshcentral` / `1.1.59` | Pinned, like every container on this host. `meshcentral_pull_policy: missing` means a re-run never pulls a newer image by accident; set `always` only when upgrading deliberately |
+| `meshcentral_title` / `meshcentral_title2` | `IT Surgery` / `Remote Help` | The branding MeshCentral shows on its pages and on the agent's consent prompt (`title` and `title2` in `config.json`) |
+| `meshcentral_http_port` | `4430` | Published on `127.0.0.1` only; nginx terminates TLS and proxies to it. MeshCentral's own redirect listener is not published, so it never contends with nginx for port 80 |
+| `meshcentral_use_local_db` | `true` | NeDB, MeshCentral's built-in file store: one fewer container, and the whole dataset is a directory already archived |
+| `meshcentral_webrtc` | `false` | See below |
+| `meshcentral_allow_new_accounts` | `false` | See "First run" above |
+| `meshcentral_backup_schedule` / `meshcentral_local_backup_keep_days` | `03:15` / `7` | Nightly archive, after the n8n backup |
+
+**Firewall.** This role does not manage one. It relies on the `espocrm` role,
+which owns the iptables ruleset on this host and already has 80/443 open —
+all MeshCentral needs, since everything reaches it through nginx. Deploy
+EspoCRM first on a fresh host, or 443 is not open and nothing connects.
+
 ## Things worth knowing
 
 - **The hostname is baked into every agent.** Renaming the server orphans every

@@ -5,11 +5,14 @@ can actually be restored.
 
 ## What you get
 
-- EspoCRM, MariaDB and the scheduled-jobs daemon as containers, bound to
-  `127.0.0.1` only
-- nginx in front, with a Let's Encrypt certificate and HSTS. certbot and
-  python3-certbot-nginx are installed by the playbook; apt's build registers
-  its own renewal timer, so renewal needs no extra setup
+- EspoCRM, MariaDB and the scheduled-jobs daemon as containers. Only the
+  EspoCRM container publishes a port, and only on the loopback interface
+  (`127.0.0.1:8080`); the database and the daemon publish none
+- nginx in front, with a Let's Encrypt certificate and HSTS. The role installs
+  nginx and certbot and obtains the certificate with `certonly --webroot`,
+  deliberately not the nginx plugin: the plugin rewrites the vhost this role
+  templates, so each would undo the other. apt's certbot registers its own
+  renewal timer, so renewal needs no extra setup
 - A nightly `mariadb-dump` plus an archive of uploads and customisations,
   written to `/opt/espocrm/backups/` for the off-box backup to collect
 
@@ -40,7 +43,10 @@ espocrm_admin_password: "..."
 
 Generate them with something like `openssl rand -base64 24`. The role refuses
 to run if any is empty — that is deliberate, because the EspoCRM image
-otherwise installs with the upstream default password of `password`.
+otherwise installs with the upstream default password of `password`. It also
+refuses any password containing a single quote, because the backup script
+assigns the database password inside single quotes; base64 output cannot
+contain one, but a password generator with symbols turned on can.
 
 **3. Set the domain** in `inventory/group_vars/espocrm/vars.yml`.
 
@@ -66,7 +72,7 @@ cd /opt/monorepo/automation/ansible
 ansible-galaxy collection install -r requirements.yml
 
 # 4. Secrets — see "Before you run it" above
-ansible-vault create inventory/group_vars/espocrm_vault.yml
+ansible-vault create inventory/group_vars/espocrm/vault.yml
 
 # 5. Dry run first. Nothing is changed; you see what would be.
 #    Docker is installed by the playbook itself - it imports deploy-docker.yml
@@ -156,11 +162,15 @@ Then clear the cache in Administration, or `docker exec espocrm php clear_cache.
 
 ## Upgrading EspoCRM
 
-Image tags are pinned in `defaults/main.yml` on purpose — an unattended jump
-across a major version is how a working CRM breaks overnight. To upgrade:
+Image tags are pinned on purpose — an unattended jump across a major version
+is how a working CRM breaks overnight. `defaults/main.yml` carries the pins,
+but `inventory/group_vars/espocrm/vars.yml` sets `espocrm_image_tag` and
+`espocrm_mariadb_tag` too and group_vars win, so that is where to bump them.
+To upgrade:
 
 1. Take a backup and confirm it restores
-2. Bump `espocrm_image_tag`
+2. Bump `espocrm_image_tag` (and `espocrm_mariadb_tag` if due) in
+   `inventory/group_vars/espocrm/vars.yml`
 3. Re-run the playbook with `-e espocrm_pull_policy=always`
 
 ## Firewall — read before the first run
@@ -169,13 +179,31 @@ The role sets an iptables default-DROP policy with:
 
 | Port | Source |
 |------|--------|
-| 22 | `espocrm_ssh_allowed_sources` only (default: Darren's static IP) |
-| 80, 443 | anywhere — customers, and Certbot's HTTP-01 challenge |
+| 22 (`ssh_port`) | `espocrm_ssh_allowed_sources` only (default: Darren's static IP) |
+| `espocrm_public_tcp_ports` (default 80, 443) | anywhere — customers, and Certbot's HTTP-01 challenge |
 | ICMP echo | anywhere, if `espocrm_firewall_allow_ping` |
+
+The ACCEPT rules go in first and the DROP policy is set last, so the run
+cannot sever its own session partway through. Rules are persisted with
+`iptables-persistent` to `/etc/iptables/rules.v4`.
 
 The repo's own `setup-iptables.sh` does not cover this shape: its `strict` mode
 restricts every port to `mgmt_subnets`, which would block customers, and its
 `baseline` mode leaves SSH open to the internet. Hence the rules live here.
+
+**IPv6 is filtered too.** iptables and ip6tables are separate: a default-DROP
+policy on IPv4 alone leaves ip6tables at its default ACCEPT, and SSH would be
+reachable over IPv6 from anywhere. When the host has a global IPv6 address
+(`espocrm_enable_ipv6`, auto-detected, and the same switch that adds the
+`[::]` listeners to nginx) the role also writes an ip6tables ruleset,
+persisted to `/etc/iptables/rules.v6`:
+
+| Rule | Detail |
+|------|--------|
+| ICMPv6 | allowed from anywhere — neighbour discovery and path MTU discovery ride on it; drop it and IPv6 degrades in ways that look like random hangs |
+| `espocrm_public_tcp_ports` | allowed from anywhere |
+| SSH | **not opened.** The allowed source is an IPv4 address, so there is no v6 source to permit. Administer over IPv4 |
+| INPUT, FORWARD | default DROP |
 
 **If your IP changes, you lose SSH.** There is no second way in from the
 network. Recover through the OVHcloud control panel — KVM console, or boot into
