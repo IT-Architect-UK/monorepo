@@ -5,6 +5,9 @@ analysis tool, and the business's websites. Each is standalone: it can be built,
 run and understood on its own, without the rest of the monorepo. Usage details
 live in each script's header or the project's own README.
 
+> **Archived.** The blockchain node scripts below are kept as a record of past
+> work. No node is running and they are not maintained.
+
 ## Cardano — `blockchain/cardano/`
 
 | Script | Purpose |

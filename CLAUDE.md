@@ -20,10 +20,23 @@ One monorepo for IT Solution Architecture Limited, five things at once:
   (`dashboard.json`, served by n8n at dashboard.itsurgery.me, not by the
   website; `automation/n8n/README.md` says why, and
   `projects/web/itsurgery-dashboard/README.md` is the pointer to it).
+- **The IT Surgery platform**, one OVHcloud VPS deployed by Ansible roles in
+  `automation/ansible/roles/`: EspoCRM (crm.itsurgery.me), n8n
+  (n8n.itsurgery.me), MeshCentral remote help (help.itsurgery.me), Webmin,
+  oauth2-proxy (one Microsoft 365 sign-in in front of every admin page) and
+  the vitals collector the monitoring page reads. The operating manual is
+  `automation/itsurgery-admin-and-deployment-guide.md`, which the dashboard
+  renders as its Guide tab. `automation/calcom/` keeps Cal.com event types in
+  step with the site's catalogue.
 - **The deployment toolbox**: `automation/packer` (golden images for Proxmox,
   vSphere, AWS, Azure, GCP), `automation/ansible`, `containers`, `cloud`,
   `infrastructure`, `monitoring`, `backup`, `security`, `scripts` - for
   building servers and services locally or on cloud platforms.
+- **Other projects**: `projects/trading/wmtx-arbitrage/` (paused, has its own
+  CLAUDE.md, leave it out of review and test work); `projects/blockchain/`
+  (Cardano, COTI, World Mobile node scripts - archived, nothing is running,
+  do not modernise); `applications/` (generic installers for AWX, Bacula,
+  Homepage, Webmin, WordPress).
 - **A public work sample.** The repo is itself part of Darren's portfolio, so
   READMEs, commit messages and code quality are on show. Nothing private or
   customer-identifying goes in.

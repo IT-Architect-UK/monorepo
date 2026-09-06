@@ -30,6 +30,12 @@ delete the orphan.
 | `dashboard.json` | Darren, in a browser | The business dashboard — money, upcoming bookings, unpaid invoices |
 | `monitoring.json` | Darren, in a browser | Whether the machinery is healthy — services, server, certificates, backups, updates |
 | `watchdog.json` | A 15-minute schedule | Emails when the monitoring verdict *changes*. Never runs on demand |
+| `pay.json` | The customer, from the invoice email | Turns a Xero invoice into a Stripe checkout session; handles already-paid and not-yet-due |
+| `stripe-events.json` | Stripe webhooks | Records a completed checkout against the invoice and confirms to the customer |
+| `custom-job.json` | Darren, from the dashboard's New job form | Validates the job, raises the Xero invoice, gets the pay link, sends it, records it in the CRM |
+| `ask-review.json` | Darren, after a job | Sends the Google review request and remembers that it was asked |
+| `backup.json` | Darren, in a browser | Backup status page, served like the dashboard |
+| `guide.json` | Darren, in a browser | Renders `automation/itsurgery-admin-and-deployment-guide.md` as the dashboard's Guide tab |
 
 ## When something fails
 
@@ -82,7 +88,7 @@ build it against.
 `projects/web/itsurgery-dashboard/` that leads back here.)
 
 The obvious home for a dashboard is the website — same repo, same deploy,
-`dash.itsurgery.me` and a certificate for free. We chose n8n instead, and the
+`dashboard.itsurgery.me` and a certificate for free. We chose n8n instead, and the
 reason is worth remembering before anyone moves it.
 
 The dashboard reads EspoCRM, Xero and Stripe, and will later issue refunds.
@@ -98,7 +104,7 @@ second place for secrets to live — in exchange for a nicer address.
 
 TLS is not a factor either way: n8n has a Let's Encrypt certificate already.
 
-If a prettier address matters later, put `dash.itsurgery.me` in front of the
+If a different address is ever wanted, put it in front of the
 n8n webhook with nginx. That keeps the security model and changes only the URL.
 
 ## Where the monitoring page gets its facts
