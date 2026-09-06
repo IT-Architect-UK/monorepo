@@ -278,9 +278,35 @@ Full credential setup for every platform (Proxmox, VMware, AWS, Azure, GCP, GitH
 
 **Multi-platform parity where it matters.** AWS is the most fully built-out cloud target; Azure and GCP have identity, monitoring, and image-maintenance tooling with the same structure ready to extend. On-premises and cloud are treated as equal targets, not cloud-first with on-prem as an afterthought.
 
-**CI-gated.** No untested code on main. The GitHub Actions workflow validates every shell script, every Ansible playbook, and every Packer template on every push.
+**CI-gated.** Three workflows run on every push: Validate (does it parse), Lint (shellcheck, yamllint, ansible-lint, PSScriptAnalyzer) and Test (pytest, py_compile). A red run is fixed before anything else lands.
 
 **Separation of secrets.** Credentials are never committed. Sensitive values use environment variables (`PKR_VAR_*`, `.env` files excluded by `.gitignore`) with `.env.example` files showing required keys.
+
+---
+
+## Known issues and backlog
+
+Found during review and recorded here so they are not lost. None is fixed yet; each is
+also noted as a *Known issue* in the README nearest the code.
+
+| # | Area | Issue |
+|---|------|-------|
+| 1 | Proxmox API | Calls from the toolbox wrapper, the bootstrap script and `provision-vm.yml` skip TLS certificate verification; only the Packer templates have a variable for it |
+| 2 | Packer vSphere | `vsphere` plugin pinned to 1.x; the 2.x upgrade needs a deliberate pass |
+| 3 | Packer wrappers | `build-ubuntu-2404-proxmox.ps1` and `build-ubuntu-2604-proxmox.ps1` contain a literal form-feed byte in the fetch-ubuntu-iso path, so auto-ISO staging fails on Windows |
+| 4 | Packer | `automation/packer/.env.example` sets `PKR_VAR_ssh_password` to a value that does not match the hash baked into `http/user-data` |
+| 5 | Packer | The Azure and GCP 26.04 templates still label the image `ubuntu-24_04` / `ubuntu-24-04` |
+| 6 | Ansible | Roles `tls` and `monitoring-agent` notify handlers that do not exist; `monitoring-agent` opens its port with ufw where every other host uses iptables |
+| 7 | Ansible | `roles/microsoft/` is two install notes, not a role |
+| 8 | Legacy scripts | `applications/awx`, `containers/docker/swarm/docker-swarm-node.sh`, `security/vault/hashicorp-vault-server.sh`, `proxmox/templates/ubuntu-default.sh` and `utilities/` clone script depend on a `scripts/bash/ubuntu` layout that no longer exists |
+| 9 | Kubernetes | `install-management-node.sh` uses the retired `apt-key` / `kubernetes-xenial` repository |
+| 10 | Projects | `projects/trading/wmtx-arbitrage` is paused (2026-09-04); `projects/blockchain` is archived |
+
+---
+
+## Licence
+
+Apache License 2.0 — see [LICENSE](LICENSE).
 
 ---
 

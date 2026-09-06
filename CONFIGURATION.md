@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This guide explains how to configure credentials and settings for every platform covered in this repository **before running any scripts**.
+This guide explains how to configure credentials and settings for the infrastructure platforms in this repository **before running any scripts**. The business systems (n8n, Cal.com, the website's Netlify functions) keep their setup next to their code; the [Business systems](#business-systems) section below says where.
 
 Scripts in this repo never hardcode credentials. Instead they read from:
 - **Environment variables** (works locally and in GitHub Actions CI/CD)
@@ -21,12 +21,16 @@ Scripts in this repo never hardcode credentials. Instead they read from:
 | Use Azure (VMs, Key Vault, Monitor) | [Azure Setup](#azure) |
 | Use Google Cloud (GCP) | [GCP Setup](#gcp) |
 | Run scripts via GitHub Actions CI/CD | [GitHub Actions Setup](#github-actions-cicd) |
+| Deploy n8n workflows, sync Cal.com, wire the website forms | [Business systems](#business-systems) |
 
 ---
 
 ## How the `.env` File Pattern Works
 
-Several script directories include a `.env.example` file showing the expected variables — copy it to `.env` and fill in your values:
+Six directories include a `.env.example` file showing the expected variables:
+`infrastructure/hypervisors/proxmox/`, `infrastructure/hypervisors/vmware/`,
+`infrastructure/networking/firewall/`, `security/tls/`, `automation/packer/`
+and `automation/ansible/`. Copy it to `.env` and fill in your values:
 
 ```bash
 cd infrastructure/hypervisors/proxmox
@@ -490,10 +494,26 @@ Add these secrets based on which platforms you use:
 
 ### Step 2 — GitHub Actions workflows
 
-Currently, `.github/workflows/` contains one workflow:
-- `validate.yml` — runs shell syntax, Ansible syntax, and Packer validate on every push/PR
+`.github/workflows/` contains four workflows:
+- `validate.yml` — shell syntax, Ansible syntax, Packer validate and PowerShell parse on every push/PR
+- `lint.yml` — shellcheck, yamllint, ansible-lint and PSScriptAnalyzer
+- `test.yml` — pytest over `automation/**/tests` plus py_compile of every Python file
+- `deploy-n8n.yml` — pushes `automation/n8n/workflows/` to the live n8n instance on a push to main (dry run on pull requests); needs the `N8N_BASE_URL` and `N8N_API_KEY` secrets
 
-Scheduled build workflows (e.g. a monthly automated AMI/image rebuild) are not yet implemented — the secrets below are what you'd need to configure if you add one.
+Scheduled build workflows (e.g. a monthly automated AMI/image rebuild) are not yet implemented — the platform secrets above are what you'd need to configure if you add one.
+
+---
+
+## Business systems
+
+These are not platform credentials; each lives where the code that uses it is documented.
+
+| Variable | Where it is set | Used by | Docs |
+|---|---|---|---|
+| `N8N_BASE_URL`, `N8N_API_KEY` | GitHub Actions secrets (CI), or your shell for a local run | `automation/n8n/deploy.py` | [automation/n8n/README.md](automation/n8n/README.md) |
+| `CALCOM_API_KEY` | your shell (the script prompts if unset) | `automation/calcom/sync-event-types.py` | [automation/calcom/README.md](automation/calcom/README.md) |
+| `ESPOCRM_LEAD_CAPTURE_URL`, `NETLIFY_WEBHOOK_JWS_SECRET` | Netlify site environment variables | the website's form-to-CRM Netlify function (`crm-lead.js`) | [projects/web/itsurgery/README.md](projects/web/itsurgery/README.md) |
+| EspoCRM, n8n, MeshCentral, oauth2-proxy secrets | `automation/ansible/inventory/group_vars/<group>/vault.yml` (Ansible Vault) | the platform roles | [automation/ansible/README.md](automation/ansible/README.md) |
 
 ---
 
