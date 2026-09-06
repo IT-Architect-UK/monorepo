@@ -4,18 +4,20 @@ Day-1 configuration scripts for Linux and Windows servers.
 
 ## Linux (Ubuntu) — `linux/configuration/`
 
-`server-baseline.sh` orchestrates the standard set below against a fresh server — run that for a full baseline, or any script standalone. Usage in each header.
+`server-baseline.sh` runs a fixed sequence against a fresh server, then does a
+full `apt-get upgrade` and reboots. Everything else is standalone. Usage in
+each header.
 
-| Script | Purpose |
-|--------|---------|
-| `server-baseline.sh` | **Start here** — runs the standard baseline sequence |
-| `apt-get-upgrade.sh` | Full non-interactive system upgrade + cleanup |
-| `apply-branding.sh` | Login banner, MOTD, and prompt branding |
-| `create-user.sh` | Create a user with optional sudo + SSH key (idempotent) |
-| `disable-cloud-init.sh` | Stop cloud-init running on future boots (post-provisioning) |
-| `disable-ipv6.sh` | Persistently disable IPv6 via sysctl |
-| `install-tls-certificate.sh` | Certbot (snap) + Let's Encrypt cert for Apache/Nginx |
-| `sync-monorepo.sh` | Clone/pull this repo to `/git/monorepo` (installed to `/usr/local/bin` on toolbox builds) |
+| Script | Purpose | In baseline |
+|--------|---------|:-----------:|
+| `server-baseline.sh` | **Start here** — runs, in order: `apply-branding.sh`, `disable-cloud-init.sh`, `disable-ipv6.sh`, `../../networking/dns/dns-default-gateway.sh`, `../../networking/firewall/setup-iptables.sh`, `../../storage/linux/extend-disks.sh`; then upgrades and reboots | — |
+| `apply-branding.sh` | Login banner, MOTD, and prompt branding | ✅ |
+| `disable-cloud-init.sh` | Stop cloud-init running on future boots (post-provisioning) | ✅ |
+| `disable-ipv6.sh` | Persistently disable IPv6 via sysctl | ✅ |
+| `apt-get-upgrade.sh` | Full non-interactive system upgrade + cleanup | |
+| `create-user.sh` | Create a user with optional sudo + SSH key (idempotent) | |
+| `install-tls-certificate.sh` | Certbot (snap) + Let's Encrypt cert for Apache/Nginx | |
+| `sync-monorepo.sh` | Clone/pull this repo to `/git/monorepo` (installed to `/usr/local/bin` on toolbox builds) | |
 
 ## Windows — `windows/`
 

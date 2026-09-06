@@ -22,6 +22,9 @@ vSphere Essentials licence for full vCenter features.
 
 ```
 vmware/
+├── .env.example             # vCenter connection defaults — copy to .env and load into the session
+├── enable-snmp-esxi.sh      # Enable SNMP on an ESXi host (run in the ESXi shell)
+├── enable-snmp-vcenter.sh   # appliancesh commands for the VCSA (paste, not run)
 ├── templates/               # Scripts to prepare and seal "golden" templates
 │   ├── prepare-windows-2025-template.ps1   # Patch, Sysprep, convert to template
 │   └── prepare-ubuntu-2404-template.sh     # Patch, clean, seal for cloning
@@ -29,6 +32,13 @@ vmware/
     ├── clone-from-template.ps1             # Clone a single VM
     └── deploy-vm-from-template.ps1         # Bulk deploy from a CSV file
 ```
+
+## 📡 Host SNMP
+
+| File | What it does |
+|------|--------------|
+| `enable-snmp-esxi.sh` | Busybox `sh` for the ESXi shell (there is no bash on ESXi): `esxcli system snmp` enables the agent, sets the community and a trap target, starts `snmpd` and prints the result. The trap target (`192.168.123.123`) and community (`public`) are hard-coded — edit them before running |
+| `enable-snmp-vcenter.sh` | Not a script: `appliancesh` commands (`snmp.enable`, `snmp.set`, `snmp.get`, `service-control --restart vmware-vpxd`) to paste one at a time into an SSH session on the vCenter appliance. Community, contact and location are placeholders |
 
 ## 🔄 Workflow: Template → Clone → Deploy
 

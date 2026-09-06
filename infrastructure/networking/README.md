@@ -1,6 +1,6 @@
 # Networking
 
-Baseline network configuration for Ubuntu servers (22.04+, systemd-based). All are used by the server-baseline flow (`infrastructure/servers/linux/configuration/server-baseline.sh`) and can be run standalone. Usage details in each script's header.
+Baseline network configuration for Ubuntu servers (22.04+, systemd-based). `dns/dns-default-gateway.sh` and `firewall/setup-iptables.sh` are run by the server-baseline flow (`infrastructure/servers/linux/configuration/server-baseline.sh`); `ntp/setup-ntp.sh` is standalone only. All three can be run on their own. Usage details in each script's header.
 
 | Script | Purpose |
 |--------|---------|

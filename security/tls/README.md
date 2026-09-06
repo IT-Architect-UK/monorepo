@@ -91,4 +91,4 @@ sudo ./deploy/deploy-cert-to-nginx.sh -d example.com -c fullchain.pem -k privkey
 → Add the DNS CNAME records shown in the ACM console. Check with: `dig CNAME _abc123.example.com`
 
 **"Certificate not trusted" for internal/lab use?**
-→ Let's Encrypt only works for public domains. For internal use, create an internal CA (see `/security/internal-ca/`) or use a self-signed cert.
+→ Let's Encrypt only works for public domains. For internal use, create a private CA with the scripts in [`security/pki/`](../README.md#pki--pki) or use a self-signed cert.

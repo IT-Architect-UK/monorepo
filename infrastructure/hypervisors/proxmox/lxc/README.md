@@ -18,7 +18,12 @@ LXC containers are significantly lighter than full VMs. They share the Proxmox h
 | Script | What it does |
 |--------|-------------|
 | `deploy-ubuntu-lxc.sh` | Creates a new Ubuntu 24.04 LXC container |
-| `lxc-baseline.sh` | Applies OS hardening and baseline configuration |
+
+There is no container-specific hardening script. To baseline the guest, `pct enter`
+it and run the individual scripts from
+[`infrastructure/servers/linux/configuration/`](../../../servers/README.md)
+(branding, IPv6, DNS, iptables). Skip `server-baseline.sh`: it calls
+`extend-disks.sh`, which has no meaning in an LXC.
 
 ## Usage
 

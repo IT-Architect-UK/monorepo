@@ -15,13 +15,14 @@ Proxmox VE (Virtual Environment) is an open-source server virtualisation platfor
 
 ```
 proxmox/
+├── .env.example          # Node, storage, bridge and VM defaults — copy to .env and source it
 ├── vms/                  # Full virtual machine deployment scripts
 │   ├── deploy-windows-server-2025.sh   # Deploy Windows Server 2025
 │   ├── deploy-ubuntu-2404.sh           # Deploy Ubuntu 24.04 LTS (cloud-init)
 │   └── clone-vm-from-template.sh       # Clone any existing template to a new VM
-└── lxc/                  # Lightweight Linux container scripts
-    ├── deploy-ubuntu-lxc.sh            # Deploy Ubuntu 24.04 LXC container
-    └── lxc-baseline.sh                 # Apply baseline hardening to an LXC container
+├── lxc/                  # Lightweight Linux container scripts
+│   └── deploy-ubuntu-lxc.sh            # Deploy Ubuntu 24.04 LXC container
+└── templates/            # Guest-side template preparation (see templates/README.md)
 ```
 
 ## 🚀 Quick Start
@@ -78,6 +79,11 @@ qm template 100
 ```bash
 ./lxc/deploy-ubuntu-lxc.sh --ctid 300 --name "pihole" --memory 256 --disk 4
 ```
+
+To harden the guest afterwards, run the individual scripts in
+`infrastructure/servers/linux/configuration/` inside the container. Do not use
+`server-baseline.sh` there: it calls `extend-disks.sh`, which has no meaning in
+an LXC.
 
 ## 💡 Recommended VM Sizes (Home Lab)
 

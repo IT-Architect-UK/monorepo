@@ -8,6 +8,14 @@ Know when things break before your users do. This section covers monitoring for 
 monitoring/
 ├── uptime-kuma/           # Self-hosted uptime monitoring
 │   └── install-uptime-kuma-docker.sh
+├── prometheus-grafana/    # Prometheus + Grafana stack and exporters (see below)
+│   ├── install-grafana-prometheus.sh
+│   ├── install-grafana-prometheus-docker.sh
+│   ├── install-node-exporter-ubuntu.sh
+│   └── install-node-exporter-windows.ps1
+├── zabbix/                # Zabbix agents (see below)
+│   ├── install-zabbix-agent-ubuntu.sh
+│   └── install-zabbix-agent-windows.ps1
 └── cloud/
     ├── aws/
     │   └── setup-cloudwatch-agent.sh    # AWS CloudWatch Agent
@@ -94,7 +102,7 @@ gcloud alpha monitoring channels create \
 
 | Script | Purpose |
 |--------|---------|
-| `install-zabbix-agent-ubuntu.sh` | Zabbix agent on Ubuntu, pointed at your Zabbix server |
-| `install-zabbix-agent-windows.ps1` | Zabbix agent on Windows |
+| `install-zabbix-agent-ubuntu.sh` | Zabbix agent on Ubuntu. Takes the server IP and server name as positional arguments (`sudo ./install-zabbix-agent-ubuntu.sh <ip> <name>`); no flags, and it prompts for whichever is missing |
+| `install-zabbix-agent-windows.ps1` | Zabbix agent on Windows. `-ServerIP` and `-ServerName`; prompts for whichever is missing |
 
 Usage details are in each script's header.

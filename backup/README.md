@@ -14,11 +14,12 @@ backup/
 │   └── veeam-agent/
 │       └── install-veeam-agent-linux.sh  # Veeam Agent for Linux (free) — repo package pinned (VEEAM_RELEASE_VERSION) + SHA256-checked
 └── cloud/
-    ├── aws/
-    │   └── aws-backup-setup.sh      # AWS Backup centralised policy
-    ├── azure/                        # Azure Backup (see below)
-    └── gcp/                          # GCP Backup (see below)
+    └── aws/
+        └── aws-backup-setup.sh      # AWS Backup centralised policy
 ```
+
+There are no Azure or GCP backup scripts yet; the comparison table below is for
+planning only.
 
 ## 🚀 Quick Start
 

@@ -14,7 +14,7 @@ PKI, TLS certificate lifecycle, secrets management, and compliance reporting.
 | Script | Purpose |
 |--------|---------|
 | `create-openssl-root-cert.sh` | Create a self-signed root CA (4096-bit RSA, 10-year cert) |
-| `openssl-sign-sub-ca.sh` | Sign a subordinate CA with the root |
+| `openssl-sign-sub-ca.sh` | Sign a subordinate CA with the root. Fully interactive — prompts for the log file, root key, root certificate, sub-CA CSR and output path; no flags |
 
 Run the root script once on a secured host, keep the root key offline, then sign subordinates as needed. Full usage in each header.
 
