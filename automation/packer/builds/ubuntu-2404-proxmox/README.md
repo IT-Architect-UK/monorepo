@@ -32,9 +32,13 @@ Applications (Webmin, monitoring agents, Docker, …) deliberately never go into
 
 | Requirement | Detail |
 |-------------|--------|
-| Packer ≥ 1.10 | The **only** build-machine requirement, on any OS — the Ansible baseline runs inside the build VM |
+| Packer ≥ 1.10 | The only requirement for a raw `packer build .` — the Ansible baseline runs inside the build VM, so no Ansible on the build machine |
+| xorriso | Checked for by `build-ubuntu-2404-proxmox.sh` — Packer needs it to build the cidata CD from `http/user-data` + `meta-data` |
+| curl, jq | Needed by `../../scripts/fetch-ubuntu-iso.sh` (automatic ISO staging) and `remove-vm-if-exists.sh` (clears VM ID 9004 before a rebuild), both called by the `.sh` wrapper |
 | Proxmox API access | Password, or API token (`user@realm!tokenid` + secret) — token recommended |
 | Ubuntu 24.04 live-server ISO | **Staged automatically** — the wrappers find the latest release and have Proxmox download it server-side (checksum-verified), prompting for the target storage. Pin a specific ISO via `ubuntu_iso_file` if preferred. Standalone staging: `../../scripts/fetch-ubuntu-iso.sh 24.04` |
+
+**Known issue:** `build-ubuntu-2404-proxmox.ps1` contains a stray form-feed byte in the path it uses to call `..\..\scripts\fetch-ubuntu-iso.ps1` (line 57), so automatic ISO staging fails on Windows. Set `$env:PKR_VAR_ubuntu_iso_file` to a pre-uploaded ISO volid before running it, or use the `.sh` wrapper.
 
 ## Key variables (`variables.pkr.hcl`)
 

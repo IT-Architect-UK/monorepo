@@ -47,26 +47,35 @@ critical path to a working template.
 
 | Requirement | Detail |
 |-------------|--------|
-| Packer ≥ 1.10 | The only build-machine requirement — provisioning runs in-guest via WinRM |
-| Windows Server 2025 ISO | The wrapper walks you through it: **pick an ISO already on Proxmox storage, or upload one from a local folder** (no auto-download — Microsoft licensing; eval ISOs from the [Microsoft Evaluation Center](https://www.microsoft.com/en-us/evalcenter/)). Scripted runs set `win_iso_file` directly. **Strongly recommended:** run the ISO through `../../scripts/make-windows-noprompt-iso.sh` once — it removes the "Press any key to boot from CD" pause (using the no-prompt loaders Microsoft ships inside every ISO), making builds fully deterministic |
+| Packer ≥ 1.10 | The only requirement for a raw `packer build .` — provisioning runs in-guest via WinRM |
+| xorriso | Checked for by `build-win2025-proxmox.sh` — Packer needs it to build the autounattend CD |
+| curl, jq | Needed by the host-side helpers the `.sh` wrapper calls: `select-or-upload-iso.sh`, `fetch-ubuntu-iso.sh` (URL mode, for virtio-win) and `remove-vm-if-exists.sh` (clears VM ID 9003 before a rebuild) |
+| Windows Server 2025 ISO | The wrapper walks you through it: **pick an ISO already on Proxmox storage, or upload one from a local folder** (no auto-download — Microsoft licensing; eval ISOs from the [Microsoft Evaluation Center](https://www.microsoft.com/en-us/evalcenter/)). Scripted runs set `win_iso_file` directly. A stock ISO works as-is — see the note below |
 | virtio-win drivers ISO | **Staged automatically** by the wrapper from the stable upstream URL; or upload manually and set `virtio_iso_file` |
+| WinRM password | `PKR_VAR_winrm_password` (12+ characters) **is** the build account's password — it's injected into `autounattend.xml` at build time and is also the built-in Administrator's password until first boot. No default: the wrappers generate a random one if you set nothing. `cleanup-windows.ps1` cannot delete the account it is running as, so it schedules `net user packer /delete` via a `RunOnce` key — the account is removed on the **clone's first boot**, not when the image is sealed. Set `keep_administrator=true` to leave the built-in Administrator enabled with that password for troubleshooting; otherwise it is disabled on first boot the same way |
 
-The build is fully unattended — no custom "no-prompt" ISO is required. Disk-first
-boot order means the post-install reboot boots Windows directly and never hits the
-"Press any key" DVD prompt. (`scripts/make-windows-noprompt-iso.sh` remains available
-as optional belt-and-braces if a specific ISO ever misbehaves.)
-| WinRM password | Whatever you set as `winrm_password` **is** the build account's password — it's injected into the unattended install at build time. No default: the wrappers generate a random one if you set nothing (the account is removed on first boot). Set `keep_administrator=true` to leave the built-in Administrator enabled with that password for troubleshooting; otherwise it is disabled on first boot. The account is removed when the image is sealed |
+The build is fully unattended with a stock ISO — no custom "no-prompt" ISO is required. The template boots disk-first (`order=sata0;ide2;…`), so the post-install reboot boots Windows directly and never reaches the "Press any key" DVD prompt; the first boot, with an empty disk, falls through to the DVD and a repeated `<enter>` in `boot_command` catches that one prompt. `../../scripts/make-windows-noprompt-iso.sh` remains available as optional belt-and-braces if a specific ISO ever misbehaves.
+
+## What the build installs
+
+| Step | Script | What it does |
+|------|--------|--------------|
+| 1 | `provision-windows.ps1` | Baseline hardening, RDP, OpenSSH, VirtIO drivers + QEMU Guest Agent (from the virtio-win ISO), en-GB / UTC, automatic updates off |
+| 2 | `install-cloudbase-init.ps1` | Installs **Cloudbase-Init** (Windows cloud-init) configured for Proxmox's ConfigDrive2, and stages its `Unattend.xml` for sysprep — this is how a clone gets its hostname, network, admin user/password and SSH keys from the Proxmox cloud-init drive on first boot |
+| 3 | `cleanup-windows.ps1` | Removes the build-only WinRM rule, clears logs/temp/pagefile, schedules the `packer` account removal and Administrator disable via `RunOnce`, zero-fills free space, runs sysprep `/generalize` |
 
 ## Key variables (`variables.pkr.hcl`)
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `win_vm_id` | see file | Build VM / template ID |
+| `win_vm_id` | `9003` | Build VM / template ID |
 | `image_name` | `t-win2025` | Template name prefix (timestamp appended) |
 | `win_iso_file` | `local:iso/windows-server-2025.iso` | Windows ISO volid |
 | `virtio_iso_file` | `local:iso/virtio-win.iso` | VirtIO drivers ISO volid |
 | `winrm_username` / `winrm_password` | `packer` / — | Build account (injected into autounattend.xml; random if unset) |
 | `keep_administrator` | `false` | Keep the built-in Administrator enabled (troubleshooting); default disables it on first boot |
+| `windows_image_index` | `2` | Edition to install from `install.wim` (see above) |
+| `win_cpu_type` | `x86-64-v2-AES` | vCPU model — the default `kvm64` cannot boot WS2025 |
 
 ## After the build
 

@@ -16,7 +16,7 @@ Builds the primary automation host for the lab -- pre-loaded with every tool nee
 | Automation UI | Semaphore (web UI for Ansible playbooks) |
 | Dashboards | Homepage (status/launcher, :3002) · Portainer CE (container management, :9443) · Webmin (:10000) |
 
-The build produces a Proxmox template (default VM ID: **9002**, name: **POSLXPDEPLOY01**) as its output artifact -- clone it once to stand up the real toolbox server (see "After the Build" below).
+The build produces a Proxmox template (default VM ID: **9002**, name: **T-UBUNTU-24-DEPLOY**, set in `automation-toolbox.pkrvars.hcl`; no timestamp suffix, since the build rebuilds in place) as its output artefact -- clone it once to stand up the real toolbox server (see "After the Build" below). **POSLXPDEPLOY01** is the default name of that clone, as used by the build wrapper and the cleanup script.
 
 ---
 
@@ -116,8 +116,9 @@ The script will:
 
 ```bash
 export PKR_VAR_proxmox_password="your-root-password"
-export PKR_VAR_ssh_password="your-packer-user-password"
 export PKR_VAR_semaphore_admin_password="your-semaphore-password"
+export PKR_VAR_admin_password="your-admin-login-password"   # optional (SSH key only if unset)
+# PKR_VAR_ssh_password is NOT needed — it defaults to the value whose hash is in http/user-data
 
 cd automation/packer/builds/ubuntu-2404-automation-toolbox
 
@@ -141,30 +142,44 @@ packer build \
 ```
 packer build .
       │
-      ├─ [1] Create VM in Proxmox (ID 9002)
-      ├─ [2] Download + checksum-verify Ubuntu 24.04 ISO from Canonical, attach + cidata ISO
-      ├─ [3] Boot VM — autoinstall reads cidata, installs Ubuntu unattended
-      ├─ [4] Wait for SSH (up to 90 min — install + first boot)
+      ├─ [1]  Create VM in Proxmox (ID 9002)
+      ├─ [2]  Proxmox downloads + checksum-verifies the Ubuntu 24.04 ISO from Canonical; cidata ISO attached
+      ├─ [3]  Boot VM — autoinstall reads cidata, installs Ubuntu unattended
+      ├─ [4]  Wait for SSH (up to 90 min — install + first boot)
       │
-      ├─ [5] ../../scripts/provision.sh
-      │         ├── apt update + upgrade
-      │         ├── Install base tools and harden SSH
-      │         └── Configure UFW firewall
+      ├─ [5]  Upload helper scripts to /tmp/ (apply-branding, disable-cloud-init,
+      │       disable-ipv6, setup-iptables, sync-monorepo — from infrastructure/)
+      ├─ [6]  ../../scripts/provision.sh  (HYPERVISOR=proxmox, BUILD_PROFILE=toolbox)
+      │         ├── apt update + upgrade, qemu-guest-agent, branding
+      │         ├── iptables + iptables-persistent + fail2ban; setup-iptables.sh baseline ruleset
+      │         ├── SSH and kernel hardening, timezone
+      │         └── Clone this repo to /git/monorepo (sync-monorepo.sh cron)
       │
-      ├─ [6] ../../scripts/provision-automation-toolbox.sh
+      ├─ [7]  ../../scripts/provision-automation-toolbox.sh  (ADMIN_* vars)
       │         ├── Ansible, Packer, Terraform
       │         ├── AWS CLI v2, Azure CLI, Google Cloud SDK
       │         ├── kubectl, Helm, Docker CE, GitHub CLI
-      │         └── Python 3 + cloud SDKs
+      │         └── Python 3 + cloud SDKs; 'toolbox' service account + admin login
       │
-      ├─ [7] Ansible playbook: server-baseline.yml
-      │         └── Applies hardening roles from automation/ansible/
+      ├─ [8]  ../../scripts/provision-semaphore.sh  (SEMAPHORE_ADMIN_PASS)
+      ├─ [9]  applications/webmin/install-webmin.sh
+      ├─ [10] applications/homepage/install-homepage.sh
+      ├─ [11] containers/portainer/install-portainer.sh
+      ├─ [12] ../../scripts/write-toolbox-banner.sh   (web UI URLs in /etc/issue + MOTD)
       │
-      ├─ [8] ../../scripts/cleanup.sh
+      ├─ [13] Upload automation/ansible → /opt/toolbox/ansible (for Semaphore's own use)
+      ├─ [14] ../../scripts/verify-monorepo-sync.sh   (hard gate: /git/monorepo must exist)
+      ├─ [15] ansible-playbook playbooks/server-baseline.yml
+      │         └── Runs from /git/monorepo/automation/ansible against localhost
+      │
+      ├─ [16] scripts/collect-diagnostics.sh → downloaded to logs/build-diagnostics-<timestamp>.log
+      │
+      ├─ [17] ../../scripts/cleanup.sh
       │         ├── Remove SSH host keys and machine-id
-      │         └── Clean logs and cloud-init cache
+      │         └── Clean logs and cloud-init cache (re-armed for clones)
       │
-      └─ [9] Convert VM to Proxmox template → POSLXPDEPLOY01
+      └─ [18] Convert VM to Proxmox template → T-UBUNTU-24-DEPLOY
+              (manifest written to packer-manifest-automation-toolbox.json)
 ```
 
 During the build, watch progress in the **Proxmox console**:
@@ -174,12 +189,12 @@ Datacenter → `POSVMPWS01` → new VM → Console
 
 ## Customising the Build
 
-All overridable settings are in `../../environments/`:
+The build layers two var files, and the second wins:
 
 | File | Purpose |
 |------|---------|
-| `homelab.pkrvars.hcl` | Proxmox host, storage pool, VM sizing |
-| `automation-toolbox.pkrvars.hcl` | Image name, Ubuntu ISO url/checksum, CPU/RAM/disk overrides, VM ID |
+| `../../environments/homelab.pkrvars.hcl` | Site settings shared by every template — Proxmox host, node, storage pools, bridge/VLAN, TLS skip. Also sets a VM ID, image name and 2 / 2048 / 20 sizing that the next file overrides |
+| `automation-toolbox.pkrvars.hcl` (this directory) | Image name `T-UBUNTU-24-DEPLOY`, Ubuntu ISO url/checksum, 80 GB disk, VM ID 9002, admin username and SSH public key |
 
 To use a different VM ID or image name, edit `automation-toolbox.pkrvars.hcl`:
 
@@ -237,9 +252,24 @@ Vault Server**, and store the unseal keys it prints somewhere safe.
 Testing a change end-to-end means: delete the old template and test clone, rebuild, re-clone, re-bootstrap. The cleanup step is scripted:
 
 ```powershell
-.\cleanup-automation-toolbox-proxmox.ps1        # deletes template 9002 + any VM named POSLXPDEPLOY01 (asks first)
+.\cleanup-automation-toolbox-proxmox.ps1        # deletes template 9002, any VM named POSLXPDEPLOY01 AND golden templates 9003/9004/9006 (asks first)
 .\build-automation-toolbox-proxmox.ps1          # build → clone → bootstrap, one command end-to-end
 ```
+
+Note the default scope: with no switches the cleanup script also deletes the **golden image templates** at VM IDs 9003, 9004 and 9006 (only if the VM at that ID is actually a template). Add `-KeepGolden` to leave them alone. It also purges local build artefacts (manifest, `packer_cache/`, `.tmp/`, `logs/`).
+
+| Parameter | Default | Effect |
+|-----------|---------|--------|
+| `-TemplateId` | `9002` | VM ID of the toolbox template to delete |
+| `-CloneName` | `POSLXPDEPLOY01` | Name of the cloned toolbox VM to delete |
+| `-GoldenIds` | `9003,9004,9006` | Golden template IDs to delete |
+| `-ProxmoxUrl` / `-Node` | from `../../environments/homelab.pkrvars.hcl` | API host and node; prompted if the site file has no value |
+| `-ProxmoxUser` | `root@pam` | API user (password from `PKR_VAR_proxmox_password`, prompted if unset) |
+| `-TemplateOnly` | off | Only the toolbox template |
+| `-CloneOnly` | off | Only the cloned VM |
+| `-GoldenOnly` | off | Only the golden templates |
+| `-KeepGolden` | off | Toolbox template + clone, golden templates untouched |
+| `-Force` | off | Skip the `yes` confirmation |
 
 All questions (VM name, Proxmox API token, firewall subnet, VM sizing —
 default 4 vCPU / 8 GB, increase offered) are asked up-front. The web-UI
@@ -249,7 +279,7 @@ after first login in both UIs. Everything is asked up-front,
 so the run is hands-off after that — a fully bootstrapped toolbox comes out the
 other end with its URLs printed at the finish.
 
-`cleanup-automation-toolbox-proxmox.ps1 -CloneName <name>` if your test clone uses a different name; `-TemplateOnly` / `-CloneOnly` / `-Force` are also available — see the script header.
+Use `-CloneName <name>` if your test clone uses a different name.
 
 ---
 
