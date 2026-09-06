@@ -6,6 +6,7 @@ re-upload wherever each is used.
 
 | File | Size | Used for |
 |------|------|----------|
+| `darren-source.jpg` | original | Darren's photo as supplied (not published). The site versions `src/assets/darren-480.jpg` and `darren-960.jpg` are a square crop with EXIF stripped, made with Pillow: `ImageOps.exif_transpose`, crop, resize, save with no exif |
 | `social-square-1200.png` | 1200x1200 | Google Ads square image, Instagram, any square slot |
 | `facebook-profile-720.png` | 720x720 | Facebook Page profile picture (the cross; Facebook crops to a circle) |
 | `facebook-cover-1640x624.png` | 1640x624 | Facebook Page cover, twice the 820x312 desktop display size. Content sits in the central 1200px so the phone crop, which trims the sides, keeps it |
