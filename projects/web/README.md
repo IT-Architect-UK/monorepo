@@ -10,6 +10,7 @@ the monorepo — nothing is edited on the server.
 |---------|------|---------|
 | IT Surgery | `itsurgery/` | Local IT support for homes and small businesses in Penarth, Barry and Cardiff. Eleventy, 34 pages. Takes live bookings and deposits. |
 | IT Architect | `it-architect/` | Consultancy site — cloud, infrastructure, security and applied AI. Eleventy, 13 pages. |
+| IT Surgery dashboard | `itsurgery-dashboard/` | Pointer only. `dashboard.itsurgery.me` is an n8n workflow in `automation/n8n/`, not a static site; the README there says where everything is and why. |
 
 Each project is self-contained with its own README, dependencies and deploy
 configuration, and can be built and run on its own.

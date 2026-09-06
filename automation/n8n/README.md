@@ -78,6 +78,9 @@ build it against.
 
 ## Why the dashboard is served by n8n, not Netlify
 
+(Looking for the dashboard under `projects/web/`? There is a pointer README at
+`projects/web/itsurgery-dashboard/` that leads back here.)
+
 The obvious home for a dashboard is the website — same repo, same deploy,
 `dash.itsurgery.me` and a certificate for free. We chose n8n instead, and the
 reason is worth remembering before anyone moves it.

@@ -18,7 +18,8 @@ One monorepo for IT Solution Architecture Limited, five things at once:
 - **IT Surgery business automation**, `automation/n8n/workflows/`: booking,
   payment, CRM and Stripe flows, and the business **dashboard**
   (`dashboard.json`, served by n8n at dashboard.itsurgery.me, not by the
-  website; `automation/n8n/README.md` says why).
+  website; `automation/n8n/README.md` says why, and
+  `projects/web/itsurgery-dashboard/README.md` is the pointer to it).
 - **The deployment toolbox**: `automation/packer` (golden images for Proxmox,
   vSphere, AWS, Azure, GCP), `automation/ansible`, `containers`, `cloud`,
   `infrastructure`, `monitoring`, `backup`, `security`, `scripts` - for
