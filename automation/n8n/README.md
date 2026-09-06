@@ -35,6 +35,7 @@ delete the orphan.
 | `custom-job.json` | Darren, from the dashboard's New job form | Validates the job, raises the Xero invoice, gets the pay link, sends it, records it in the CRM |
 | `ask-review.json` | Darren, after a job | Sends the Google review request and remembers that it was asked |
 | `backup.json` | Darren, in a browser | Backup status page, served like the dashboard |
+| `reviews.json` | itsurgery.me, from the browser | Public read-only JSON of the Google rating, count and reviews (same Places call as the dashboard), for the site's Reviews page and home-page strip. Cached an hour |
 | `guide.json` | Darren, in a browser | Renders `automation/itsurgery-admin-and-deployment-guide.md` as the dashboard's Guide tab |
 
 ## When something fails

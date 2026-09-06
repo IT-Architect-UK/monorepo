@@ -65,6 +65,17 @@ hidePageTitle: true
   </div>
 </section>
 
+{# Live Google rating. Hidden until reviews.js has data, so a slow or blocked
+   fetch costs nothing and shows nothing half-done. #}
+<section class="reviews-strip" data-reviews-strip hidden aria-label="Google rating">
+  <div class="container reviews-strip-inner">
+    <p class="reviews-strip-rating"><span class="reviews-stars" aria-hidden="true"></span> <span class="reviews-score"></span></p>
+    <p class="reviews-quote"></p>
+    <a class="reviews-strip-link" href="/reviews/">Read our reviews</a>
+  </div>
+</section>
+<script src="{{ '/assets/reviews.js' | v }}" data-endpoint="{{ site.reviewsEndpoint }}" defer></script>
+
 <section class="section" aria-labelledby="who-title">
   <div class="container">
     <h2 id="who-title">How can we help you?</h2>

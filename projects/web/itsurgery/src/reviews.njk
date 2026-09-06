@@ -1,0 +1,50 @@
+---
+layout: layouts/base.njk
+title: Reviews
+heading: What customers say
+standfirst: Real reviews from real customers, pulled live from Google. We do not edit them and we cannot remove them.
+description: "Google reviews of IT Surgery from customers in Penarth, Barry and Cardiff: friendly, plain-English IT help, fixed prices, no fix no fee."
+---
+
+<section class="section">
+  <div class="container narrow">
+    {# Filled by /assets/reviews.js from the n8n endpoint in site.json. The
+       markup below is the no-JavaScript and fetch-failed state: still a page,
+       still a link to Google, never a blank. #}
+    <div class="reviews-summary" data-reviews-summary hidden>
+      <span class="reviews-stars" aria-hidden="true"></span>
+      <span class="reviews-score"></span>
+      <a class="reviews-google" href="{{ site.googleProfileUrl }}" target="_blank" rel="noopener">Read all reviews on Google<span class="visually-hidden"> (opens in a new tab)</span></a>
+    </div>
+
+    <ul class="reviews-list" data-reviews-list hidden></ul>
+
+    <p class="reviews-fallback" data-reviews-fallback>
+      Our reviews are on Google:
+      <a href="{{ site.googleProfileUrl }}" target="_blank" rel="noopener">read them there<span class="visually-hidden"> (opens in a new tab)</span></a>.
+    </p>
+
+    {% if testimonials.items.length %}
+    <h2>In their own words</h2>
+    <ul class="reviews-list">
+      {% for t in testimonials.items %}
+      <li class="review">
+        <blockquote class="review-text">{{ t.quote }}</blockquote>
+        <p class="review-meta">{{ t.name }}{% if t.town %}, {{ t.town }}{% endif %}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="cta-panel">
+      <h2>Been a customer?</h2>
+      <p>
+        A review helps other people in {{ site.areas | join(", ") }} find us.
+        <a href="{{ site.reviewUrl }}" target="_blank" rel="noopener">Leave a Google review<span class="visually-hidden"> (opens in a new tab)</span></a>
+        - it takes a minute.
+      </p>
+    </div>
+  </div>
+</section>
+
+<script src="{{ '/assets/reviews.js' | v }}" data-endpoint="{{ site.reviewsEndpoint }}" defer></script>

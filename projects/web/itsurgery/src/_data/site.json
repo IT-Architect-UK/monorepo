@@ -83,6 +83,10 @@
       "url": "/about-us/"
     },
     {
+      "text": "Reviews",
+      "url": "/reviews/"
+    },
+    {
       "text": "FAQs",
       "url": "/faq/"
     },
@@ -103,5 +107,6 @@
   ],
   "gaMeasurementId": "G-48BXC0QKL9",
   "adsConversionId": "",
-  "facebookUrl": "https://www.facebook.com/itsurgery"
+  "facebookUrl": "https://www.facebook.com/itsurgery",
+  "reviewsEndpoint": "https://n8n.itsurgery.me/webhook/reviews"
 }

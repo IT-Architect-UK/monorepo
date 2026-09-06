@@ -140,6 +140,16 @@ question is one others would ask, add it to `faq.json` and commit. Nothing
 reaches the page until it is in that file. Enable a Netlify form notification
 for `question` so the emails arrive.
 
+## Reviews
+
+`/reviews/` and the home-page strip show the Google rating and reviews live.
+The data comes from `automation/n8n/workflows/reviews.json`, a public read-only
+webhook that makes the same Google Places call as the dashboard and returns
+plain JSON (cached an hour); `src/assets/reviews.js` fetches it and inserts
+text only. If the fetch fails or JavaScript is off, the page shows a link to
+Google instead. `src/_data/testimonials.json` holds quotes that are not Google
+reviews, shown beneath them; leave it empty and that section does not render.
+
 ## Analytics and cookie consent
 
 Google Analytics (and Google Ads, once `adsConversionId` is set) load only after

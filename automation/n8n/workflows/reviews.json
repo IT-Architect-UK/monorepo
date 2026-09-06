@@ -1,0 +1,150 @@
+{
+  "name": "Reviews",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "reviews",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "reviews-webhook",
+      "name": "Reviews for the website",
+      "notes": "Public and read-only: the response is what anyone can already see on Google. Served to itsurgery.me/reviews/ and the home page strip."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://places.googleapis.com/v1/places:searchText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "places.id,places.displayName,places.rating,places.userRatingCount,places.reviews,places.googleMapsUri"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"textQuery\": \"IT Surgery Penarth\", \"maxResultCount\": 5, \"locationBias\": {\"circle\": {\"center\": {\"latitude\": 51.4386, \"longitude\": -3.1704}, \"radius\": 6000.0}}}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        260,
+        0
+      ],
+      "id": "reviews-fetch",
+      "name": "Google reviews",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pVzz76xfqpQvgLQt",
+          "name": "Google Places"
+        }
+      },
+      "notes": "Same call as the dashboard's. Five candidates because 'IT Surgery' in a town of surgeries is ambiguous; the next node keeps only the one actually named IT Surgery."
+    },
+    {
+      "parameters": {
+        "jsCode": "// One item in, one out. Bare $json is undefined in a Code node, so read the\n// first item explicitly. Keep only the place actually called IT Surgery, and\n// send the site nothing it does not need - no reviewer profile URLs.\nconst data = $input.first().json || {};\nconst place = (data.places || []).find(p => /it\\s*surgery/i.test(p?.displayName?.text || ''));\nif (!place) {\n  return [{ json: { ok: false, rating: null, count: 0, reviews: [], mapsUrl: '' } }];\n}\nconst reviews = (place.reviews || []).map(r => ({\n  author: r.authorAttribution?.displayName || 'A customer',\n  rating: r.rating || 0,\n  text: r.originalText?.text || r.text?.text || '',\n  when: r.relativePublishTimeDescription || '',\n  date: r.publishTime || ''\n})).filter(r => r.text);\nreturn [{ json: { ok: true, rating: place.rating || null, count: place.userRatingCount || 0, reviews, mapsUrl: place.googleMapsUri || '' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ],
+      "id": "reviews-shape",
+      "name": "Shape for the site"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://itsurgery.me"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "public, max-age=3600"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        780,
+        0
+      ],
+      "id": "reviews-respond",
+      "name": "Serve it",
+      "notes": "CORS to the site only. An hour of caching: reviews change rarely and Places API calls are billable."
+    }
+  ],
+  "connections": {
+    "Reviews for the website": {
+      "main": [
+        [
+          {
+            "node": "Google reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google reviews": {
+      "main": [
+        [
+          {
+            "node": "Shape for the site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape for the site": {
+      "main": [
+        [
+          {
+            "node": "Serve it",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflowName": "n8n error alert"
+  }
+}

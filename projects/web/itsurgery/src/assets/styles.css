@@ -294,8 +294,8 @@ input:focus-visible, textarea:focus-visible {
      is 40px tall and carries Book, Get a Quote and WhatsApp - the actions we
      want in reach at any scroll depth. The header used to be sticky instead,
      and at 137px it took a sixth of a laptop screen on every page. Between
-     641 and 800px the bar wraps to two rows, so from 800px down it goes static
-     and the one-row header takes over again - see the 800px block. (Below
+     641 and 900px the bar wraps to two rows, so from 900px down it goes static
+     and the one-row header takes over again - see the 900px block. (Below
      640px the bar is a single compact row and both bars pin.) */
   position: sticky; top: 0; z-index: 100;
 }
@@ -465,6 +465,25 @@ input:focus-visible, textarea:focus-visible {
 .faq-item > p { margin: 0 0 0.9rem 2rem; max-width: 60rem; }
 .faq-ask { margin: 0; }
 .faq-form { max-width: var(--panel); margin-top: 0.75rem; }
+
+/* ---------- Reviews ---------- */
+.reviews-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 1rem; margin-bottom: 1.5rem; }
+.reviews-stars { color: var(--brand-accent); letter-spacing: 0.1em; font-size: 1.25rem; }
+.reviews-score { font-family: var(--font-head); font-weight: 600; color: var(--text-strong); }
+.reviews-list { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: 1rem; }
+.review { border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; background: var(--surface); }
+.review-stars { margin: 0 0 0.35rem; color: var(--brand-accent); letter-spacing: 0.1em; }
+.review-text { margin: 0 0 0.5rem; font-size: 1.02rem; }
+.review-meta { margin: 0; color: var(--text-muted); font-size: 0.92rem; }
+.reviews-fallback { margin: 0 0 1.5rem; }
+/* Home page strip: rating, one quote, link. Tinted like the AI callout so it
+   reads as a band, not a card. */
+.reviews-strip { background: var(--surface-sunken); padding: 0.9rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.reviews-strip-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.5rem; }
+@media (min-width: 961px) { .reviews-strip-inner { flex-wrap: nowrap; } }
+.reviews-strip-rating { margin: 0; white-space: nowrap; }
+.reviews-quote { margin: 0; flex: 1 1 20rem; font-style: italic; }
+.reviews-strip-link { font-weight: 700; white-space: nowrap; }
 
 /* ---------- Cookie consent banner ---------- */
 /* Bottom of the viewport, full width, above everything. Plain surface rather
@@ -848,11 +867,11 @@ input:focus-visible, textarea:focus-visible {
   .submenu a { padding-left: 1.75rem; }
 }
 
-/* The utility bar wraps to two rows below ~790px (three links and the toggle
-   at ~365px, 373px of buttons, plus the gap) - too much to pin. Swap roles:
+/* The utility bar wraps to two rows below ~890px (four links and the toggle
+   at ~430px, 373px of buttons, plus the gap) - too much to pin. Swap roles:
    the bar scrolls away and the one-row header (logo + Menu) is what sticks.
    Below 640px both bars pin again, see that block. */
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .utility-bar { position: static; }
   .site-header { position: sticky; top: 0; z-index: 100; }
 }
