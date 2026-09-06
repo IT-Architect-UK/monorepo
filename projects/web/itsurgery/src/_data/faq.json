@@ -7,7 +7,11 @@
     },
     {
       "q": "What is the £{bookingFee} booking fee?",
-      "a": "It holds your slot and comes straight off your first hour, so it is not an extra charge. If we can't fix the problem, you get it back in full."
+      "a": "£{bookingFee} to book any appointment. It's there to make sure a booking is real, it comes off your bill, and it's refunded if we can't fix the problem."
+    },
+    {
+      "q": "What is a Surgery Appointment?",
+      "a": "Half an hour with us, like seeing a GP: you describe the problem, we diagnose it and advise. If we can fix it in the session we will; otherwise we recommend a fixed-price service or a quote, and the £25 comes off that job. Available at home or for business."
     },
     {
       "q": "What if you can't fix it?",

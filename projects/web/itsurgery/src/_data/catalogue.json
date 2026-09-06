@@ -14,6 +14,24 @@
       "location": "video"
     },
     {
+      "slug": "surgery-appointment",
+      "name": "IT Surgery Appointment",
+      "group": "IT Surgery Appointment",
+      "audience": "home",
+      "durationMinutes": 30,
+      "bookable": true,
+      "priceIncVat": 25
+    },
+    {
+      "slug": "business-surgery-appointment",
+      "name": "IT Surgery Appointment for business",
+      "group": "IT Surgery Appointment",
+      "audience": "business",
+      "durationMinutes": 30,
+      "bookable": true,
+      "priceExVat": 25
+    },
+    {
       "slug": "m365-new-business-setup",
       "name": "Microsoft 365 set up for a new business",
       "group": "Microsoft 365",

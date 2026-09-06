@@ -2,7 +2,7 @@
 layout: layouts/base.njk
 title: Hourly Rates
 heading: Hourly rates
-standfirst: For work that is not on the fixed-price list. £36 an hour inc. VAT for home users, £60 + VAT for business. A £5 booking fee that comes off your first hour, and no charge at all if we can't fix it.
+standfirst: For work that is not on the fixed-price list. £36 an hour inc. VAT for home users, £60 + VAT for business. £5 to book any appointment, which comes off your bill, and no charge at all if we can't fix it.
 description: "IT Surgery hourly rates: £36 inc. VAT for home users, £60 + VAT for business IT support in Penarth, Barry and Cardiff. Fixed prices agreed before we start."
 ---
 
@@ -28,8 +28,9 @@ description: "IT Surgery hourly rates: £36 inc. VAT for home users, £60 + VAT 
       <div class="price-block">
         <p class="price-figure">£{{ site.bookingFee }}<span class="price-unit">to book · {{ site.vatIncLabel }}</span></p>
         <p class="price-note">
-          Secures your appointment and comes straight off your first hour, so it
-          is not an extra charge. If we can't fix your problem, you get it back.
+          £{{ site.bookingFee }} to book any appointment. It's there to make sure
+          a booking is real, it comes off your bill, and it's refunded if we
+          can't fix the problem.
         </p>
       </div>
     </div>
@@ -57,10 +58,10 @@ description: "IT Surgery hourly rates: £36 inc. VAT for home users, £60 + VAT 
 
     <h2>What that means in practice</h2>
     <ul class="ticks wide">
-      <li>You pay £{{ site.bookingFee }} to book a visit at a time that suits you.</li>
+      <li>You pay £{{ site.bookingFee }} to book an appointment at a time that suits you. It's there to make sure a booking is real.</li>
       <li>We arrive, diagnose the problem and tell you what is wrong.</li>
       <li>Before we go any further, you know what it will cost.</li>
-      <li>The £{{ site.bookingFee }} is deducted from your first hour — so an hour's work is £{{ site.hourlyRate }} in total, not £{{ (site.hourlyRate | int) + (site.bookingFee | int) }}.</li>
+      <li>The £{{ site.bookingFee }} comes off your bill — so an hour's work is £{{ site.hourlyRate }} in total, not £{{ (site.hourlyRate | int) + (site.bookingFee | int) }}.</li>
       <li>If we cannot fix the problem, the £{{ site.bookingFee }} is refunded in full.</li>
     </ul>
 

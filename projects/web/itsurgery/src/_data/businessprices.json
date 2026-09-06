@@ -2,6 +2,17 @@
   "note": "Business fixed prices. Ex VAT, unlike the home list, because that is how businesses read a price. Each item carries the time it is expected to take, so the price can be checked against the hourly rate and so a customer can see what they are buying. Anything with real variance — migrations especially — is marked Quoted rather than guessed at.",
   "groups": [
     {
+      "name": "IT Surgery Appointment",
+      "blurb": "Not sure what's wrong or what you need? Half an hour with us to diagnose the problem and advise. If we can fix it in the session we will; otherwise we'll recommend a fixed-price service or quote, and the £25 comes off that job.",
+      "items": [
+        {
+          "label": "IT Surgery Appointment for business",
+          "time": "30 min",
+          "price": "25"
+        }
+      ]
+    },
+    {
       "name": "Microsoft 365",
       "blurb": "Getting email, accounts and licences working, and keeping them tidy as staff come and go.",
       "items": [

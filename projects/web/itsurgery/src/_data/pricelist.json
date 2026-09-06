@@ -2,12 +2,16 @@
   "note": "Single source for the fixed-price list. The website and the printed flyer both render from here. Grouped by category; each item carries its own duration and price. The flyer prints the durations and hides the prices, so a flyer does not go stale when a price changes. Group order is set so the leaflet's two columns come out level — see the heights in the flyer stylesheet comment.",
   "groups": [
     {
-      "name": "IT Surgery Appointments",
-      "items": [],
-      "pill": "£20",
-      "blurb": "Any problem, any device. Half an hour to find out what is required and what it will cost. If we can fix it within the 30 minute session we will.",
-      "priceNote": "£25 at your home, or £20 if you come to us — and it comes off your bill.",
-      "flyerBlurb": "Any problem, any device. Half an hour to find out what is required and what it will cost — and if we can fix it within the session, we will."
+      "name": "IT Surgery Appointment",
+      "blurb": "Not sure what's wrong or what you need? Half an hour with us to diagnose the problem and advise. If we can fix it in the session we will; otherwise we'll recommend a fixed-price service or quote, and the £25 comes off that job.",
+      "flyerBlurb": "Not sure what's wrong? Half an hour to diagnose and advise, £25 - and it comes off the job if we go on to fix it.",
+      "items": [
+        {
+          "label": "IT Surgery Appointment",
+          "time": "30 min",
+          "price": "25"
+        }
+      ]
     },
     {
       "name": "Remote IT Support",
