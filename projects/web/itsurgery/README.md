@@ -5,7 +5,7 @@ IT Solution Architecture Limited. Friendly, plain-English IT help for homes and
 small businesses across Penarth, Barry and Cardiff.
 
 **What this demonstrates:** a templated, accessible (WCAG 2.1 AA) static site
-built with Eleventy — 22 pages generated from shared layouts and structured data,
+built with Eleventy — 40 pages generated from shared layouts and structured data,
 deployed by CI-on-push to Netlify with automatic TLS. No servers, no certificates
 to renew, no page-to-page drift.
 
@@ -25,24 +25,41 @@ npm run build   # production build into _site/
 
 | Path | Purpose |
 |------|---------|
-| `src/_data/site.json` | **Single source of truth** for phone, WhatsApp, email, address, rates and menu structure. Change the phone number here and it updates on all 22 pages. |
-| `src/_data/services.json` | The 15 service pages as data — title, summary, intro, body, bullet points. |
+| `src/_data/site.json` | **Single source of truth** for phone, WhatsApp, email, address, rates and menu structure. Change the phone number here and it updates on all 40 pages. |
+| `src/_data/services.json` | The 17 service pages as data (9 business, 8 personal) — title, summary, intro, body, bullet points. Not the price list; that is `catalogue.json`, below. |
+| `src/_data/catalogue.json` | The service catalogue: prices, durations, Cal.com slugs, which services are bookable. Drives the fixed-price pages, the `/book/` allow-list and the Cal.com sync. |
 | `src/service.njk` | One template that generates every service page from `services.json` via pagination. |
 | `src/_includes/layouts/base.njk` | Page shell: `<head>`, schema.org markup, header, footer, mobile-menu script. |
-| `src/_includes/partials/header.njk` | Utility bar, logo, main menu with dropdowns. |
+| `src/_includes/partials/header.njk` | Utility bar (Book, Get a Quote, WhatsApp), logo, main menu with dropdowns. |
 | `src/_includes/partials/footer.njk` | Footer with full service listings and contact details. |
 | `src/assets/styles.css` | All styling. No CSS framework. |
 | `eleventy.config.cjs` | Eleventy config — input `src/`, output `_site/`. |
 | `netlify.toml` | Netlify build settings and the static security headers (HSTS, Permissions-Policy, frame and sniffing protection). |
 | `_site/_headers` (generated) | The Content-Security-Policy, written by `eleventy.config.cjs` at build time because it carries a hash of every inline script. Add an inline `<script>` to a page and the next build allows it automatically; anything not built in is refused by the browser. |
 | `tools/build-og-image.js` | Regenerates `src/assets/og-image.png`, the 1200x630 share image every page declares in its Open Graph and Twitter card tags. Run it after a logo or tagline change (needs Playwright and Poppins installed locally). |
+| `tools/build-logo.py` | Rebuilds the header wordmark (`src/assets/logo.png` and `logo-dark.png`, each at 1x, `@2x` and `@3x`) from the Illustrator master. `LOGO.md` records what was tried before this. |
+| `netlify/functions/crm-lead.js` | Turns a quote-form submission into an EspoCRM Lead; see the CRM section below. |
+
+### The service catalogue
+
+`src/_data/catalogue.json` is the service catalogue: prices, durations and
+Cal.com slugs, and which services can be booked online. It is a different file
+from `services.json`, which generates the service pages; overwriting one with
+the other broke the build. Four data files derive from the catalogue and must
+never be edited by hand — `bookmap.js` (name to entry), `bookableslugs.js` (the
+`/book/` allow-list), `bookablenames.js` (slug to display name) and
+`catbyslug.js` (slug to entry); `remoteslugs.js` follows the same pattern for
+services delivered by video. The joins live in JavaScript because Nunjucks
+cannot do them reliably in a template. The same file feeds
+`automation/calcom/sync-event-types.py`, so a catalogue change is also a
+Cal.com change: use the `add-itsurgery-service` skill for the whole sequence.
 
 ### Adding a service page
 
 Add an object to `src/_data/services.json` with `slug`, `title`, `group`
 (`business` or `personal`), `summary`, `intro`, `body` and `points`. The page,
-the menu entry, the hub-page card, the footer link and the site map all appear
-automatically. No template edits needed.
+the menu entry, the hub-page card, the footer link and the `sitemap.xml` entry
+all appear automatically. No template edits needed.
 
 Optionally add `fixedPrices`, a list of catalogue slugs from `catalogue.json`.
 Those jobs render on the service page as a "Fixed prices for this" box with
@@ -51,8 +68,22 @@ out and the page shows a "Get a quote" button instead.
 
 ## Pages
 
-`/` · `/pricing/` · `/about-us/` · `/quote/` · `/site-map/`
-`/business-it/` + 8 service pages · `/personal-it/` + 7 service pages
+40 in the build: 23 standalone templates in `src/*.njk` and 17 service pages
+from `services.json`.
+
+- Hubs and services: `/business-it/` + 9 service pages · `/personal-it/` + 8
+  service pages · `/remote-support/` · `/remote-help/`
+- Prices and plans: `/pricing/` · `/fixed-prices/` · `/business-fixed-prices/` ·
+  `/support-plans/`
+- Booking and enquiries: `/book/` · `/booked/` · `/paid/` · `/quote/` · `/thanks/`
+- About and help: `/` · `/about-us/` · `/reviews/` · `/faq/` · `/report-a-problem/`
+- Terms: `/booking-terms/` · `/plan-terms/` · `/privacy/`
+- Print: `/business-card/` · `/flyer/`, each with its own layout
+
+`/site-map/` is retired (`permalink: false` in `src/site-map.njk`): the footer
+already lists every service and search engines read `/sitemap.xml`. `robots.txt`,
+`sitemap.xml` and `/services.json` (the catalogue published as JSON) are built
+too but are not pages.
 
 URLs deliberately match the previous itsurgery.me site so existing search
 rankings and any external links are preserved.
@@ -68,7 +99,7 @@ Carried over from the original site:
 | Headings | Poppins 600, `#222222` |
 | Body text | System UI stack, `#333333` |
 | Dark panels | `#3f444b` / `#2f3338` |
-| Logo | Inline SVG cross (sharp at any size, no image file) |
+| Logo | `src/assets/logo.png` / `logo-dark.png`, one per theme, served with `@2x` and `@3x` `srcset` variants built by `tools/build-logo.py` |
 
 Poppins is self-hosted from `src/assets/fonts/` (latin subset, weights 500,
 600 and 700, declared with `@font-face` in `src/assets/fonts.css`, linked by all three layouts). Nothing is
@@ -76,15 +107,41 @@ loaded from Google Fonts. The body stack needs no webfont.
 
 ## Pricing shown on the site
 
-£30 per hour. £20 booking fee, deducted from the first hour, refunded if the
-problem cannot be fixed ("no fix, no fee").
+All from `site.json`: £36 an hour for home users inc. VAT (`hourlyRate`), £60 an
+hour + VAT for business (`businessHourlyRate`), and a £5 booking fee
+(`bookingFee`) that comes off the first hour and is refunded if the problem
+cannot be fixed ("no fix, no fee"). Support-plan members pay the plan rates
+instead (`planHomeRate` £30, `planBusinessRate` £40). Fixed-price jobs are in
+`catalogue.json`.
 
 ## Contact channels
 
-Phone, WhatsApp (`wa.me` click-to-chat) and email sit in the top utility bar on
-every page, all the same size. The Quote Request page carries a callback form
-handled by **Netlify Forms** — no backend required; submissions appear in the
-Netlify dashboard.
+The utility bar on every page carries three buttons of equal weight: **Book**
+(`/book/`), **Get a Quote** (`/quote/`) and **WhatsApp** (`wa.me`
+click-to-chat). Email is in the footer; the phone number appears where it is
+needed (the Quote, Book, Booked and Remote Help pages, the print pieces and the
+schema.org markup) rather than in the header.
+
+Three forms are handled by **Netlify Forms** — no backend required; submissions
+appear in the Netlify dashboard and land on `/thanks/?form=…`:
+
+| Form | Page | Purpose |
+|------|------|---------|
+| `quote` | `/quote/` | Callback request; also creates a CRM Lead (see below) |
+| `question` | `/faq/` | "Ask us a question", beneath the FAQ |
+| `site-issue` | `/report-a-problem/` | Something wrong with the site itself |
+
+## Booking
+
+`/book/` embeds the Cal.com calendar with Cal.com's own embed script from
+`app.cal.com`, so the frame sizes itself to its content. The service is chosen
+with `?service=`, honoured only if the slug is in the catalogue allow-list
+(`bookableslugs.js`); otherwise the remote support session is shown. A
+fallback link to the Cal.com booking page and to WhatsApp is always present in
+case the script does not load. `/booked/` is the return page, and polls the n8n
+`pay-link` webhook (`payLinkEndpoint` in `site.json`) for the Xero payment link
+while the invoice is raised; `/paid/` is where the customer lands after paying.
+The workflow side is in `automation/n8n/README.md`.
 
 ## Theming (light / dark)
 
@@ -131,7 +188,8 @@ cannot work.
 
 ## FAQ and "Ask us a question"
 
-The home-page FAQ is `src/_data/faq.json`: plain-text questions and answers
+The FAQ is on `/faq/` (`src/_includes/partials/faq.njk`, included only by
+`src/faq.njk`), from `src/_data/faq.json`: plain-text questions and answers
 with `{hourlyRate}`-style placeholders filled from `site.json`. The same text is
 emitted as FAQPage schema. Beneath it, an "Ask us a question" Netlify form
 (`question`) lets a visitor ask anything not covered; it arrives like a quote
@@ -167,7 +225,7 @@ describes the same behaviour and must change if this does.
 2. Set **Base directory** to `projects/web/itsurgery`.
 3. Build command `npm run build`, publish directory `_site` (already in `netlify.toml`).
 4. Verify the deploy, then point `itsurgery.me` at Netlify.
-5. Enable form detection so the Quote Request form is captured.
+5. Enable form detection so the `quote`, `question` and `site-issue` forms are captured.
 
 ## Images — deliberately none
 
@@ -184,8 +242,6 @@ Worth adding later, when available:
 
 ## Still to do
 
-- Embed the Cal.com booking widget on the Quote Request page once configured.
-- Add a Reviews page and testimonials as they arrive.
 - Confirm whether the Sully address should be published (it is on the current site).
 
 ## CRM integration (Netlify Forms to EspoCRM)

@@ -27,9 +27,12 @@ npm run build   # production build into _site/
 | `src/_data/services.json` | The six service areas. One entry generates a full page. |
 | `src/_data/experience.json` | Engagement history, **client names deliberately anonymised by sector**. |
 | `src/service.njk` | One template generating every service page via pagination. |
+| `src/evidence.njk` | The Evidence page: public reference implementations a reader can inspect, this repository among them. |
 | `src/_includes/layouts/base.njk` | Page shell, schema.org markup, mobile menu script. |
 | `src/assets/styles.css` | All styling. No framework. |
 | `src/assets/logo.png` | Brand logo, resized from `Logos/IT Architect/PNG/LOGO-TRANSPARENT-BG.png`. |
+| `src/assets/logo-dark.png` | The same logo for the dark theme; `header.njk` carries both and CSS shows one per theme. |
+| `netlify.toml` | Build settings and static headers: `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy` only. There is no Content-Security-Policy or HSTS here, unlike IT Surgery — a known difference. |
 
 ## Client confidentiality
 
@@ -72,10 +75,15 @@ surface and register rather than by typeface:
 If you change the type scale here, change it in `projects/web/itsurgery/` too, or
 the brands drift apart again.
 
+One difference in how the typeface arrives: this site loads Poppins from Google
+Fonts (`base.njk` preconnects to `fonts.googleapis.com` and `fonts.gstatic.com`),
+whereas IT Surgery self-hosts the same weights from its own `assets/fonts/`.
+
 Two contrast pitfalls, both caught by audit and fixed — do not reintroduce them:
 
 - `#990000` as text on the dark slate is only **2.8:1**. Use `--brand-on-invert`
-  (`#ef9a9a`, 7.3:1) for brand-coloured text on dark surfaces.
+  (`#ffffff`) for labels on dark surfaces — neutral white, because a tinted red
+  reads as decoration there.
 - The standard focus ring `#0b57d0` is only **2.5:1** on slate. Dark surfaces
   override it to `--focus-invert` (`#7cb0ff`).
 

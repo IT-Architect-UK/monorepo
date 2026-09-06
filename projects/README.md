@@ -6,7 +6,8 @@ run and understood on its own, without the rest of the monorepo. Usage details
 live in each script's header or the project's own README.
 
 > **Archived.** The blockchain node scripts below are kept as a record of past
-> work. No node is running and they are not maintained.
+> work. No node is running, they are not maintained and they are not to be
+> modernised. `blockchain/README.md` has the full script listing.
 
 ## Cardano — `blockchain/cardano/`
 
@@ -26,7 +27,21 @@ live in each script's header or the project's own README.
 
 ## World Mobile — `blockchain/world-mobile/`
 
-`aya-testnet/` contains a numbered deployment sequence — run in order (`0.` info file first), plus `aya-testnet-monitor-blocks.sh` for block monitoring. `wmc/docker-node.sh` deploys a WMC Docker node.
+`aya-testnet/` is a numbered sequence, run in order:
+
+| File | Purpose |
+|------|---------|
+| `0. aya-testnet-useful-info.txt` | Reference notes: `aya-node` service commands, RPC and websocket endpoints, faucet and explorer links |
+| `1. aya-testnet-node-deploy.sh` | Baseline OS prep and dependencies, opens P2P port 30333, creates the node user |
+| `2. aya-testnet-node-configuration.sh` | Downloads the `aya-node` release and chain spec, writes the session-key split helper and the `aya-node` systemd service |
+| `3. aya-testnet-node-keys.sh` | Generates and inserts the AURA, GRANDPA and ImOnline keys, then rotates the session keys over RPC |
+| `aya-testnet-monitor-blocks.sh` | Follows new blocks over local RPC and names the node that produced each one |
+
+`wmc/`:
+
+| Script | Purpose |
+|--------|---------|
+| `docker-node.sh` | Baseline OS prep for a World Mobile Chain Docker node (Webmin, Docker, Portainer agent, firewall), then upgrades and reboots |
 
 ## Trading — `trading/wmtx-arbitrage/`
 
@@ -51,5 +66,5 @@ repo. See `web/README.md` for conventions.
 
 | Project | Purpose |
 |---------|---------|
-| `web/itsurgery/` | IT Surgery — local IT support site for Penarth, Barry and Cardiff. Eleventy; 34 pages from shared layouts and structured data. Takes live bookings and deposits. |
+| `web/itsurgery/` | IT Surgery — local IT support site for Penarth, Barry and Cardiff. Eleventy; 40 pages from shared layouts and structured data. Takes live bookings and deposits. |
 | `web/it-architect/` | IT Architect — consultancy site covering cloud, infrastructure, security and applied AI. Eleventy; 13 pages. |

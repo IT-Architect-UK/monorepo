@@ -29,7 +29,7 @@ delete the orphan.
 | `error-alert.json` | n8n itself, when another workflow fails | Emails the failure to Darren. Never runs on its own |
 | `dashboard.json` | Darren, in a browser | The business dashboard — money, upcoming bookings, unpaid invoices |
 | `monitoring.json` | Darren, in a browser | Whether the machinery is healthy — services, server, certificates, backups, updates |
-| `watchdog.json` | A 15-minute schedule | Emails when the monitoring verdict *changes*. Never runs on demand |
+| `watchdog.json` | A five-minute schedule | Emails when the monitoring verdict *changes*. Never runs on demand |
 | `pay.json` | The customer, from the invoice email | Turns a Xero invoice into a Stripe checkout session; handles already-paid and not-yet-due |
 | `stripe-events.json` | Stripe webhooks | Records a completed checkout against the invoice and confirms to the customer |
 | `custom-job.json` | Darren, from the dashboard's New job form | Validates the job, raises the Xero invoice, gets the pay link, sends it, records it in the CRM |
@@ -40,9 +40,10 @@ delete the orphan.
 
 ## When something fails
 
-Both live workflows name `n8n error alert` as their error workflow, so any
-failed automatic execution emails Darren with the workflow, the node that
-broke, the error message and a link to the execution.
+Every workflow but `error-alert.json` itself — twelve of the thirteen — names
+`n8n error alert` as its error workflow, so any failed automatic execution
+emails Darren with the workflow, the node that broke, the error message and a
+link to the execution.
 
 n8n links error workflows by **id**, which belongs to one instance and would
 break the name-matching this repository depends on. So the files carry
@@ -117,10 +118,10 @@ broken. It has three sources and no memory — every load is a fresh look.
    counts as up, including a `401` from Stripe or Xero: an API that refuses an
    unauthenticated request is working exactly as it should.
 2. **The server**, from `/vitals.json` — a snapshot the `vitals` Ansible role
-   writes every five minutes on the VPS itself. nginx serves that file only to
+   writes every minute on the VPS itself. nginx serves that file only to
    localhost and the Docker bridge, so n8n can read it and nobody else can.
-   The page shows how old the snapshot is and turns amber past 15 minutes and
-   red past an hour, because stale numbers that look fine are worse than none.
+   The page shows how old the snapshot is and turns amber past five minutes and
+   red past fifteen, because stale numbers that look fine are worse than none.
 3. **The last deploy**, from the GitHub Actions API.
 
 The thresholds are on the page itself rather than buried here: disks amber at
@@ -144,7 +145,7 @@ node has been removed.
 
 `monitoring.json` answers `?format=json` with the same verdict it just
 rendered as a page — same run, same rules. `watchdog.json` fetches that every
-fifteen minutes and compares it with the last one it saw. The health rules
+five minutes and compares it with the last one it saw. The health rules
 therefore exist in exactly one place, and the email can never disagree with
 what the page shows.
 
@@ -154,7 +155,7 @@ the certificate and basic auth are all on the path being tested. If the
 monitoring page cannot be reached at all, that is the one email the watchdog
 sends on its own account — no other thing here can report that failure.
 
-**Only transitions are reported.** Something that emails every fifteen minutes
+**Only transitions are reported.** Something that emails every five minutes
 while a disk is full is something you filter into a folder and stop reading,
 and then it is worth nothing on the day it matters. Recoveries are reported
 too, so a problem that fixes itself closes rather than leaving you wondering.

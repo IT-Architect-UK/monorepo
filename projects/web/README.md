@@ -8,15 +8,18 @@ the monorepo — nothing is edited on the server.
 
 | Project | Path | Purpose |
 |---------|------|---------|
-| IT Surgery | `itsurgery/` | Local IT support for homes and small businesses in Penarth, Barry and Cardiff. Eleventy, 34 pages. Takes live bookings and deposits. |
+| IT Surgery | `itsurgery/` | Local IT support for homes and small businesses in Penarth, Barry and Cardiff. Eleventy, 40 pages. Takes live bookings and deposits. |
 | IT Architect | `it-architect/` | Consultancy site — cloud, infrastructure, security and applied AI. Eleventy, 13 pages. |
 | IT Surgery dashboard | `itsurgery-dashboard/` | Pointer only. `dashboard.itsurgery.me` is an n8n workflow in `automation/n8n/`, not a static site; the README there says where everything is and why. |
 
 Each project is self-contained with its own README, dependencies and deploy
 configuration, and can be built and run on its own.
 
-Planned, not started: an AI enquiry-triage and Cal.com scheduling agent for
-the IT Surgery site. It has no directory here yet.
+Cal.com scheduling is live for IT Surgery: `automation/calcom/sync-event-types.py`
+keeps the event types in step with the service catalogue, the n8n workflows
+`cal-booking.json` and `cal-get-pay-link.json` handle each booking, and the
+calendar itself is embedded on `/book/`. Planned, not started: an AI
+enquiry-triage agent for the site. It has no directory here yet.
 
 ## Conventions
 
