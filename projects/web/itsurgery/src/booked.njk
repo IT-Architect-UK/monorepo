@@ -66,7 +66,11 @@ noindex: true
     <h2>What happens next</h2>
     <ol class="ticks wide">
       <li>You'll get a calendar invitation by email — accept it to save the time</li>
-      <li>We'll join the call at the agreed time and connect to your computer</li>
+      {# Worded for a visit by default; the script swaps it for a remote session
+         when the booked service's catalogue entry says location: video. The
+         slug arrives as ?s= from /book/ and is only trusted if it is in the
+         catalogue. #}
+      <li id="next-step-how">We'll arrive at the agreed time and take a look</li>
       <li>The £{{ site.bookingFee }} comes off whatever the work costs</li>
     </ol>
 
@@ -94,6 +98,11 @@ noindex: true
   var params = new URLSearchParams(location.search);
   var uid = params.get('uid');
   var start = params.get('t');
+  var REMOTE = {{ remoteslugs | dump | safe }};
+  if (REMOTE.indexOf(params.get('s')) !== -1) {
+    var how = document.getElementById('next-step-how');
+    if (how) { how.textContent = "We'll join the call at the agreed time and connect to your computer"; }
+  }
 
   // Show the appointment time immediately if the booking page passed it, so the
   // customer sees confirmation before anything about money.

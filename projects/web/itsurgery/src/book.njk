@@ -118,6 +118,7 @@ description: Book a remote support session or a home or business visit with IT S
             if (!uid) { return; }
             var to = "/booked/?uid=" + encodeURIComponent(uid);
             if (start) { to += "&t=" + encodeURIComponent(start); }
+            to += "&s=" + encodeURIComponent(service);   // so /booked/ can word "what happens next" for a visit or a call
             window.location.href = to;
           } catch (err) { /* leave them on the Cal.com confirmation */ }
         }
