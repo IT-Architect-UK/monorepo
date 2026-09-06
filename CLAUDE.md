@@ -49,7 +49,9 @@ The moment a task means operating a web app Darren is logged into (Meta
 Business Suite, Facebook Page settings, Google Ads or Analytics consoles,
 Netlify dashboard, Cal.com, EspoCRM), say so at once and hand off to Claude in
 Chrome or Cowork, which can see and drive the page. Do not walk him through
-screenshots. Bring only the outputs the repo needs (an ID, a URL) back here.
+screenshots. Hand off through the repo, not the chat: write a task file in
+`docs/handoffs/` (see its README for the format), commit, and read the Result
+section back when the other agent has done the work.
 
 ## Build and CI
 
