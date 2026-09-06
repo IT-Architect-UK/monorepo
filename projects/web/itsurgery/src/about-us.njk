@@ -8,31 +8,33 @@ description: Local IT support for homes and small businesses in Penarth, Barry a
 
 <section class="section">
   <div class="container narrow">
-    {# The photo is the strongest trust signal a one-person local business has:
-       people book a person, not a brand. Two sizes via srcset; 480px is the
-       painted size, 960 for high-density screens. EXIF is stripped at export
-       (tools note in brand/README.md), so no location data ships. #}
+    {# The photo is a trust signal: people like to see who they are dealing
+       with. The business is "we" and Darren is the founder - not a one-man
+       band by wording, whatever the headcount. Two sizes via srcset; EXIF is
+       stripped at export (brand/README.md), so no location data ships. #}
     <div class="about-intro">
-      <img class="about-photo" src="{{ '/assets/darren-480.jpg' | v }}"
-           srcset="{{ '/assets/darren-480.jpg' | v }} 1x, {{ '/assets/darren-960.jpg' | v }} 2x"
-           width="240" height="240" alt="Darren Pilkington, who runs IT Surgery" />
+      <figure class="about-figure">
+        <img class="about-photo" src="{{ '/assets/darren-480.jpg' | v }}"
+             srcset="{{ '/assets/darren-480.jpg' | v }} 1x, {{ '/assets/darren-960.jpg' | v }} 2x"
+             width="240" height="240" alt="Darren Pilkington" />
+        <figcaption>Darren Pilkington, founder</figcaption>
+      </figure>
       <div>
         <p class="lead">
-          Hello, I'm Darren. IT Surgery is me: friendly, practical IT help for
-          homes and businesses across Penarth, Barry and Cardiff, and remote
-          support anywhere in the UK. I come to you, and I explain things in
-          language that makes sense.
+          IT Surgery gives friendly, practical IT help to homes and businesses
+          across Penarth, Barry and Cardiff, with remote support anywhere in the
+          UK. We come to you, and we explain things in language that makes
+          sense. Founded and led by Darren Pilkington.
         </p>
       </div>
     </div>
 
-    <h2>Decades of experience, applied to real problems</h2>
-    <p>
-      Behind IT Surgery is a career spent designing and running IT
-      infrastructure for demanding environments — networks, servers, cloud
-      platforms and security. That same discipline goes into fixing a slow laptop
-      as into building a business network.
-    </p>
+    <h2>The experience behind IT Surgery</h2>
+    <p>{{ experience.intro }}</p>
+    <ul class="ticks wide">
+      {% for e in experience.items %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+    <p>{{ experience.outro }}</p>
     <p>
       It also means we can tell the difference between a problem worth spending
       money on and one that isn't. You will always get a straight answer.

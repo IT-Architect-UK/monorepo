@@ -785,7 +785,9 @@ input:focus-visible, textarea:focus-visible {
    Round, like a profile picture, because that is the shape people already
    read as "a person". */
 .about-intro { display: flex; gap: 1.75rem; align-items: center; margin-bottom: 1.5rem; }
-.about-photo { width: 240px; height: 240px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; border: 4px solid var(--surface); box-shadow: 0 4px 16px var(--shadow); }
+.about-figure { margin: 0; flex: 0 0 auto; text-align: center; }
+.about-figure figcaption { margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-muted); }
+.about-photo { width: 240px; height: 240px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; border: 4px solid var(--surface); box-shadow: 0 4px 16px var(--shadow); }
 @media (max-width: 640px) {
   .about-intro { flex-direction: column; text-align: center; }
   .about-photo { width: 180px; height: 180px; }

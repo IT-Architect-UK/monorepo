@@ -20,6 +20,15 @@ description: Business IT for small firms in Penarth, Barry and Cardiff — netwo
       anywhere in the UK, with no waiting for a visit.
     </p>
 
+    <div class="cta-panel">
+      <h2>Enterprise-grade experience, small-business scale</h2>
+      <p>We bring enterprise-grade experience to small business IT. Our founder's career includes:</p>
+      <ul class="ticks wide">
+        {% for e in experience.items | slice(3) | first %}<li>{{ e }}</li>{% endfor %}
+      </ul>
+      <p><a href="/about-us/">More about the experience behind IT Surgery</a></p>
+    </div>
+
     <h2>Our business services</h2>
     <div class="cards three">
       {% for s in services %}{% if s.group == "business" %}
