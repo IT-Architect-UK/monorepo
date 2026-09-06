@@ -68,8 +68,11 @@ def description(svc, fee):
 def main():
     apply = "--apply" in sys.argv
     key = os.environ.get("CALCOM_API_KEY") or getpass.getpass("Cal.com API key: ")
+    # encoding= is not optional: on Windows read_text() falls back to the
+    # locale codepage (cp1252), every em dash in the catalogue became mojibake,
+    # and the dry run offered to overwrite 10 live Cal.com titles with it.
     cat = json.loads((repo_root() /
-        "projects/web/itsurgery/src/_data/catalogue.json").read_text())
+        "projects/web/itsurgery/src/_data/catalogue.json").read_text(encoding="utf-8"))
     fee = cat["bookingFeeGbp"]
     wanted = [s for s in cat["services"] if s.get("bookable")]
 

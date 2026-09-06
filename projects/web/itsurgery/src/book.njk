@@ -66,7 +66,7 @@ description: Book a remote support session or a home or business visit with IT S
 
     <p class="booking-fallback">
       Calendar not loading?
-      <a href="{{ site.bookingUrl }}" target="_blank" rel="noopener">Open the booking page in a new tab<span class="visually-hidden"> (opens in a new tab)</span></a>,
+      <a href="{{ site.bookingUrl }}" data-cal-fallback target="_blank" rel="noopener">Open the booking page in a new tab<span class="visually-hidden"> (opens in a new tab)</span></a>,
       or just
       <a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">message us on WhatsApp<span class="visually-hidden"> (opens in a new tab)</span></a>
       and we will book it for you.
@@ -82,6 +82,13 @@ description: Book a remote support session or a home or business visit with IT S
         var sn = document.getElementById("service-name");
         sn.textContent = "Booking: " + (BOOKABLE_NAMES[service] || service);
         sn.hidden = false;
+      }
+      /* The "calendar not loading?" fallback must open the SAME service on
+         cal.com, not the default one - a customer whose embed failed was being
+         sent to book a remote session whatever they had clicked. */
+      var fallbacks = document.querySelectorAll('a[data-cal-fallback]');
+      for (var i = 0; i < fallbacks.length; i++) {
+        fallbacks[i].href = "https://cal.com/it-surgery/" + service;
       }
       Cal("init", "remote-support-session", {origin:"https://app.cal.com"});
       Cal.config = Cal.config || {};

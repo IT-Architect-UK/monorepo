@@ -125,7 +125,7 @@ def test_bookable_flag_gates_the_plan(env, capsys):
 # ------------------------------------------------- the real catalogue file ---
 def test_real_catalogue_bookable_services_are_complete():
     root = Path(__file__).resolve().parents[3]
-    cat = json.loads((root / "projects/web/itsurgery/src/_data/catalogue.json").read_text())
+    cat = json.loads((root / "projects/web/itsurgery/src/_data/catalogue.json").read_text(encoding="utf-8"))
     assert isinstance(cat["bookingFeeGbp"], (int, float))
     slugs = []
     for svc in cat["services"]:
