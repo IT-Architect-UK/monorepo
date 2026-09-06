@@ -527,6 +527,9 @@ input:focus-visible, textarea:focus-visible {
   color: var(--brand-accent); margin: 0 0 0.5rem; font-size: 0.95rem;
 }
 .hero h1 { font-size: clamp(1.6rem, 2.8vw, 1.9rem); line-height: 1.2; margin: 0 0 0.6rem; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.25rem 0 0.5rem; }
+.hero-actions .btn { width: auto; }
+@media (max-width: 640px) { .hero-actions { flex-direction: column; } .hero-actions .btn { width: 100%; } }
 .lead { font-size: 1rem; max-width: var(--measure); margin: 0 0 1.1rem; }
 
 /* ---------- Prominent pricing banner ---------- */
