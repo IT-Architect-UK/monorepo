@@ -2,7 +2,7 @@
 
 The public website for **IT Surgery**, the local IT-support trading name of
 IT Solution Architecture Limited. Friendly, plain-English IT help for homes and
-small businesses across Penarth, Barry and Cardiff.
+businesses across Penarth, Barry and Cardiff, and remote support UK-wide.
 
 **What this demonstrates:** a templated, accessible (WCAG 2.1 AA) static site
 built with Eleventy — 40 pages generated from shared layouts and structured data,
