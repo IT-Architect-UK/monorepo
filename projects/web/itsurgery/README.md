@@ -118,7 +118,8 @@ instead (`planHomeRate` £30, `planBusinessRate` £40). Fixed-price jobs are in
 
 The utility bar on every page carries three buttons of equal weight: **Book**
 (`/book/`), **Get a Quote** (`/quote/`) and **WhatsApp** (`wa.me`
-click-to-chat). Email is in the footer; the phone number appears where it is
+click-to-chat). Email, and the Facebook and Instagram profiles (`facebookUrl`,
+`instagramUrl` in `site.json`), are in the footer; the phone number appears where it is
 needed (the Quote, Book, Booked and Remote Help pages, the print pieces and the
 schema.org markup) rather than in the header.
 
