@@ -79,9 +79,11 @@ section back when the other agent has done the work.
   headers live in `netlify.toml`. A new external host (a tag, an embed, a
   fetch) must be added to the CSP or the browser refuses it silently for
   users; GA4 posts to `*.analytics.google.com`, not the bare host.
-- Google Analytics/Ads load only after the cookie banner (`src/assets/consent.js`);
-  the privacy page's Cookies section describes that behaviour and must move
-  with it. The GA4 ID is in `site.json`.
+- Google Analytics/Ads run in Google's advanced consent mode
+  (`src/assets/consent.js`): the tag loads on every page with consent denied
+  (cookieless pings only) and is granted when the banner is accepted. The
+  privacy page's Cookies section describes that behaviour and must move with
+  it. The GA4 and Ads IDs are in `site.json`.
 - Colour literals belong only in `:root` and `[data-theme="dark"]` in
   `styles.css`; the README has the check.
 - Off-site brand assets (Ads, Facebook) are in `brand/`, rendered by

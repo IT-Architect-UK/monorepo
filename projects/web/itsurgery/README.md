@@ -211,8 +211,9 @@ reviews, shown beneath them; leave it empty and that section does not render.
 
 ## Analytics and cookie consent
 
-Google Analytics (and Google Ads, once `adsConversionId` is set) load only after
-the visitor accepts the cookie banner. `src/assets/consent.js` owns the banner,
+Google Analytics and Google Ads use Google's advanced consent mode: the tag
+loads on every page with all consent types denied (no cookies, cookieless pings
+only) and is switched to granted when the visitor accepts the banner. `src/assets/consent.js` owns the banner,
 the stored choice (one year, in `localStorage`) and the Google tag; the IDs live
 in `site.json` (`gaMeasurementId`, `adsConversionId`). Leave both empty and the
 banner, the script and the footer "Cookie settings" link all disappear. Events
