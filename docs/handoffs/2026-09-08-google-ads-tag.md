@@ -1,6 +1,6 @@
 # Google Ads tag: populate adsConversionId on the IT Surgery site
 
-Status: open
+Status: done
 
 ## Context
 
@@ -39,5 +39,23 @@ Value to set (read from Ads → Data manager → Google tag, 2026-09-08):
    `google.com/pagead` containing `AW-18351825515`. Record what you saw.
 
 ## Result
+Done by Claude Code, 2026-09-08.
 
-(filled in by Claude Code)
+1. `site.json`: `adsConversionId` set to `AW-18351825515`.
+2. `base.njk` already passes it: `data-ads="{{ site.adsConversionId }}"` on
+   `#consent-banner`, wired the same way as `data-ga`. No template change.
+3. Built: `#consent-banner` carries `data-ads="AW-18351825515"`; `consent.js`
+   unchanged; the CSP already allows googleads.g.doubleclick.net,
+   www.googleadservices.com and td.doubleclick.net.
+4. Committed and pushed (deploys itsurgery.me).
+5. **Not done here**: Claude Code has no browser on the internet. Someone
+   with a browser should load https://itsurgery.me, accept cookies, and look
+   for a request to googleads.g.doubleclick.net or google.com/pagead carrying
+   AW-18351825515. Until then, Ads will keep reporting "No recent data".
+
+Note for Darren: the tag still loads only after cookie consent (basic
+consent mode). Google's tag checker never consents, so Ads' "tag not set
+up" warning will persist and no data flows from visitors who decline.
+Switching to Google's advanced consent mode (tag always loads, denied
+state until consent, cookieless pings only) is the fix; proposed on
+2026-09-07, awaiting Darren's go.
