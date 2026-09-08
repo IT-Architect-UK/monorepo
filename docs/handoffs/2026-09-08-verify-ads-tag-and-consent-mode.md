@@ -1,5 +1,5 @@
 # Verify the Google Ads tag fires and Ads stops reporting "not set up"
-Status: open
+Status: done
 
 ## Context
 Two site changes on 2026-09-08 (commits ecbc263 and the one that carries this
@@ -34,4 +34,37 @@ still sent) but has no browser on the internet, so the live checks are here.
    into Result; Claude Code will add it.
 
 ## Result
-(to be filled in by Cowork)
+Done by Cowork, 2026-09-08 ~10:30 UTC, Edge via the Claude in Chrome
+extension (not a private window - stored consent was cleared from
+localStorage instead, and the banner reappeared).
+
+1. Pre-consent, live site (deploy of 725ed13 confirmed: `#consent-banner`
+   has `data-ads="AW-18351825515"`): dataLayer starts with
+   `consent default` all denied, `url_passthrough`, `ads_data_redaction`,
+   then `config G-48BXC0QKL9` and `config AW-18351825515`. Requests seen:
+   `googletagmanager.com/gtag/js?id=G-48BXC0QKL9`,
+   `googletagmanager.com/gtag/js?id=AW-18351825515`,
+   `pagead2.googlesyndication.com/ccm/collect?...tid=AW-18351825515&en=page_view&npa=1&gcs=G100`,
+   `region1.google-analytics.com/g/collect?...tid=G-48BXC0QKL9&gcs=G100&npa=1&pscdl=denied`.
+   Cookie check: the extension blocks `document.cookie` reads, so the
+   no-cookie assertion is inferred from `gcs=G100` / `pscdl=denied`, not
+   observed directly.
+2. After "Yes, that's fine": dataLayer gained `consent update` all granted;
+   localStorage `consent = {state: granted}`. Requests: `google.com/ccm/collect
+   ...tid=AW-18351825515&en=consent_update&gcs=G111`,
+   `googleads.g.doubleclick.net/pagead/viewthroughconversion/18351825515/`
+   (200), `google.com/pagead/1p-user-list/18351825515/`,
+   `region1.analytics.google.com/g/collect ...gcs=G111&npa=0`.
+3. Ads Data manager > Google tag, checked immediately after: **Tag quality:
+   Excellent - "Tag is sending data. No issues detected."** (was "No recent
+   data" an hour earlier). Campaign-level "Finish setting up conversion
+   tracking" banner not re-checked; expect it to clear with the same lag.
+4. GA4 consent settings: not checked (out of scope for the Ads fix; can do
+   on request).
+5. No CSP "Refused to" errors in the console at any point.
+
+Observation, not a site fault: several collect POSTs (`ccm/collect`,
+`g/collect`, `rmkt/collect`) were reported as HTTP 503 by the extension
+while identical-host GETs returned 200 and Google confirmed data arriving.
+Most likely the extension's reporting of beacon/POST requests in this Edge
+profile. Nothing to change.
