@@ -1,5 +1,5 @@
 # Add the Instagram profile to the IT Surgery site
-Status: open
+Status: done
 
 ## Context
 An Instagram business account now exists and is connected to the Facebook
@@ -36,4 +36,27 @@ separate handoff will cover `site.whatsapp`, the business card and the leaflet
 when it is.
 
 ## Result
-(to be filled in by the agent that does the work)
+Done by Claude Code, 2026-09-07. Committed, not pushed.
+
+1. `site.json`: `https://www.instagram.com/itsurgery.me/` added to `sameAs`
+   (now Google search, Google review page, Facebook, Instagram) and
+   `instagramUrl` added alongside `facebookUrl`.
+2. **Differed from plan.** No template rendered a Facebook link: `facebookUrl`
+   was defined in `site.json` but unused, so there was nothing to put an
+   Instagram link "next to". Darren's decision: add both. The footer "Get in
+   touch" list now has "Find us on Facebook" and "Follow us on Instagram"
+   after the email address, in the existing pattern (`target="_blank"
+   rel="noopener"` with the hidden "(opens in a new tab)" text). WhatsApp
+   untouched, as scoped.
+3. Built and checked (`npm run build`, Eleventy 3.1.6): the Organization
+   JSON-LD `sameAs` on every page carries both URLs; both links appear in the
+   footer of all 38 pages that use the main layout (the business card and
+   flyer use print layouts with no footer, unchanged). A file-level diff
+   against a build from before the change shows only those two things:
+   one `sameAs` line and two `<li>` lines per page. `_headers` (CSP) is
+   unchanged; outbound links need no CSP entry.
+4. Committed on main. Not pushed: Darren approves the push (it deploys
+   itsurgery.me).
+
+Also: `projects/web/itsurgery/README.md` contact paragraph now mentions the
+two profile links.

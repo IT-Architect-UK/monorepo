@@ -2,7 +2,7 @@
 
 The public website for **IT Surgery**, the local IT-support trading name of
 IT Solution Architecture Limited. Friendly, plain-English IT help for homes and
-small businesses across Penarth, Barry and Cardiff.
+businesses across Penarth, Barry and Cardiff, and remote support UK-wide.
 
 **What this demonstrates:** a templated, accessible (WCAG 2.1 AA) static site
 built with Eleventy — 40 pages generated from shared layouts and structured data,
@@ -118,7 +118,8 @@ instead (`planHomeRate` £30, `planBusinessRate` £40). Fixed-price jobs are in
 
 The utility bar on every page carries three buttons of equal weight: **Book**
 (`/book/`), **Get a Quote** (`/quote/`) and **WhatsApp** (`wa.me`
-click-to-chat). Email is in the footer; the phone number appears where it is
+click-to-chat). Email, and the Facebook and Instagram profiles (`facebookUrl`,
+`instagramUrl` in `site.json`), are in the footer; the phone number appears where it is
 needed (the Quote, Book, Booked and Remote Help pages, the print pieces and the
 schema.org markup) rather than in the header.
 

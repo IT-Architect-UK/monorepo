@@ -5,8 +5,8 @@
       <p class="footer-brand">{{ site.name }}</p>
       <p class="footer-tag">{{ site.tagline }}</p>
       <p class="footer-small">
-        Friendly IT help for homes and small businesses in
-        {{ site.areas | join(", ") }}.
+        Friendly IT help for homes and businesses in
+        {{ site.areas | join(", ") }}, and remote support UK-wide.
       </p>
     </div>
 
@@ -19,6 +19,8 @@
       <ul class="footer-contact">
         <li><a href="https://wa.me/{{ site.whatsapp }}" target="_blank" rel="noopener">WhatsApp us<span class="visually-hidden"> (opens in a new tab)</span></a></li>
         <li><a href="mailto:{{ site.email }}">{{ site.email }}</a></li>
+        <li><a href="{{ site.facebookUrl }}" target="_blank" rel="noopener">Find us on Facebook<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+        <li><a href="{{ site.instagramUrl }}" target="_blank" rel="noopener">Follow us on Instagram<span class="visually-hidden"> (opens in a new tab)</span></a></li>
         <li><a href="/quote/">Request a quote or callback</a></li>
       </ul>
       {# Passive on purpose. Nobody is asked for a review here — this is for a
