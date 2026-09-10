@@ -1,0 +1,2419 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>World DePIN — Operations</title>
+<style>
+/* World DePIN brand theme — tokens mirror assets/style.css on worlddepin.io
+   (bg #0a0a0f, cards #111118/#16161f, accent #FFE600, Inter, radius 12/20).
+   Chart series use darkened brand steps that pass the dark-surface checks:
+   #a89400 / #3987e5 — all-pairs CVD ΔE 17.1 (tritan), normal-vision 29.5. */
+@font-face{font-family:'Inter';font-style:normal;font-weight:400 800;font-display:swap;
+  src:local('Inter'),local('Inter var')}
+:root{
+--bg:#0a0a0f;--surface-1:#111118;--surface-2:#16161f;--border:rgba(255,255,255,.07);
+--text-primary:#ffffff;--text-secondary:#b9b9cc;--text-muted:#8888a0;
+--accent:#FFE600;--accent-dk:#ccb800;
+--s1:#a89400;--s2:#3987e5;
+--good:#22c55e;--bad:#ef4444;--warn:#f59e0b;
+--radius:12px;--radius-lg:20px;--shadow:none}
+*{box-sizing:border-box}
+/* The layout is designed at 1680px; Darren's screen fits it at 75% browser
+   zoom. Bake that scale in so the page fits at 100% with nothing to fiddle. */
+html{zoom:.75}
+body{margin:0;background:var(--bg);color:var(--text-primary);-webkit-font-smoothing:antialiased;
+font:16px/1.6 'Inter',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px}
+header{display:flex;align-items:center;gap:14px;padding:12px 20px;
+background:rgba(10,10,15,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;flex-wrap:wrap}
+header img{width:28px;height:28px;border-radius:6px}
+h1{font-size:15px;margin:0;font-weight:800;letter-spacing:-.01em}
+h1 b{color:var(--accent)}
+.muted{color:var(--text-muted)}.sec{color:var(--text-secondary)}
+nav{display:flex;gap:2px;flex-wrap:wrap}
+nav button{background:none;border:0;padding:7px 13px;border-radius:8px;cursor:pointer;
+color:var(--text-secondary);font:inherit;font-weight:600;transition:.2s ease}
+nav button:hover{color:var(--accent)}
+nav button[aria-selected=true]{background:var(--accent);color:#000}
+/* Wide enough that the 11-column Licences table fits without a horizontal
+   scrollbar on a normal laptop window; still centred on very large screens. */
+main{padding:20px;max-width:1680px;margin:0 auto}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:20px}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px;
+display:flex;flex-direction:column}
+.tile .k{min-height:2.4em}
+.tile .k{font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:600;
+text-transform:uppercase;letter-spacing:.05em}
+.tile .v{font-size:27px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tile .s{font-size:12px;color:var(--text-muted);margin-top:3px}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-lg);
+padding:18px;margin-bottom:18px}
+.card h2{font-size:12px;margin:0 0 14px;font-weight:700;color:var(--text-muted);
+text-transform:uppercase;letter-spacing:.06em}
+/* One scroll box per table: the header row sticks to its top, so column names
+   stay on screen through 1,350 rows. Horizontal overflow lives here too. */
+.tblscroll{overflow:auto;max-height:calc(100vh - 230px);-webkit-overflow-scrolling:touch}
+.tblwrap{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:700;color:var(--text-muted);padding:8px 10px;
+border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none;
+text-transform:uppercase;font-size:11px;letter-spacing:.04em}
+/* border-collapse drops the border on a sticky cell, so draw it as an inset
+   shadow and give the cell an opaque background to cover the rows beneath. */
+.tblscroll thead th{position:sticky;top:0;z-index:2;background:var(--surface-1);
+border-bottom:0;box-shadow:inset 0 -1px 0 var(--border)}
+th:hover{color:var(--accent)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface-2)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.nw{white-space:nowrap}
+/* The lease code is the one cell allowed to wrap: it is 36 characters and
+   holding it on one line pushed the table past a laptop window. It breaks at
+   the hyphens (see the <wbr> tags), never mid-segment. */
+.lc{white-space:normal;display:inline-block;min-width:172px}
+.idbtn{background:none;border:0;padding:0;cursor:pointer;color:var(--accent);font:inherit;
+font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+white-space:nowrap;text-decoration:underline dotted}
+/* One line in a table cell (a lease code is 36 chars and wrapped to four
+   lines before); only the detail panels, where width is tight, may break. */
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;white-space:nowrap}
+table.dtl .mono{white-space:normal;word-break:break-all}
+table.dtl th.dfk{cursor:default;text-transform:none;letter-spacing:0;font-size:12px;
+width:45%;white-space:normal;color:var(--text-muted)}
+table.dtl th.dfk:hover{color:var(--text-muted)}
+.dfh{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;
+letter-spacing:.05em;margin-bottom:6px}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;
+align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal .sheet{background:var(--surface-1);border:1px solid var(--border);
+border-radius:var(--radius-lg);max-width:940px;width:100%;padding:20px 22px}
+.modal h2{margin:0 0 4px;font-size:17px;font-weight:800;letter-spacing:-.01em;
+text-transform:none;color:var(--text-primary)}
+.modal .sub{color:var(--text-muted);font-size:13px;margin-bottom:16px}
+.modal .x{margin-left:auto;background:none;border:0;color:var(--text-muted);
+font-size:22px;line-height:1;cursor:pointer;padding:0 4px}
+.modal .x:hover{color:var(--accent)}
+.mhead{display:flex;align-items:flex-start;gap:12px}
+.linkcell{background:none;border:0;padding:0;cursor:pointer;color:var(--accent);
+font:inherit;font-size:13px;text-align:left;text-decoration:underline dotted}
+.linkcell:hover{text-decoration:underline}
+.field{display:block;margin:0 0 10px}
+.field span{display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;
+letter-spacing:.05em;font-weight:700;margin-bottom:4px}
+.field input,.field select{width:100%;background:var(--surface-2);color:var(--text-primary);
+border:1px solid var(--border);border-radius:8px;padding:7px 9px;font:inherit;font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
+font-size:12px;font-weight:600;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.on{color:var(--good);background:rgba(34,197,94,.12)}
+.off{color:var(--bad);background:rgba(239,68,68,.12)}
+.wait{color:var(--warn);background:rgba(245,158,11,.14)}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.segbtn{background:none;border:none;color:var(--text-muted);font:inherit;font-size:12px;
+font-weight:600;padding:3px 10px;cursor:pointer}
+.segbtn.on{background:var(--accent);color:#111;cursor:default}
+.segbtn:not(.on):hover{color:var(--accent)}
+.toolbar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+input.cell,select.cell{background:transparent;border:1px solid transparent;border-radius:6px;
+padding:3px 6px;color:var(--text-primary);font:inherit;font-size:13px;width:100%;min-width:130px}
+input.cell:hover,select.cell:hover{border-color:var(--border);background:var(--surface-2)}
+input.cell:focus,select.cell:focus{outline:none;border-color:var(--accent);background:var(--surface-2)}
+input[type=search]{background:var(--surface-2);border:1px solid var(--border);
+border-radius:8px;padding:8px 12px;color:var(--text-primary);font:inherit;font-size:13px;min-width:200px}
+input[type=search]:focus{outline:none;border-color:var(--accent)}
+svg{display:block;max-width:100%;overflow:visible}
+.bar{transition:opacity .12s}.bar:hover{opacity:.75}
+#tip{position:fixed;pointer-events:none;background:var(--surface-2);border:1px solid var(--border);
+border-radius:8px;padding:8px 11px;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.5);
+opacity:0;transition:opacity .1s;z-index:50;max-width:260px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--text-secondary);margin-bottom:10px;flex-wrap:wrap}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px}
+.warnbox{background:rgba(245,158,11,.09);border:1px solid rgba(245,158,11,.35);
+border-radius:var(--radius);padding:13px 15px;margin-bottom:18px;font-size:13px;line-height:1.55}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+code{background:var(--surface-2);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--accent-dk)}
+a{color:var(--accent)}
+.themebtn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 11px;
+cursor:pointer;color:var(--text-secondary);font:inherit;font-size:12px}
+.themebtn:hover{border-color:var(--accent);color:var(--accent)}
+.themebtn.danger{border-color:rgba(239,68,68,.55);color:var(--bad)}
+.themebtn.danger:hover{background:rgba(239,68,68,.12);border-color:var(--bad);color:var(--bad)}
+.dangerbox{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.35);border-radius:10px;padding:12px 14px;margin-top:12px}
+.chg{font-size:12px;line-height:1.45}.chg b{font-weight:600;color:var(--text-secondary)}
+.chg s{color:var(--text-muted)}.chg i{font-style:normal;color:var(--text-primary)}
+@media (max-width:640px){main{padding:12px}.tile .v{font-size:23px}th,td{padding:7px 8px}}
+/* Whether you are looking at live data or a snapshot is the first thing you
+   need to know, so it sits above the content rather than in a corner. */
+.livebar{padding:9px 20px;font-size:12.5px;line-height:1.5;border-bottom:1px solid var(--border);
+display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.livebar:empty{display:none}
+.livebar.off{background:var(--surface-1);color:var(--text-secondary)}
+.livebar.live{background:rgba(34,197,94,.10);color:#b7f0c9;border-bottom-color:rgba(34,197,94,.3)}
+.livebar.warn{background:rgba(245,158,11,.10);color:#f6d9a4;border-bottom-color:rgba(245,158,11,.35)}
+.livebar .themebtn{margin-left:auto}
+/* Monitoring tab */
+.mon-banner{border-radius:12px;padding:13px 18px;border:1px solid;margin-bottom:14px}
+.mon-banner b{font-size:15px;display:block}
+.mon-banner span{font-size:12.5px;opacity:.85}
+.mon-banner.green{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4);color:#b7f0c9}
+.mon-banner.amber{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.45);color:#f6d9a4}
+.mon-banner.red{background:rgba(239,68,68,.14);border-color:rgba(239,68,68,.5);color:#f6b3b3}
+.mondiag{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;
+  padding:12px 14px;overflow-x:auto}
+.mondiag h2{margin:2px 0 8px;font-size:14px}
+.mongrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:14px;margin-top:14px}
+.moncard{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.moncard h3{margin:0;font-size:13.5px;display:flex;align-items:center}
+.moncard .sub{font-size:11.5px;color:var(--text-muted);margin:2px 0 0 16px}
+.moncard ul{list-style:none;margin:9px 0 0;padding:0}
+.moncard li{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
+  padding:4px 0;border-top:1px solid var(--border)}
+.moncard li span:last-child{color:var(--text-secondary);text-align:right}
+.mdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;flex:none}
+.mdot.green{background:var(--good)} .mdot.amber{background:var(--warn)} .mdot.red{background:var(--bad)}
+.monfoot{margin-top:14px;font-size:11.5px;color:var(--text-muted);line-height:1.7}
+/* Admin Guide tab */
+.docbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.docbar button{padding:7px 12px;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface-1);color:var(--text-secondary);cursor:pointer;font:inherit;font-size:12.5px}
+.docbar button:hover{color:var(--text-primary)}
+.docbar button[aria-selected=true]{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+.docview{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;
+  padding:22px 30px 26px;max-width:980px;line-height:1.65;font-size:13.5px}
+.docview h1{font-size:20px;margin:.2em 0 .6em}
+.docview h2{font-size:16px;margin:1.4em 0 .5em;border-bottom:1px solid var(--border);padding-bottom:4px}
+.docview h3{font-size:14px;margin:1.2em 0 .4em}
+.docview p{margin:.6em 0}
+.docview pre{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;overflow-x:auto;font-size:12px;line-height:1.5}
+.docview code{background:var(--surface-2);padding:1px 5px;border-radius:5px;font-size:12px}
+.docview pre code{background:none;padding:0}
+.docview table{border-collapse:collapse;margin:.8em 0}
+.docview th,.docview td{border:1px solid var(--border);padding:6px 10px;text-align:left;font-size:12.5px}
+.docview th{background:var(--surface-2)}
+.docview blockquote{border-left:3px solid var(--accent);margin:.8em 0;padding:4px 14px;
+  color:var(--text-secondary);background:var(--surface-2);border-radius:0 8px 8px 0}
+.docview ul,.docview ol{margin:.6em 0;padding-left:24px}
+.docview li{margin:.25em 0}
+.docview a{color:var(--accent)}
+.docview hr{border:0;border-top:1px solid var(--border);margin:1.2em 0}
+.docview img{max-height:72px;border-radius:12px;display:block}
+/* Templates tab */
+.ph{color:var(--accent);background:rgba(255,230,0,.08);border-radius:4px;padding:0 3px}
+.tplmeta{font-size:12px;color:var(--text-secondary);margin-bottom:10px;display:flex;gap:16px;flex-wrap:wrap}
+.tpl-edit input{width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface-2);color:inherit;font:inherit;margin:4px 0 12px}
+.tpl-edit textarea{width:100%;min-height:400px;background:var(--surface-2);color:inherit;
+  border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:4px;
+  font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+</style></head><body>
+<header>
+  <img src="data:image/png;base64,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" alt="World DePIN">
+  <h1>World De<b>PIN</b> <span class="muted">Operations</span></h1>
+  <nav id="nav"></nav>
+  <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+    <span class="muted" id="stamp"></span>
+    <a class="themebtn" href="https://worlddepin.io" target="_blank" rel="noopener">worlddepin.io ↗</a>
+  </div>
+</header>
+<div id="livebar" class="livebar off"></div>
+<main id="app"></main><div id="tip"></div><div id="modal"></div>
+<script>
+const D = /*__DATA__*/;
+const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild; };
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (n, d=0) => n == null ? '—' : Number(n).toLocaleString('en-GB', {minimumFractionDigits:d, maximumFractionDigits:d});
+const ago = (iso) => { if(!iso) return '—'; const s=(Date.now()-new Date(iso))/1000;
+  if(s<3600) return Math.round(s/60)+'m'; if(s<86400) return Math.round(s/3600)+'h'; return Math.round(s/86400)+'d'; };
+
+
+const tip = document.getElementById('tip');
+function showTip(e, html){ tip.innerHTML = html; tip.style.opacity = 1;
+  const r = 14; let x = e.clientX + r, y = e.clientY + r;
+  if (x + tip.offsetWidth > innerWidth) x = e.clientX - tip.offsetWidth - r;
+  if (y + tip.offsetHeight > innerHeight) y = e.clientY - tip.offsetHeight - r;
+  tip.style.left = x+'px'; tip.style.top = y+'px'; }
+function hideTip(){ tip.style.opacity = 0; }
+
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+/* ---------- charts (inline SVG, no deps) ---------- */
+function lineChart(rows, keys, {h=190, labels={}} = {}) {
+  if (rows.length < 2) return `<p class="muted">Not enough history yet — the collector appends a point every 30 minutes. (${rows.length} so far.)</p>`;
+  const w = 720, pad = {t:10,r:14,b:24,l:38};
+  const xs = rows.map(r => new Date(r.ts).getTime());
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const all = keys.flatMap(k => rows.map(r => r[k] ?? 0));
+  const y1 = Math.max(...all, 1) * 1.15;
+  const X = t => pad.l + (x1===x0 ? 0 : (t - x0) / (x1 - x0)) * (w - pad.l - pad.r);
+  const Y = v => h - pad.b - (v / y1) * (h - pad.t - pad.b);
+  const colors = [css('--s2'), css('--s1')];
+  const ticks = [0, Math.round(y1/2), Math.round(y1)];
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="fleet status over time">`;
+  ticks.forEach(v => { s += `<line x1="${pad.l}" x2="${w-pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css('--border')}" stroke-width="1"/>
+    <text x="${pad.l-7}" y="${Y(v)+4}" text-anchor="end" font-size="11" fill="${css('--text-muted')}">${v}</text>`; });
+  keys.forEach((k, i) => {
+    const d = rows.map((r, j) => `${j?'L':'M'}${X(xs[j]).toFixed(1)},${Y(r[k] ?? 0).toFixed(1)}`).join('');
+    s += `<path d="${d}" fill="none" stroke="${colors[i%colors.length]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    rows.forEach((r, j) => { s += `<circle cx="${X(xs[j]).toFixed(1)}" cy="${Y(r[k] ?? 0).toFixed(1)}" r="4" fill="${colors[i%colors.length]}"
+      stroke="${css('--surface-1')}" stroke-width="2" class="bar"
+      onmousemove="showTip(event,'<b>${labels[k]||k}: ${r[k]??0}</b><br>${new Date(r.ts).toLocaleString('en-GB')}')" onmouseleave="hideTip()"/>`; });
+  });
+  [x0, x1].forEach((t, i) => s += `<text x="${X(t)}" y="${h-6}" text-anchor="${i?'end':'start'}" font-size="11" fill="${css('--text-muted')}">${new Date(t).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</text>`);
+  return s + '</svg>';
+}
+
+/* 60-day uptime strip: one slim bar per day, green when the day met the
+   lease's minimum (or 50% when none), red when offline/zero, amber between.
+   Height ∝ uptime. Hover for the exact figure. */
+function fillDays(rows, days) {
+  /* One entry per CALENDAR day for the window — gaps become explicit
+     no-data days, exactly like the portal's chart. */
+  const by = Object.fromEntries((rows || []).map(r => [r.day, r]));
+  const out = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
+    out.push(by[day] || {day, uptime_pct: null});
+  }
+  return out;
+}
+
+function uptimeStrip(rows, minPct, {h=64, mini=false, days=60} = {}) {
+  if (!rows || !rows.length) return mini ? '<span class="muted">—</span>'
+    : '<p class="muted">No daily history yet — it accrues one point per day while the licence is leased.</p>';
+  rows = fillDays(rows, days);
+  const min = minPct == null ? 50 : minPct;
+  const w = mini ? 160 : 720, pad = mini ? 1 : 2, bw = Math.max((w - (mini ? 0 : 40)) / rows.length, mini ? 1.5 : 3);
+  let s = `<svg viewBox="0 0 ${w} ${h+(mini?0:18)}" ${mini ? `width="${w}" height="${h}"` : ''} role="img" aria-label="daily uptime">`;
+  s += `<line x1="0" x2="${w}" y1="${(h - h*min/100).toFixed(1)}" y2="${(h - h*min/100).toFixed(1)}" stroke="${css('--border')}" stroke-dasharray="3 3"/>`;
+  rows.forEach((r, i) => {
+    const missing = r.uptime_pct == null;
+    const u = missing ? 0 : Number(r.uptime_pct);
+    const col = missing ? css('--border')
+      : (u <= 0 ? css('--bad') : (u >= min ? css('--good') : css('--warn')));
+    const bh = missing ? 3 : Math.max(h * u / 100, 2);
+    s += `<rect x="${(i*bw+pad).toFixed(1)}" y="${(h-bh).toFixed(1)}" width="${(bw-pad*1.5).toFixed(1)}" height="${bh.toFixed(1)}" rx="1.5" fill="${col}"
+      onmousemove="showTip(event,'<b>${r.day}</b><br>${missing ? 'no data (counts as 0%)' : u.toFixed(1) + '%'}')" onmouseleave="hideTip()"/>`;
+  });
+  if (!mini) {
+    const first = rows[0].day, last = rows[rows.length-1].day;
+    s += `<text x="2" y="${h+14}" font-size="10" fill="${css('--text-muted')}">${first}</text>
+          <text x="${w-2}" y="${h+14}" text-anchor="end" font-size="10" fill="${css('--text-muted')}">${last}</text>`;
+  }
+  return s + '</svg>';
+}
+
+/* Daily UPS columns — built for up to ~365 slim bars, tooltip per day. */
+function dayChart(series, {h=180} = {}) {
+  if (!series.length) return '<p class="muted">No allocations in this window.</p>';
+  const w = 720, pad = {t:14, r:8, b:22, l:44};
+  const max = Math.max(...series.map(s => s.v), 1e-9);
+  const bw = (w - pad.l - pad.r) / series.length;
+  const Y = v => h - pad.b - (v / (max * 1.08)) * (h - pad.t - pad.b);
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="daily rewards">`;
+  [0, max].forEach(v => s += `<line x1="${pad.l}" x2="${w-pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css('--border')}"/>
+    <text x="${pad.l-6}" y="${Y(v)+4}" text-anchor="end" font-size="10" fill="${css('--text-muted')}">${v.toFixed(3)}</text>`);
+  series.forEach((it, i) => {
+    const x = pad.l + i * bw + 1, bh = Math.max(h - pad.b - Y(it.v), 1.5);
+    s += `<rect class="bar" x="${x.toFixed(1)}" y="${Y(it.v).toFixed(1)}" width="${Math.max(bw-2,1.5).toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${css('--accent-dk')}"
+      onmousemove="showTip(event,'<b>${it.day}</b><br>${it.v.toFixed(6)} UPS')" onmouseleave="hideTip()"/>`;
+  });
+  s += `<text x="${pad.l}" y="${h-6}" font-size="10" fill="${css('--text-muted')}">${series[0].day}</text>
+        <text x="${w-pad.r}" y="${h-6}" text-anchor="end" font-size="10" fill="${css('--text-muted')}">${series[series.length-1].day}</text>`;
+  return s + '</svg>';
+}
+
+function uptimeAvg(rows, days) {
+  const cut = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  const win = (rows || []).filter(r => r.day >= cut && r.uptime_pct != null);
+  if (!win.length) return null;
+  return Math.round(win.reduce((a, r) => a + Number(r.uptime_pct), 0) / win.length * 10) / 10;
+}
+
+/* Daily history for a licence: the portal's own per-day series when we
+   have it, else our once-a-day snapshots. */
+function dailyFor(key) {
+  return (D.daily[key] && D.daily[key].length) ? D.daily[key] : (D.uptime[key] || []);
+}
+
+/* Window average THE PORTAL'S WAY: divide by the whole window, missing
+   days count as zero — this is what makes our numbers match
+   manage.unetwork.io's Today / Last 7 Days / Last 30 Days tiles. */
+function portalAvg(rows, days) {
+  if (!rows || !rows.length) return null;
+  const cut = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  const sum = rows.filter(r => r.day >= cut && r.uptime_pct != null)
+                  .reduce((a, r) => a + Number(r.uptime_pct), 0);
+  return Math.round(sum / days * 10) / 10;
+}
+
+function barChart(items, {h=200, fmtv=(v)=>v, color='--accent-dk'} = {}) {
+  if (!items.length) return '<p class="muted">No data.</p>';
+  const w = 720, pad = {t:22,r:10,b:52,l:38};
+  const max = Math.max(...items.map(i => i.v), 1);
+  const bw = (w - pad.l - pad.r) / items.length;
+  const Y = v => h - pad.b - (v / (max*1.1)) * (h - pad.t - pad.b);
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="bar chart">`;
+  [0, max].forEach(v => s += `<line x1="${pad.l}" x2="${w-pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${css('--border')}"/>
+    <text x="${pad.l-7}" y="${Y(v)+4}" text-anchor="end" font-size="11" fill="${css('--text-muted')}">${fmtv(v)}</text>`);
+  items.forEach((it, i) => {
+    const x = pad.l + i*bw + 2, bh = Math.max(h - pad.b - Y(it.v), 1);
+    s += `<rect class="bar" x="${x.toFixed(1)}" y="${Y(it.v).toFixed(1)}" width="${(bw-4).toFixed(1)}" height="${bh.toFixed(1)}"
+      rx="4" fill="${css(color)}" onmousemove="showTip(event,'<b>${esc(it.label)}</b><br>${fmtv(it.v)}${it.sub?'<br>'+esc(it.sub):''}')" onmouseleave="hideTip()"/>`;
+    s += `<text x="${(x + (bw-4)/2).toFixed(1)}" y="${(Y(it.v)-6).toFixed(1)}" text-anchor="middle" font-size="11"
+      fill="${css('--text-secondary')}" font-variant-numeric="tabular-nums">${fmtv(it.v)}</text>`;
+    s += `<text x="${(x + (bw-4)/2).toFixed(1)}" y="${h-pad.b+14}" text-anchor="end" font-size="10.5" fill="${css('--text-muted')}"
+      transform="rotate(-35 ${(x+(bw-4)/2).toFixed(1)} ${h-pad.b+14})">${esc(String(it.label).slice(0,18))}</text>`;
+  });
+  return s + '</svg>';
+}
+
+/* ---------- table with sort + filter ---------- */
+function table(id, cols, rows) {
+  const head = cols.map((c,i) => `<th onclick="sortTable('${id}',${i})">${esc(c.h)}</th>`).join('');
+  const body = rows.map(r => '<tr>' + cols.map(c => `<td class="${c.cls||''}">${c.f(r)}</td>`).join('') + '</tr>').join('');
+  return `<div class="tblscroll"><table id="${id}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function sortTable(id, col) {
+  const t = document.getElementById(id), tb = t.tBodies[0];
+  const dir = t.dataset.sc == col && t.dataset.sd == 'asc' ? 'desc' : 'asc';
+  t.dataset.sc = col; t.dataset.sd = dir;
+  const val = tr => { const s = tr.cells[col].innerText.replace(/[,%\s]/g,''); const n = parseFloat(s);
+    return isNaN(n) ? tr.cells[col].innerText.toLowerCase() : n; };
+  [...tb.rows].sort((a,b) => { const x=val(a), y=val(b);
+    return (x<y?-1:x>y?1:0) * (dir=='asc'?1:-1); }).forEach(r => tb.appendChild(r));
+}
+const pendingDeviceKeys = () => new Set((D.pending||[])
+  .filter(a => a.kind === 'device_edit' && a.status === 'pending')
+  .map(a => (a.payload||{}).license_key));
+const pendingRevKeys = () => new Set((D.pending||[])
+  .filter(a => a.kind === 'revocation_action' && a.status === 'pending')
+  .map(a => (a.payload||{}).license_key));
+const pendingModeRefs = () => new Set((D.pending||[])
+  .filter(a => a.kind === 'contact_mode' && a.status === 'pending')
+  .map(a => (a.payload||{}).ref));
+const pendingIssues = () => (D.pending||[])
+  .filter(a => a.kind === 'manual_issue' && a.status === 'pending');
+const pendingNotifRefs = () => new Set((D.pending||[])
+  .filter(a => a.kind === 'contact_notifications' && a.status === 'pending')
+  .map(a => (a.payload||{}).ref));
+const pendingGlobalPause = () => (D.pending||[])
+  .find(a => a.kind === 'alerts_global' && a.status === 'pending');
+const pendingContactDeleteRefs = () => new Set((D.pending||[])
+  .filter(a => a.kind === 'contact_delete' && a.status === 'pending')
+  .map(a => (a.payload||{}).ref));
+const UNDELETABLE_REFS = new Set(['WD-00001', 'WD-00002']);
+const pendingDeleteKeys = () => new Set((D.pending||[])
+  .filter(a => a.kind === 'device_delete' && a.status === 'pending')
+  .map(a => (a.payload||{}).license_key));
+
+/* A terms-only licence held by a CRM contact is a code we issued that
+   nobody has activated yet. Its "offline for 99d" figure is the NODE
+   hardware's old history, not the code's age — misleading, so these rows
+   show the issue age and the auto-expiry date instead. */
+const awaitingAct = r => r.pool_status === 'terms_only' && r.owner_kind === 'crm';
+function issuedAt(r){
+  const c = (D.contacts||[]).find(x => x.ref === r.owner_ref) || {};
+  return c.welcome_email_sent_at || c.added_at || c.crm_created_at || null;
+}
+function issuedCell(r){
+  const t = issuedAt(r);
+  if (!t) return '<span class="muted">awaiting activation</span>';
+  return `<span title="code issued ${esc(String(t).slice(0,10))} — the node's old offline history is hidden until the code is activated">issued ${days(t)}d ago</span>`;
+}
+function expiresCell(r){
+  const cfg = D.expiry || {};
+  if ((cfg.protected_refs || []).includes(r.owner_ref))
+    return '<span class="muted" title="protected holder — codes never auto-expire">no auto-expiry</span>';
+  const t = issuedAt(r), ed = cfg.expire_days || 14;
+  if (!t) return '<span class="muted">&mdash;</span>';
+  const when = new Date(new Date(t).getTime() + ed * 864e5).toISOString().slice(0,10);
+  return days(t) <= ed
+    ? `<span title="unactivated codes are reclaimed automatically after ${ed} days">auto-expires ${when}</span>`
+    : '<span class="pill off" title="past the activation window — the collector reclaims it on its next sweep">expiring</span>';
+}
+/* Rows the Devices tab shows. Defined once so the renderer and the filter can
+   never drift apart — they index the same array position for position. */
+function devRows(){
+  /* Devices = licences in someone's hands (leased/activated) plus those we
+     issued to a contact that await activation. Marketplace LISTINGS
+     (owner MARKETPLACE, not leased) are stock, not devices — Licences tab. */
+  return (D.devices||[]).filter(d =>
+    d.pool_status === 'leased' || d.owner_kind === 'crm');
+}
+function applyDevFilters(){
+  const q = (document.getElementById('devq').value||'').toLowerCase();
+  const kind = document.getElementById('devowner').value;
+  const pool = document.getElementById('devpool').value;
+  const source = document.getElementById('devsource').value;
+  const src = devRows();
+  let shown = 0;
+  [...document.getElementById('devtab').tBodies[0].rows].forEach((tr,i) => {
+    const d = src[i] || {};
+    const ok = (!q || tr.innerText.toLowerCase().includes(q) ||
+                (d.our_alias||'').toLowerCase().includes(q) || (d.owner_name||'').toLowerCase().includes(q))
+            && (!kind || (kind === 'mkt' ? (d.pool_status === 'leased' && d.owner_kind !== 'crm')
+                                          : d.owner_kind === kind))
+            && (!source || d.source === source)
+            && (!pool || d.pool_status === pool);
+    tr.style.display = ok ? '' : 'none'; if (ok) shown++;
+  });
+  const c = document.getElementById('devcount'); if (c) c.textContent = shown + ' shown';
+}
+function applyLicFilters(){
+  const q = (document.getElementById('licq').value||'').toLowerCase();
+  const pool = document.getElementById('licpool').value;
+  const st = document.getElementById('licstatus').value;
+  const rows = D.licences.licenses;
+  let shown = 0;
+  [...document.getElementById('lictab').tBodies[0].rows].forEach((tr,i) => {
+    const r = rows[i] || {};
+    const ok = (!q || tr.innerText.toLowerCase().includes(q))
+            && (!pool || r.pool_status === pool)
+            && (!st || (r.pool_status==='leased' && r.status === st));
+    tr.style.display = ok ? '' : 'none'; if (ok) shown++;
+  });
+  const c = document.getElementById('liccount'); if (c) c.textContent = shown + ' shown';
+}
+function filterTable(inputId, tableId) {
+  const q = document.getElementById(inputId).value.toLowerCase();
+  [...document.getElementById(tableId).tBodies[0].rows].forEach(r =>
+    r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none');
+}
+
+/* ---------- views ---------- */
+const statusPill = s => `<span class="pill ${s==='online'?'on':'off'}">${s}</span>`;
+/* Provenance. The portal has no source field, so these are our own labels:
+   marketplace = alias follows the Marketplace-<date>-<n> convention,
+   issued_by_us = we recorded who we gave it to, legacy_unknown = neither. */
+const SRC_LABEL = {marketplace:'Marketplace', issued_by_us:'Issued by us', legacy_unknown:'Unknown'};
+
+/* ---------- licence detail ----------
+   Everything manage.unetwork.io holds for one licence, plus the few facts that
+   are ours. The portal's own `id` is what we store as license_key; lease_code
+   is the activation code issued to an operator and comes from our records, not
+   the API, so it is only known for licences we imported it for. */
+const shortId = k => !k ? '—' : (k.length > 16 ? k.slice(0,8) + '…' + k.slice(-4) : k);
+/* devices_view holds a record for every licence, so the Licences tab can reach
+   the same editable registry entry the Devices tab uses. Built once, lazily. */
+const devByKey = () => (D._devByKey ||=
+  Object.fromEntries((D.devices||[]).map(d => [d.license_key, d])));
+const LIC_FIELDS = [
+  ['license_key', 'Licence ID (portal `id`)', 'portal'],
+  ['node_id',     'Node ID',                  'portal'],
+  ['device_id',   'Device ID',                'portal'],
+  ['device',      'Device label (as shown on manage.unetwork.io)', 'portal'],
+  ['alias',       'Alias on the portal',      'portal'],
+  ['owner_wallet','Owner wallet',             'portal'],
+  ['chain_id',    'Chain ID',                 'portal'],
+  ['pool_status', 'Pool',                     'portal'],
+  ['status',      'Status',                   'portal'],
+  ['in_transit',  'In transit',               'portal'],
+  ['uptime_pct',  'Uptime %',                 'portal'],
+  ['min_uptime_pct','Lease min. uptime %',    'portal'],
+  ['share_pct',   'Lease share %',            'portal'],
+  ['last_seen',   'Last validated',           'portal'],
+  ['lease_user_id','Lease holder (portal user ID)','portal'],
+  ['lease_from',  'Lease from',               'portal'],
+  ['lease_to',    'Lease to',                 'portal'],
+  ['attested',    'Attested',                 'portal'],
+  ['attestation_tier','Attestation tier',     'portal'],
+  ['lease_code',  'Lease code issued to operator','ours'],
+  ['owner_ref',   'CRM owner',                'ours'],
+  ['owner_alias', 'CRM owner alias',          'ours'],
+  ['category',    'Category',                 'ours'],
+  ['days_offline','Days offline (derived)',   'ours'],
+  ['rewards_ups', 'Rewards (UPS)',            'ours'],
+];
+function copyText(t, what){
+  navigator.clipboard?.writeText(t).then(() => alert((what||'Value') + ' copied.'),
+    () => window.prompt('Copy:', t)) || window.prompt('Copy:', t);
+}
+
+/* ---------- modal ----------
+   One overlay, three callers: a licence, a device, a ULO. Escape and a click on
+   the backdrop both close it. */
+function closeModal(){ document.getElementById('modal').innerHTML = ''; MSGBACK = null; }
+function openModal(title, sub, body){
+  document.getElementById('modal').innerHTML =
+    `<div class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet">
+      <div class="mhead"><div><h2>${title}</h2><div class="sub">${sub}</div></div>
+      <button class="x" onclick="closeModal()" title="Close">&times;</button></div>
+      ${body}</div></div>`;
+}
+addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+const dval = v => v === null || v === undefined || v === ''
+  ? '<span class="muted">&mdash;</span>'
+  : (typeof v === 'boolean' ? (v ? 'yes' : 'no') : esc(String(v)));
+/* Cross-links: any CRM ref renders as a button opening that ULO's page. */
+function uloLink(ref, name){
+  if (!ref || ref === 'MARKETPLACE' || ref === 'UNASSIGNED')
+    return name ? esc(name) : '<span class="muted">—</span>';
+  return `<button class="linkcell" onclick="showUlo('${esc(ref)}')">${esc(name || ref)} <span class="muted">${esc(ref)}</span></button>`;
+}
+
+const dtable = pairs => `<table class="dtl">` + pairs.map(([k, v]) =>
+  `<tr><th class="dfk">${esc(k)}</th><td class="mono">${v}</td></tr>`).join('') + `</table>`;
+
+
+function showLic(key){
+  const r = (D.licences.licenses||[]).find(x => x.license_key === key);
+  if (!r) return;
+  const portal = LIC_FIELDS.filter(f => f[2] === 'portal').map(([k, l]) => [l, dval(r[k])]);
+  const ours = LIC_FIELDS.filter(f => f[2] === 'ours').map(([k, l]) => [l, dval(r[k])]);
+  openModal(`Licence ${esc(shortId(key))}`, esc(r.alias || 'no alias') + ' &middot; ' + esc(r.device || 'unknown device'),
+    `<div class="grid2">
+       <div><div class="dfh">From manage.unetwork.io</div>${dtable(portal)}</div>
+       <div><div class="dfh">Ours (CRM / derived)</div>${dtable(ours)}</div>
+     </div>
+     <div class="toolbar" style="margin-top:14px">
+       <button class="themebtn" onclick="copyText('${esc(key)}','Licence ID')">Copy licence ID</button>
+       ${r.lease_code ? `<button class="themebtn" onclick="copyText('${esc(r.lease_code)}','Lease code')">Copy lease code</button>` : ''}
+     </div>`);
+}
+
+function showDevice(key){
+  const d = (D.devices||[]).find(x => x.license_key === key);
+  if (!d) return;
+  const curAlias = d.our_alias ?? d.alias ?? '';
+  const curOwner = d.owner_ref || 'UNASSIGNED';
+  const opt = (v, l) => `<option value="${esc(v)}"${v === curOwner ? ' selected' : ''}>${esc(l)}</option>`;
+  const facts = [
+    ['Assigned user', d.owner_name || d.owner_ref ? uloLink(d.owner_ref, d.owner_name) : dval(null)],
+    ['Source', esc(SRC_LABEL[d.source] || d.source || '—')],
+    ['Licence ID', dval(d.license_key)],
+    ['Lease code', d.lease_code ? esc(d.lease_code) : '<span class="muted">not recorded</span>'],
+    ['Device label', d.device
+        ? `${esc(d.device)} <span class="muted">— as shown on manage.unetwork.io</span>`
+        : '<span class="muted">not set on the portal (appears once the app registers the handset)</span>'],
+    ['Pool', dval(d.pool_status)],
+    ...(awaitingAct(d) ? [
+      ['Code issued', issuedCell(d)],
+      ['Auto-expiry', expiresCell(d)],
+    ] : []),
+    ['Status', awaitingAct(d) ? '<span class="pill wait">awaiting activation</span>' : dval(d.status)],
+    ['Uptime (24h)', d.uptime_pct == null ? dval(null) : d.uptime_pct.toFixed(1) + '%'],
+    ['Uptime (7d avg)', (v => v == null ? dval(null) : v + '%')(portalAvg(dailyFor(key), 7))],
+    ['Uptime (30d avg)', (v => v == null ? dval(null) : v + '%')(portalAvg(dailyFor(key), 30))],
+    ['Lease min. uptime', d.min_uptime_pct == null ? dval(null) : d.min_uptime_pct + '%'],
+    ['Days offline', awaitingAct(d)
+        ? '<span class="muted" title="node hardware history from before the code was issued">' + (d.days_offline == null ? '—' : Math.round(d.days_offline) + 'd') + ' (node history — not the code age)</span>'
+        : d.days_offline == null ? dval(null) : Math.round(d.days_offline) + 'd'],
+    ['Last validated', dval(d.last_seen)],
+    ['Lease from', dval(d.lease_from)], ['Lease to', dval(d.lease_to)],
+    ['UPS — this licence', (p => p ? `24h ${p.ups24h.toFixed(3)} · 7d ${p.ups7d.toFixed(3)} · 30d ${p.ups30d.toFixed(3)} · all-time ${p.upsAll.toFixed(3)}` : dval(null))(D.perf[key])],
+    ['Portal alias', dval(d.alias)],
+    ['Alias in sync', dval(d.alias_in_sync)],
+    ['In-app messaging', d.in_app ? ('reachable' + (d.in_app_conv ? ' · conversation open' : '')) : dval(null)],
+  ];
+  const hist = dailyFor(key);
+  const a7 = portalAvg(hist, 7), a30 = portalAvg(hist, 30);
+  const perf = `<div class="dfh" style="margin-top:14px">Uptime — last 60 days, one bar per day (portal data)
+      <span class="muted" style="font-weight:400">· 7d avg ${a7 == null ? '—' : a7 + '%'} · 30d avg ${a30 == null ? '—' : a30 + '%'}${d.min_uptime_pct != null ? ' · lease min ' + d.min_uptime_pct + '%' : ''} · missing days count as 0%, matching manage.unetwork.io</span></div>
+    ${uptimeStrip(hist, d.min_uptime_pct)}`;
+  openModal(esc(d.our_alias || d.alias || shortId(key)), esc(d.device || 'unknown device')
+      + ' &middot; ' + esc(d.owner_name || 'unassigned'),
+    `<div class="grid2">
+       <div><div class="dfh">What we hold</div>${dtable(facts)}${perf}</div>
+       <div><div class="dfh">Edit</div>
+         <label class="field"><span>Alias</span>
+           <input id="mAlias" value="${esc(curAlias)}" placeholder="(none)" maxlength="60"></label>
+         <label class="field"><span>Owner</span>
+           <select id="mOwner">${opt('UNASSIGNED', '— unassigned —')}${opt('MARKETPLACE', 'Marketplace')}
+             ${D.contacts.map(c => opt(c.ref, c.name || c.ref)).join('')}</select></label>
+         <div class="muted" style="font-size:12px"><b>Save</b> applies immediately here and queues the
+           change for the portal — the row shows <i>pending sync</i> until the collector confirms
+           (within 30 minutes). Unknown owners are refused.</div>
+       </div>
+     </div>
+     <div class="dfh" style="margin-top:16px">Messages about this device <span class="muted" style="font-weight:400">· welcome/code emails are recorded against the ULO — open their page for those</span></div>
+     <div id="devMsgs"><p class="muted">Loading…</p></div>
+     <div class="dfh" style="margin-top:16px">History — every change to this device and its licence</div>
+     <div id="devHist"><p class="muted">Loading…</p></div>
+     <div class="toolbar" style="margin-top:14px">
+       <button class="themebtn" id="mApply" onclick="applyDeviceEdit('${esc(key)}')">Save</button>
+       <button class="themebtn" onclick="copyText('${esc(key)}','Licence ID')">Copy licence ID</button>
+       ${d.lease_code ? `<button class="themebtn" onclick="copyText('${esc(d.lease_code)}','Lease code')">Copy lease code</button>` : ''}
+       ${pendingDeleteKeys().has(key)
+         ? '<span class="pill off" title="queued — the collector revokes and cleans up on its next run">deletion queued</span>'
+         : `<button class="themebtn danger" id="mDel" onclick="showDeleteConfirm('${esc(key)}')" style="margin-left:auto">Delete &amp; clean up…</button>`}
+     </div>
+     <div id="delBox"></div>`);
+  MSGBACK = () => showDevice(key);
+  loadMsgHistory('devMsgs', `license_key=eq.${encodeURIComponent(key)}`);
+  loadHistory('devHist', key);
+}
+/* Delete & clean up (Darren, 2026-08-31): revoke the lease on the portal,
+   clear its terms so it returns to the available pool, reset our registry
+   (unassigned, standard alias), strike it from the ULO — removing the ULO
+   if it was their last licence — and log everything. Two clicks, on purpose. */
+function showDeleteConfirm(key){
+  const d = (D.devices||[]).find(x => x.license_key === key);
+  if (!d) return;
+  const box = document.getElementById('delBox'); if (!box) return;
+  const owner = d.owner_kind === 'crm' ? (D.contacts||[]).find(c => c.ref === d.owner_ref) : null;
+  const others = owner ? (D.devices||[]).filter(x => x.owner_ref === owner.ref && x.license_key !== key).length : 0;
+  box.innerHTML = `<div class="dangerbox">
+    <b>Delete &amp; clean up ${esc(d.our_alias || d.alias || shortId(key))}?</b> This will, on the next collector run:
+    <ul style="margin:6px 0 8px 18px;padding:0">
+      <li>end the lease on manage.unetwork.io (the operator's app stops working on this licence) and clear its terms, so the licence returns to the <b>available to issue</b> pool;</li>
+      <li>remove it from the Devices tab — owner cleared, alias reset to <code>WD-UNA-${esc(key.slice(2,10))}</code>, dropped from the holder's portal group;</li>
+      ${owner ? `<li>strike it from <b>${esc(owner.name || owner.ref)}</b>${others ? ` (they keep ${others} other licence${others>1?'s':''})` : ' — <b>this is their last licence, so their ULO record is removed too</b>'};</li>` : ''}
+      <li>cancel any open reclaim for it, and record all of this in the History log.</li>
+    </ul>
+    <label class="field"><span>Reason (optional, goes in the log)</span><input id="delReason" maxlength="160" placeholder="e.g. handset lost / operator left"></label>
+    <div class="toolbar">
+      <button class="themebtn danger" id="delGo" onclick="queueDelete('${esc(key)}')">Yes — delete &amp; clean up</button>
+      <button class="themebtn" onclick="document.getElementById('delBox').innerHTML=''">Cancel</button>
+    </div><div id="delMsg" class="muted" style="margin-top:8px"></div></div>`;
+}
+async function queueDelete(key){
+  const btn = document.getElementById('delGo'); if (btn) btn.disabled = true;
+  const msg = document.getElementById('delMsg');
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const saved = await sbPost('actions', s, [{kind: 'device_delete',
+      payload: {license_key: key, reason: (document.getElementById('delReason')||{}).value?.trim() || ''},
+      requested_by: (s.user||{}).email || null}]);
+    D.pending = (D.pending||[]).concat(saved);
+    render();
+    if (msg) msg.innerHTML = `<b>Queued ✓</b> — the collector revokes and cleans up on its next run (within 30 minutes).
+      <button class="themebtn" onclick="runCollector(this)">Run now</button> <span class="muted">makes that ~2–3 minutes.</span>`;
+    const del = document.getElementById('mDel'); if (del) del.replaceWith(Object.assign(document.createElement('span'), {className:'pill off', textContent:'deletion queued'}));
+  } catch(e) {
+    if (btn) btn.disabled = false;
+    if (msg) msg.textContent = 'Could not queue the deletion: ' + e.message;
+  }
+}
+async function applyDeviceEdit(key){
+  const d = (D.devices||[]).find(x => x.license_key === key);
+  if (!d) return;
+  const alias = document.getElementById('mAlias').value.trim();
+  const owner = document.getElementById('mOwner').value;
+  const payload = {license_key: key};
+  if (alias !== (d.our_alias ?? d.alias ?? '')) payload.alias = alias;
+  if (owner !== (d.owner_ref || 'UNASSIGNED')) payload.owner_ref = owner;
+  if (Object.keys(payload).length === 1) { closeModal(); return; }
+  const btn = document.getElementById('mApply'); if (btn) btn.disabled = true;
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const saved = await sbPost('actions', s, [{kind: 'device_edit', payload,
+      requested_by: (s.user||{}).email || null}]);
+    D.pending = (D.pending||[]).concat(saved);
+    /* Reflect the change immediately; 'pending sync' marks the row until the
+       collector confirms it and queues the alias for the portal. */
+    if ('alias' in payload) {
+      d.our_alias = alias || null;
+      d.alias_in_sync = (alias || '') === (d.alias || '');
+    }
+    if ('owner_ref' in payload) {
+      const c = (D.contacts||[]).find(x => x.ref === owner);
+      d.owner_ref = owner;
+      d.owner_name = owner === 'MARKETPLACE' ? 'Marketplace'
+        : owner === 'UNASSIGNED' ? '' : (c ? (c.name || c.full_name) : owner);
+      d.owner_kind = owner === 'MARKETPLACE' ? 'marketplace' : c ? 'crm' : 'unassigned';
+    }
+    closeModal(); render();
+  } catch(e) {
+    if (btn) btn.disabled = false;
+    alert('Save failed: ' + e.message);
+  }
+}
+
+/* Offboarding mode: Auto reclaims a 30-day-offline leased licence by itself
+   (after the full warning ladder where we hold an email); Semi waits for an
+   Approve click on the Revocations tab. Marketplace is always Auto. */
+function modeCell(c){
+  if (c.ref === 'WD-00002')
+    return '<span class="muted" title="Marketplace licences offboard automatically — this cannot be changed">Auto (fixed)</span>';
+  const mode = (c.offboarding_mode || 'auto') === 'semi' ? 'semi' : 'auto';
+  const pend = pendingModeRefs().has(c.ref)
+    ? ' <span class="pill wait" title="queued — the collector applies it within 30 minutes">pending sync</span>' : '';
+  return '<span class="seg">' + ['auto','semi'].map(m =>
+    `<button class="segbtn${m===mode?' on':''}" ${m===mode?'disabled':''}
+       title="${m==='auto'?'Reclaim automatically after the warning ladder':'Wait for your approval on the Revocations tab'}"
+       onclick="uloMode('${esc(c.ref)}','${m}')">${m==='auto'?'Auto':'Semi'}</button>`).join('')
+    + '</span>' + pend;
+}
+async function uloMode(ref, mode){
+  const c = (D.contacts||[]).find(x => x.ref === ref);
+  if (!c || (c.offboarding_mode || 'auto') === mode) return;
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const saved = await sbPost('actions', s, [{kind: 'contact_mode',
+      payload: {ref, mode}, requested_by: (s.user||{}).email || null}]);
+    D.pending = (D.pending||[]).concat(saved);
+    c.offboarding_mode = mode;   // show it immediately; 'pending sync' until confirmed
+    render();
+  } catch(e) { alert('Could not queue the change: ' + e.message); }
+}
+
+/* Customer alerts (the daily "get back online" nudges and the offboarding
+   ladder). State comes from the contact's notifications block — the same
+   one inbox.py/messaging.py update when a ULO replies STOP / PAUSE /
+   START — and every click queues a contact_notifications action that the
+   collector applies within 30 minutes. */
+function alertsState(c){
+  const n = c.notifications || {};
+  const opt = (n.opt_out||{}).status;
+  if ((opt && opt !== 'none') || c.alert_opt_out_at)
+    return {key:'stopped', label:'stopped (by the ULO)', pill:'off'};
+  if (n.enabled === false) return {key:'off', label:'off', pill:'off'};
+  const until = n.pause_until ? new Date(n.pause_until) : null;
+  if (until && until.getTime() > Date.now())
+    return {key:'paused', label:'paused until ' + until.toLocaleString('en-GB',
+      {timeZone:'Europe/London', hour:'2-digit', minute:'2-digit', day:'numeric', month:'short'}), pill:'wait'};
+  return {key:'on', label:'on', pill:'on'};
+}
+function alertsCell(c){
+  if (c.ref === 'WD-00002')
+    return '<span class="muted" title="Marketplace licences are reached through the portal\'s in-app chat only">in-app only</span>';
+  const st = alertsState(c), n = c.notifications || {}, ch = n.channels || {};
+  const pend = pendingNotifRefs().has(c.ref)
+    ? ' <span class="pill wait" title="queued — the collector applies it within 30 minutes">pending sync</span>' : '';
+  const on = st.key === 'on' || st.key === 'paused';
+  const b = (label, isOn, disabled, title, payload) =>
+    `<button class="segbtn${isOn?' on':''}" ${disabled?'disabled':''} title="${esc(title)}"
+       onclick="uloNotif('${esc(c.ref)}',${esc(JSON.stringify(payload))})">${label}</button>`;
+  const master = '<span class="seg">' +
+    b('On', on, on, st.key === 'stopped' ? 'The ULO replied STOP — clicking On resumes alerts on their behalf'
+        : st.key === 'paused' ? 'Paused by the ULO for 24 h — clicking On lifts the pause early' : 'Alerts are on',
+      st.key === 'on' ? {enabled:true} : {resume:true}) +
+    b('Off', !on, !on, 'No customer alerts to this contact (final warning and reclaim notices still go)', {enabled:false}) +
+    '</span>';
+  const inapp = (D.devices||[]).some(d => d.owner_ref === c.ref && d.in_app);
+  const hasEmail = !!(c.email||'').trim(), hasPhone = !!(c.phone||'').trim();
+  const emailOn = hasEmail && ch.email !== false;
+  const inappOn = inapp && (ch.inapp == null ? !hasEmail : !!ch.inapp);
+  const waOn = hasPhone && !!ch.whatsapp;
+  const t = (what, ok, isOn, why) => ok ? `${what}: ${isOn?'on':'off'} — click to turn ${isOn?'off':'on'}` : why;
+  const chans = '<span class="seg" style="margin-left:4px">' +
+    b('Email', emailOn, !hasEmail, t('Email', hasEmail, emailOn, 'No email address on file'), {channels:{email:!emailOn}}) +
+    b('In-app', inappOn, !inapp, t('In-app (manage.unetwork.io chat)', inapp, inappOn, 'No licence reachable in the portal chat'), {channels:{inapp:!inappOn}}) +
+    b('WA', waOn, !hasPhone, t('WhatsApp', hasPhone, waOn, 'No phone number on file'), {channels:{whatsapp:!waOn}}) +
+    '</span>';
+  return `<span class="pill ${st.pill}" title="${esc(st.label)}">${esc(st.key)}</span> ${master}${chans}${pend}`;
+}
+async function uloNotif(ref, payload){
+  const c = (D.contacts||[]).find(x => x.ref === ref);
+  if (!c) return;
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const saved = await sbPost('actions', s, [{kind: 'contact_notifications',
+      payload: Object.assign({ref}, payload), requested_by: (s.user||{}).email || null}]);
+    D.pending = (D.pending||[]).concat(saved);
+    const n = c.notifications = c.notifications || {};   // show it immediately; 'pending sync' until confirmed
+    if (payload.resume) { n.enabled = true; n.pause_until = null; n.opt_out = {status:'none'}; c.alert_opt_out_at = null; }
+    if ('enabled' in payload) n.enabled = payload.enabled;
+    if (payload.channels) n.channels = Object.assign({}, n.channels || {}, payload.channels);
+    render();
+  } catch(e) { alert('Could not queue the change: ' + e.message); }
+}
+async function alertsGlobal(paused){
+  const msg = paused ? 'Pause ALL customer alerts (daily offline nudges and the warning ladder) until you resume them?'
+                     : 'Resume customer alerts?';
+  if (!confirm(msg)) return;
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const saved = await sbPost('actions', s, [{kind: 'alerts_global',
+      payload: {paused}, requested_by: (s.user||{}).email || null}]);
+    D.pending = (D.pending||[]).concat(saved);
+    render();
+  } catch(e) { alert('Could not queue the change: ' + e.message); }
+}
+
+function showUlo(ref){
+  const c = (D.contacts||[]).find(x => x.ref === ref);
+  if (!c) return;
+  const lics = (D.devices||[]).filter(d => d.owner_ref === ref);
+  const ch = c.channels || {};
+  const contact = [
+    ['Ref', dval(c.ref)], ['Full name', dval(c.full_name || c.name)], ['Alias', dval(c.alias)],
+    ['Email', dval(c.email || ch.email)], ['Phone', dval(c.phone || ch.whatsapp)],
+    ['Discord', dval(c.discord_username)], ['Telegram', dval(c.telegram_username)],
+    ['Role', dval(c.role)], ['Status', dval(c.status)], ['Source', dval(c.source)],
+    ['Added', dval(c.added_at)], ['Activated', dval(c.activated_at)],
+    ['Referral code', dval(c.referral_code)],
+  ];
+  const g = c.gdpr || {};
+  const compliance = [
+    ['Lawful basis', dval(g.lawful_basis)], ['Consent recorded', dval(g.recorded_at)],
+    ['Retention review', dval(g.retention_review_at)], ['Erasure requested', dval(g.erasure_requested)],
+    ['Alerts', alertsState(c).label], ['Opted out', dval(c.alert_opt_out_at)],
+    ['Licences assigned', dval(c.licenses_assigned)], ['Licences requested', dval(c.licenses_requested)],
+    ['Avg uptime (24h)', c.avg_uptime == null ? dval(null) : c.avg_uptime + '%'],
+    ['Online now', c.licence_count ? `${c.online_count}/${c.licence_count}` : dval(null)],
+    ['Fleet UPS (30d)', (s => s == null ? dval(null) : s.toFixed(3) + ' UPS')(
+      lics.reduce((a, d) => { const p = D.perf[d.license_key]; return p ? (a ?? 0) + p.ups30d : a; }, null))],
+  ];
+  const licRows = lics.length ? lics.map(d => {
+    const h = dailyFor(d.license_key);
+    const a7 = portalAvg(h, 7), a30 = portalAvg(h, 30);
+    const p = D.perf[d.license_key] || {};
+    return `<tr>
+      <td><button class="linkcell" onclick="showDevice('${esc(d.license_key)}')">${esc(d.our_alias || d.alias || shortId(d.license_key))}</button></td>
+      <td>${d.device ? esc(d.device) : '<span class="muted">&mdash;</span>'}</td>
+      <td class="mono">${esc(shortId(d.license_key))}</td>
+      <td class="mono">${d.lease_code ? esc(d.lease_code) : '<span class="muted">&mdash;</span>'}</td>
+      <td>${statusPill(d.status)}</td>
+      <td class="num">${d.uptime_pct == null ? '&mdash;' : d.uptime_pct.toFixed(1) + '%'}</td>
+      <td class="num">${a7 == null ? '&mdash;' : a7 + '%'}</td>
+      <td class="num">${a30 == null ? '&mdash;' : a30 + '%'}</td>
+      <td>${uptimeStrip(h, d.min_uptime_pct, {h: 22, mini: true})}</td>
+      <td class="num">${p.ups30d == null ? '&mdash;' : p.ups30d.toFixed(3)}</td>
+      <td class="num">${p.upsAll == null ? '&mdash;' : p.upsAll.toFixed(3)}</td></tr>`;}).join('')
+    : '<tr><td colspan="11" class="muted">No licences assigned.</td></tr>';
+  openModal(esc(c.name || c.full_name || c.ref), esc(c.email || '') + (c.phone ? ' &middot; ' + esc(c.phone) : ''),
+    `<div class="grid2">
+       <div><div class="dfh">Contact</div>${dtable(contact)}</div>
+       <div><div class="dfh">Compliance &amp; fleet</div>${dtable(compliance)}</div>
+     </div>
+     <div class="dfh" style="margin-top:16px">Assigned licences (${lics.length})</div>
+     <div class="tblwrap"><table class="dtl"><thead><tr><th>Alias</th><th>Device</th><th>Licence ID</th>
+       <th>Lease code</th><th>Status</th><th class="num">Uptime 24h</th><th class="num">7d avg</th>
+       <th class="num">30d avg</th><th>60d trend</th>
+       <th class="num">UPS 30d</th><th class="num">UPS all-time</th></tr></thead>
+       <tbody>${licRows}</tbody></table></div>
+     <p class="muted" style="margin-top:8px">The 7d/30d averages and the trend use the portal's own per-day uptime records — missing days count as 0%, so these match manage.unetwork.io exactly. UPS figures are the portal's totals for this licence over each window.</p>
+     ${c.notes ? `<div class="dfh" style="margin-top:16px">Notes</div><div>${esc(c.notes)}</div>` : ''}
+     <div class="dfh" style="margin-top:16px">Messages — everything sent to this ULO, and their replies</div>
+     <div id="uloMsgs"><p class="muted">Loading…</p></div>
+     <div class="dfh" style="margin-top:16px">History — every change to this ULO's record</div>
+     <div id="uloHist"><p class="muted">Loading…</p></div>
+     <div class="toolbar" style="margin-top:14px">
+       <button class="themebtn" onclick="closeModal(); showIssueForm('${esc(ref)}')">＋ Issue licences to ${esc(c.name || ref)}</button>
+       ${UNDELETABLE_REFS.has(ref) ? '' : pendingContactDeleteRefs().has(ref)
+         ? '<span class="pill off" style="margin-left:auto" title="queued — the collector removes the record on its next run">deletion queued</span>'
+         : `<button class="themebtn danger" id="uDel" onclick="showUloDeleteConfirm('${esc(ref)}')" style="margin-left:auto">Delete ULO…</button>`}
+     </div>
+     <div id="uDelBox"></div>`);
+  MSGBACK = () => showUlo(ref);
+  loadHistory('uloHist', ref);
+  const em = (c.email || ch.email || '').trim();
+  loadMsgHistory('uloMsgs', 'or=' + encodeURIComponent(
+    `(contact_ref.eq."${ref}"` + (em ? `,to_email.eq."${em}"` : '') + ')'));
+}
+
+/* Delete a ULO (Darren, 2026-09-04): queues a contact_delete action. The
+   collector refuses it while the ULO still holds a LEASED licence — reclaim
+   or delete those devices first — so the confirm box says so up front and
+   only offers the button when the delete can succeed. Two clicks, on purpose. */
+function showUloDeleteConfirm(ref){
+  const c = (D.contacts||[]).find(x => x.ref === ref);
+  const box = document.getElementById('uDelBox'); if (!c || !box) return;
+  const owned = (D.devices||[]).filter(d => d.owner_ref === ref);
+  const leased = owned.filter(d => d.pool_status === 'leased');
+  const spare = owned.length - leased.length;
+  const who = esc(c.name || c.full_name || ref);
+  box.innerHTML = `<div class="dangerbox">
+    <b>Delete ${who} (${esc(ref)})?</b>
+    ${leased.length ? `<p style="margin:6px 0"><b>Not yet.</b> ${who} still holds ${leased.length} leased licence${leased.length>1?'s':''}
+        (${leased.map(d => esc(d.our_alias || d.alias || shortId(d.license_key))).join(', ')}). Open each device and use
+        <i>Delete &amp; clean up</i> (or let a reclaim run its course) first — the collector refuses to delete a ULO with a live licence,
+        so nobody loses one by accident.</p>` : `On the next collector run this will:
+    <ul style="margin:6px 0 8px 18px;padding:0">
+      <li>remove the contact record from the CRM and the dashboard (and their portal group on manage.unetwork.io);</li>
+      ${spare ? `<li>set their ${spare} unactivated / available licence${spare>1?'s':''} back to <b>unassigned</b>;</li>` : ''}
+      <li>stop every alert to them; keep one History row with the ref, time, who and why — no personal data.</li>
+    </ul>
+    <label class="field" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="uDelErase" style="width:auto">
+      <span style="margin:0;text-transform:none;font-weight:400;font-size:13px;color:var(--text-primary)">GDPR erasure request — also purge their messages from the Outbox</span></label>
+    <label class="field"><span>Reason (optional, goes in the log)</span><input id="uDelReason" maxlength="160" placeholder="e.g. operator left / duplicate record / erasure request"></label>
+    <div class="toolbar">
+      <button class="themebtn danger" id="uDelGo" onclick="queueUloDelete('${esc(ref)}')">Yes — delete this ULO</button>
+      <button class="themebtn" onclick="document.getElementById('uDelBox').innerHTML=''">Cancel</button>
+    </div><div id="uDelMsg" class="muted" style="margin-top:8px"></div>`}
+    ${leased.length ? `<div class="toolbar"><button class="themebtn" onclick="document.getElementById('uDelBox').innerHTML=''">Close</button></div>` : ''}
+    </div>`;
+}
+async function queueUloDelete(ref){
+  const btn = document.getElementById('uDelGo'); if (btn) btn.disabled = true;
+  const msg = document.getElementById('uDelMsg');
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const saved = await sbPost('actions', s, [{kind: 'contact_delete',
+      payload: {ref, reason: (document.getElementById('uDelReason')||{}).value?.trim() || '',
+                erase: !!(document.getElementById('uDelErase')||{}).checked},
+      requested_by: (s.user||{}).email || null}]);
+    D.pending = (D.pending||[]).concat(saved);
+    render();
+    if (msg) msg.innerHTML = `<b>Queued ✓</b> — the collector removes the record on its next run (within 30 minutes).
+      <button class="themebtn" onclick="runCollector(this)">Run now</button> <span class="muted">makes that ~2–3 minutes.</span>`;
+    const del = document.getElementById('uDel'); if (del) del.replaceWith(Object.assign(document.createElement('span'), {className:'pill off', textContent:'deletion queued'}));
+  } catch(e) {
+    if (btn) btn.disabled = false;
+    if (msg) msg.textContent = 'Could not queue the deletion: ' + e.message;
+  }
+}
+
+/* ---------- manual licence issue (Darren, 2026-08-30) ----------
+   The form queues a `manual_issue` action; the collector validates it,
+   routes it through the SAME issuing path as website enquiries (pool pick,
+   mint, contact register/attach, optional welcome email, Outbox row), and
+   the codes appear on the dashboard when the run lands. */
+function showIssueForm(ref){
+  const opt = (v, l) => `<option value="${esc(v)}"${v === (ref || '') ? ' selected' : ''}>${esc(l)}</option>`;
+  openModal('Issue licences', 'mint lease codes — to an existing ULO or a new contact',
+    `<label class="field"><span>Assign to</span>
+       <select id="iRef" onchange="issueRefChanged()">${opt('', '— new contact —')}
+         ${(D.contacts||[]).map(c => opt(c.ref, `${c.name || c.full_name || c.ref} (${c.ref})`)).join('')}</select></label>
+     <div class="grid2">
+       <label class="field"><span>Name</span><input id="iName" placeholder="Full name — must match their contract details" maxlength="80"></label>
+       <label class="field"><span>Email</span><input id="iEmail" type="email" placeholder="required for a new contact" maxlength="120"></label>
+       <label class="field"><span>Phone <span class="muted">(optional)</span></span><input id="iPhone" placeholder="+44…" maxlength="20"></label>
+       <label class="field"><span>Device type</span><select id="iType">
+         <option value="android">Android</option><option value="ios">iOS</option>
+         <option value="mixed">Both / a mix</option></select></label>
+       <label class="field"><span>Licences</span><select id="iCount">${[1,2,3,4,5].map(n => `<option>${n}</option>`).join('')}</select></label>
+       <label class="field"><span>Notes <span class="muted">(optional)</span></span><input id="iNotes" maxlength="200"></label>
+     </div>
+     <label class="field" style="flex-direction:row;align-items:center;gap:8px">
+       <input type="checkbox" id="iSend" checked style="width:auto">
+       <span>Send the welcome email with the codes <span class="muted">(untick to hand the codes over yourself — they appear here either way)</span></span></label>
+     <div class="muted" style="font-size:12px">Standard terms: 12 months · 50% share · 50% min uptime, from the clean
+       available pool. Codes not activated within ${(D.expiry||{}).expire_days || 14} days are reclaimed automatically.</div>
+     <div class="toolbar" style="margin-top:14px">
+       <button class="themebtn" id="iGo" onclick="submitIssue()">Queue issue</button>
+     </div>
+     <div id="iMsg" class="muted" style="margin-top:8px"></div>`);
+  issueRefChanged();
+}
+function issueRefChanged(){
+  const ref = document.getElementById('iRef').value;
+  const c = (D.contacts||[]).find(x => x.ref === ref);
+  const set = (id, v, dis) => { const el = document.getElementById(id); el.value = v; el.disabled = dis; };
+  if (c) { set('iName', c.name || c.full_name || '', true); set('iEmail', c.email || '', true); set('iPhone', c.phone || '', true); }
+  else { set('iName', '', false); set('iEmail', '', false); set('iPhone', '', false); }
+}
+async function submitIssue(){
+  const ref = document.getElementById('iRef').value;
+  const email = document.getElementById('iEmail').value.trim();
+  const name = document.getElementById('iName').value.trim();
+  const send = document.getElementById('iSend').checked;
+  const msg = document.getElementById('iMsg');
+  if (!ref && !email) { msg.textContent = 'A new contact needs an email address.'; return; }
+  if (!ref && !name) { msg.textContent = 'A new contact needs a name (it must match their contract details).'; return; }
+  if (send && !email) { msg.textContent = 'This ULO has no email on file — untick the welcome-email box or add one to their record first.'; return; }
+  const payload = {
+    count: Number(document.getElementById('iCount').value),
+    phone_type: document.getElementById('iType').value,
+    send_email: send,
+    notes: document.getElementById('iNotes').value.trim(),
+  };
+  if (ref) payload.ref = ref;
+  else Object.assign(payload, {name, email,
+    phone: document.getElementById('iPhone').value.trim()});
+  const btn = document.getElementById('iGo'); btn.disabled = true;
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const saved = await sbPost('actions', s, [{kind: 'manual_issue', payload,
+      requested_by: (s.user||{}).email || null}]);
+    D.pending = (D.pending||[]).concat(saved);
+    render();   // the ULOs toolbar shows the queued count immediately
+    msg.innerHTML = `<b>Queued ✓</b> — the collector validates it and mints the code(s) on its
+      next run (within 30 minutes). <button class="themebtn" onclick="runCollector(this)">Run now</button>
+      <span class="muted">makes that ~2–3 minutes.</span>`;
+  } catch(e) {
+    btn.disabled = false;
+    msg.textContent = 'Could not queue the issue: ' + e.message;
+  }
+}
+async function runCollector(btn){
+  if (btn) { btn.disabled = true; btn.textContent = 'Starting…'; }
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const r = await fetch('/api/run-collector', {method: 'POST',
+      headers: {'x-sb-token': s.access_token}});
+    const txt = await r.text();
+    if (!r.ok) throw new Error(txt || ('HTTP ' + r.status));
+    if (btn) btn.textContent = 'Collector started ✓';
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Run now'; }
+    alert('Could not start the collector: ' + e.message);
+  }
+}
+
+
+const views = {
+ overview(){
+  const L = D.licences, R = D.rewards, agg = D.aggregate;
+  const belowMin = L.below_min_uptime ?? L.licenses.filter(l=>l.uptime_pct!=null&&l.min_uptime_pct!=null&&l.uptime_pct<l.min_uptime_pct).length;
+  const tiles = [
+    ['Leased licences', fmt(L.total), `${D.unlinked} not linked to a contact`],
+    ['Online now', fmt(L.online), `${((L.online/L.total)*100||0).toFixed(1)}% of fleet`],
+    ['Below min. uptime', fmt(belowMin), 'lease threshold breached'],
+    ['UPS balance', fmt(R.balance_ups,2), `${fmt(R.summary_ups?.total_ups,2)} earned lifetime`],
+    ['Earned last 7d', fmt(R.summary_ups?.last7Days_ups,3), 'UPS'],
+    ['Open enquiries', fmt(D.pipeline.filter(p=>p.status==='new').length), 'awaiting first contact'],
+  ].map(([k,v,s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+
+  const uptimeBuckets = [[0,0],[1,10],[10,30],[30,60],[60,90],[90,100]].map(([a,b],i,arr) => {
+    const label = a===0&&b===0 ? '0%' : `${a}–${b}%`;
+    const n = L.licenses.filter(l => { const u = l.uptime_pct ?? 0;
+      return a===0&&b===0 ? u===0 : (u> a && u<=b); }).length;
+    return {label, v:n, sub:`${n} licences`}; });
+
+  const topRewards = Object.values(D.perf).filter(p=>p.ups30d>0)
+    .sort((a,b)=>b.ups30d-a.ups30d).slice(0,10).map(p => {
+    const lic = D.licences.licenses.find(l=>l.license_key===p.lic);
+    const named = lic && (lic.our_alias || lic.alias);
+    return {label: named || p.lic.slice(0,12)+'…', v: p.ups30d,
+            sub: named ? p.lic.slice(0,12)+'…' : ''};
+  });
+
+  return `<div class="tiles">${tiles}</div>
+  ${belowMin > L.total*0.5 ? `<div class="warnbox"><b>Fleet health warning.</b> ${belowMin} of ${L.total} licences are below their minimum uptime threshold and only ${L.online} are online right now. Distribution alone will not move the KPI until uptime improves — this is what the uptime-tip alerts target.</div>`:''}
+  <div class="card"><h2>Fleet status over time</h2>
+    <div class="legend"><span><i style="background:var(--s2)"></i>online</span><span><i style="background:var(--s1)"></i>offline</span></div>
+    ${lineChart(agg, ['online','offline'], {labels:{online:'Online',offline:'Offline'}})}</div>
+  <div class="grid2">
+    <div class="card"><h2>Uptime distribution</h2>${barChart(uptimeBuckets)}</div>
+    <div class="card"><h2>Top earning licences (UPS, last 30 days)</h2>${barChart(topRewards,{fmtv:v=>Number(v).toFixed(3),color:'--s1'})}</div>
+  </div>`;
+ },
+
+ devices(){
+  const all = D.devices || [];
+  // Rows = every device that is in someone's hands or has a real owner recorded.
+  // UNASSIGNED is an explicit "nobody yet", not an owner, so unleased stock with
+  // no owner stays on the Licences tab; 1,350 editable rows would be a needlessly
+  // heavy page.
+  const rows = devRows();
+  const leased = all.filter(d => d.pool_status === 'leased');
+  // kinds = leased only (the actionable number); owned = the whole fleet, so a
+  // tile can say "1 leased, 151 assigned" rather than looking simply wrong.
+  const kinds = {crm:0, mkt:0};
+  leased.forEach(d => kinds[d.owner_kind === 'crm' ? 'crm' : 'mkt']++);
+  const ownedCrm = all.filter(d => d.owner_kind === 'crm').length;
+  const awaiting = all.filter(d => d.owner_kind === 'crm' && d.pool_status !== 'leased').length;
+  const srcCount = {};
+  all.forEach(d => srcCount[d.source] = (srcCount[d.source]||0) + 1);
+
+  const cols = [
+    {h:'Alias', f:d=>{
+      const shown = d.our_alias || d.alias || '';
+      return `<button class="linkcell" onclick="showDevice('${d.license_key}')"
+        title="Show everything we hold for this device">${esc(shown || shortId(d.license_key))}${
+        pendingDeviceKeys().has(d.license_key) ? ' <span class="pill wait">pending sync</span>' : ''}${
+        pendingDeleteKeys().has(d.license_key) ? ' <span class="pill off">deletion queued</span>' : ''}</button>`;}},
+    {h:'Owner', f:d=> d.owner_kind === 'crm' ? uloLink(d.owner_ref, d.owner_name)
+        : (d.pool_status === 'leased'
+            ? `<span class="muted">Marketplace ULO${d.in_app ? ' · in-app' : ''}</span>`
+            : '<span class="muted">— unassigned —</span>')},
+    {h:'Source', f:d=>`<span class="pill ${d.source==='marketplace'?'wait':(d.source==='issued_by_us'?'on':'off')}">${esc(SRC_LABEL[d.source]||d.source||'—')}</span>`},
+    {h:'Device', f:d=>esc(d.device||'—')},
+    {h:'Status', f:d=>awaitingAct(d) ? '<span class="pill wait">awaiting activation</span>' : statusPill(d.status)},
+    {h:'Uptime 24h', cls:'num', f:d=>d.uptime_pct==null?'—':`${d.uptime_pct.toFixed(1)}%`},
+    {h:'UPS 30d', cls:'num', f:d=>{const p=D.perf[d.license_key];return p?p.ups30d.toFixed(3):'—'}},
+    {h:'Offline', cls:'num', f:d=>awaitingAct(d) ? issuedCell(d)
+        : d.days_offline==null?'—':`${Math.round(d.days_offline)}d`},
+        {h:'Portal alias', f:d=>{
+      if (d.alias_in_sync) return '<span class="muted">in sync</span>';
+      const pushed = ((D.alias_sync||{}).applied_this_run||[]).some(a =>
+        a.license_key === d.license_key && a.to === (d.our_alias||''));
+      return pushed ? '<span class="pill on" title="Written to the portal this run; re-verified next sync">pushed — confirming</span>'
+                    : `<span class="pill wait">${esc(d.alias||'(none)')}</span>`;}},
+  ];
+  return `<div class="tiles">
+    <div class="tile"><div class="k">Active devices</div><div class="v">${fmt(leased.length)}</div><div class="s">licences activated on a device and in operators' hands</div></div>
+    <div class="tile"><div class="k">Held by your ULOs</div><div class="v">${fmt(kinds.crm)}</div><div class="s">active devices of contacts you know (${fmt(ownedCrm)} licences assigned to contacts in total)</div></div>
+    <div class="tile"><div class="k">Marketplace ULOs</div><div class="v">${fmt(kinds.mkt)}</div><div class="s">activated by anonymous marketplace operators — reachable in-app only</div></div>
+    <div class="tile"><div class="k">Awaiting activation</div><div class="v">${fmt(awaiting)}</div><div class="s">issued to a contact, lease code not redeemed yet</div></div>
+  </div>
+  <div class="toolbar">
+    <input type="search" id="devq" placeholder="Search devices…" oninput="applyDevFilters()">
+    <select id="devowner" onchange="applyDevFilters()">
+      <option value="">All holders</option><option value="crm">Your ULOs (CRM)</option>
+      <option value="mkt">Marketplace ULOs</option>
+    </select>
+    <select id="devsource" onchange="applyDevFilters()">
+      <option value="">Any source</option>
+      <option value="marketplace">Marketplace (${fmt(srcCount.marketplace||0)})</option>
+      <option value="issued_by_us">Issued by us (${fmt(srcCount.issued_by_us||0)})</option>
+      <option value="legacy_unknown">Unknown (${fmt(srcCount.legacy_unknown||0)})</option>
+    </select>
+    <select id="devpool" onchange="applyDevFilters()">
+      <option value="leased">Active (leased) only</option>
+      <option value="">Include awaiting activation</option>
+    </select>
+    <span class="muted" id="devcount"></span>
+
+  </div>
+  <div class="warnbox">Alias and owner are <b>ours</b> — the registry is seeded from the portal, so nothing
+  is renamed until you change it here. Click a device's alias to open it and edit; <b>Save</b> applies immediately
+  on the dashboard and queues the change for the portal (rows show <i>pending sync</i> until the collector confirms,
+  within 30 minutes; aliases push to manage.unetwork.io when <code>ALIAS_SYNC_ENABLED</code> is on).</div>
+  <div class="card">${table('devtab', cols, rows)}</div>`;
+ },
+
+ licences(){
+  const rows = D.licences.licenses;
+  const cols = [
+    {h:'Licence ID', f:r=>`<button class="idbtn" onclick="showLic('${r.license_key}')"
+        title="Show everything the portal holds for this licence">${esc(shortId(r.license_key))}</button>`},
+    {h:'Alias', f:r=>{
+      const d = devByKey()[r.license_key] || {};
+      const shown = d.our_alias || r.alias || '';
+      return `<button class="linkcell" onclick="showDevice('${r.license_key}')"
+        title="Open this licence to edit its alias and owner">${esc(shown || '(none)')}${
+        pendingDeviceKeys().has(r.license_key) ? ' <span class="pill wait">pending sync</span>' : ''}${
+        pendingDeleteKeys().has(r.license_key) ? ' <span class="pill off">deletion queued</span>' : ''}</button>`;}},
+    {h:'Lease code', f:r=>r.lease_code
+        ? `<span class="mono lc">${esc(r.lease_code).replace(/-/g,'-<wbr>')}</span>`
+        : '<span class="muted">—</span>'},
+    {h:'Pool', f:r=>`<span class="pill ${r.pool_status==='leased'?'on':(r.pool_status==='available'?'wait':'off')}">${esc((r.pool_status||'').replace('_',' '))}</span>`},
+    {h:'Device', f:r=>esc(r.device||'—')},
+    {h:'Owner', f:r=>r.owner_ref ? uloLink(r.owner_ref, r.owner_name) : '<span class="muted">—</span>'},
+    {h:'Status', f:r=>r.pool_status==='leased'?statusPill(r.status)
+        : awaitingAct(r) ? '<span class="pill wait">awaiting activation</span>'
+        : '<span class="muted">—</span>'},
+    {h:'Uptime 24h', cls:'num', f:r=>r.uptime_pct==null?'—':`${r.uptime_pct.toFixed(1)}%`},
+    {h:'Offline', cls:'num', f:r=>awaitingAct(r) ? issuedCell(r)
+        : r.days_offline==null?'—':`${Math.round(r.days_offline)}d`},
+    {h:'Last seen', cls:'num', f:r=>awaitingAct(r) ? expiresCell(r) : ago(r.last_seen)},
+      ];
+  const pools = D.licences.pools || {};
+  return `<div class="toolbar">
+    <input type="search" id="licq" placeholder="Search licences…" oninput="applyLicFilters()">
+    <select id="licpool" onchange="applyLicFilters()">
+      <option value="">All pools (${rows.length})</option>
+      <option value="leased">Leased (${pools.leased||0})</option>
+      <option value="available">Available to issue (${pools.available||0})</option>
+      <option value="terms_only">Terms only (${pools.terms_only||0})</option>
+    </select>
+    <select id="licstatus" onchange="applyLicFilters()">
+      <option value="">Any status</option><option value="online">Online</option><option value="offline">Offline</option>
+    </select>
+    <span class="muted" id="liccount"></span>
+</div>
+    <div class="card">${table('lictab', cols, rows)}</div>`;
+ },
+
+ ulos(){
+  const rows = D.contacts;
+  const cols = [
+    {h:'Ref', f:r=>esc(r.ref)},
+    {h:'Name', f:r=>`<button class="linkcell" onclick="showUlo('${esc(r.ref)}')"
+        title="Show everything we hold for this operator">${esc(r.name||r.full_name||r.ref)}</button>${
+        pendingContactDeleteRefs().has(r.ref) ? ' <span class="pill off">deletion queued</span>' : ''}`},
+    {h:'Email', f:r=>esc(r.email||'—')},
+    {h:'Phone', f:r=>esc(r.phone||'—')},
+    {h:'Licences', cls:'num', f:r=>fmt(r.licence_count)},
+    {h:'Online', cls:'num', f:r=>r.licence_count?`${r.online_count}/${r.licence_count}`:'—'},
+    {h:'Avg uptime (24h)', cls:'num', f:r=>r.avg_uptime==null?'—':`${r.avg_uptime}%`},
+    {h:'Alerts', f:r=>alertsCell(r)},
+    {h:'In-app', f:r=>{const n=(D.devices||[]).filter(d=>d.owner_ref===r.ref&&d.in_app).length;
+      return n?`<span class="pill on" title="licences reachable in the portal's in-app chat">${n} reachable</span>`:'<span class="muted">—</span>';}},
+    {h:'Offboarding', f:r=>modeCell(r)},
+    {h:'Lawful basis', f:r=>esc(r.gdpr?.lawful_basis||'—')},
+  ];
+  const queued = pendingIssues().length;
+  return `<div class="toolbar"><input type="search" id="uloq" placeholder="Search ULOs…" oninput="filterTable('uloq','ulotab')">
+    <span class="muted">${rows.length} contacts</span>
+    <button class="themebtn" onclick="showIssueForm()">＋ Issue licences</button>
+    ${queued ? `<span class="pill wait" title="queued manual issues — the collector mints them on its next run">${queued} issue${queued>1?'s':''} queued</span>` : ''}</div>
+    <div class="card">${table('ulotab', cols, rows)}</div>`;
+ },
+
+ pipeline(){
+  const rows = D.pipeline;
+  const cols = [
+    {h:'ID', f:r=>esc(r.id)},
+    {h:'Received', f:r=>esc((r.received_at||'').slice(0,10))},
+    {h:'Age', cls:'num', f:r=>r.age_days!=null?`${Math.round(r.age_days)}d`:'—'},
+    {h:'Name', f:r=>esc(r.name)},
+    {h:'Email', f:r=>esc(r.email)},
+    {h:'Device', f:r=>esc(r.phone_type||'—')},
+    {h:'Wanted', cls:'num', f:r=>fmt(r.licences_requested ?? r.licenses_requested)},
+    {h:'Status', f:r=>`<span class="pill ${r.status==='new'?'wait':(r.status==='awaiting_activation'?'wait':((r.status==='duplicate'||r.status==='escalated'||r.status==='rejected')?'off':'on'))}">${esc(r.status)}</span>`},
+  ];
+  const waiting = rows.filter(r=>r.status==='new').length;
+  return `${waiting?`<div class="warnbox"><b>${waiting} enquiries awaiting first contact</b> — recovered unanswered at the OpenClaw cutover. Oldest is ${Math.max(...rows.map(r=>r.age_days||0)).toFixed(0)} days. No comms have been sent from this system.</div>`:''}
+    <div class="card">${table('pipetab', cols, rows)}</div>`;
+ },
+
+ rewards(){
+  const R = D.rewards;
+  const byKey = Object.fromEntries((D.devices||[]).map(d=>[d.license_key,d]));
+  const rows = (D.allocs||[]).map(r=>{
+    const d = byKey[r.lic]||{};
+    return {day:r.d, lic:r.lic, node:r.node, ups:(r.a||0)/1e6,
+            alias:d.our_alias||d.alias||shortId(r.lic||'?'),
+            owner:(d.owner_ref&&d.owner_ref!=='UNASSIGNED')?d.owner_ref:'',
+            owner_name:d.owner_ref==='MARKETPLACE'?'Marketplace':(d.owner_name||'')};
+  });
+  const owners = [...new Map(rows.filter(r=>r.owner).map(r=>[r.owner, r.owner_name||r.owner])).entries()]
+    .sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+  const devsAll = [...new Map(rows.map(r=>[r.lic, r.alias])).entries()];
+  const devOpts = (REW.ulo ? devsAll.filter(([k])=>(byKey[k]||{}).owner_ref===REW.ulo) : devsAll)
+    .sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
+  const cut = REW.days ? new Date(Date.now()-REW.days*864e5).toISOString().slice(0,10) : '';
+  const f = rows.filter(r=>(!REW.ulo||r.owner===REW.ulo)&&(!REW.dev||r.lic===REW.dev)&&(!cut||r.day>=cut));
+  const byDay = {};
+  f.forEach(r=>byDay[r.day]=(byDay[r.day]||0)+r.ups);
+  const daysList = Object.keys(byDay).sort();
+  const series = daysList.map(d=>({day:d, v:byDay[d]}));
+  const total = f.reduce((a,r)=>a+r.ups,0);
+  const span = daysList.length ? `${daysList[0]} → ${daysList[daysList.length-1]}` : '—';
+  const tbtn = (n,l)=>`<button class="themebtn${REW.days===n?' seg-on':''}" style="${REW.days===n?'font-weight:700;border-color:var(--accent)':''}"
+      onclick="REW.days=${n===null?'null':n};render()">${l}</button>`;
+  const filters = `<div class="toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:10px">
+    <select onchange="REW.ulo=this.value;REW.dev='';render()">
+      <option value="">All ULOs</option>
+      ${owners.map(([r,n])=>`<option value="${esc(r)}"${REW.ulo===r?' selected':''}>${esc(n)} (${esc(r)})</option>`).join('')}
+    </select>
+    <select onchange="REW.dev=this.value;render()">
+      <option value="">All devices</option>
+      ${devOpts.map(([k,a])=>`<option value="${esc(k)}"${REW.dev===k?' selected':''}>${esc(a)}</option>`).join('')}
+    </select>
+    ${tbtn(7,'7d')}${tbtn(30,'30d')}${tbtn(90,'90d')}${tbtn(null,'All')}
+  </div>`;
+  const winTiles = [
+    ['Earned in window', total.toFixed(6), 'UPS · '+span],
+    ['Days with rewards', fmt(daysList.length), 'in the window'],
+    ['Avg per rewarded day', daysList.length?(total/daysList.length).toFixed(6):'—', 'UPS'],
+    ['Allocations', fmt(f.length), 'rows shown'],
+  ].map(([k,v,s])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+  const alloCols = [
+    {h:'Day', f:r=>r.day},
+    {h:'Device', f:r=>`<button class="linkcell" onclick="showDevice('${esc(r.lic)}')">${esc(r.alias)}</button>`},
+    {h:'ULO', f:r=>r.owner?uloLink(r.owner, r.owner_name):'<span class="muted">unassigned</span>'},
+    {h:'Node', f:r=>`<code>${esc((r.node||'').slice(0,12))}…</code>`},
+    {h:'UPS', cls:'num', f:r=>r.ups.toFixed(6)},
+  ];
+  const recent = f.slice().sort((a,b)=>b.day.localeCompare(a.day)).slice(0,120);
+  /* Per-LICENCE lifetime totals (the per-node view was meaningless —
+     one node spans ~200 licences and many owners). */
+  const cut30 = new Date(Date.now()-30*864e5).toISOString().slice(0,10);
+  const byLicTot = {};
+  rows.forEach(r=>{
+    const t = (byLicTot[r.lic] ??= {lic:r.lic, alias:r.alias, owner_name:r.owner_name, owner:r.owner, ups:0, u30:0, allocations:0});
+    t.ups += r.ups; t.allocations++; if (r.day>=cut30) t.u30 += r.ups;
+  });
+  const licTotals = Object.values(byLicTot).sort((a,b)=>b.ups-a.ups);
+  const nodeCols = [
+    {h:'Licence', f:r=>`<button class="linkcell" onclick="showDevice('${esc(r.lic)}')">${esc(r.alias)}</button>`},
+    {h:'ULO', f:r=>r.owner?uloLink(r.owner, r.owner_name):'<span class="muted">unassigned</span>'},
+    {h:'UPS 30d', cls:'num', f:r=>r.u30.toFixed(6)},
+    {h:'UPS all-time', cls:'num', f:r=>r.ups.toFixed(6)},
+    {h:'Allocations', cls:'num', f:r=>fmt(r.allocations)},
+  ];
+  const tiles = [
+    ['Balance', fmt(R.balance_ups,3),'UPS available'],
+    ['Lifetime earned', fmt(R.summary_ups?.total_ups,3),'UPS'],
+    ['Last 7 days', fmt(R.summary_ups?.last7Days_ups,3),'UPS'],
+    ['Today', fmt(R.summary_ups?.today_ups,3),'UPS'],
+  ].map(([k,v,s])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+  return `<div class="tiles">${tiles}</div>
+   <div class="card"><h2>Rewards explorer</h2>
+   <p class="muted" style="margin-top:-4px">Every allocation the portal has issued, per licence per day — filter by ULO, then device, then timeframe. The collector pages back through the full history, so this is complete from the first allocation onwards.</p>
+   ${filters}
+   <div class="tiles" style="margin:10px 0">${winTiles}</div>
+   ${dayChart(series)}
+   ${table('allotab', alloCols, recent)}
+   ${f.length>120?`<p class="muted">Showing the 120 most recent of ${fmt(f.length)} allocations in this window.</p>`:''}</div>
+   <div class="card"><h2>Earnings by licence (${R.ledger_rows||0} allocations, complete history)</h2>
+   ${table('rewtab', nodeCols, licTotals)}</div>`;
+ },
+
+ revocations(){
+  const q = (D.revocations && D.revocations.queue) || [];
+  const by = s => q.filter(e => e.status === s);
+  const pending = by('pending_approval'), approved = by('approved');
+  const tiles = [
+    ['Awaiting approval', pending.length, 'nothing revoked without your OK'],
+    ['Approved, queued', approved.length, 'will execute on next run'],
+    ['Executed', by('executed').length, 'licences reclaimed'],
+    ['Cancelled', by('cancelled').length, 'came back online'],
+  ].map(([k,v,s])=>`<div class="tile"><div class="k">${k}</div><div class="v">${fmt(v)}</div><div class="s">${s}</div></div>`).join('');
+  const cols = [
+    {h:'Licence', f:r=>esc(r.alias || r.license_key.slice(0,14)+'…')},
+    {h:'Owner', f:r=>r.owner_ref||r.owner_name?uloLink(r.owner_ref, r.owner_name):'<span class="muted">unlinked</span>'},
+    {h:'Days offline', cls:'num', f:r=>fmt(Math.round(r.days_offline||0))},
+    {h:'Last seen', cls:'num', f:r=>ago(r.last_seen)},
+    {h:'Status', f:r=>{const m={pending_approval:'wait',approved:'wait',executed:'off',cancelled:'on',declined:'on',failed:'off'};
+      return `<span class="pill ${m[r.status]||'wait'}">${esc(r.status.replace('_',' '))}</span>`}},
+    {h:'Approved by', f:r=>esc(r.approved_by||'—')},
+    {h:'Decision', f:r=>{
+      if (r.status !== 'pending_approval') return '<span class="muted">—</span>';
+      if (pendingRevKeys().has(r.license_key)) return '<span class="pill wait">queued</span>';
+      if (REVCONFIRM === r.license_key + 'approve')
+        return `<button class="themebtn" style="color:var(--bad)" onclick="revAction('${r.license_key}','approve')">Confirm reclaim?</button>
+                <button class="themebtn" onclick="REVCONFIRM=null;render()">Cancel</button>`;
+      if (REVCONFIRM === r.license_key + 'decline')
+        return `<button class="themebtn" onclick="revAction('${r.license_key}','decline')">Confirm decline?</button>
+                <button class="themebtn" onclick="REVCONFIRM=null;render()">Cancel</button>`;
+      return `<button class="themebtn" onclick="REVCONFIRM='${r.license_key}approve';render()">Approve</button>
+              <button class="themebtn" onclick="REVCONFIRM='${r.license_key}decline';render()">Decline</button>`;}},
+  ];
+  const threshold = (D.revocations && D.revocations.threshold_days) || 30;
+  return `<div class="tiles">${tiles}</div>
+  <div class="warnbox"><b>Approval required.</b> Licences offline ${threshold}+ days are queued here.
+  Nothing is revoked until you approve it, and an approved licence that comes back online before
+  execution is cancelled automatically. Execution is additionally gated by <code>REVOKE_ENABLED</code>,
+  which is currently <b>${D.revoke_enabled ? 'ON' : 'OFF (dry-run)'}</b>.
+  <b>Approve</b> and <b>Decline</b> are live: each asks you to confirm, then queues the decision under your
+  login — the collector applies it within 30 minutes and the row records who decided.</div>
+  ${q.length ? `<div class="card">${table('revtab', cols, q)}</div>`
+             : '<div class="card"><p class="muted">No revocation candidates. Every leased licence has been seen within '+threshold+' days.</p></div>'}`;
+ },
+
+ system(){
+  const L = D.licences, agg = D.aggregate;
+  const last = agg[agg.length-1];
+  const freshMin = last ? Math.round((Date.now()-new Date(last.ts))/60000) : null;
+  const stale = freshMin != null && freshMin > 75;
+  const rows = [
+    ['Collector last run', last ? new Date(last.ts).toLocaleString('en-GB') : '—', stale?'STALE':'ok'],
+    ['Data freshness', freshMin!=null?`${freshMin} min ago`:'—', stale?'STALE — expected ≤ 60 min':'within the 30-minute schedule'],
+    ['Licence records', fmt(L.total), `${D.unlinked} unlinked from CRM`],
+    ['Metric points', fmt(agg.length), 'aggregate rows retained'],
+    ['Change events', fmt(D.events.length), 'status/uptime transitions'],
+    ['Alert engine', 'dry-run', 'no messages sent to operators'],
+    ['Rewards ledger', fmt(D.rewards.ledger_rows), 'allocations recorded'],
+  ];
+  return `${stale?`<div class="warnbox"><b>Collector may be stale.</b> Last data point is ${freshMin} minutes old; the schedule is every 30 minutes. Check the <code>collect</code> workflow — a failed session refresh is the usual cause (see docs/RESTORE.md).</div>`:''}
+  <div class="card"><h2>System status</h2><table>
+   ${rows.map(([k,v,s])=>`<tr><td class="sec">${k}</td><td><b>${v}</b></td><td class="muted">${s}</td></tr>`).join('')}
+  </table></div>
+  <div class="card"><h2>Recent change events</h2>
+   ${table('evtab',[
+     {h:'When', f:r=>new Date(r.ts).toLocaleString('en-GB')},
+     {h:'Event', f:r=>esc(r.event)},
+     {h:'Licence', f:r=>{const l=D.licences.licenses.find(x=>x.license_key===r.license_key); return esc(l?.alias||r.license_key.slice(0,14)+'…')}},
+     {h:'From', cls:'num', f:r=>esc(r.from ?? '—')},
+     {h:'To', cls:'num', f:r=>esc(r.to ?? r.status ?? '—')},
+   ], D.events.slice().reverse().slice(0,60))}</div>`;
+ },
+
+ monitoring(){
+  const H = D.health || {}, HC = H.components || {}, F = H.facts || {};
+  const rank = {green:0, amber:1, red:2};
+  const worst = (...s) => s.filter(Boolean).reduce((a,b)=>rank[b]>rank[a]?b:a,'green');
+  const fresh = m => m==null ? 'red' : m<45 ? 'green' : m<90 ? 'amber' : 'red';
+  const ageM = iso => iso ? Math.max(0, Math.round((Date.now()-new Date(iso))/60000)) : null;
+  const agoM = m => m==null ? 'never' : m<1 ? 'just now' : m<120 ? m+' min ago'
+    : m<2880 ? (m/60).toFixed(1)+' h ago' : Math.round(m/1440)+' days ago';
+
+  /* Client-side freshness is the authority: a dead collector cannot update
+     its own health snapshot, so the age of the mirrored data — refreshed by
+     this page every two minutes — is what turns things red here. */
+  const fleetAge = ageM(MON.fleet_ts || (D.aggregate.length ? D.aggregate[D.aggregate.length-1].ts : null));
+  const dataAge = ageM(D.licences.updated_at);
+  const rewAge = ageM(D.rewards.updated_at);
+  const snapAge = ageM(H.evaluated_at);
+  const snapStale = snapAge == null || snapAge >= 90;
+
+  const c = {};
+  c.collector = {t:'Collector', sub:'GitHub Actions · every 30 min',
+    status: worst(fresh(fleetAge), snapStale ? 'green' : (HC.collector||{}).status),
+    rows: [['newest data', agoM(fleetAge)], ['last health check', agoM(snapAge)],
+           ['licences seen', fmt(D.licences.total)]]};
+  /* Inside the run: each optional module is a stage; one that fails is
+     skipped so the rest still runs. The health check turns this amber on
+     any skip, with the error — a silent skip never emails, so this card
+     is where you see it. */
+  const sk = F.stages_skipped || {}, skN = Object.keys(sk);
+  c.stages = {t:'Collector stages', sub:'the modules inside each run',
+    status: snapStale ? 'amber' : ((HC.stages||{}).status || 'amber'),
+    rows: [['ran', fmt((F.stages_ran||[]).length)],
+           ['skipped', skN.length ? skN.map(k => k + ' — ' + (sk[k]||'?')).join('; ') : 'none'],
+           ['not reached', (F.stages_not_reached||[]).length ? F.stages_not_reached.join(', ') : 'none'],
+           ['problems reported', Object.keys(F.stages_warnings||{}).length
+              ? Object.entries(F.stages_warnings).map(([k,v]) => k + ' — ' + v.join(' | ')).join('; ') : 'none'],
+           ['verdict', snapStale ? 'no recent health data' : ((HC.stages||{}).detail||'—')]]};
+  const dispAge = ageM(F.scheduler_last_dispatch);
+  c.scheduler = {t:'Scheduler', sub:'your VPS fires the runs · cron :00/:30',
+    status: dispAge==null ? 'amber' : fresh(dispAge),
+    rows: [['last VPS trigger', dispAge==null
+             ? ((HC.scheduler||{}).detail || 'no health data yet') : agoM(dispAge)],
+           ['GitHub cron', 'sporadic backup only']]};
+  c.unity = {t:'Unity portal session', sub:'manage.unetwork.io',
+    status: snapStale ? worst('amber', fresh(fleetAge)) : (HC.unity_session||{}).status,
+    rows: [['token refresh', snapStale ? 'no recent health data' : ((HC.unity_session||{}).detail||'—')]]};
+  c.supabase = {t:'Supabase', sub:'database · auth · this page reads it live',
+    status: MON.err ? 'red' : 'green',
+    rows: [['reachable', MON.err ? MON.err : 'yes — this page is live'],
+           ['mirror current to', agoM(fleetAge)]]};
+  const sites = (F.netlify_sites||[]).map(s2 =>
+    [s2.domain||s2.name, (s2.state||'?') + ' · ' + agoM(ageM(s2.published_at))]);
+  c.netlify = {t:'Netlify', sub:'both sites · deploys and usage',
+    status: snapStale ? 'amber' : (HC.netlify||{}).status,
+    rows: sites.length ? sites.concat([['usage', (F.netlify_usage_exceeded||[]).length ? 'EXCEEDED' : 'within allowance']])
+                       : [['status', snapStale ? 'no recent health data' : ((HC.netlify||{}).detail||'—')]]};
+  c.data = {t:'Data freshness', sub:'what every tab is showing you',
+    status: worst(fresh(dataAge), fresh(rewAge)),
+    rows: [['licences', agoM(dataAge)], ['rewards', agoM(rewAge)],
+           ['enquiries checked', agoM(ageM(F.enquiries_checked_at))]]};
+  const al = D.alias_sync || {};
+  c.alias = {t:'Alias sync', sub:'our names pushed to the portal',
+    status: (al.failed||[]).length ? 'red'
+      : ((al.pending||[]).length || (al.needs_review||[]).length) ? 'amber' : 'green',
+    rows: [['pending', fmt((al.pending||[]).length)],
+           ['applied last run', fmt((al.applied_this_run||[]).length)],
+           ['needs review (owner conflict)', fmt((al.needs_review||[]).length)],
+           ['failed', fmt((al.failed||[]).length)],
+           ['writing to portal', al.enabled ? 'yes' : 'dry-run only']]};
+  const q = (D.revocations||{}).queue || [];
+  const await_ = q.filter(r => r.status==='pending_approval' || r.status==='proposed').length;
+  c.revocations = {t:'Revocation queue', sub:'nothing executes without your OK',
+    status: await_ ? 'amber' : 'green',
+    rows: [['awaiting approval', fmt(await_)],
+           ['executed all-time', fmt(q.filter(r=>r.status==='executed').length)]]};
+  const cutoff = Date.now() - 14*864e5;
+  const recentNew = D.pipeline.filter(e => e.status==='new' && new Date(e.received_at) > cutoff).length;
+  c.enquiries = {t:'Enquiries', sub:'website contact form · auto-imported',
+    status: recentNew ? 'amber' : 'green',
+    rows: [['new, last 14 days', fmt(recentNew)],
+           ['open in pipeline', fmt(D.pipeline.filter(e=>e.status==='new').length)]]};
+  c.email = {t:'Email alerts', sub:'Graph sendMail as cos@ · SendMail app',
+    status: snapStale ? 'amber' : (HC.email_alerts||{}).status,
+    rows: [['credential', snapStale ? 'no recent health data'
+                                    : ((HC.email_alerts||{}).detail||'—')],
+           ['safety net', 'GitHub failure email']]};
+
+  const all = Object.values(c);
+  const overall = worst(...all.map(x=>x.status));
+  const green = all.filter(x=>x.status==='green').length;
+  const wd = (D.watchdog_state||{}).alerted || {};
+  const wdStatus = Object.keys(wd).length ? 'red' : 'green';
+
+  const head = {green:'Everything is healthy', amber:'Mostly healthy — amber needs a look this week',
+                red:'Something is red — fix it now'}[overall];
+
+  const sc = {green:'var(--good)', amber:'var(--warn)', red:'var(--bad)'};
+  const box = (x,y,w,h,title,sub,st) =>
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="var(--surface-2)"
+      stroke="${st?sc[st]:'var(--border)'}" stroke-width="${st?2:1.4}"/>
+    ${st?`<circle cx="${x+w-13}" cy="${y+14}" r="4.5" fill="${sc[st]}"/>`:''}
+    <text x="${x+12}" y="${y+22}" font-size="13" font-weight="700" fill="var(--text-primary)">${title}</text>
+    <text x="${x+12}" y="${y+38}" font-size="10.5" fill="var(--text-muted)">${sub}</text>`;
+  const wire = (x1,y1,x2,y2) =>
+    `<path d="M${x1} ${y1} C ${(x1+x2)/2} ${y1}, ${(x1+x2)/2} ${y2}, ${x2} ${y2}"
+      fill="none" stroke="var(--border)" stroke-width="1.5"/>`;
+  const diagram = `<svg viewBox="0 0 960 352" style="width:100%;min-width:860px;display:block">
+    ${wire(170,206,230,106)} ${wire(170,206,230,306)}
+    ${wire(400,106,480,96)} ${wire(400,306,480,306)}
+    ${wire(400,196,460,125)}
+    ${wire(660,96,760,96)} ${wire(680,140,760,296)}
+    <path d="M540 122 L540 280" fill="none" stroke="var(--border)" stroke-width="1.5"/>
+    <path d="M610 192 L610 280" fill="none" stroke="var(--border)" stroke-width="1.5"/>
+    <rect x="460" y="40" width="220" height="170" rx="12" fill="none"
+      stroke="var(--text-muted)" stroke-dasharray="5 4" stroke-width="1.2"/>
+    <text x="472" y="60" font-size="10.5" fill="var(--text-muted)">GITHUB ACTIONS (CLOUD)</text>
+    ${box(20,180,150,52,'Customer','phone or laptop')}
+    ${box(230,80,170,52,'worlddepin.io','website · Netlify',c.netlify.status)}
+    ${box(230,170,170,52,'Your VPS','fires the schedule',c.scheduler.status)}
+    ${box(230,280,170,52,'Dashboard','this page · Netlify',c.netlify.status)}
+    ${box(480,70,180,52,'Collector','every 30 min',c.collector.status)}
+    ${box(480,140,180,52,'Watchdog','every 2 h, from outside',wdStatus)}
+    ${box(480,280,180,52,'Supabase','database + auth',c.supabase.status)}
+    ${box(760,70,180,52,'Unity portal','manage.unetwork.io',c.unity.status)}
+    ${box(760,280,180,52,'Email alerts','cos@ + GitHub failure mail',c.email.status)}
+  </svg>`;
+
+  const card = x => `<div class="moncard">
+    <h3><span class="mdot ${x.status}"></span>${esc(x.t)}</h3><div class="sub">${esc(x.sub)}</div>
+    <ul>${x.rows.map(([k,v])=>`<li><span>${esc(k)}</span><span>${esc(String(v))}</span></li>`).join('')}</ul></div>`;
+
+  /* Global customer-alert switch. Pausing queues an alerts_global action;
+     the collector flips uptime_alerts.paused in data/alerts/rules.json and
+     the mirrored rules snapshot shows the result here on its next run. */
+  const UA = (D.rules||{}).uptime_alerts || {};
+  const gp = pendingGlobalPause();
+  const paused = gp ? !!(gp.payload||{}).paused : !!UA.paused;
+  const qh = UA.quiet_hours || {};
+  const alertsCtl = `<div class="card" style="padding:12px 14px;margin:0 0 14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <b>Customer alerts</b>
+    <span class="pill ${paused?'off':'on'}">${paused ? 'PAUSED' : 'running'}</span>
+    <span class="muted">${paused
+      ? 'nothing goes to ULOs until resumed' + (UA.paused_by ? ' · paused by ' + esc(UA.paused_by) : '')
+      : `offline nudge after ${esc(String(UA.first_after_hours ?? 1))} h, again after ${esc(String(UA.second_after_hours ?? 4))} h, ` +
+        `max ${esc(String(UA.max_per_day ?? 2))} a day · quiet ${esc(String(qh.start ?? 22))}:00–${esc(String(qh.end ?? 7))}:00 ${esc(qh.timezone || 'Europe/London')}` +
+        ` · warning ladder 7/14/21/30 days`}</span>
+    ${gp ? '<span class="pill wait" title="queued — the collector applies it within 30 minutes">pending sync</span>' : ''}
+    <button class="themebtn" style="margin-left:auto" ${gp?'disabled':''} onclick="alertsGlobal(${paused?'false':'true'})">
+      ${paused ? 'Resume customer alerts' : 'Pause all customer alerts'}</button></div>`;
+
+  return `<div class="mon-banner ${overall}"><b>${head}</b>
+    <span>${green} of ${all.length} components green · newest data ${agoM(fleetAge)} · this tab refreshes itself every 2 minutes</span></div>
+  ${alertsCtl}
+  <div class="mondiag"><h2>How it fits together</h2>${diagram}</div>
+  <div class="mongrid">${all.map(card).join('')}</div>
+  <div class="monfoot">Green means fine. Amber means deal with it this week. Red means now — and red emails you.
+  Data turns amber at 45 minutes old and red at 90. Your VPS fires the collector every 30 minutes and the
+  watchdog every 2 hours (GitHub's own cron proved unreliable and is a sporadic backup only); the collector
+  checks its own health after every run, and the watchdog checks from outside that the collector is alive.
+  A red component emails once when it turns red and again every 24 hours while it stays red, with a recovery
+  email when it clears. If email ever cannot be sent, the run is failed so GitHub's own failure email still reaches you.
+  The email credential itself turns amber 60 days before it expires and red — which emails — at 14.
+  Every module inside a run (actions, messenger, alias sync, Supabase mirror and the rest) is a stage: one that
+  fails is skipped so the rest still runs, and any skip turns Collector stages amber with the error shown on its card.</div>`;
+ },
+
+ admin(){
+  const docs = D.docs || {};
+  const order = ['OPERATIONS.md','RESTORE.md','ALERTING.md','COMPLIANCE.md','ARCHITECTURE.md']
+    .filter(n => docs[n]);
+  if (!order.length) return `<div class="card"><p class="muted" style="padding:14px">
+    The admin guide appears here once the next collector run has mirrored the docs.</p></div>`;
+  if (!ADMIN.doc || !docs[ADMIN.doc]) ADMIN.doc = order[0];
+  const label = n => ({'OPERATIONS.md':'Admin guide','RESTORE.md':'Backup & recovery',
+    'ALERTING.md':'Alerting','COMPLIANCE.md':'GDPR & compliance',
+    'ARCHITECTURE.md':'Architecture plan'})[n] || n;
+  return `<div class="docbar">${order.map(n =>
+    `<button aria-selected="${n===ADMIN.doc}" onclick="ADMIN.doc='${n}';render()">${label(n)}</button>`).join('')}
+    <span class="muted" style="font-size:11.5px;align-self:center;margin-left:auto">
+    live from docs/ in the repo — an edit there shows here after the next run</span></div>
+  <div class="docview">${mdRender(docs[ADMIN.doc])}</div>`;
+ },
+
+ templates(){
+  const list = D.templates || [];
+  if (!list.length) return `<div class="card"><p class="muted" style="padding:14px">
+    Templates appear here after the next collector run seeds them into the database.</p></div>`;
+  if (!TPL.id || !list.find(t => t.id === TPL.id)) TPL.id = list[0].id;
+  const t = list.find(x => x.id === TPL.id);
+  const bar = `<div class="docbar">${list.map(x =>
+    `<button aria-selected="${x.id===TPL.id}" onclick="TPL.id='${x.id}';TPL.edit=false;TPL.msg='';render()">${esc(x.id)}</button>`).join('')}</div>`;
+  const hl = h => h.replace(/\{\{(\w+)\}\}/g, '<span class="ph">{{$1}}</span>');
+  const meta = `<div class="tplmeta">
+    ${t.channel==='email' ? `<span><b>From:</b> ${esc(t.from_addr||'—')}</span>` : `<span><b>Type:</b> ${esc(t.channel)}</span>`}
+    ${t.updated_by ? `<span><b>Last saved:</b> ${esc(t.updated_by)}, ${ago(t.updated_at)} ago</span>` : ''}
+    ${t.note ? `<span>${esc(t.note)}</span>` : ''}</div>`;
+  if (TPL.edit) {
+    return bar + `<div class="docview tpl-edit">${meta}
+      ${t.channel==='email' ? `<label class="muted" style="font-size:11.5px">Subject</label>
+      <input id="tpl-subject" value="${esc(t.subject||'')}">` : ''}
+      <label class="muted" style="font-size:11.5px">Body — markdown; <span class="ph">{{placeholders}}</span> are filled in at send time</label>
+      <textarea id="tpl-body">${esc(t.body)}</textarea>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
+        <button class="themebtn" onclick="tplSave('${t.id}')">Save</button>
+        <button class="themebtn" onclick="TPL.edit=false;render()">Cancel</button>
+        <span id="tpl-msg" style="color:var(--warn);font-size:12px"></span></div></div>`;
+  }
+  return bar + `<div class="docview">${meta}
+    ${t.channel==='email' ? `<h2 style="margin-top:0;border:0">${hl(esc(t.subject||''))}</h2>` : ''}
+    ${hl(mdRender(t.body))}
+    <div style="margin-top:18px;display:flex;gap:10px;align-items:center">
+      <button class="themebtn" onclick="TPL.edit=true;TPL.msg='';render()">Edit</button>
+      <span style="color:var(--good);font-size:12px">${esc(TPL.msg||'')}</span></div>
+    <div class="monfoot">Edits save straight to the database under your login and apply to every future send.
+    Each saved version is also backed up into the repo on the next collector run, so history is never lost.</div></div>`;
+ },
+
+ outbox(){
+  const rows = D.messages || [];
+  const st = s => rows.filter(m => m.status === s).length;
+  const dayAgo = Date.now() - 864e5;
+  const today = rows.filter(m => new Date(m.ts).getTime() > dayAgo).length;
+  const tiles = [
+    ['Would send (dry-run)', fmt(st('dry_run')), 'review these, then flip the switch'],
+    ['Sent', fmt(st('sent')), 'delivered via Microsoft Graph'],
+    ['Failed', fmt(st('failed')), 'retried on the next run'],
+    st('review') ? ['Needs review', fmt(st('review')), 'STOP/START requests I could not match']
+    : st('received') ? ['ULO replies', fmt(st('received')), 'answer them at manage.unetwork.io']
+                 : ['Last 24 h', fmt(today), 'messages decided'],
+  ].map(([k,v,s])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+  const cols = [
+    {h:'When', f:m=>esc((m.ts||'').slice(0,16).replace('T',' '))},
+    {h:'Status', f:m=>msgPill(m.status)},
+    {h:'Stage', f:m=>esc(STAGE_LABEL[m.stage]||m.stage)},
+    {h:'Channel', f:m=>({inapp:'in-app',whatsapp:'WhatsApp'})[m.channel]||'email'},
+    {h:'To', f:m=>esc(m.to_email||(m.channel==='inapp'?'(portal chat)':'—'))},
+    {h:'Node', f:m=>esc(nodeName(m.license_key))},
+    {h:'Subject', f:m=>`<button class="linkcell" onclick="showMessage(${m.id})" title="Read the full message">${esc(m.subject||'(no subject)')}</button>`},
+  ];
+  const dry = rows.length && rows.every(m => m.status !== 'sent');
+  return `<div class="tiles">${tiles}</div>
+    ${dry ? `<div class="warnbox"><b>Dry-run mode.</b> No customer message has been sent — every row below is
+      what the engine <i>would have sent</i>. When the list looks right, setting the repo variable
+      <code>ULO_EMAILS_ENABLED=true</code> turns sending on (docs/ALERTING.md has the checklist).</div>` : ''}
+    ${rows.some(m => m.stage === 'uptime_alert' && m.status === 'dry_run') && !rows.some(m => m.stage === 'uptime_alert' && m.status === 'sent')
+      ? `<div class="warnbox"><b>Offline nudges are rehearsing.</b> The daily "get back online" alerts (stage
+      <i>offline nudge</i>) stay dry-run until the repo variable <code>ULO_UPTIME_ALERTS_ENABLED=true</code> is set,
+      whatever the channel switches say — review a day of them here first.</div>` : ''}
+    ${rows.length ? '' : `<div class="card"><p class="muted" style="padding:14px">Nothing yet — rows appear
+      when a node has been offline an hour (daily nudge) or the offboarding ladder decides a message is due
+      (offline 7/14/21 days, final warning, reclaim, back online).</p></div>`}
+    <div class="toolbar"><input type="search" id="msgq" placeholder="Search messages…" oninput="filterTable('msgq','msgtab')">
+      <span class="muted">${rows.length} message${rows.length===1?'':'s'} (newest first, last 300 kept here — the full history lives in the repo)</span></div>
+    <div class="card">${table('msgtab', cols, rows)}</div>`;
+ },
+
+ social(){
+  const rows = D.social || [];
+  const by = st => rows.filter(r => r.status === st);
+  const weekAgo = Date.now() - 7 * 864e5;
+  const posted7 = rows.filter(r => r.status === 'posted' && new Date(r.posted_at).getTime() > weekAgo).length;
+  const slots = [9, 13, 20];
+  const now = new Date();
+  let next = null;
+  for (let d = 0; d < 2 && !next; d++) for (const h of slots) {
+    const t = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + d, h, 0, 0));
+    if (t > now) { next = t; break; }
+  }
+  const pool = by('approved').length;
+  const poolBy = p => rows.filter(r => r.status === 'approved' && platformOf(r) === p).length;
+  const cols = [
+    {h:'ID', f:r=>`<button class="linkcell mono" onclick="showPost('${esc(r.id)}')">${esc(r.id)}</button>`},
+    {h:'Platform', f:r=>platformPill(r)},
+    {h:'Topic', f:r=>esc(r.topic||'—')},
+    {h:'Status', f:r=>postPill(r.status)},
+    {h:'Post', f:r=>`<span title="${esc(r.body||'')}">${esc((r.body||'').split('\n')[0].slice(0,110))}${(r.body||'').length>110?'…':''}</span>`},
+    {h:'Posted', f:r=>r.posted_at ? `<a class="linkcell" href="${postLink(r)}" target="_blank" rel="noopener">${esc(r.posted_at.slice(0,16).replace('T',' '))}</a>` : (r.error ? `<span class="pill off" title="${esc(r.error)}">error</span>` : '<span class="muted">—</span>')},
+    {h:'', f:r=>r.status === 'draft' ? `<button class="themebtn" onclick="postAction('${esc(r.id)}','approved')">Approve</button> <button class="themebtn" onclick="postAction('${esc(r.id)}','retired')">Retire</button>`
+                : r.status === 'approved' ? `<button class="themebtn" onclick="postAction('${esc(r.id)}','retired')">Retire</button>`
+                : r.status === 'failed' ? `<button class="themebtn" onclick="postAction('${esc(r.id)}','approved')">Re-approve</button>` : ''},
+  ];
+  return `<div class="tiles">
+    <div class="tile"><div class="k">Approved, waiting to post</div><div class="v">${fmt(pool)}</div><div class="s">Facebook ${fmt(poolBy('facebook'))} · X ${fmt(poolBy('x'))} · Instagram ${fmt(poolBy('instagram'))} — each platform posts 3 a day from its own pool</div></div>
+    <div class="tile"><div class="k">Drafts for your approval</div><div class="v">${fmt(by('draft').length)}</div><div class="s">nothing posts until you approve it</div></div>
+    <div class="tile"><div class="k">Posted, last 7 days</div><div class="v">${fmt(posted7)}</div><div class="s">${fmt(by('posted').length)} posted in total${by('failed').length ? ` · <span style="color:var(--bad)">${by('failed').length} failed</span>` : ''}</div></div>
+    <div class="tile"><div class="k">Next slot</div><div class="v">${next ? next.toISOString().slice(11,16) + ' UTC' : '—'}</div><div class="s">09:00 · 13:00 · 20:00 UTC daily — the oldest approved post goes out</div></div>
+  </div>
+  <div class="toolbar">
+    <input type="search" id="socq" placeholder="Search posts…" oninput="applySocialFilters()">
+    <select id="socpf" onchange="applySocialFilters()">
+      <option value="">All platforms</option><option value="facebook">Facebook</option><option value="x">X</option><option value="instagram">Instagram</option>
+    </select>
+    <select id="socst" onchange="applySocialFilters()">
+      <option value="">All (${rows.length})</option><option value="draft">Drafts (${by('draft').length})</option>
+      <option value="approved">Approved (${pool})</option><option value="posted">Posted (${by('posted').length})</option>
+      <option value="failed">Failed (${by('failed').length})</option><option value="retired">Retired (${by('retired').length})</option>
+    </select>
+    ${by('draft').length ? `<button class="themebtn" onclick="approveAllDrafts()">Approve all ${by('draft').length} drafts</button>` : ''}
+    <span class="muted" id="soccount"></span></div>
+  <div class="warnbox">One source post, one row per platform: <b>Facebook</b> (page World DePIN) and <b>X</b> (280 characters, short CTA).
+    Each row is approved on its own — the modal has <i>Approve on all platforms</i>. Every post must end with its platform's CTA and
+    quote earnings only with the demand caveat; the poster re-checks at send time and blocks anything that fails.
+    ${D.social_enabled === false ? '<b>Facebook posting is in dry-run</b> until SOCIAL_POSTING_ENABLED is set.' : ''}
+    X posts only once SOCIAL_X_ENABLED is set (Admin guide) — until then approved X rows show a dry-run line in the run log at each slot.
+    Instagram is not in use (no World DePIN account); its rows are retired. Click an ID to read, edit or approve a post.</div>
+  <div class="card">${table('soctab', cols, rows)}</div>`;
+ },
+
+ history(){
+  const rows = D.audit || [];
+  const ents = {device:'Device', licence:'Licence', ulo:'ULO', group:'Group', enquiry:'Enquiry'};
+  const cols = [
+    {h:'When', f:a=>esc((a.at||'').slice(0,16).replace('T',' '))},
+    {h:'Who', f:a=>actorCell(a.actor)},
+    {h:'Action', f:a=>`<span class="pill ${/delet|remov|revok|expir/.test(a.action)?'off':/creat|issued|add/.test(a.action)?'on':'wait'}">${esc(a.action.replace(/_/g,' '))}</span>`},
+    {h:'Type', f:a=>esc(ents[a.entity]||a.entity)},
+    {h:'Record', f:a=>entityLink(a.entity, a.entity_id)},
+    {h:'Change', f:a=>changeCell(a)},
+    {h:'Detail', f:a=>esc(a.detail||'')},
+  ];
+  const counts = {};
+  rows.forEach(a => counts[a.entity] = (counts[a.entity]||0) + 1);
+  return `<div class="toolbar">
+    <input type="search" id="audq" placeholder="Search history…" oninput="applyAuditFilters()">
+    <select id="audent" onchange="applyAuditFilters()">
+      <option value="">All record types</option>
+      ${Object.entries(ents).filter(([k]) => counts[k]).map(([k,l]) => `<option value="${k}">${l} (${counts[k]})</option>`).join('')}
+    </select>
+    <select id="audwho" onchange="applyAuditFilters()">
+      <option value="">Anyone</option><option value="person">People (dashboard)</option><option value="collector">Automation</option>
+    </select>
+    <span class="muted" id="audcount"></span></div>
+  <div class="warnbox">Every change to a device, licence, ULO or group is recorded here — who made it (a signed-in
+    person, or which automation), what changed (before → after), and why. Automations write their own entries;
+    a diff at the end of every collector run catches anything else, so edits made directly on
+    manage.unetwork.io show up too (attributed to the collector, within 30 minutes). Latest 1,000 shown; the full
+    history lives in the repo.</div>
+  <div class="card">${table('audtab', cols, rows)}</div>`;
+ },
+};
+
+const ACTOR_LABEL = {'collector':'collector (diff)', 'collector:groups':'group sync', 'collector:expiry':'14-day expiry',
+  'collector:onboard':'onboarding', 'collector:revoke':'reclaim'};
+function actorCell(a){
+  if (!a) return '<span class="muted">—</span>';
+  if (a.includes('@')) return `<span title="signed-in dashboard user">${esc(a)}</span>`;
+  const base = a.split(' (')[0];
+  return `<span class="muted" title="${esc(a)}">⚙ ${esc(ACTOR_LABEL[base] || a)}</span>`;
+}
+function entityLink(entity, id){
+  if (!id) return '<span class="muted">—</span>';
+  if (entity === 'ulo') {
+    const c = (D.contacts||[]).find(x => x.ref === id);
+    return c ? uloLink(id, c.name || c.full_name) : `<span class="mono" title="no longer a ULO">${esc(id)}</span>`;
+  }
+  if (entity === 'device' || entity === 'licence') {
+    const d = (D.devices||[]).find(x => x.license_key === id);
+    return d ? `<button class="linkcell" onclick="showDevice('${esc(id)}')">${esc(d.our_alias || d.alias || shortId(id))}</button> <span class="muted mono">${esc(shortId(id))}</span>`
+             : `<span class="mono">${esc(shortId(id))}</span>`;
+  }
+  return esc(id);
+}
+function changeCell(a){
+  const b = a.before || {}, f = a.after || {};
+  const keys = [...new Set([...Object.keys(b), ...Object.keys(f)])];
+  if (!keys.length) return '<span class="muted">—</span>';
+  const v = x => x == null || x === '' ? '<span class="muted">∅</span>' : esc(Array.isArray(x) ? x.join(', ') : String(x));
+  return `<div class="chg">` + keys.map(k =>
+    `<b>${esc(k)}</b>: ${b[k] === undefined ? '' : `<s>${v(b[k])}</s> → `}<i>${v(f[k])}</i>`).join('<br>') + `</div>`;
+}
+function applyAuditFilters(){
+  const q = (document.getElementById('audq')||{}).value?.toLowerCase() || '';
+  const ent = (document.getElementById('audent')||{}).value || '';
+  const who = (document.getElementById('audwho')||{}).value || '';
+  const rows = D.audit || [];
+  const tb = document.getElementById('audtab'); if (!tb) return;
+  let shown = 0;
+  [...tb.tBodies[0].rows].forEach((tr, i) => {
+    const a = rows[i]; if (!a) return;
+    const ok = (!ent || a.entity === ent)
+      && (!who || (who === 'person' ? (a.actor||'').includes('@') : !(a.actor||'').includes('@')))
+      && (!q || tr.innerText.toLowerCase().includes(q));
+    tr.style.display = ok ? '' : 'none'; if (ok) shown++;
+  });
+  const c = document.getElementById('audcount'); if (c) c.textContent = `${shown} of ${rows.length}`;
+}
+
+/* ---------- Social (Facebook content pool) ---------- */
+const postPill = st => `<span class="pill ${st==='posted'||st==='approved'?'on':st==='failed'?'off':'wait'}">${esc(st)}</span>`;
+/* One source post becomes one row per platform (fb-/x-/ig- ids); each row
+   is approved, posted and retired on its own. */
+const PLATFORM_LABEL = {facebook:'Facebook', x:'X', instagram:'Instagram'};
+const platformOf = r => r.platform || 'facebook';
+const platformPill = r => `<span class="pill ${platformOf(r)==='facebook'?'on':platformOf(r)==='x'?'wait':'off'}" style="color:var(--text-primary);background:var(--surface-2)">${esc(PLATFORM_LABEL[platformOf(r)]||platformOf(r))}</span>`;
+const postLink = r => platformOf(r)==='facebook' ? `https://www.facebook.com/${encodeURIComponent(r.post_id||'')}`
+                    : platformOf(r)==='x' ? `https://x.com/i/web/status/${encodeURIComponent(r.post_id||'')}`
+                    : 'https://www.instagram.com/';
+const siblingsOf = r => (D.social||[]).filter(x => x.id.split('-').slice(1).join('-') === r.id.split('-').slice(1).join('-'));
+function applySocialFilters(){
+  const q = (document.getElementById('socq')||{}).value?.toLowerCase() || '';
+  const st = (document.getElementById('socst')||{}).value || '';
+  const pf = (document.getElementById('socpf')||{}).value || '';
+  const rows = D.social || [];
+  const tb = document.getElementById('soctab'); if (!tb) return;
+  let shown = 0;
+  [...tb.tBodies[0].rows].forEach((tr, i) => {
+    const r = rows[i]; if (!r) return;
+    const ok = (!st || r.status === st) && (!pf || platformOf(r) === pf) && (!q || (r.body||'').toLowerCase().includes(q) || (r.topic||'').includes(q) || r.id.includes(q));
+    tr.style.display = ok ? '' : 'none'; if (ok) shown++;
+  });
+  const c = document.getElementById('soccount'); if (c) c.textContent = `${shown} of ${rows.length}`;
+}
+function showPost(id){
+  const r = (D.social||[]).find(x => x.id === id); if (!r) return;
+  const meta = [['Platform', platformPill(r)], ['Status', postPill(r.status)], ['Topic', dval(r.topic)],
+    ['Approved', r.approved_at ? `${esc(r.approved_at.slice(0,16).replace('T',' '))} by ${esc(r.approved_by||'?')}` : dval(null)],
+    ['Posted', r.posted_at ? `${esc(r.posted_at.slice(0,16).replace('T',' '))} · <a class="linkcell" href="${postLink(r)}" target="_blank" rel="noopener">open on ${esc(PLATFORM_LABEL[platformOf(r)]||'the platform')}</a>` : dval(null)],
+    ...(platformOf(r) === 'instagram' ? [['Image card', `<a class="linkcell" href="/social/${esc('fb-' + r.id.split('-').slice(1).join('-'))}.jpg" target="_blank" rel="noopener">view</a> — rendered by the collector, served from this site`]] : []),
+    ['Error', dval(r.error)]];
+  const editable = r.status === 'draft' || r.status === 'approved' || r.status === 'failed';
+  openModal(esc(r.id), esc(r.topic || 'post'),
+    `${dtable(meta)}
+     <div class="dfh" style="margin-top:14px">Post text</div>
+     ${editable ? `<textarea id="pBody" style="width:100%;min-height:220px;background:var(--surface-2);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:10px;font:inherit">${esc(r.body||'')}</textarea>
+       <div class="muted" style="font-size:12px;margin-top:4px">${rulesText(platformOf(r))}</div>`
+       : `<div class="docview" style="white-space:pre-wrap">${esc(r.body||'')}</div>`}
+     <div class="toolbar" style="margin-top:14px">
+       ${editable ? `<button class="themebtn" onclick="savePost('${esc(r.id)}')">Save text</button>` : ''}
+       ${r.status === 'draft' || r.status === 'failed' ? `<button class="themebtn" onclick="postAction('${esc(r.id)}','approved', true)">Approve</button>` : ''}
+       ${siblingsOf(r).some(x => x.status === 'draft' || x.status === 'failed') ? `<button class="themebtn" onclick="approveAllPlatforms('${esc(r.id)}')" title="Approve this post's Facebook, X and Instagram rows together">Approve on all platforms</button>` : ''}
+       ${r.status === 'draft' || r.status === 'approved' || r.status === 'failed' ? `<button class="themebtn danger" onclick="postAction('${esc(r.id)}','retired', true)">Retire</button>` : ''}
+     </div><div id="pMsg" class="muted" style="margin-top:8px"></div>`);
+}
+/* The house CTA is owned by collector/social.py (CTA) and baked in by
+   dashboard/build.py as D.social_cta, so the tab and the poster can never
+   disagree again (2026-09-09: a stale copy here rejected every Approve). */
+const SOCIAL_CTA = D.social_cta || 'Get the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io';
+const SOCIAL_CTA_X = D.social_cta_x || 'Free licence + app: worlddepin.io';
+const SOCIAL_CTA_IG = D.social_cta_ig || 'Free licence + app — link in bio. worlddepin.io';
+const SOCIAL_MAX = D.social_max_len || {facebook: 2000, x: 280, instagram: 2200};
+function rulesText(p){
+  if (p === 'x') return `Must end with: <code>${esc(SOCIAL_CTA_X)}</code>, ${SOCIAL_MAX.x} characters at most (X). Earnings figures need the demand caveat.`;
+  if (p === 'instagram') return `Must contain: <code>${esc(SOCIAL_CTA_IG)}</code> and end with a line of 3–5 hashtags (Instagram; links are not clickable there). Earnings figures need the demand caveat.`;
+  return `Must end with: <code>${esc(SOCIAL_CTA)}</code>. Earnings figures need the demand caveat.`;
+}
+/* Mirrors collector/social.py house_rules(): what the poster will refuse at send time. */
+function checkPostText(t, platform){
+  t = (t||'').trim(); platform = platform || 'facebook';
+  if (!t) return 'empty post';
+  if (platform === 'x') { if (!t.endsWith(SOCIAL_CTA_X)) return 'must end with the X CTA'; }
+  else if (platform === 'instagram') {
+    if (!t.includes(SOCIAL_CTA_IG)) return 'must carry the Instagram CTA (link in bio)';
+    if ((t.split('\n').pop().match(/#\w+/g)||[]).length < 3) return 'must end with a line of 3–5 hashtags';
+  } else if (!t.endsWith(SOCIAL_CTA)) return 'must end with the CTA';
+  if (t.includes('$0.10') && !/demand|not guaranteed|aren't guaranteed|isn't guaranteed/i.test(t)) return 'earnings figure without the demand caveat';
+  if (t.length > (SOCIAL_MAX[platform] || 2000)) return `too long for ${PLATFORM_LABEL[platform]||platform} (${t.length} > ${SOCIAL_MAX[platform]})`;
+  return null;
+}
+async function savePost(id){
+  const r = (D.social||[]).find(x => x.id === id); if (!r) return;
+  const body = (document.getElementById('pBody')||{}).value || '';
+  const msg = document.getElementById('pMsg');
+  const why = checkPostText(body, platformOf(r));
+  if (why) { if (msg) msg.textContent = 'Not saved — ' + why + '.'; return; }
+  try {
+    const s = await sbSession(); if (!s) throw new Error('signed out — reload and sign in');
+    await sbPatch(`social_posts?id=eq.${encodeURIComponent(id)}`, s, {body: body.trim(), updated_by: (s.user||{}).email || null});
+    r.body = body.trim(); render();
+    if (msg) msg.textContent = 'Saved.';
+  } catch(e) { if (msg) msg.textContent = 'Could not save: ' + e.message; }
+}
+async function postAction(id, status, inModal){
+  const r = (D.social||[]).find(x => x.id === id); if (!r) return;
+  if (status === 'approved') {
+    const why = checkPostText(r.body, platformOf(r));
+    if (why) { alert('Cannot approve — ' + why + '.'); return; }
+  }
+  try {
+    const s = await sbSession(); if (!s) throw new Error('signed out — reload and sign in');
+    const who = (s.user||{}).email || null;
+    const patch = status === 'approved' ? {status, approved_by: who, approved_at: new Date().toISOString(), error: null, attempts: 0, updated_by: who}
+                                        : {status, updated_by: who};
+    await sbPatch(`social_posts?id=eq.${encodeURIComponent(id)}`, s, patch);
+    Object.assign(r, patch);
+    if (inModal) closeModal();
+    render();
+  } catch(e) { alert('Could not update the post: ' + e.message); }
+}
+async function approveAllPlatforms(id){
+  const r = (D.social||[]).find(x => x.id === id); if (!r) return;
+  const todo = siblingsOf(r).filter(x => x.status === 'draft' || x.status === 'failed');
+  const bad = todo.filter(x => checkPostText(x.body, platformOf(x)));
+  if (bad.length) { alert(`Cannot approve ${bad.map(x => x.id).join(', ')} — house rules; open each to fix first.`); return; }
+  try {
+    const s = await sbSession(); if (!s) throw new Error('signed out — reload and sign in');
+    const who = (s.user||{}).email || null;
+    const patch = {status: 'approved', approved_by: who, approved_at: new Date().toISOString(), error: null, attempts: 0, updated_by: who};
+    for (const x of todo) { await sbPatch(`social_posts?id=eq.${encodeURIComponent(x.id)}`, s, patch); Object.assign(x, patch); }
+    closeModal(); render();
+  } catch(e) { alert('Could not approve: ' + e.message); }
+}
+async function approveAllDrafts(){
+  const drafts = (D.social||[]).filter(r => r.status === 'draft');
+  const bad = drafts.filter(r => checkPostText(r.body, platformOf(r)));
+  if (bad.length) { alert(`${bad.length} draft(s) fail the house rules — open them to fix first: ${bad.map(r => r.id).join(', ')}`); return; }
+  try {
+    const s = await sbSession(); if (!s) throw new Error('signed out — reload and sign in');
+    const who = (s.user||{}).email || null;
+    const patch = {status: 'approved', approved_by: who, approved_at: new Date().toISOString(), updated_by: who};
+    await sbPatch('social_posts?status=eq.draft', s, patch);
+    drafts.forEach(r => Object.assign(r, patch));
+    render();
+  } catch(e) { alert('Could not approve: ' + e.message); }
+}
+
+/* Per-record history inside the popups — fetched live so it is complete. */
+async function loadHistory(elId, entityId){
+  const el = document.getElementById(elId);
+  if (!el) return;
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const rows = await sbGet(`audit_log?select=*&entity_id=eq.${encodeURIComponent(entityId)}&order=at.desc&limit=100`, s);
+    if (!document.getElementById(elId)) return;
+    if (!rows.length) { el.innerHTML = '<p class="muted">No changes recorded yet (history starts 31 Aug 2026).</p>'; return; }
+    el.innerHTML = `<div class="tblwrap"><table class="dtl"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Type</th><th>Change</th><th>Detail</th></tr></thead><tbody>`
+      + rows.map(a => `<tr><td class="mono">${esc((a.at||'').slice(0,16).replace('T',' '))}</td><td>${actorCell(a.actor)}</td>
+          <td>${esc(a.action.replace(/_/g,' '))}</td><td>${esc(a.entity)}</td><td>${changeCell(a)}</td><td class="muted">${esc(a.detail||'')}</td></tr>`).join('')
+      + `</tbody></table></div>`;
+  } catch(e) {
+    if (document.getElementById(elId)) el.innerHTML = `<p class="muted">Could not load history: ${esc(e.message)}</p>`;
+  }
+}
+
+const STAGE_LABEL = {enquiry:'welcome reply', welcome_codes:'welcome + codes', lease_codes:'lease codes',
+  warn7:'warning · 7d', warn14:'reminder · 14d', warn21:'reminder · 21d',
+  final:'final warning', reclaimed:'licence reclaimed', back_online:'back online',
+  opt_out:'alerts stopped', opt_in:'alerts resumed', opt_out_review:'needs review',
+  opt_out_confirm:'stop confirmed', opt_in_confirm:'start confirmed', reply:'ULO replied',
+  uptime_alert:'offline nudge', uptime_back_online:'back online (nudge)',
+  pause:'alerts paused 24h', pause_confirm:'pause confirmed'};
+/* sent/applied = done (green); failed/review = attention (red); rest amber. */
+const msgPill = s => `<span class="pill ${s==='sent'||s==='applied'?'on':s==='failed'||s==='review'?'off':'wait'}">${esc(s.replace('_','-'))}</span>`;
+const nodeName = key => {
+  if (!key) return '—';
+  const d = (D.devices||[]).find(x => x.license_key === key);
+  return d ? (d.our_alias || d.alias || key.slice(0,10)+'…') : key.slice(0,10)+'…';
+};
+/* Message history inside the ULO/device popups (Darren, 2026-08-30).
+   Fetched live per contact/licence so the popup shows the FULL history,
+   not just the 300 rows the Outbox tab caches. */
+var MSGX = {};        /* popup-fetched messages by id — showMessage fallback */
+var MSGBACK = null;   /* set by a popup so its messages get a Back button */
+async function loadMsgHistory(elId, filter){
+  const el = document.getElementById(elId);
+  if (!el) return;
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const rows = await sbGet(`messages?select=*&${filter}&order=ts.desc&limit=100`, s);
+    if (!document.getElementById(elId)) return;   // popup closed meanwhile
+    rows.forEach(m => MSGX[m.id] = m);
+    if (!rows.length) {
+      el.innerHTML = '<p class="muted">Nothing recorded — no emails, WhatsApp or in-app messages have been logged for this yet.</p>';
+      return;
+    }
+    el.innerHTML = `<div class="tblwrap"><table class="dtl"><thead><tr><th>When</th><th>Status</th>
+        <th>Stage</th><th>Channel</th><th>Node</th><th>Subject</th></tr></thead><tbody>`
+      + rows.map(m => `<tr>
+        <td class="mono">${esc((m.ts||'').slice(0,16).replace('T',' '))}</td>
+        <td>${msgPill(m.status)}</td>
+        <td>${esc(STAGE_LABEL[m.stage]||m.stage||'—')}</td>
+        <td>${({inapp:'in-app',whatsapp:'WhatsApp'})[m.channel]||'email'}</td>
+        <td>${esc(nodeName(m.license_key))}</td>
+        <td><button class="linkcell" onclick="showMessage(${m.id})" title="Read the full message">${esc(m.subject||'(no subject)')}</button></td></tr>`).join('')
+      + `</tbody></table></div>
+        <p class="muted" style="margin-top:6px">${rows.length === 100 ? 'Latest 100 shown — the full history lives in the repo. ' : ''}Replies from the ULO show as <i>received</i>.</p>`;
+  } catch(e) {
+    if (document.getElementById(elId)) el.innerHTML = `<p class="muted">Could not load messages: ${esc(e.message)}</p>`;
+  }
+}
+function showMessage(id){
+  const m = (D.messages||[]).find(x => x.id === id) || MSGX[id];
+  if (!m) return;
+  const meta = [
+    ['Status', msgPill(m.status)],
+    ['Decided at', dval(m.ts)], ['Stage', dval(STAGE_LABEL[m.stage]||m.stage)],
+    ['Channel', ({inapp:'in-app (portal chat)',whatsapp:'WhatsApp'})[m.channel]||'email'],
+    ['Template', dval(m.template_id)], ['From', dval(m.from_addr)], ['To', dval(m.to_email)],
+    ['Contact', dval(m.contact_ref)], ['Licence', dval(m.license_key)],
+    ['Detail', dval(m.detail)],
+  ];
+  openModal(esc(m.subject || '(no subject)'),
+    `${esc(STAGE_LABEL[m.stage]||m.stage)} &middot; ${esc(m.to_email||'no email')}`,
+    `${MSGBACK ? '<div class="toolbar" style="margin-bottom:10px"><button class="themebtn" onclick="(MSGBACK||closeModal)()">&lsaquo; Back</button></div>' : ''}
+     ${dtable(meta)}
+     <div class="dfh" style="margin-top:16px">Message as ${m.status==='sent'?'sent':'it would be sent'}</div>
+     <div class="docview" style="max-height:45vh;overflow:auto">${mdRender(m.body||'')}</div>`);
+}
+
+var TPL = {id: null, edit: false, msg: ''};
+var REVCONFIRM = null;
+var REW = {ulo: '', dev: '', days: 30};   /* rewards explorer filters */
+async function revAction(key, act){
+  REVCONFIRM = null;
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const saved = await sbPost('actions', s, [{kind: 'revocation_action',
+      payload: {license_key: key, action: act},
+      requested_by: (s.user||{}).email || null}]);
+    D.pending = (D.pending||[]).concat(saved);
+    render();
+  } catch(e) { alert('Failed: ' + e.message); render(); }
+}
+async function tplSave(id){
+  const sEl = document.getElementById('tpl-subject');
+  const bEl = document.getElementById('tpl-body');
+  const msg = document.getElementById('tpl-msg');
+  msg.textContent = 'Saving…';
+  try {
+    const s = await sbSession();
+    if (!s) throw new Error('signed out — reload and sign in');
+    const patch = {body: bEl.value, updated_at: new Date().toISOString(),
+                   updated_by: (s.user||{}).email || null};
+    if (sEl) patch.subject = sEl.value;
+    const rows = await sbPatch(`templates?id=eq.${encodeURIComponent(id)}`, s, patch);
+    if (!rows.length) throw new Error('nothing saved — no write access');
+    const i = D.templates.findIndex(x => x.id === id);
+    if (i >= 0) D.templates[i] = rows[0];
+    TPL.edit = false; TPL.msg = 'Saved ✓';
+    render();
+  } catch(e) { msg.textContent = 'Save failed: ' + e.message; }
+}
+
+/* Just enough markdown for our own docs: headings, fenced code, tables,
+   lists (with checkboxes), quotes, rules, bold/italic/inline code/links.
+   Input is escaped first, so nothing in a doc can inject markup. */
+var ADMIN = {doc: null};
+function mdRender(src){
+  const inline = s => s
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s.,;:)]|$)/g, '$1<i>$2</i>')
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m,a,u) =>
+      /^https?:/.test(u) ? `<img src="${u}" alt="${a}">` : a)
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m,t,u) =>
+      /^(https?:|mailto:)/.test(u) ? `<a href="${u}" target="_blank" rel="noopener">${t}</a>` : t);
+  const lines = esc(src).split('\n');
+  const out = [];
+  let para = [], list = null;
+  const flushPara = () => { if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = []; } };
+  const flushList = () => { if (list) { out.push(`<${list.t}>` + list.items.map(x=>`<li>${x}</li>`).join('') + `</${list.t}>`); list = null; } };
+  const flush = () => { flushPara(); flushList(); };
+  for (let i = 0; i < lines.length; i++) {
+    const L = lines[i];
+    if (/^```/.test(L)) {                                    // fenced code
+      flush(); const code = [];
+      while (++i < lines.length && !/^```/.test(lines[i])) code.push(lines[i]);
+      out.push(`<pre><code>${code.join('\n')}</code></pre>`); continue;
+    }
+    const h = L.match(/^(#{1,3}) +(.*)/);
+    if (h) { flush(); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); continue; }
+    if (L.startsWith('|') && i+1 < lines.length && /^\|[\s|:-]+\|?\s*$/.test(lines[i+1])) {
+      flush();                                               // table
+      const cells = r => r.replace(/^\||\|\s*$/g,'').split('|').map(c=>inline(c.trim()));
+      const head = cells(L); i++;
+      const rows = [];
+      while (i+1 < lines.length && lines[i+1].startsWith('|')) rows.push(cells(lines[++i]));
+      out.push('<table><tr>' + head.map(c=>`<th>${c}</th>`).join('') + '</tr>'
+        + rows.map(r=>'<tr>'+r.map(c=>`<td>${c}</td>`).join('')+'</tr>').join('') + '</table>');
+      continue;
+    }
+    const li = L.match(/^([-*]|\d+\.) +(.*)/);
+    if (li) {
+      flushPara();
+      const t = /\d/.test(li[1][0]) ? 'ol' : 'ul';
+      if (!list || list.t !== t) { flushList(); list = {t, items: []}; }
+      list.items.push(inline(li[2].replace(/^\[ \] /,'☐ ').replace(/^\[x\] /i,'☑ ')));
+      continue;
+    }
+    if (list && /^\s+\S/.test(L)) { list.items[list.items.length-1] += ' ' + inline(L.trim()); continue; }
+    if (/^&gt; ?/.test(L)) {                                 // blockquote (input is escaped)
+      flush(); const q = [L.replace(/^&gt; ?/,'')];
+      while (i+1 < lines.length && /^&gt; ?/.test(lines[i+1])) q.push(lines[++i].replace(/^&gt; ?/,''));
+      out.push(`<blockquote><p>${inline(q.join(' '))}</p></blockquote>`); continue;
+    }
+    if (/^\s*(---+|\*\*\*)\s*$/.test(L)) { flush(); out.push('<hr>'); continue; }
+    if (!L.trim()) { flush(); continue; }
+    para.push(L.trim());
+  }
+  flush();
+  return out.join('\n');
+}
+
+const TABS = [['overview','Overview'],['devices','Devices'],['licences','Licences'],['ulos','ULOs'],['pipeline','Pipeline'],['rewards','Rewards'],['revocations','Revocations'],['templates','Templates'],['outbox','Outbox'],['social','Social'],['history','History'],['monitoring','Monitoring'],['system','System'],['admin','Admin Guide']];
+let active = (location.hash||'#overview').slice(1);
+if (!views[active]) active = 'overview';
+function render(){
+  // Nothing renders before authentication: the shell carries no data, and
+  // showing empty tables would only look broken.
+  if (!LIVE) {
+    document.getElementById('nav').innerHTML = '';
+    document.getElementById('app').innerHTML = loginCard();
+    document.getElementById('stamp').textContent = '';
+    return;
+  }
+  document.getElementById('nav').innerHTML = TABS.map(([k,l]) =>
+    `<button aria-selected="${k===active}" onclick="go('${k}')">${l}</button>`).join('');
+  document.getElementById('app').innerHTML = views[active]();
+  updateStamp();
+  fitTables();
+  // Filter selects carry defaults (e.g. Devices: leased only) — apply them
+  // to the fresh table, or the first paint shows unfiltered rows.
+  if (document.getElementById('devtab')) applyDevFilters();
+  if (document.getElementById('audtab')) applyAuditFilters();
+  if (document.getElementById('soctab')) applySocialFilters();
+}
+/* Size each scroll box to the space left below it, so the whole table sits in
+   the viewport and its sticky header cannot be scrolled off by the page. */
+function fitTables(){
+  document.querySelectorAll('.tblscroll').forEach(el => {
+    el.style.maxHeight = '';
+    const space = innerHeight - el.getBoundingClientRect().top - 24;
+    el.style.maxHeight = Math.max(320, Math.round(space)) + 'px';
+  });
+}
+addEventListener('resize', fitTables);
+function go(k){ active = k; location.hash = k; scrollTo(0,0); render(); }
+addEventListener('hashchange', () => { const k=location.hash.slice(1); if(views[k]&&k!==active){active=k;render();} });
+
+/* ------------------------------------------------------------------- auth
+   The shell carries no data. Everything — first paint included — comes from
+   Supabase after sign-in, under row level security. A page that contains
+   nothing cannot leak anything. */
+const SB = D.supabase || {};
+const SBKEY = 'wd-sb-session';
+let SESSION = null, LIVE = false;
+
+function sbLoad(){ try { return JSON.parse(localStorage.getItem(SBKEY) || 'null'); } catch(e){ return null; } }
+function sbSave(s){ try { s ? localStorage.setItem(SBKEY, JSON.stringify(s)) : localStorage.removeItem(SBKEY); } catch(e){} }
+
+async function sbAuth(body, grant){
+  const r = await fetch(`${SB.url}/auth/v1/token?grant_type=${grant}`, {
+    method:'POST', headers:{'apikey':SB.key,'Content-Type':'application/json'},
+    body: JSON.stringify(body)});
+  if (!r.ok) throw new Error((await r.json().catch(()=>({}))).error_description || 'Sign in failed');
+  const s = await r.json();
+  s.expires_at = Date.now() + (s.expires_in - 60) * 1000;
+  return s;
+}
+
+async function sbSession(){
+  let s = SESSION || sbLoad();
+  if (!s) return null;
+  if (Date.now() > (s.expires_at || 0)) {
+    try { s = await sbAuth({refresh_token: s.refresh_token}, 'refresh_token'); }
+    catch(e) { sbSave(null); return null; }
+    sbSave(s);
+  }
+  SESSION = s; return s;
+}
+
+async function sbGet(path, s, range){
+  const h = {'apikey':SB.key,'Authorization':`Bearer ${s.access_token}`};
+  if (range) { h['Range-Unit'] = 'items'; h['Range'] = range; }
+  const r = await fetch(`${SB.url}/rest/v1/${path}`, {headers: h});
+  if (!r.ok) throw new Error(`${path.split('?')[0]}: HTTP ${r.status}`);
+  return r.json();
+}
+
+async function sbPost(path, s, body){
+  const r = await fetch(`${SB.url}/rest/v1/${path}`, {method: 'POST',
+    headers: {'apikey': SB.key, 'Authorization': `Bearer ${s.access_token}`,
+              'Content-Type': 'application/json', 'Prefer': 'return=representation'},
+    body: JSON.stringify(body)});
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+async function sbPatch(path, s, body){
+  const r = await fetch(`${SB.url}/rest/v1/${path}`, {method: 'PATCH',
+    headers: {'apikey': SB.key, 'Authorization': `Bearer ${s.access_token}`,
+              'Content-Type': 'application/json', 'Prefer': 'return=representation'},
+    body: JSON.stringify(body)});
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+/* Supabase caps any single response at 1,000 rows, silently. With 1,350
+   licences that truncation looked like data, not an error — so every table
+   is paged until a short page says we have it all. */
+async function sbAll(path, s){
+  const out = [];
+  for (let from = 0;; from += 1000) {
+    const page = await sbGet(path, s, `${from}-${from + 999}`);
+    out.push(...page);
+    if (page.length < 1000) return out;
+  }
+}
+
+const num = (v) => v == null || v === '' ? null : Number(v);
+const days = (iso) => iso ? Math.round((Date.now() - new Date(iso)) / 864e5) : null;
+
+/* Rebuild the D the views were written against, from live rows. */
+function assemble(t){
+  const snaps = Object.fromEntries(t.snapshots.map(r => [r.key, r.data]));
+  D.rewards = snaps.rewards || {};
+  D.allocs = (snaps.rewards_allocations || {}).rows || [];
+  /* Portal-computed windowed metrics per licence (uptime 7d, UPS windows). */
+  D.perf = Object.fromEntries((((snaps.license_perf || {}).rows) || []).map(r => [r.lic, r]));
+  /* Daily uptime history by licence (last 60d, leased licences only). */
+  D.uptime = {};
+  for (const r of (t.uptime || [])) (D.uptime[r.license_key] ??= []).push(r);
+  /* The portal's own per-day uptime series (license_analytics RPC) —
+     preferred over our once-a-day snapshots wherever present. */
+  const LD = snaps.license_daily || {};
+  D.daily = {};
+  for (const [lic, arr] of Object.entries(LD.series || {}))
+    D.daily[lic] = arr.map(([day, pct]) => ({day, uptime_pct: pct}));
+  D.dailySince = LD.since || null;
+  D.messaging = snaps.messaging || null;
+  const inappByKey = Object.fromEntries(((D.messaging||{}).recipients||[]).map(r => [r.licenseId, r]));
+  D.rules = snaps.rules || {};
+  D.expiry = snaps.expiry_config || {};
+  D.alias_sync = snaps.alias_sync || {pending: []};
+  const summary = snaps.licences_summary || {};
+  const rewardsByNode = D.rewards.by_node || {};
+
+  const byRef = Object.fromEntries(t.contacts.map(c => [c.ref, c]));
+  const regByKey = Object.fromEntries(t.devices.map(d => [d.license_key, d]));
+
+  const lics = t.licences.map(l => {
+    const reg = regByKey[l.license_key] || {};
+    const ref = reg.owner_ref && reg.owner_ref !== 'UNASSIGNED' && reg.owner_ref !== 'MARKETPLACE'
+      ? reg.owner_ref : null;
+    return Object.assign({}, l, {
+      uptime_pct: num(l.uptime_pct), days_offline: num(l.days_offline),
+      owner_ref: reg.owner_ref || 'UNASSIGNED',
+      owner_name: reg.owner_ref === 'MARKETPLACE' ? 'Marketplace'
+        : (byRef[ref] || {}).full_name || l.owner_alias || '',
+      our_alias: reg.alias, alias_source: reg.alias_source, source: reg.source,
+      notes: reg.notes,
+      owner_kind: reg.owner_ref === 'MARKETPLACE' ? 'marketplace' : (ref ? 'crm' : 'unassigned'),
+      alias_in_sync: (reg.alias || '') === (l.alias || ''),
+      in_app: !!inappByKey[l.license_key],
+      in_app_conv: !!(inappByKey[l.license_key]||{}).conversationId,
+      age_days: days(l.last_seen),
+      rewards_ups: (rewardsByNode[l.node_id] || {}).ups || 0,
+    });
+  });
+
+  const contacts = t.contacts.filter(c => !c.is_sentinel).map(c => {
+    const owned = lics.filter(l => l.owner_ref === c.ref);
+    return Object.assign({}, c, {
+      name: c.full_name,
+      licence_count: owned.length,
+      online_count: owned.filter(l => l.status === 'online').length,
+      avg_uptime: owned.length
+        ? Math.round(owned.reduce((a,l) => a + (l.uptime_pct||0), 0) / owned.length * 10) / 10 : null,
+    });
+  });
+
+  D.licences = {
+    licenses: lics, total: lics.length,
+    online: lics.filter(l => l.status === 'online').length,
+    pools: summary.pools || {}, below_min_uptime: summary.below_min_uptime,
+    updated_at: summary.updated_at || new Date().toISOString(),
+  };
+  D.contacts = contacts;
+  D.devices = lics;
+  D.pipeline = t.enquiries.map(e => Object.assign({}, e, {age_days: days(e.received_at)}));
+  D.unlinked = lics.filter(l => l.owner_kind === 'unassigned').length;
+  D.revocations = {queue: t.revocations};
+  D.aggregate = t.fleet.slice().reverse();
+  D.events = t.events.slice().reverse().map(e =>
+    Object.assign({}, e, {from: e.from_value, to: e.to_value}));
+  D.health = snaps.health || null;
+  D.watchdog_state = snaps.watchdog_state || null;
+  D.docs = snaps.docs || {};
+  D.templates = t.templates || [];
+  D.pending = t.pending || [];
+  D.messages = t.messages || [];
+  D.audit = t.audit || [];
+  D.social = t.social || [];
+}
+
+function banner(kind, html){
+  const el = document.getElementById('livebar');
+  el.className = 'livebar ' + kind;
+  el.innerHTML = html;
+}
+
+async function signIn(email, password, msgEl){
+  msgEl.textContent = '';
+  try {
+    const s = await sbAuth({email, password}, 'password');
+    sbSave(s); SESSION = s;
+    await boot();
+  } catch(e) { msgEl.textContent = e.message; }
+}
+
+function signOut(){ sbSave(null); SESSION = null; LIVE = false; location.reload(); }
+
+function loginCard(msg){
+  return `<div style="max-width:360px;margin:14vh auto 0">
+    <div class="card"><h2>Sign in</h2>
+    <form onsubmit="event.preventDefault();signIn(this.email.value,this.password.value,this.querySelector('.msg'))"
+        style="display:flex;flex-direction:column;gap:10px;padding:0 14px 14px">
+      <input name="email" type="email" placeholder="email" required autocomplete="username"
+        style="padding:9px 11px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:inherit;font:inherit">
+      <input name="password" type="password" placeholder="password" required autocomplete="current-password"
+        style="padding:9px 11px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:inherit;font:inherit">
+      <button class="themebtn" type="submit" style="padding:9px">Sign in</button>
+      <span class="msg" style="color:var(--bad);min-height:1.2em">${esc(msg||'')}</span>
+    </form></div></div>`;
+}
+
+async function boot(){
+  if (!SB.url || !SB.key) {
+    document.getElementById('app').innerHTML =
+      '<p style="text-align:center;margin-top:20vh" class="muted">This build has no database configured.</p>';
+    return;
+  }
+  const s = await sbSession();
+  if (!s) { LIVE = false; render(); return; }
+
+  banner('off', 'Loading…');
+  try {
+    const upCut = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+    const [contacts, devices, licences, enquiries, revocations, fleet, events, snapshots, templates, pending, messages, uptime, auditRows, socialRows] =
+      await Promise.all([
+        sbAll('contacts?select=*&order=ref', s),
+        sbAll('devices?select=*&order=license_key', s),
+        sbAll('licences?select=*&order=license_key', s),
+        sbAll('enquiries?select=*&order=received_at.desc', s),
+        sbAll('revocations?select=*&order=proposed_at.desc', s),
+        sbGet('metrics_fleet?select=*&order=ts.desc&limit=500', s),
+        sbGet('metrics_events?select=*&order=ts.desc&limit=400', s),
+        sbAll('snapshots?select=*&order=key', s),
+        sbAll('templates?select=*&order=id', s),
+        sbAll('actions?select=*&status=eq.pending&order=id', s).catch(() => []),
+        sbGet('messages?select=*&order=ts.desc&limit=300', s).catch(() => []),
+        sbAll(`metrics_uptime?select=day,license_key,uptime_pct,status&day=gte.${upCut}&order=day`, s).catch(() => []),
+        sbGet('audit_log?select=*&order=at.desc&limit=1000', s).catch(() => []),
+        sbAll('social_posts?select=*&order=created_at,id', s).catch(() => []),
+      ]);
+
+    /* Signed in but zero rows everywhere = authenticated but not staff: RLS
+       filters every table to nothing for this account. Say that plainly. */
+    if (!licences.length && !contacts.length && !devices.length) {
+      LIVE = false; render();
+      document.getElementById('app').innerHTML = loginCard(
+        `${(s.user||{}).email||'This account'} has no access — it needs a staff record.`);
+      banner('warn', `Signed in without access. <button class="themebtn" onclick="signOut()">Sign out</button>`);
+      return;
+    }
+    assemble({contacts, devices, licences, enquiries, revocations, fleet, events, snapshots, templates, pending, messages, uptime, audit: auditRows, social: socialRows});
+    LIVE = true;
+    render();
+    banner('live', `<b>Live</b> — signed in as ${esc((s.user||{}).email||'')}. `
+      + `<button class="themebtn" onclick="signOut()">Sign out</button>`);
+  } catch(e) {
+    LIVE = false; render();
+    document.getElementById('app').innerHTML = loginCard(`Could not load data: ${e.message}`);
+    banner('warn', `<button class="themebtn" onclick="signOut()">Sign out</button>`);
+  }
+}
+boot();
+
+/* Monitoring self-refresh: a light poll (one ts + the snapshots) every two
+   minutes while that tab is open, so freshness ages tick without a reload
+   and a collector that dies turns red here on its own. */
+const MON = {fleet_ts: null, err: null};
+
+/* Header stamp: countdown to the next collector run (VPS fires at :00/:30)
+   and the outcome of the last one. Ticks every second; the last-sync time
+   and status update from the background poll. */
+function updateStamp(){
+  const el = document.getElementById('stamp');
+  if (!el) return;
+  if (!LIVE) { el.textContent = ''; return; }
+  const now = Date.now();
+  const half = 30 * 60 * 1000;
+  const next = Math.ceil((now + 1000) / half) * half;
+  const lastTs = MON.fleet_ts || (D.aggregate.length ? D.aggregate[D.aggregate.length - 1].ts : null);
+  const lastMs = lastTs ? new Date(lastTs).getTime() : null;
+  const ageMin = lastMs == null ? null : (now - lastMs) / 60000;
+  const reds = ((D.health || {}).reds || []).length;
+  const st = (ageMin == null || ageMin >= 90 || reds) ? ['✗', 'var(--bad)']
+           : ageMin >= 45 ? ['⚠', 'var(--warn)'] : ['✓', 'var(--good)'];
+  const left = Math.max(0, next - now);
+  const mm = String(Math.floor(left / 60000)).padStart(2, '0');
+  const ss = String(Math.floor(left / 1000) % 60).padStart(2, '0');
+  const lastStr = lastMs == null ? 'never'
+    : new Date(lastMs).toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
+  el.innerHTML = `next sync in <b>${mm}:${ss}</b>`
+    + ` · <span style="color:${st[1]}" title="collector data is ${ageMin == null ? 'missing' : Math.round(ageMin) + ' min old'}${reds ? ' · ' + reds + ' component(s) red' : ''}">last sync ${lastStr} ${st[0]}</span>`;
+}
+setInterval(updateStamp, 1000);
+setInterval(async () => {
+  if (!LIVE) return;
+  try {
+    const s = await sbSession();
+    if (!s) return;
+    const [fleet, snaps] = await Promise.all([
+      sbGet('metrics_fleet?select=ts&order=ts.desc&limit=1', s),
+      sbGet('snapshots?select=*', s)]);
+    if (fleet.length) MON.fleet_ts = fleet[0].ts;
+    const sn = Object.fromEntries(snaps.map(r => [r.key, r.data]));
+    if (sn.health) D.health = sn.health;
+    if (sn.watchdog_state) D.watchdog_state = sn.watchdog_state;
+    if (sn.licences_summary) D.licences.updated_at = sn.licences_summary.updated_at;
+    if (sn.rewards) D.rewards.updated_at = sn.rewards.updated_at;
+    if (sn.alias_sync) D.alias_sync = sn.alias_sync;
+    MON.err = null;
+  } catch(e) { MON.err = e.message; }
+  if (active === 'monitoring') render();
+  updateStamp();
+}, 120000);
+
+</script></body></html>

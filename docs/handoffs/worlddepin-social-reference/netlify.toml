@@ -1,0 +1,21 @@
+# World DePIN — operations dashboard (private)
+[build]
+  publish = "site"
+  command = "python3 dashboard/build.py"
+  # The page is a shell with no data baked in, so a commit that only touches
+  # data/ or metrics/ cannot change it. Skip those builds: at ~47 collect
+  # commits a day they were consuming the plan's entire credit allowance.
+  # Build only when something that shapes the page changes.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- dashboard netlify netlify.toml site/social"
+
+[build.environment]
+  PYTHON_VERSION = "3.12"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-store"

@@ -1,0 +1,41 @@
+name: test
+on:
+  push: {branches: [main]}
+  pull_request:
+  workflow_dispatch: {}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python tests/test_all.py
+      - run: python tests/test_policy.py
+      - run: python tests/test_revocations.py
+      - run: python tests/test_devices.py
+      - run: python tests/test_naming.py
+      - run: python tests/test_enquiries.py
+      - run: python tests/test_enquiries_onboard.py
+      - run: python tests/test_manual_issue.py
+      - run: python tests/test_audit.py
+      - run: python tests/test_reclaim.py
+      - run: python tests/test_activation.py
+      - run: python tests/test_social.py
+      - run: python tests/test_expiry.py
+      - run: python tests/test_groups.py
+      - run: python tests/test_supabase_sync.py
+      - run: python tests/test_health_check.py
+      - run: python tests/test_templates.py
+      - run: python tests/test_actions.py
+      - run: python tests/test_messenger.py
+      - run: python tests/test_inbox.py
+      - run: python tests/test_replies.py
+      - run: python tests/test_whatsapp.py
+      - run: python tests/test_uptime_alerts.py
+      - run: python tests/test_api_key.py
+      - run: python tests/test_fetch_retry.py
+      - run: python tests/test_public_stats.py
+      - run: python tests/test_news.py
+      - run: python tests/test_vps_trigger.py
+      - run: node tests/test_auth.mjs

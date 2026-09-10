@@ -1,0 +1,268 @@
+[
+  {
+    "id": "fb-202609-001",
+    "platform": "facebook",
+    "topic": "what-is",
+    "body": "Got an old phone in a drawer? It could be a Unity Node.\n\nA Unity Node is a phone that quietly helps run a decentralised network — a DePIN — and gets paid for the work it does. No mining, no fancy hardware: an Android or iPhone, the Unity Nodes app, and a free licence from us.\n\nNodes currently earn around $0.10–$0.50 per device per day — that scales with network demand, so today's numbers aren't guaranteed.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "Got an old phone in a drawer? It could be a Unity Node: a phone that quietly helps run a decentralised network and gets paid for it. No mining, no special hardware — just the app and a free licence. Earnings scale with demand, not guaranteed.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-002",
+    "platform": "facebook",
+    "topic": "what-is",
+    "body": "DePIN in one line: real-world infrastructure (phones, connections, coverage) owned by lots of ordinary people instead of one company, with the people paid for what their devices contribute.\n\nUnity Nodes are the phone-based version. World DePIN issues the operator licences — free — so anyone can take part.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "DePIN in one line: real-world infrastructure — phones, connections, coverage — owned by ordinary people instead of one company, and paid for what their devices contribute. Unity Nodes are the phone-based version, and our licences are free.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-003",
+    "platform": "facebook",
+    "topic": "what-is",
+    "body": "\"Is this crypto mining?\" — no. A Unity Node doesn't burn through your battery or CPU solving puzzles. It does light network work in the background (a Connection task that runs on its own, plus optional tasks you opt into) and earns for what it contributes.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "\"Is this crypto mining?\" — no. A Unity Node doesn't burn battery or CPU solving puzzles. It does light network work in the background (a Connection task that runs itself, plus optional tasks you opt into) and earns for what it contributes.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-004",
+    "platform": "facebook",
+    "topic": "what-is",
+    "body": "Three things people are surprised by when they start a Unity Node:\n\n1. The licence is free.\n2. It runs on a normal phone — the one you already own, or a spare.\n3. You can start with up to 5 devices on one account — more once they're running.\n\nNodes currently earn around $0.10–$0.50 per device per day — that scales with network demand, so today's numbers aren't guaranteed.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "Three things that surprise new Unity Node operators:\n1. The licence is free.\n2. It runs on a normal phone — yours, or a spare.\n3. Start with up to 5 devices on one account; more once they're running.\nEarnings scale with demand, not guaranteed.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-005",
+    "platform": "facebook",
+    "topic": "what-is",
+    "body": "What does a Unity Node actually do all day? Mostly the Connection task — it stays on the network and contributes connectivity and coverage. That part is passive once it's set up. The Caller ID and SMS testing tasks are optional extras that need a SIM and your say-so.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "What does a Unity Node do all day? Mostly the Connection task — staying on the network, contributing connectivity and coverage. Passive once set up. Caller ID and SMS testing tasks are optional extras that need a SIM and your say-so.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-006",
+    "platform": "facebook",
+    "topic": "earnings",
+    "body": "Straight answer on money: Nodes currently earn around $0.10–$0.50 per device per day — that scales with network demand, so today's numbers aren't guaranteed.\n\nIt's not a get-rich scheme. It's a spare phone paying for itself while it sits on a charger.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "Straight answer on money: nodes currently earn around $0.10–$0.50 per device per day. That scales with network demand, so it isn't guaranteed. Not a get-rich scheme — a spare phone paying for itself on a charger.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-007",
+    "platform": "facebook",
+    "topic": "earnings",
+    "body": "Why earnings vary: nodes are paid for the network work they actually do, and that depends on demand in your area and how long your node stays online. A phone that's up 24/7 earns more than one that drops off overnight. Nodes currently earn around $0.10–$0.50 per device per day — that scales with network demand, so today's numbers aren't guaranteed.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "Why earnings vary: nodes are paid for the network work they actually do — demand in your area, and how long you stay online. A phone that's up 24/7 earns more than one that drops off overnight. Today's figures aren't guaranteed.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-008",
+    "platform": "facebook",
+    "topic": "earnings",
+    "body": "The single biggest thing you control on a Unity Node isn't the phone model — it's uptime. Keep it plugged in, on Wi-Fi, with battery optimisation turned off for the app, and you're most of the way there. Our per-device guide: worlddepin.io/uptime\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "The biggest thing you control on a Unity Node isn't the phone model — it's uptime. Plugged in, on Wi-Fi, battery optimisation off for the app, and you're most of the way there. Per-device guide: worlddepin.io/uptime\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-009",
+    "platform": "facebook",
+    "topic": "earnings",
+    "body": "A common question: \"can I run more than one?\" Yes — start with up to 5 devices per account, one licence each, and ask for more once they're live. Old phones, a tablet, the family's retired handsets. Nodes currently earn around $0.10–$0.50 per device per day — that scales with network demand, so today's numbers aren't guaranteed.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "\"Can I run more than one?\" Yes — start with up to 5 devices per account, one licence each, and ask for more once they're live. Old phones, a tablet, the family's retired handsets. Earnings scale with demand, not guaranteed.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-010",
+    "platform": "facebook",
+    "topic": "start",
+    "body": "Starting a Unity Node takes about five minutes:\n\n1. Request a free licence at worlddepin.io — we email your lease code.\n2. Install the Unity Nodes app (worlddepin.io/app — Android and iPhone).\n3. Sign in as a License Operator and paste in the code. Done — the node activates itself.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "Starting a Unity Node takes about five minutes:\n1. Request a free licence at worlddepin.io — we email your code.\n2. Install the app: worlddepin.io/app (Android and iPhone).\n3. Sign in as a License Operator, paste the code. Done.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-011",
+    "platform": "facebook",
+    "topic": "start",
+    "body": "No sign-up hoops. You request a licence on our site, the lease code lands in your inbox, and the app takes it from there. If you get stuck on any step, reply to the email and a human walks you through it.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-012",
+    "platform": "facebook",
+    "topic": "start",
+    "body": "Which phones work? Any reasonably modern Android or iPhone with the Unity Nodes app. We've seen everything from a Nokia C300 to a Pixel 8 Pro running as nodes. The phone doesn't need a SIM for the basic Connection task.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-013",
+    "platform": "facebook",
+    "topic": "start",
+    "body": "iPhone users: yes, Unity Nodes runs on iOS too — worlddepin.io/app. Request a licence at worlddepin.io, pop the code in, and you're live.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-014",
+    "platform": "facebook",
+    "topic": "start",
+    "body": "Android users: the Unity Nodes app is on Google Play — worlddepin.io/app. One free licence per device; start with up to 5 and ask for more once they're running.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-015",
+    "platform": "facebook",
+    "topic": "start",
+    "body": "Your lease code is held for 14 days. If a code isn't activated in that time it goes back into the pool for someone else — so once it lands, give yourself five minutes and get the node running. We'll nudge you after a week if it's still waiting.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-016",
+    "platform": "facebook",
+    "topic": "uptime",
+    "body": "Uptime tip #1 (Android): battery optimisation is the number-one reason nodes go quiet. Settings → Apps → Unity Nodes → Battery → Unrestricted. Takes ten seconds, makes all the difference.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-017",
+    "platform": "facebook",
+    "topic": "uptime",
+    "body": "Uptime tip #2 (iPhone): keep the app open in the background and Background App Refresh on for Unity Nodes. iOS is stricter than Android about background work — the guide at worlddepin.io/uptime has the exact settings.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-018",
+    "platform": "facebook",
+    "topic": "uptime",
+    "body": "Uptime tip #3: a dedicated charger and a stable Wi-Fi spot beat everything else. A node that never leaves the shelf is a node that never drops off the network.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-019",
+    "platform": "facebook",
+    "topic": "uptime",
+    "body": "Uptime tip #4 (Samsung): One UI has its own sleeping-apps list on top of Android's battery settings. Make sure Unity Nodes is in 'never sleeping apps' or it'll be put to sleep overnight. Full walkthrough: worlddepin.io/uptime\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-020",
+    "platform": "facebook",
+    "topic": "uptime",
+    "body": "If your node shows offline, nine times out of ten it's one of: battery optimisation kicked in, the phone rebooted and the app didn't restart, or Wi-Fi dropped. Our uptime guide covers each fix: worlddepin.io/uptime\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-021",
+    "platform": "facebook",
+    "topic": "faq",
+    "body": "\"Does it use my mobile data?\" — the Connection task is designed for Wi-Fi and uses very little. Most operators run nodes on home Wi-Fi with no SIM at all. The optional SMS-testing task is the one that needs a SIM, and it's opt-in.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-022",
+    "platform": "facebook",
+    "topic": "faq",
+    "body": "\"Is it safe?\" — Unity Nodes is a published app on Google Play and the App Store. World DePIN issues the operator licences; we never ask for passwords, payment details or wallet keys. Any message from us comes from a worlddepin.io address.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-023",
+    "platform": "facebook",
+    "topic": "faq",
+    "body": "\"How do I get paid?\" — nodes earn UPS, the Unity network's reward points, tracked in the app against each device. Nodes currently earn around $0.10–$0.50 per device per day — that scales with network demand, so today's numbers aren't guaranteed.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-024",
+    "platform": "facebook",
+    "topic": "faq",
+    "body": "\"Can I stop whenever I want?\" — yes. Uninstall the app or let the licence lapse; there's no contract lock-in and nothing to return. The licence simply goes back to the pool.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-025",
+    "platform": "facebook",
+    "topic": "faq",
+    "body": "\"Why is the licence free?\" — because the network needs nodes in as many places as possible, and the operators are the ones providing the infrastructure. Our job is to get licences into the hands of people who'll keep nodes running.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-026",
+    "platform": "facebook",
+    "topic": "faq",
+    "body": "\"How many licences are left?\" — plenty, but they're issued first-come. Request at worlddepin.io and the code arrives by email, usually within the hour.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-027",
+    "platform": "facebook",
+    "topic": "community",
+    "body": "Running a node and want to compare notes? Our Discord has a #node-operators channel: discord.gg/ZEvv7984by. Uptime tricks, phone recommendations, and a straight answer when something looks odd.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-028",
+    "platform": "facebook",
+    "topic": "community",
+    "body": "Support is a real inbox: support@worlddepin.io. Every licence holder gets it in their welcome email. Node offline? Code not working? Reply to any of our emails and someone picks it up.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-029",
+    "platform": "facebook",
+    "topic": "community",
+    "body": "We monitor every licensed node. If yours drops offline for a week you'll hear from us with the fix, not a form letter — and if it stays off for a month the licence is released so someone else can use it. Fair to everyone who keeps theirs running.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "We monitor every licensed node. Drop offline for a week and you'll hear from us with the fix, not a form letter. Stay off for a month and the licence is released for someone else — fair to everyone who keeps theirs running.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-030",
+    "platform": "facebook",
+    "topic": "community",
+    "body": "Telegram more your thing? t.me/WorldDePIN — announcements and the occasional tip. For questions, email is fastest: hello@worlddepin.io.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-031",
+    "platform": "facebook",
+    "topic": "misc",
+    "body": "The phone you upgraded from is probably 80% as capable as the one you replaced it with. Instead of a drawer, give it a job: a Unity Node runs happily on last year's handset. Free licence at worlddepin.io.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-032",
+    "platform": "facebook",
+    "topic": "misc",
+    "body": "Small habit, real result: charge the spare phone on the windowsill, leave the Unity Nodes app running, forget about it. That's the whole operating manual for most of our operators.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-033",
+    "platform": "facebook",
+    "topic": "misc",
+    "body": "Households with a few retired phones are our favourite operators — three or four nodes on one shelf, one account, one set of emails. Start with up to 5 licences per person, all free — more once they're running.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-034",
+    "platform": "facebook",
+    "topic": "misc",
+    "body": "Decentralised networks only work if the nodes are spread out — which is why we'd rather have one node in a hundred towns than a hundred in one. Wherever you are, your phone counts.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-035",
+    "platform": "facebook",
+    "topic": "misc",
+    "body": "New to all this? You don't need to understand DePIN to run a node. Install the app, enter your code, keep the phone charged. The network handles the rest.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-036",
+    "platform": "facebook",
+    "topic": "misc",
+    "body": "Honest expectations, from us: a Unity Node won't replace an income. It will turn a phone that earns nothing into one that earns something, for about five minutes of setup. Nodes currently earn around $0.10–$0.50 per device per day — that scales with network demand, so today's numbers aren't guaranteed.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "Honest expectations: a Unity Node won't replace an income. It turns a phone that earns nothing into one that earns something, for five minutes of setup. Earnings scale with network demand and aren't guaranteed.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-037",
+    "platform": "facebook",
+    "topic": "start",
+    "body": "Weekend job that takes five minutes: dig out the old phone, charge it, install Unity Nodes, request a free licence at worlddepin.io. By Monday it's a node.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-038",
+    "platform": "facebook",
+    "topic": "what-is",
+    "body": "Why phones? Because there are billions of them, they're already connected, and they're already everywhere the network needs to be. That's the whole idea behind phone-based DePIN — infrastructure that already exists, put to work.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-039",
+    "platform": "facebook",
+    "topic": "earnings",
+    "body": "\"$0.10 a day isn't much\" — true for one phone. It's also more than the phone was earning in the drawer, and it's per device. Nodes currently earn around $0.10–$0.50 per device per day — that scales with network demand, so today's numbers aren't guaranteed.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "\"$0.10 a day isn't much\" — true for one phone. It's also more than the phone earned in the drawer, and it's per device. Nodes earn around $0.10–$0.50 per device per day, scaling with demand — not guaranteed.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-040",
+    "platform": "facebook",
+    "topic": "faq",
+    "body": "\"What if I change phones?\" — a licence follows the device it's activated on. Moving it means letting the old node lapse and requesting a fresh code for the new handset. Drop us a line and we'll sort it: support@worlddepin.io\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  },
+  {
+    "id": "fb-202609-041",
+    "platform": "facebook",
+    "topic": "uptime",
+    "body": "Nodes that stay online earn steadily; nodes that flicker on and off earn a fraction. If you're not sure how yours is doing, the Unity Nodes app shows your uptime per device — anything below your licence's minimum and it's worth a look at worlddepin.io/uptime.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io",
+    "x_body": "Nodes that stay online earn steadily; nodes that flicker on and off earn a fraction. The Unity Nodes app shows uptime per device — anything below your licence's minimum is worth a look at worlddepin.io/uptime.\n\nFree licence + app: worlddepin.io"
+  },
+  {
+    "id": "fb-202609-042",
+    "platform": "facebook",
+    "topic": "community",
+    "body": "Every licence we issue is a person somewhere deciding to put a phone to work. If you've been meaning to try it, this is your nudge: worlddepin.io, five minutes, free.\n\nGet the app: worlddepin.io/app · Free licence: worlddepin.io · hello@worlddepin.io"
+  }
+]
