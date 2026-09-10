@@ -1,6 +1,6 @@
-# IT Surgery social posting — requirements (DRAFT for Darren's approval)
+# IT Surgery social posting: Facebook + Instagram from an approved pool
 Status: open
-Owner: Claude Code (code) Â· Cowork/Darren (Meta token, content pool, verification)
+Owner: Claude Code (code) / Cowork/Darren (Meta token, content pool, verification)
 Approved by Darren 2026-09-10.
 
 ## Context
