@@ -126,4 +126,43 @@ Replying to comments or messages; reading Facebook groups or Nextdoor
 
 ## Result
 
-(filled in by Claude Code)
+### State store proposal (Claude Code, 2026-09-11) - awaiting Darren's answer
+
+Read the reference copy in `worlddepin-social-reference/` first. The
+WorldDePIN dashboard is a static page that talks to Supabase from the
+browser; the IT Surgery dashboard is rendered by n8n workflows behind
+oauth2-proxy, so the Social tab cannot be pasted across whichever store is
+chosen. That removes the main reason for (a).
+
+**Recommendation: (b), the repo is the store.** Nothing new to sign up for,
+and every approval is a commit.
+
+- `projects/marketing/itsurgery-social/posts.json` - the pool, Cowork's
+  file. `state.json` - one row per platform row (`fb-…`, `ig-…`): status,
+  approved_by/at, posted_at, post_id, attempts, error, and an optional
+  `body` override when Darren edits a post on the tab. The poster seeds
+  missing rows as drafts and never touches an existing one.
+- Poster: `social.py`, run by a GitHub Actions workflow. Seeds, renders
+  missing cards into `projects/web/itsurgery/src/social/`, posts the oldest
+  approved row per platform if the slot is due, commits `state.json` and
+  cards back with `[skip ci]`.
+- Social tab: new n8n workflow `social.json`. GET renders the tab from the
+  two files (public repo, raw.githubusercontent.com, no token). Approve /
+  Approve all / Retire / Edit POST to `/webhook/social-action`; n8n
+  updates `state.json` through the GitHub Contents API (sha check, one
+  retry on conflict). Git history is the audit log.
+- Clock: a Schedule trigger in the same n8n workflow fires the Actions
+  workflow by `workflow_dispatch` at 08:30 and 18:30 Europe/London,
+  Mon-Sat. n8n already keeps the five-minute watchdog, so it is the
+  reliable scheduler here; no VPS cron script.
+- One new secret: a fine-grained GitHub token for this repo only
+  (Contents: read/write, Actions: read/write), stored as an n8n credential.
+  Bitwarden entry to be named by Darren.
+- Nav: `/social` added to the tab bar on the other four pages and to the
+  nginx template; until the playbook is next run the tab also answers at
+  `/webhook/social`.
+
+(a) would need a Supabase account and project, RLS and a staff table, a
+publishable key baked into the n8n page and a JS client written from
+scratch for it. More parts, no gain for a two-post-a-day queue.
+
