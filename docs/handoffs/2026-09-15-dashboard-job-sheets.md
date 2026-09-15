@@ -23,8 +23,10 @@ What exists:
   `priceIncVat` for home / `priceExVat` for business, `bookable`).
   `bookingFeeGbp` is 5. `services.json` holds the per-service-page copy
   (`points` = what the site promises for that service).
-- Brand (from `Freelancer/brand-and-decisions.md`): logo in
-  `projects/web/itsurgery/brand/` (use the RGB logo), brand red `#990000`,
+- Brand (from `Freelancer/brand-and-decisions.md`): master logo is
+  `docs/handoffs/jobsheet-reference/IT_Surgery_Logo_RGB.jpg` (1769x514) -
+  move it to `projects/web/itsurgery/brand/` as part of this work, since
+  that folder only holds the social crops today. Brand red `#990000`,
   headings Poppins 600 `#222222`, body `#333333`, tagline "Curing IT
   Headaches". Never "Since 2008".
 - Company footer line: IT Solution Architecture Limited t/a IT Surgery,
