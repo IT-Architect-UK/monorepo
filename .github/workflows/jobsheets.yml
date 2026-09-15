@@ -1,0 +1,68 @@
+# =============================================================================
+# jobsheets.yml — Build the IT Surgery job sheets and publish them
+# =============================================================================
+# projects/web/itsurgery/jobsheets/ holds one Markdown template per catalogue
+# service; build.js renders each to a Word document with the header block
+# (service line, price, terms) taken from the catalogue. On every push to main
+# that touches a template, the generator or the catalogue, the .docx files and
+# index.json are uploaded as the assets of the rolling "jobsheets" release,
+# which the dashboard's Job sheets page (n8n, behind the dashboard sign-in)
+# lists and serves. Pull requests only check that every template builds.
+# =============================================================================
+
+name: Job sheets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "projects/web/itsurgery/jobsheets/**"
+      - "projects/web/itsurgery/src/_data/catalogue.json"
+      - "projects/web/itsurgery/src/_data/site.json"
+      - "projects/web/itsurgery/brand/IT_Surgery_Logo_RGB.jpg"
+      - ".github/workflows/jobsheets.yml"
+  pull_request:
+    paths:
+      - "projects/web/itsurgery/jobsheets/**"
+      - "projects/web/itsurgery/src/_data/catalogue.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Render and publish
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: projects/web/itsurgery/jobsheets
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: projects/web/itsurgery/jobsheets/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Build every sheet
+        run: node build.js && ls -1 dist | wc -l
+
+      - name: Publish to the jobsheets release
+        # A rolling pre-release: same tag, assets replaced on every build. The
+        # release exists only to give the dashboard a stable download URL.
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view jobsheets --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create jobsheets --repo "$GITHUB_REPOSITORY" --prerelease \
+                 --title "Job sheets (rolling)" \
+                 --notes "Word job sheets rendered from projects/web/itsurgery/jobsheets/ by the Job sheets workflow. Replaced on every build; not a release of the code."
+          gh release upload jobsheets dist/* --repo "$GITHUB_REPOSITORY" --clobber

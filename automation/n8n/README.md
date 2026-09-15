@@ -37,10 +37,11 @@ delete the orphan.
 | `backup.json` | Darren, in a browser | Backup status page, served like the dashboard |
 | `reviews.json` | itsurgery.me, from the browser | Public read-only JSON of the Google rating, count and reviews (same Places call as the dashboard), for the site's Reviews page and home-page strip. Cached an hour |
 | `guide.json` | Darren, in a browser | Renders `automation/itsurgery-admin-and-deployment-guide.md` as the dashboard's Guide tab |
+| `jobsheets.json` | Darren, in a browser | The dashboard's Job sheets page: lists the Word job sheets built by `.github/workflows/jobsheets.yml` from `projects/web/itsurgery/jobsheets/`, serves each one from the `jobsheets` GitHub release, and hands out `JS-YYYY-NNN` job references |
 
 ## When something fails
 
-Every workflow but `error-alert.json` itself — twelve of the thirteen — names
+Every workflow but `error-alert.json` itself — thirteen of the fourteen — names
 `n8n error alert` as its error workflow, so any failed automatic execution
 emails Darren with the workflow, the node that broke, the error message and a
 link to the execution.

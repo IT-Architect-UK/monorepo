@@ -6,6 +6,7 @@ re-upload wherever each is used.
 
 | File | Size | Used for |
 |------|------|----------|
+| `IT_Surgery_Logo_RGB.jpg` | 1769x514 | The master logo as supplied (RGB JPEG). The job sheets (`../jobsheets/build.js`) place it at the top of every sheet; the site itself uses the PNG crops in `src/assets/` |
 | `darren-source.jpg` | original | Darren's photo as supplied (not published). The site versions `src/assets/darren-480.jpg` and `darren-960.jpg` are a square crop with EXIF stripped, made with Pillow: `ImageOps.exif_transpose`, crop, resize, save with no exif |
 | `social-square-1200.png` | 1200x1200 | Google Ads square image, Instagram, any square slot |
 | `facebook-profile-720.png` | 720x720 | Facebook Page profile picture (the cross; Facebook crops to a circle) |

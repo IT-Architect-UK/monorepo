@@ -1,0 +1,13 @@
+{
+  "name": "itsurgery-jobsheets",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Renders the IT Surgery job-sheet templates (*.md) to Word documents in dist/",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node build.js --check"
+  },
+  "dependencies": {
+    "docx": "9.7.1"
+  }
+}
