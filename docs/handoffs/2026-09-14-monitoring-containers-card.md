@@ -1,6 +1,6 @@
 # Monitoring page: Containers card overflows, and find out why every container keeps restarting
 
-Status: open
+Status: done (code); restart cause needs commands run on the VPS
 Owner: Claude Code
 
 ## Context
@@ -67,4 +67,34 @@ page has no host-uptime figure, so this cannot be told apart from the page.
 
 ## Result
 
-(filled in by Claude Code)
+Claude Code, 2026-09-15. `monitoring.json` "Build the page" only; the
+vitals script already reports `uptimeSeconds`, so no Ansible change.
+
+1. Docker's status text no longer reaches the page. `containerLabel()`
+   gives `just started`, `up 3 min`, `up 2 h`, `up 5 d`, `up 2 wk`,
+   `exited (1) 3 min ago`, `restarting`; the `(healthy)` /
+   `(health: starting)` / `(unhealthy)` suffix is stripped. Health drives
+   the dot: starting = amber, unhealthy = red (a running-but-unhealthy
+   container was green before), not running = red. The JSON the watchdog
+   reads carries the same label and state, and a `host uptime` part.
+2. "The server" card has an Uptime row (`up 3 d 4 h`).
+3. Layout: the Containers and Backups tables get `class="wrap"`: the name
+   column is 58% wide, the right-hand cell may wrap, every cell has
+   `overflow-wrap:anywhere`. The short numeric cells elsewhere keep
+   `nowrap`. Rendered locally with seven containers in every state
+   (starting, healthy, unhealthy, exited, "About an hour", "2 weeks")
+   inside a 309px card: card scrollWidth equals clientWidth, no cell
+   crosses the card edge, every running container is one line; only
+   `exited (1) 3 min ago` wraps to two.
+4. Restart cause: not found from here. Claude Code has no route to the
+   VPS, and nothing in the repo restarts containers on a schedule: the
+   three backup timers only dump and copy, the compose files use
+   `restart: unless-stopped` / `always`, and no cron or timer runs
+   `docker compose`. All seven starting within the same second points at
+   the Docker daemon restarting (a docker-ce or containerd package
+   upgrade by unattended-upgrades does that, and `live-restore` is not
+   set) or at a host reboot; the new Uptime row tells those two apart
+   next time. Cowork/Darren: run the commands in step 3 through Webmin
+   and paste the output here. Deployed by the push of this commit
+   (`deploy-n8n.yml`); the live page check is Cowork's.
+
