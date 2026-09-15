@@ -68,39 +68,49 @@ What exists:
    prove it, invoice and pay, ask for a review, update CRM). Mark each
    skeleton `status: skeleton` in front-matter; Cowork will replace the
    content service by service.
-3. New dashboard section **Job sheets** (nav entry after Monitoring):
+3. **Output is Word (.docx), not HTML/PDF.** Darren 2026-09-15: "I need
+   to be able to amend, so PDF should not be used." Each template is
+   rendered to a .docx with docx-js exactly as `jobsheet.js` does (same
+   helpers: kv table, checklist table with the tick-box column and
+   Result/notes column, h1/h2 in Poppins, logo + tagline + red rule header,
+   company footer with page number). Put the generator in the repo as
+   `projects/web/itsurgery/jobsheets/build.js` (Node, `docx` package,
+   reads every `<slug>.md`, writes `dist/JS-<slug>.docx`). Run it in CI on
+   push to main when anything under `jobsheets/` changes, and publish the
+   .docx files where the dashboard can serve them behind SSO (the VPS
+   already serves the dashboard; a static folder is fine - your call,
+   state it in Result). Templates must be committed files so Cowork can
+   edit content by handoff.
+4. New dashboard section **Job sheets** (nav entry after Monitoring):
    - Index page: the services grouped as in the catalogue, each with
-     duration, price, and "Open sheet". Skeletons are labelled as such.
-   - Sheet page: `?service=<slug>` renders the template branded exactly
-     like the reference header (logo, tagline, red rule, Poppins headings,
-     tick boxes, Result/notes column, footer with company line and page
-     number). A4 print stylesheet; `@media print` hides the nav. "Print /
-     Save as PDF" button.
-   - Header fields (job ref, date, time, customer, address, phone, email,
-     device, reported problem, price agreed) are editable inputs that print
-     as text. Optional `?lead=<id>` pre-fills them from the EspoCRM Lead
-     via the n8n API user (name, phone, email, address, `cBookingStart`,
-     description). Nothing is written back in Phase 1.
-   - Job reference: `JS-YYYY-NNN`, next number kept in n8n workflow static
-     data (or derived from the Lead number if simpler); shown in the
-     header and editable. JS-2026-001 is taken (the Stonhold visit).
-4. Rendering: markdown -> HTML inside the n8n Code node is fine (a small
-   hand-rolled converter for the fixed subset above; no new dependency), or
-   pre-render at build time into a JSON the workflow reads - your call,
-   state it in Result. Templates must be committed files either way, so
-   Cowork can edit content by handoff.
-5. Deploy the way the other dashboard workflows deploy. Verify: index
-   lists every bookable service; `?service=home-malware-removal` renders
-   every section of the reference sheet; print preview is A4 with no
-   clipped tables; `?lead=` with a real Lead id fills the header. Put the
-   URL and a page-text extract in Result.
+     duration, price, a "Download Word sheet" link and the template's
+     status (full / skeleton). Skeletons are labelled as such.
+   - Header fields in the .docx (job ref, date, time, customer, address,
+     phone, email, device, reported problem, price agreed) are left as the
+     blank/underscored cells in the reference sheet - Darren fills them in
+     Word. Job reference guidance on the index page: `JS-YYYY-NNN`, next
+     free number shown from n8n static data and incremented when Darren
+     clicks "Take next number"; JS-2026-001 is taken (the Stonhold visit).
+   - Optional, only if cheap: `?lead=<id>` on the index produces a .docx
+     with the header pre-filled from the EspoCRM Lead (n8n API user: name,
+     phone, email, address, `cBookingStart`, description). That needs the
+     generator callable from n8n (Node on the VPS, or a GitHub
+     `workflow_dispatch` that commits the file) - if it is not cheap,
+     leave it for Phase 2 and say so.
+5. Deploy the way the other dashboard workflows deploy. Verify: every
+   bookable service has a .docx; open `JS-home-malware-removal.docx` and
+   confirm it matches the reference sheet section for section (compare
+   with `jobsheet-reference/page-1.jpg` for the header); the file opens
+   in Word without a repair prompt (run the docx validator if there is
+   one in the toolchain); the index page lists and serves the files.
+   Put the URL and the list of generated files in Result.
 
 ### Phase 2 (separate handoff, not now)
 
-Fill in the sheet on a tablet on site, save the completed sheet as PDF to
-the Lead (attachment + note with the Record block), mark the Lead
-converted/closed, and raise the Xero invoice for the service line from the
-same page.
+Upload the completed .docx from the visit against the Lead (attachment +
+note with the Record block), mark the Lead converted/closed, and raise the
+Xero invoice for the service line from the same page. Pre-filled headers
+from a Lead if not done in Phase 1.
 
 ## Result
 
