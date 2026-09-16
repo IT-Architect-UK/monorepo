@@ -97,18 +97,6 @@ children.push(bulletRuns([t('4. Startup / scheduled-task adware ', { bold: true 
 children.push(bulletRuns([t('5. Genuine malware ', { bold: true }), t('(least likely given the clean scan, but rule it out with a second-opinion scanner).')]));
 children.push(bulletRuns([t('6. A tech-support scam already in progress. ', { bold: true }), t('If they have ever phoned a number on a pop-up, someone may have installed remote-access software (AnyDesk, TeamViewer, UltraViewer, ScreenConnect, "Supremo", "Zoho Assist"). This changes the visit \u2014 see Contain.')]));
 
-// ---- Before you go
-children.push(h1('Before you go (phone call today)'));
-children.push(checklist([
-  ['Confirm full address, phone number, arrival time. Ask who will be there.', null],
-  ['Ask: does the pop-up appear inside the browser, or in the corner of the screen when the browser is closed?', 'Bottom-right toast = notifications (cause 1). Browser window = extension/site (cause 3).'],
-  ['Ask: have you phoned any number shown on a pop-up, paid anyone, or let anyone connect remotely?', 'A yes moves Contain to the top of the visit. Be kind \u2014 it is a very common scam.'],
-  ['Ask them to have the Microsoft account password and the Wi-Fi password to hand (or to know where they are written).', null],
-  ['Ask which antivirus Jenny used for the scan, and whether they pay for any security product.', null],
-  ['Ask them not to click anything on the pop-ups and not to switch the device off \u2014 you want to see it live.', null],
-  ['Send the confirmation: date, time, price, "no fix, no fee".', 'If they want to book online, send itsurgery.me/book (the \u00a35 comes off).'],
-]));
-
 // ---- Kit
 children.push(h1('Kit to take'));
 children.push(checklist([
@@ -121,7 +109,6 @@ children.push(checklist([
 ]));
 
 // ---- On-site procedure
-children.push(new Paragraph({ children: [new PageBreak()] }));
 children.push(h1('On site'));
 children.push(note('Time budget 120 min. Tick as you go; write what you actually found in the right-hand column \u2014 it becomes the CRM note and the customer\u2019s summary.'));
 
@@ -144,15 +131,29 @@ children.push(checklist([
 ]));
 
 children.push(h2('C. Find and remove the source  (30\u201345 min)'));
+children.push(note('C1 is the fix for nine out of ten "trojan horse" pop-ups. Do it first, then keep going down the list regardless \u2014 the scanners in D are the proof, not the cure.'));
+children.push(new Paragraph({ spacing: { before: 80, after: 40 }, children: [t('C1. Browser notification permissions (the usual cause)', { bold: true })] }));
 children.push(checklist([
-  ['Edge: edge://settings/content/notifications \u2014 remove every site under Allow. Leave nothing they cannot name.', 'Also Chrome: chrome://settings/content/notifications. Firefox: Settings \u203a Privacy \u203a Notifications.'],
-  ['Edge: edge://extensions \u2014 remove anything unfamiliar. Chrome: chrome://extensions.', null],
-  ['Edge: check start page, new-tab page and default search engine (edge://settings/search). Reset if changed. edge://settings/reset if it is a mess.', null],
-  ['Settings \u203a System \u203a Notifications: turn off senders you do not recognise. Turn off \u201cGet tips and suggestions\u201d and Windows\u2019 own promotional notifications while you are there.', null],
-  ['Uninstall expired AV trials (McAfee/Norton) and any PUP found in A. Reboot.', 'Use the vendor removal tool (MCPR / Norton Remove and Reinstall) if the uninstaller fails \u2014 both are on the stick.'],
-  ['Autoruns (stick): check Logon, Scheduled Tasks, Services, Drivers. Untick anything unsigned or pointing to AppData/Temp/ProgramData with a random name. Note what you disabled.', null],
-  ['Task Scheduler: look for tasks created recently that launch a browser with a URL, or an .exe in a user folder.', null],
-  ['Settings \u203a Network \u203a Proxy: \u201cUse a proxy server\u201d must be OFF. Check DNS is automatic. Check C:\\Windows\\System32\\drivers\\etc\\hosts has no added lines.', null],
+  ['Identify the sender first. When a pop-up appears bottom-right, click the \u201c\u2026\u201d or the cog on it \u2192 it names the app (Microsoft Edge / Google Chrome) and the website. Or: Settings \u203a System \u203a Notifications \u2192 scroll the sender list; a browser with a site name under it, or an unfamiliar app, is the culprit. Note the site name.', 'Windows 11 keeps a history: click the clock \u2192 Notification Center shows recent toasts and who sent them.'],
+  ['Edge: type edge://settings/content/notifications in the address bar. Under \u201cAllow\u201d, click the \u201c\u2026\u201d beside every site and choose Remove (or Block). Leave only sites they can name and want (e.g. their email provider).', 'Then set \u201cQuiet notification requests\u201d ON so sites can no longer pop the Allow/Block question over the page.'],
+  ['Chrome (if installed): chrome://settings/content/notifications \u2192 \u201cAllowed to send notifications\u201d \u2192 \u201c\u2026\u201d \u2192 Remove for each site. Set \u201cUse quieter messaging\u201d ON.', null],
+  ['Firefox (if installed): Settings \u203a Privacy & Security \u203a Permissions \u203a Notifications \u203a Settings\u2026 \u2192 select each site \u2192 Remove Website \u2192 tick \u201cBlock new requests asking to allow notifications\u201d \u2192 Save Changes.', null],
+  ['Windows: Settings \u203a System \u203a Notifications \u2192 under \u201cNotifications from apps and other senders\u201d turn OFF any sender you do not recognise. Browsers can stay ON (their per-site list is now clean). Further down, untick \u201cShow the Windows welcome experience\u2026\u201d and \u201cGet tips and suggestions\u2026\u201d.', 'If a website appears here as its own sender, it was installed as an app \u2014 see the next step.'],
+  ['Edge: edge://apps \u2192 uninstall any website installed \u201cas an app\u201d that they did not choose. Also Windows Settings \u203a Apps \u203a Installed apps \u2192 same check.', 'Scam sites sometimes install themselves as a web app so their notifications look like a real program.'],
+]));
+children.push(new Paragraph({ spacing: { before: 80, after: 40 }, children: [t('C2. Browser extensions, home page, search engine', { bold: true })] }));
+children.push(checklist([
+  ['Edge: edge://extensions \u2192 Remove anything unfamiliar (typical names: \u201cWeb Companion\u201d, \u201cSearch Manager\u201d, \u201cPDF Converter\u201d, coupon / weather / \u201csafe browsing\u201d bars). Chrome: chrome://extensions. Firefox: about:addons.', 'Keep only ones they can name. A password manager or uBlock Origin is fine.'],
+  ['Edge: edge://settings/startHomeNTP \u2192 \u201cWhen Edge starts\u201d and the Home button should be theirs or default. edge://settings/search \u2192 default search engine should be Bing or Google, not something unknown.', 'Chrome: chrome://settings/onStartup and chrome://settings/search.'],
+  ['If the browser still behaves oddly afterwards: edge://settings/reset \u2192 Restore settings to their default values (keeps favourites and passwords). Chrome: chrome://settings/reset.', null],
+]));
+children.push(new Paragraph({ spacing: { before: 80, after: 40 }, children: [t('C3. Programs, start-up items and scheduled tasks', { bold: true })] }));
+children.push(checklist([
+  ['Settings \u203a Apps \u203a Installed apps \u2192 sort by Install date. Uninstall expired AV trials (McAfee, Norton) and anything unfamiliar or with \u201cOptimizer\u201d, \u201cAccelerate\u201d, \u201cDriver Updater\u201d or \u201cCleaner\u201d in the name. Reboot.', 'If McAfee/Norton refuse to uninstall, run MCPR / Norton Remove and Reinstall from the stick.'],
+  ['Autoruns64.exe (stick, run as administrator): Options \u203a Hide Microsoft entries. Check the Logon, Scheduled Tasks and Services tabs. Untick anything unsigned, or whose path is in AppData, Temp or ProgramData with a random name. Note what you disabled.', null],
+  ['Task Scheduler (search for it in Start) \u2192 Task Scheduler Library \u2192 sort by Created. Disable any recent task that launches a browser with a URL, or an .exe from a user folder.', null],
+  ['Settings \u203a Network & internet \u203a Proxy \u2192 \u201cUse a proxy server\u201d must be OFF and \u201cAutomatically detect settings\u201d ON. Wi-Fi \u203a properties \u2192 DNS should be Automatic.', null],
+  ['Notepad as administrator \u2192 open C:\\Windows\\System32\\drivers\\etc\\hosts \u2192 anything below the comment lines other than \u201c127.0.0.1 localhost\u201d is suspect; delete it.', null],
 ]));
 
 children.push(h2('D. Scan  (run while you tidy; 30\u201345 min elapsed)'));
@@ -218,7 +219,7 @@ const tools = [
   ['Sysinternals TCPView', 'Live network connections \u2014 spots remote-access tools phoning home.', 'learn.microsoft.com/sysinternals'],
   ['McAfee removal tool (MCPR)', 'When the McAfee uninstaller will not.', 'mcafee.com'],
   ['Norton Remove and Reinstall', 'When the Norton uninstaller will not.', 'norton.com'],
-  ['This job sheet as PDF', 'In case the printed one gets lost.', '\u2014'],
+  ['This job sheet (Word)', 'In case the printed one gets lost.', '\u2014'],
 ];
 const tw = [3000, 4438, 2200];
 children.push(new Table({

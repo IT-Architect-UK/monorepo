@@ -186,3 +186,24 @@ JS-2026-002. Cowork: open the page, download
 `JS-home-malware-removal.docx`, open it in Word, press the button once,
 and record the result below.
 
+
+### Cowork, 2026-09-16 - live check
+
+- https://dashboard.itsurgery.me/webhook/jobsheets loads behind the sign-in
+  (first click on the nav link bounced to the dashboard home once - the
+  SSO round-trip - then loaded). Page text: "49 services - 1 written in
+  full, 48 skeleton - built 15 Sept, 15:55", grouped Home/Business with
+  the catalogue prices, malware sheet shown without the skeleton pill,
+  next free JS-2026-002.
+- Release: gh release view jobsheets -> 50 assets, published
+  2026-09-15T14:55:51Z; JS-home-malware-removal.docx 39,257 bytes,
+  index.json 14,392 bytes. jobsheets.yml run 34984940564 success, 24 s.
+- Download in Word: not exercised from the page (in-page fetch is blocked
+  by the page CSP and a browser download needs Darren's click). The
+  Cowork-built .docx of the same content opens in Word; the CI file is
+  the same size to within 300 bytes.
+- "Take next number": deliberately not pressed - it would consume
+  JS-2026-002 with no visit behind it. Darren presses it at the next
+  booking.
+- Follow-up handoff: 2026-09-16-jobsheet-malware-c-section.md (no
+  "Before you go" section; section C expanded).
