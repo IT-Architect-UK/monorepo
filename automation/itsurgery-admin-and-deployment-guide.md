@@ -56,8 +56,10 @@ longer than MeshCentral's 300s keepalive, or nginx cuts healthy agents).
 ## 3. Access & authentication
 
 **Admin pages** sit behind **Microsoft sign-in**: oauth2-proxy (Entra ID,
-single tenant, app registration `oauth2-proxy — IT Surgery admin`) checked by
-nginx `auth_request`. Access is an allow-list of exact addresses — anyone else
+single tenant, app registration `oauth2-proxy — IT Surgery admin`) is the
+reverse proxy for every admin page: nginx terminates TLS and hands the
+request to it, and it forwards to an internal nginx router on the loopback
+that holds the routing. Access is an allow-list of exact addresses — anyone else
 authenticates with Microsoft successfully and is then refused. Sign out
 bounces through Microsoft's logout and lands on `/signed-out`.
 

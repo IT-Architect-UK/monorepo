@@ -10,10 +10,21 @@ client_secret = "{{ oauth2_proxy_client_secret }}"
 scope = "openid profile email"
 
 redirect_url = "{{ oauth2_proxy_redirect_url }}"
-http_address = "0.0.0.0:4180"
+# On the host network (see the compose file), loopback only: nginx is the
+# only caller.
+http_address = "127.0.0.1:{{ oauth2_proxy_http_port }}"
 # nginx terminates TLS; without this the X-Forwarded-* headers are distrusted
 # and every redirect goes to http.
 reverse_proxy = true
+
+# oauth2-proxy IS the proxy for the admin pages (2026-09-17). nginx hands it
+# every gated request; it sets and refreshes the session cookie on the real
+# response and forwards to the internal nginx server that holds the routing.
+# The earlier design asked it yes/no from an nginx subrequest and lost
+# refreshed cookies, and forms with them.
+upstreams = ["http://127.0.0.1:{{ n8n_dashboard_internal_port | default(8081) }}/"]
+# Webmin uploads and the slower n8n pages take longer than the 30 s default.
+upstream_timeout = "330s"
 
 # Straight to the Microsoft page — an interstitial "sign in with" button with
 # exactly one provider on it is a click that buys nothing.

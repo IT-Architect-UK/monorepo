@@ -251,7 +251,7 @@ One README per role, next to its tasks.
 | `monitoring-agent` | Prometheus node_exporter on port 9100 | [roles/monitoring-agent](roles/monitoring-agent/README.md) |
 | `webmin` | Webmin from its official apt repository (pinned, checksummed setup script); with `webmin_domain` set, nginx + Let's Encrypt + basic auth in front so port 10000 stays closed | [roles/webmin](roles/webmin/README.md) |
 | `vitals` | Timer-driven host snapshot (`/opt/vitals/vitals.json`) that the dashboard's monitoring page reads | [roles/vitals](roles/vitals/README.md) |
-| `oauth2-proxy` | One Microsoft Entra sign-in for every admin page, via nginx `auth_request` | [roles/oauth2-proxy](roles/oauth2-proxy/README.md) |
+| `oauth2-proxy` | One Microsoft Entra sign-in for every admin page: the reverse proxy between nginx and the dashboard routing | [roles/oauth2-proxy](roles/oauth2-proxy/README.md) |
 | `espocrm` | EspoCRM + MariaDB in Docker behind nginx, nightly backups; owns the firewall on the VPS | [roles/espocrm](roles/espocrm/README.md) |
 | `n8n` | n8n + Postgres behind nginx, the dashboard host, admin guide copy, vitals feed, nightly backups | [roles/n8n](roles/n8n/README.md) |
 | `meshcentral` | MeshCentral remote-support server behind nginx, nightly backups | [roles/meshcentral](roles/meshcentral/README.md) |

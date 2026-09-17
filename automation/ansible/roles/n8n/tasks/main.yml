@@ -195,14 +195,12 @@
   when: n8n_dashboard_domain | default('', true) | length > 0
   notify: Reload nginx
 
-- name: Install the sign-in gate snippet
-  ansible.builtin.template:
-    src: dashboard-auth.conf.j2
-    dest: /etc/nginx/snippets/dashboard-auth.conf
-    owner: root
-    group: root
-    mode: "0644"
-  when: n8n_dashboard_domain | default('', true) | length > 0
+- name: Remove the old sign-in gate snippet
+  # Until 2026-09-17 every gated location included an auth_request snippet.
+  # oauth2-proxy is now the reverse proxy; nothing includes it.
+  ansible.builtin.file:
+    path: /etc/nginx/snippets/dashboard-auth.conf
+    state: absent
   notify: Reload nginx
 
 - name: Check whether the dashboard certificate exists

@@ -68,3 +68,7 @@ n8n_db_password: ""
 # Where the deployed copy of the admin guide lives; the Guide tab reads it
 # through nginx on the loopback/bridge-only /guide.md location.
 n8n_guide_dir: /opt/guide
+
+# The loopback port of the internal dashboard router that oauth2-proxy
+# forwards to (templates/dashboard.nginx.conf.j2).
+n8n_dashboard_internal_port: 8081

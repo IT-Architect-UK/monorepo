@@ -115,15 +115,21 @@ restriction. The file is written by the `vitals` role
 (`deploy-vitals.yml`, [roles/vitals](../vitals/README.md)); this role only
 serves it. n8n never sees the request.
 
-**The sign-in.** With `oauth2_proxy_enabled: true`, every administrative
-location carries `auth_request /oauth2/auth`, answered by oauth2-proxy on
-`127.0.0.1:4180` (`deploy-auth.yml`, [roles/oauth2-proxy](../oauth2-proxy/README.md)).
-A request with no session is bounced to `/oauth2/start` and on to the
-Microsoft login, then back to where it was going. Behind the gate nginx
-injects n8n's own basic-auth header from `n8n_dashboard_basic_user` and
+**The sign-in.** The template is two servers. The public one terminates
+TLS, serves the few things that live outside the sign-in, and with
+`oauth2_proxy_enabled: true` hands everything else to oauth2-proxy on
+`127.0.0.1:4180` (`deploy-auth.yml`, [roles/oauth2-proxy](../oauth2-proxy/README.md)),
+which is the reverse proxy: it sends a visitor with no session to
+`/oauth2/start` and on to the Microsoft login, then back to where they were
+going, and forwards everyone else to the internal server on
+`127.0.0.1:{{ n8n_dashboard_internal_port }}` (8081). That internal server
+holds the routing with no authentication of its own: it injects n8n's
+basic-auth header from `n8n_dashboard_basic_user` and
 `n8n_dashboard_basic_password`, so the webhooks stay locked (they are also
 reachable at `n8n_domain`, which this sign-in does not guard) but nobody
-types the password. Two doors sit outside the gate on purpose:
+types the password. A GET of a form's webhook (what a sign-in round trip
+turns a lost POST into) is redirected to the page the form lives on, which
+restores what was typed. Two doors sit outside the gate on purpose:
 `/monitoring.json`, basic auth against `/etc/nginx/.htpasswd-services` for
 the watchdog, which is a machine and cannot sign in with Microsoft; and
 `/signed-out`, so a freshly signed-out person is not bounced straight back

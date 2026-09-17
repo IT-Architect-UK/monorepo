@@ -1,11 +1,19 @@
 # oauth2-proxy role
 
-One Microsoft sign-in for every admin page on the VPS. nginx on the dashboard
-host asks this service, through `auth_request`, whether the visitor has a
-valid session before serving anything administrative; without one they are
-sent to the Microsoft 365 login (with its MFA) and returned to where they
-were going. Behind that gate nginx injects the per-service credential, so n8n
-keeps its own lock but nobody types it.
+One Microsoft sign-in for every admin page on the VPS. This service is the
+reverse proxy for the dashboard host: nginx terminates TLS and hands every
+administrative request to it on `127.0.0.1:4180`; it checks for a session
+(without one the visitor goes to the Microsoft 365 login, with its MFA, and
+comes back to where they were going), sets or refreshes the session cookie
+on the real response, and forwards the request to an internal nginx router
+on `127.0.0.1:8081` that holds the routing and injects the per-service
+credential, so n8n keeps its own lock but nobody types it.
+
+Until 2026-09-17 nginx asked this service yes/no through `auth_request`
+instead. A refreshed session cookie issued inside that subrequest never
+reached the browser, and a form submitted on a stale session was lost to the
+sign-in round trip. As the proxy, oauth2-proxy owns its cookies end to end
+and there is nothing to relay.
 
 Applied by `playbooks/deploy-auth.yml` to the `n8n` group. The nginx side
 lives in the n8n role (`templates/dashboard.nginx.conf.j2`), switched on by
@@ -20,13 +28,15 @@ gate.
   are present, and stops with a message if not — a missing secret fails the
   deploy loudly rather than locking anyone out quietly
 - Runs `quay.io/oauth2-proxy/oauth2-proxy:v7.15.4` under Docker Compose in
-  `/opt/oauth2-proxy`, published on `127.0.0.1:4180` only (nginx is the only
-  caller), as uid 65532 — the image's `nonroot` user, which also owns the
+  `/opt/oauth2-proxy` on the host network, listening on `127.0.0.1:4180`
+  only (nginx is the only caller) and reaching the internal router on the
+  loopback too, so neither hop leaves the machine; as uid 65532 — the image's `nonroot` user, which also owns the
   mounted config files. A root-only file mounted into the container reads as
   permission denied; that exact mistake cost a deploy
 - Writes `oauth2-proxy.cfg` (provider `entra-id`, single tenant,
-  `skip_provider_button`, `reverse_proxy = true`, secure cookies) and the
-  `emails.txt` allow-list, both mode 0400
+  `skip_provider_button`, `reverse_proxy = true`, `upstreams` pointing at
+  the internal router with a 330 s upstream timeout for Webmin uploads,
+  secure cookies) and the `emails.txt` allow-list, both mode 0400
 - Installs `python3-passlib` and writes `/etc/nginx/.htpasswd-services`, the
   basic-auth door for the watchdog — a machine, which cannot sign in with
   Microsoft — using the same credential n8n's dashboard webhook checks
@@ -43,6 +53,7 @@ Microsoft, but only addresses in the allow-list are let through.
 | `oauth2_proxy_allowed_emails` | one address | `defaults/main.yml` |
 | `oauth2_proxy_redirect_url` | `https://dashboard.itsurgery.me/oauth2/callback` | defaults |
 | `oauth2_proxy_http_port` | `4180` | defaults |
+| `n8n_dashboard_internal_port` | `8081`, the internal nginx router it forwards to (same name in the n8n role) | defaults |
 | `oauth2_proxy_cookie_expire` / `oauth2_proxy_cookie_refresh` | `12h` / `1h` — refreshed hourly against Entra, dead after twelve hours regardless | defaults |
 | `oauth2_proxy_image` / `oauth2_proxy_image_tag` | `quay.io/oauth2-proxy/oauth2-proxy` / `v7.15.4` | defaults |
 | `oauth2_proxy_uid` | `65532` | defaults |
