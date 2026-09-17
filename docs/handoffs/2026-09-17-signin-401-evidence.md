@@ -18,44 +18,27 @@ Which of those needs the logs. Claude Code has no route to the VPS.
 
 ## Do this
 
-On the VPS (or through Webmin's terminal), paste the output of these into
-Result. None of them prints a secret.
+Cowork, in the browser: open https://dashboard.itsurgery.me/webmin-frame,
+sign in to Webmin, open Tools > Command Shell (or Terminal). Run this
+one command, which writes a short filtered log file into the repo clone
+on the VPS:
 
-1. oauth2-proxy's own log for the window Cowork tested (13:50 to 14:15
-   UTC on 17 Sep 2026). Every `/oauth2/auth` call is logged with its
-   status, and refreshes and load failures are logged in words:
+```
+{ echo "== oauth2-proxy"; docker logs oauth2-proxy --since 2026-09-17T13:55:00Z --until 2026-09-17T14:12:00Z 2>&1 | grep -iE ' 401 |error|refresh|invalid|expired|cookie' | grep -v ' 202 '; echo "== nginx"; grep '17/Sep/2026:14:0' /var/log/nginx/access.log | grep -E 'oauth2/start|oauth2/callback|POST /webhook/custom-job|" 401 '; echo "== config"; docker exec oauth2-proxy sh -c 'grep -E "^cookie_(name|expire|refresh|samesite)" /etc/oauth2-proxy.cfg'; docker inspect oauth2-proxy --format '{{.Config.Image}} started {{.State.StartedAt}}'; } > /opt/monorepo/docs/handoffs/signin-401-logs.txt; wc -l /opt/monorepo/docs/handoffs/signin-401-logs.txt
+```
 
-   ```
-   docker logs oauth2-proxy --since 2026-09-17T13:50:00Z --until 2026-09-17T14:15:00Z 2>&1 | grep -v "GET /oauth2/auth.*202"
-   ```
+Then, still in that shell:
 
-   (The grep hides the successful auth checks; what is left is the 401s
-   and any "Refreshing session", "Unable to refresh", "Error loading
-   cookied session", "Cookie ... not present" lines.)
+```
+cd /opt/monorepo && git pull && git add docs/handoffs/signin-401-logs.txt && git commit -m "Sign-in 401: filtered logs for Claude Code" && git push
+```
 
-2. The same window from nginx, showing the sign-in bounces and what
-   preceded each:
+If the push needs credentials the shell does not have, paste the file's
+contents under Result in this handoff instead and push from wherever you
+normally do. Nothing in the file is a secret (no cookie values, no keys).
 
-   ```
-   grep '17/Sep/2026:1[34]:' /var/log/nginx/access.log | grep -E 'oauth2/(start|callback)|webhook/custom-job|" 401 ' | tail -60
-   ```
-
-3. What the running oauth2-proxy was given for the cookie settings
-   (names and durations only):
-
-   ```
-   docker exec oauth2-proxy sh -c 'grep -E "^cookie_(name|expire|refresh|secure|samesite|domains|path)" /etc/oauth2-proxy.cfg'
-   docker inspect oauth2-proxy --format '{{.Config.Image}} started {{.State.StartedAt}}'
-   ```
-
-4. In Edge, signed in to dashboard.itsurgery.me: F12 > Application >
-   Cookies > https://dashboard.itsurgery.me. List every cookie name that
-   starts `_oauth2_proxy` with its size and expiry. (Cowork's extension
-   cannot read cookies, so this one is Darren's.)
-
-5. Still open from the previous handoff: void INV-0098 and INV-0099 in
-   Xero and delete CRM Contacts 6aabf3f7c6d112821 and 6aabf426bcb0f7700
-   ("Test Manual"). Say here when done.
+Claude Code reads the file, works out the cause, and removes the file
+from the repo.
 
 ## Result
 
