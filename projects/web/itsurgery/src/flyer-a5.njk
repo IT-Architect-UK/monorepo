@@ -1,0 +1,80 @@
+---
+layout: layouts/flyer.njk
+stylesheet: /assets/flyer-a5.css
+title: A5 leaflet
+permalink: /a5-flyer/
+eleventyExcludeFromCollections: true
+---
+{# One A5 side. The service lists and the two italic notes are marketing copy,
+   written by hand and signed off 2026-09-18; they are not catalogue data.
+   The QR is an inline SVG (segno, error correction M) for /book. #}
+<div class="a5">
+
+  <div class="top">
+    <img src="/assets/logo.png" alt="{{ site.name }}">
+    <div class="area">{{ site.tagline }}
+      <span>Penarth &middot; Barry &middot; Cardiff &middot; Online</span></div>
+  </div>
+
+  <h1 class="hook">Got an IT requirement?<br><em>We have the solution!</em></h1>
+  <p class="sub">Friendly, expert IT help for homes and businesses &mdash; on site or online.</p>
+
+  <div class="promises">
+    <div class="promise">No fix,<br>no fee</div>
+    <div class="promise">Fixed prices,<br>agreed first</div>
+    <div class="promise">Plain English,<br>no jargon</div>
+    <div class="promise">Evenings &amp;<br>weekends</div>
+  </div>
+
+  <div class="cols">
+    <div class="col">
+      <h2>At home</h2>
+      <div class="box">
+        <ul>
+          <li>Computers &amp; laptops</li>
+          <li>Wi-Fi &amp; broadband</li>
+          <li>Phones &amp; tablets</li>
+          <li>Malware &amp; IT Security</li>
+          <li>Printers &amp; scanners</li>
+          <li>New devices set up</li>
+          <li>Backups &amp; Data Recovery</li>
+          <li>AI Training &amp; Support</li>
+          <li>Tailored Support or Training</li>
+        </ul>
+        <p class="more">Not sure what is wrong? Book a half-hour IT Surgery appointment and we will tell you.</p>
+      </div>
+    </div>
+    <div class="col">
+      <h2>For business</h2>
+      <div class="box">
+        <ul>
+          <li>AI Tools &amp; Services</li>
+          <li>AWS, Microsoft &amp; Google Cloud</li>
+          <li>Networks, Wi-Fi &amp; Firewalls</li>
+          <li>Servers &amp; Virtual Machines</li>
+          <li>Backups &amp; Disaster Recovery</li>
+          <li>Cyber Security</li>
+          <li>Laptop, Desktop &amp; Mobile</li>
+          <li>End User Support</li>
+          <li>IT Project Delivery</li>
+        </ul>
+        <p class="more">Need ongoing cover? Monthly support plans are available, tailored to your business.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <dl class="details">
+      <dt>Email</dt>    <dd>{{ site.email | lower }}</dd>
+      <dt>Phone</dt>    <dd>{{ site.phoneDisplay }}</dd>
+      <dt>WhatsApp</dt> <dd class="web">@itsurgery</dd>
+      <dt>Website</dt>  <dd class="web">{{ site.url | replace("https://", "") }}</dd>
+    </dl>
+    <div class="qrwrap">
+      <div class="qr"><svg viewBox="0 0 25 25" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" class="segno"><path class="qrline" stroke="#222" d="M0 0.5h7m4 0h1m2 0h1m1 0h1m1 0h7m-25 1h1m5 0h1m1 0h1m1 0h5m1 0h1m1 0h1m5 0h1m-25 1h1m1 0h3m1 0h1m1 0h3m4 0h1m2 0h1m1 0h3m1 0h1m-25 1h1m1 0h3m1 0h1m1 0h3m2 0h1m1 0h1m2 0h1m1 0h3m1 0h1m-25 1h1m1 0h3m1 0h1m3 0h2m1 0h1m2 0h1m1 0h1m1 0h3m1 0h1m-25 1h1m5 0h1m3 0h2m2 0h1m3 0h1m5 0h1m-25 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-17 1h2m2 0h1m1 0h2m-16 1h1m5 0h1m1 0h1m2 0h8m2 0h3m-24 1h1m1 0h1m1 0h1m2 0h1m2 0h3m1 0h2m1 0h1m1 0h5m-24 1h2m3 0h2m1 0h3m1 0h1m1 0h6m1 0h1m1 0h2m-25 1h4m6 0h2m2 0h1m1 0h1m1 0h1m1 0h2m2 0h1m-25 1h1m3 0h3m4 0h2m1 0h3m1 0h2m4 0h1m-25 1h2m1 0h3m1 0h1m2 0h1m1 0h2m1 0h3m1 0h1m3 0h1m-24 1h1m1 0h2m1 0h6m1 0h5m1 0h4m1 0h2m-25 1h1m3 0h1m2 0h1m1 0h2m1 0h1m2 0h1m1 0h1m1 0h1m1 0h2m1 0h1m-25 1h1m1 0h1m1 0h7m1 0h9m1 0h1m-15 1h2m2 0h1m3 0h1m3 0h1m-21 1h7m2 0h1m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m3 0h1m-25 1h1m5 0h1m2 0h1m1 0h2m2 0h2m3 0h1m2 0h2m-25 1h1m1 0h3m1 0h1m2 0h1m1 0h10m1 0h1m-23 1h1m1 0h3m1 0h1m3 0h2m1 0h2m2 0h2m4 0h2m-25 1h1m1 0h3m1 0h1m2 0h2m2 0h3m1 0h1m3 0h2m1 0h1m-25 1h1m5 0h1m2 0h3m2 0h7m3 0h1m-25 1h7m1 0h1m1 0h1m1 0h1m3 0h1m1 0h1m2 0h1m2 0h1"/></svg></div>
+    </div>
+  </div>
+
+  <p class="legal">{{ site.name }} is a trading name of {{ site.legalName }} &middot; Company {{ site.companyNumber }}</p>
+
+</div>

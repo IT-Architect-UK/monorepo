@@ -6,7 +6,8 @@
   <title>{{ title }} | {{ site.name }}</title>
   <meta name="robots" content="noindex" />
   <link rel="stylesheet" href="{{ '/assets/fonts.css' | v }}" />
-  <link rel="stylesheet" href="/assets/flyer.css" />
+  {# Each print piece brings its own sheet; the A4 leaflet is the default. #}
+  <link rel="stylesheet" href="{{ stylesheet or '/assets/flyer.css' }}" />
 </head>
 <body>
 {{ content | safe }}

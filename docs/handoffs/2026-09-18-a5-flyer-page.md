@@ -1,6 +1,6 @@
 # Publish the simple A5 leaflet at itsurgery.me/a5-flyer
 
-Status: open
+Status: done
 Owner: Claude Code
 Approved by Darren 2026-09-18 ("perfect. please make this available from the
 website via https://itsurgery.me/a5-flyer").
@@ -82,4 +82,23 @@ Details that took several rounds and must not drift:
 
 ## Result
 
-(filled in by Claude Code)
+Claude Code, 2026-09-18. Live at https://itsurgery.me/a5-flyer/ on this push.
+
+- `src/assets/flyer-a5.css`: the reference `<style>` block with its own
+  `@page { size: A5; margin: 0 }`, plus one print rule: Chromium rounds A5
+  to 209.9mm, so a 210mm sheet spilled a hairline onto page 2; in print the
+  sheet is 209.5mm (the footer is bottom-pinned, so nothing moves).
+- Layout: `layouts/flyer.njk` now takes a `stylesheet` front-matter
+  variable, defaulting to `/assets/flyer.css`, so both leaflets share it.
+  `/flyer/` output still links `flyer.css`.
+- `src/flyer-a5.njk`: the reference body; tagline, email, phone, website,
+  legal name and company number come from `site.json`; `@itsurgery`, the
+  service lists and the notes are verbatim. `noindex` via the layout,
+  excluded from collections and the sitemap.
+- Measured in Chromium on the built page: both `.more` tops 614.1;
+  `.details` and `.qr` both 704.9 to 831.5; `.qr` square; PDF at A5 is one
+  page; the QR in the printed page decodes to https://itsurgery.me/book;
+  legal line "IT Surgery is a trading name of IT Solution Architecture
+  Limited · Company 12066050", no Penarth. `/a5-flyer` without the slash
+  is Netlify's standard redirect to `/a5-flyer/`, checked live below.
+

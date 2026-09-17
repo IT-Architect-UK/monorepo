@@ -1,0 +1,83 @@
+/* ---------------------------------------------------------------------------
+   IT Surgery A5 leaflet — one side, no prices, no durations.
+
+   Standalone like flyer.css (A4, the detailed price leaflet) and for the same
+   reason: a print piece, not a web page. This one is the hand-out and
+   noticeboard version: a hook, four promises, two service columns and the
+   business card's contact block. Signed off 2026-09-18; the measurements
+   below (equal boxes, the bottom-pinned notes, the 33.5mm QR beside the
+   33.5mm contact block) were settled by measuring, not by eye.
+   --------------------------------------------------------------------------- */
+
+@page { size: A5; margin: 0; }
+:root{
+  --red:#990000; --red-deep:#7a0000; --ink:#1d2024; --body:#333333;
+  --rule:#e4d6d6; --wash:#faf4f4;
+  --head:"Poppins", system-ui, sans-serif;
+  --text: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--text);color:var(--body);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@media screen{
+  body{background:#eceff2;padding:10mm 0}
+  .a5{box-shadow:0 2px 18px rgba(0,0,0,.18);margin:0 auto}
+}
+/* Chromium rounds A5 to 209.9mm; a 210mm sheet then spills a hairline onto a
+   second page. The footer is bottom-pinned, so half a millimetre is invisible. */
+@media print{
+  html,body{height:209.5mm;overflow:hidden}
+  .a5{height:209.5mm}
+}
+.a5{
+  width:148mm; height:210mm; background:#fff; padding:10mm 10mm 8mm;
+  display:flex; flex-direction:column;
+  border-top:5mm solid var(--red);
+}
+
+/* header */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:4mm}
+.top img{height:13mm;display:block}
+.area{font-family:var(--head);font-weight:600;font-size:8.5pt;color:var(--red);text-align:right;line-height:1.3}
+.area span{display:block;font-family:var(--text);font-weight:400;color:var(--body);font-size:7.5pt}
+
+/* hook */
+.hook{font-family:var(--head);font-weight:600;font-size:23pt;line-height:1.1;color:var(--ink);margin:6mm 0 0}
+.hook em{font-style:normal;color:var(--red)}
+.sub{font-size:10pt;margin:2.5mm 0 0;color:var(--body)}
+
+/* promises */
+.promises{display:flex;gap:2mm;margin:5mm 0 0}
+.promise{flex:1;background:var(--wash);border:.3mm solid var(--rule);border-radius:1.5mm;
+  padding:2mm 1mm;text-align:center;font-family:var(--head);font-weight:600;
+  font-size:7.5pt;line-height:1.25;color:var(--red-deep)}
+
+/* two columns */
+.cols{display:flex;gap:5mm;margin:6mm 0 0;align-items:stretch}
+.col{flex:1;display:flex;flex-direction:column}
+.col h2{font-family:var(--head);font-weight:600;font-size:11pt;color:#fff;background:var(--red);
+  margin:0;padding:1.8mm 3mm;border-radius:1.5mm 1.5mm 0 0;letter-spacing:.02em}
+.col .box{border:.3mm solid var(--rule);border-top:0;border-radius:0 0 1.5mm 1.5mm;
+  padding:3mm 3mm 3.5mm;flex:1;display:flex;flex-direction:column}
+.col ul{margin:0;padding:0;list-style:none}
+.col li{font-size:10pt;line-height:1.55;padding-left:4.5mm;position:relative}
+.col li::before{content:"";position:absolute;left:0;top:1.9mm;width:1.8mm;height:1.8mm;
+  border-radius:50%;background:var(--red)}
+.col p.more{margin:3mm 0 0;padding-top:2mm;border-top:.3mm solid var(--rule);font-size:8.5pt;color:var(--red-deep);font-style:italic;line-height:1.35}
+.col p.more{margin-top:auto;min-height:15mm}
+
+/* footer - the business card's details block: labels left, red vertical
+   rule, values right. Row spacing is padding, never gap, so the rule runs
+   unbroken down the list exactly as it does on the card. */
+.foot{display:flex;gap:8mm;align-items:center;margin:auto 0 0;
+  border-top:.3mm solid var(--red);padding-top:5mm}
+.details{display:grid;grid-template-columns:22mm 1fr;margin:0;flex:1;height:33.5mm;
+  font-family:var(--head);font-size:10pt;line-height:1.3;align-content:center}
+.details dt,.details dd{padding-top:1.9mm;padding-bottom:1.9mm}
+.details dt{color:var(--body);font-weight:500;
+  border-right:.3mm solid var(--red);padding-right:3mm}
+.details dd{margin:0;padding-left:4mm;font-weight:700;color:var(--red);
+  min-width:0;overflow-wrap:anywhere}
+.qrwrap{flex:none}
+.qr{width:33.5mm;height:33.5mm}
+.qr svg{display:block;width:100%;height:100%}
+.legal{margin-top:3mm;font-size:6.5pt;color:var(--body);text-align:center;line-height:1.3}
