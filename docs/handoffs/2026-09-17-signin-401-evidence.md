@@ -42,4 +42,24 @@ from the repo.
 
 ## Result
 
-(filled in by Darren / Cowork)
+**Logs gathered by Darren, 2026-09-17** (30 lines; not committed).
+
+Proved:
+- No session refresh ever ran, and oauth2-proxy shows `refresh_token:false`
+  (Entra is not issuing one; the scope has no `offline_access`), so the
+  refreshed-cookie theory is out. The forwarding fix is harmless but idle.
+- No "Error loading cookied session" line, so the cookie was never
+  corrupt. On both bounces (14:04:52 and 14:07:12 UTC) oauth2-proxy
+  answered the auth check with no session at all: the browser sent no
+  `_oauth2_proxy` cookie on those POSTs, yet had sent it on five POSTs in
+  the two minutes before the second one.
+- Sessions are chunked ("exceeds the 4kb cookie limit").
+- Session `expires` is about 72 minutes after sign-in (the Entra token
+  lifetime); with no refresh token, a re-login every ~72 minutes is
+  expected and separate from the bounce.
+
+Still to find: why Edge omits the session cookie on one POST. Next step,
+Darren in Edge when back online: F12 > Network > Preserve log, submit the
+blank New job form until one bounces, click that `custom-job` request >
+Headers, and report which cookie names the request carried (no values).
+
