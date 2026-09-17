@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# The sign-in gate for one location of the dashboard host: ask oauth2-proxy
+# whether this request carries a live session, and keep hold of any refreshed
+# session cookie it hands back so the server block can return it to the
+# browser (see the maps and add_header lines in dashboard.conf).
+auth_request /oauth2/auth;
+auth_request_set $auth_cookie         $upstream_http_set_cookie;
+auth_request_set $auth_cookie_plain   $upstream_cookie__oauth2_proxy;
+auth_request_set $auth_cookie_chunk_0 $upstream_cookie__oauth2_proxy_0;
+auth_request_set $auth_cookie_chunk_1 $upstream_cookie__oauth2_proxy_1;
+auth_request_set $auth_cookie_chunk_2 $upstream_cookie__oauth2_proxy_2;
+auth_request_set $auth_cookie_chunk_3 $upstream_cookie__oauth2_proxy_3;

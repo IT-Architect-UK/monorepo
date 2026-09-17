@@ -6,6 +6,45 @@
 # the same n8n instance, not a second copy of anything: the page is still built
 # by the Dashboard workflow, and n8n's basic auth still guards it.
 
+{% if oauth2_proxy_enabled | default(false) %}
+# When oauth2-proxy refreshes a session it answers the auth subrequest with
+# new Set-Cookie headers. nginx's auth_request throws those away unless they
+# are copied out and re-added, and without them every later request carries
+# the stale cookie: the next refresh fails, the request 401s, and a form
+# that was just submitted vanishes into a fresh sign-in (2026-09-17).
+#
+# $upstream_http_set_cookie is every Set-Cookie header joined with ", ", not
+# something a browser can be given back. So the attributes (Path, Expires,
+# Secure...) are cut from the first cookie in it, and each cookie is rebuilt
+# from its own value plus those attributes. Entra sessions are chunked
+# (_oauth2_proxy_0, _1, ...); a small one is a single _oauth2_proxy. A map
+# is evaluated when the header is written, after the subrequest has run.
+map $auth_cookie $auth_cookie_attrs {
+    default "";
+    "~^[^;]*(?<attrs>;.*?)(?:, _oauth2_proxy(?:_\d+)?=|$)" $attrs;
+}
+map $auth_cookie_plain $auth_cookie_p {
+    default "";
+    "~." "_oauth2_proxy=$auth_cookie_plain$auth_cookie_attrs";
+}
+map $auth_cookie_chunk_0 $auth_cookie_0 {
+    default "";
+    "~." "_oauth2_proxy_0=$auth_cookie_chunk_0$auth_cookie_attrs";
+}
+map $auth_cookie_chunk_1 $auth_cookie_1 {
+    default "";
+    "~." "_oauth2_proxy_1=$auth_cookie_chunk_1$auth_cookie_attrs";
+}
+map $auth_cookie_chunk_2 $auth_cookie_2 {
+    default "";
+    "~." "_oauth2_proxy_2=$auth_cookie_chunk_2$auth_cookie_attrs";
+}
+map $auth_cookie_chunk_3 $auth_cookie_3 {
+    default "";
+    "~." "_oauth2_proxy_3=$auth_cookie_chunk_3$auth_cookie_attrs";
+}
+{% endif %}
+
 server {
     listen 80;
 {% if n8n_enable_ipv6 %}
@@ -53,6 +92,15 @@ server {
     # framed by anyone, or turning up in a search index.
     add_header X-Frame-Options "DENY" always;
     add_header X-Robots-Tag "noindex, nofollow" always;
+{% if oauth2_proxy_enabled | default(false) %}
+    # Refreshed session cookies, see the maps above. Empty for a location
+    # without a sign-in gate, and nginx sends no header for an empty value.
+    add_header Set-Cookie $auth_cookie_p always;
+    add_header Set-Cookie $auth_cookie_0 always;
+    add_header Set-Cookie $auth_cookie_1 always;
+    add_header Set-Cookie $auth_cookie_2 always;
+    add_header Set-Cookie $auth_cookie_3 always;
+{% endif %}
 
     # Host facts for the monitoring page, written by the vitals role and served
     # straight off disk — n8n never sees this request. Restricted to the docker
@@ -102,9 +150,18 @@ server {
         proxy_set_header X-Forwarded-Host  $host;
         proxy_set_header X-Forwarded-Uri   $request_uri;
     }
+    # The return path must be relative: oauth2-proxy only follows an absolute
+    # one if its host is in whitelist_domains, and otherwise sends the person
+    # to "/" instead of where they were going.
     error_page 401 = @sign_in;
     location @sign_in {
-        return 302 /oauth2/start?rd=$scheme://$host$request_uri;
+        return 302 /oauth2/start?rd=$request_uri;
+    }
+    # A form post that met a dead session cannot be replayed after sign-in.
+    # Land on the dashboard with a note saying so rather than on a GET of
+    # the webhook, which n8n would 404.
+    location @sign_in_again {
+        return 302 /oauth2/start?rd=%2F%3Fresend%3D1;
     }
 
     # The watchdog is a machine and cannot sign in with Microsoft. Its own
@@ -129,9 +186,7 @@ server {
     # The bare host is the dashboard itself.
     location = / {
 {% if oauth2_proxy_enabled | default(false) %}
-        auth_request /oauth2/auth;
-{% endif %}
-{% if oauth2_proxy_enabled | default(false) %}
+        include /etc/nginx/snippets/dashboard-auth.conf;
         # n8n's own basic auth stays on, satisfied invisibly. Kept because the
         # webhook is also reachable at n8n.itsurgery.me, which this host's
         # sign-in does not guard.
@@ -145,9 +200,7 @@ server {
     # least want to remember a /webhook/ prefix. Same workflow either way.
     location = /monitoring {
 {% if oauth2_proxy_enabled | default(false) %}
-        auth_request /oauth2/auth;
-{% endif %}
-{% if oauth2_proxy_enabled | default(false) %}
+        include /etc/nginx/snippets/dashboard-auth.conf;
         # n8n's own basic auth stays on, satisfied invisibly. Kept because the
         # webhook is also reachable at n8n.itsurgery.me, which this host's
         # sign-in does not guard.
@@ -170,7 +223,14 @@ server {
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header X-Robots-Tag "noindex, nofollow" always;
 {% if oauth2_proxy_enabled | default(false) %}
-        auth_request /oauth2/auth;
+        # add_header here also stops inheritance of the server-level cookie
+        # lines, so they are repeated.
+        add_header Set-Cookie $auth_cookie_p always;
+        add_header Set-Cookie $auth_cookie_0 always;
+        add_header Set-Cookie $auth_cookie_1 always;
+        add_header Set-Cookie $auth_cookie_2 always;
+        add_header Set-Cookie $auth_cookie_3 always;
+        include /etc/nginx/snippets/dashboard-auth.conf;
         # No credential injection here, by decision. miniserv refuses HTTP
         # basic auth in session mode — deliberate upstream hardening — and the
         # workaround (session=0) would collapse two independent credentials
@@ -204,7 +264,12 @@ server {
     # as variables.
     location = /webmin-frame {
 {% if oauth2_proxy_enabled | default(false) %}
-        auth_request /oauth2/auth;
+        include /etc/nginx/snippets/dashboard-auth.conf;
+        add_header Set-Cookie $auth_cookie_p always;
+        add_header Set-Cookie $auth_cookie_0 always;
+        add_header Set-Cookie $auth_cookie_1 always;
+        add_header Set-Cookie $auth_cookie_2 always;
+        add_header Set-Cookie $auth_cookie_3 always;
 {% endif %}
         default_type text/html;
         add_header Cache-Control "no-store" always;
@@ -225,7 +290,7 @@ server {
     # The rendered guide, behind the same sign-in as everything else.
     location = /guide {
 {% if oauth2_proxy_enabled | default(false) %}
-        auth_request /oauth2/auth;
+        include /etc/nginx/snippets/dashboard-auth.conf;
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
 {% endif %}
         proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/guide;
@@ -236,7 +301,7 @@ server {
     # exist yet.
     location = /backup {
 {% if oauth2_proxy_enabled | default(false) %}
-        auth_request /oauth2/auth;
+        include /etc/nginx/snippets/dashboard-auth.conf;
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
 {% endif %}
         proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/backup;
@@ -248,9 +313,8 @@ server {
     # would 404 without this.
     location /webhook/ {
 {% if oauth2_proxy_enabled | default(false) %}
-        auth_request /oauth2/auth;
-{% endif %}
-{% if oauth2_proxy_enabled | default(false) %}
+        include /etc/nginx/snippets/dashboard-auth.conf;
+        error_page 401 = @sign_in_again;
         # n8n's own basic auth stays on, satisfied invisibly. Kept because the
         # webhook is also reachable at n8n.itsurgery.me, which this host's
         # sign-in does not guard.

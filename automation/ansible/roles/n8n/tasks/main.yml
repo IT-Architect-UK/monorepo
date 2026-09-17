@@ -195,6 +195,16 @@
   when: n8n_dashboard_domain | default('', true) | length > 0
   notify: Reload nginx
 
+- name: Install the sign-in gate snippet
+  ansible.builtin.template:
+    src: dashboard-auth.conf.j2
+    dest: /etc/nginx/snippets/dashboard-auth.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: n8n_dashboard_domain | default('', true) | length > 0
+  notify: Reload nginx
+
 - name: Check whether the dashboard certificate exists
   ansible.builtin.stat:
     path: "/etc/letsencrypt/live/{{ n8n_dashboard_domain }}/fullchain.pem"
