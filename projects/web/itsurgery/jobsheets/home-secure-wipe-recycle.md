@@ -14,14 +14,6 @@ What the site promises for this service (Data Recovery page):
 - Honest assessment of the likely outcome
 - Backups set up so it does not happen again
 
-## before
-
-- [ ] Confirm full address, phone number, arrival time. Ask who will be there.
-- [ ] Ask what they have already tried, and what "fixed" looks like to them.
-- [ ] Ask them to have the passwords they will need to hand (account, Wi-Fi, any admin login).
-- [ ] Send the confirmation: date, time, price, "no fix, no fee".
-  > If they want to book online, send itsurgery.me/book (the £5 comes off).
-
 ## kit
 
 - [ ] USB toolkit stick, USB-C adapter, phone hotspot, power bank.

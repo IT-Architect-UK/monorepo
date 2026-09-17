@@ -34,11 +34,6 @@ A paragraph. **Bold** is the only inline markup.
 
 1. **Ranked cause.** Explanation.
 
-## before
-
-- [ ] A checklist step.
-  > An optional note under the step, in grey.
-
 ## kit
 
 - [ ] What to take.
@@ -50,6 +45,10 @@ A paragraph. **Bold** is the only inline markup.
 ### A. Triage  (10 min)   Arrived: ________
 
 - [ ] Steps, ticked on site.
+
+#### C1. A bold sub-heading inside a lettered group
+
+- [ ] Its own tick-box table.
 
 ## record
 
@@ -71,14 +70,16 @@ A paragraph. **Bold** is the only inline markup.
 
 Rules:
 
-- Sections are `likely`, `before`, `kit`, `steps`, `record`, `appendix`,
-  `handover`, in that order. Any may be left out except `steps`, which
-  needs at least one `- [ ]` line. `steps` and `appendix` start a new page.
+- Sections are `likely`, `kit`, `steps`, `record`, `appendix`, `handover`,
+  in that order. Any may be left out except `steps`, which needs at least
+  one `- [ ]` line. `appendix` starts a new page. There is no phone-call
+  section: the call before the visit is not part of the sheet.
 - `- [ ]` lines that follow each other become one tick-box table. A line
   indented and starting `>` belongs to the step above it.
 - In `record`, `- Key: value` is one row of the record table.
 - `### ` inside `steps` is a lettered group heading; inside `appendix` it
-  is the appendix title.
+  is the appendix title. `#### ` inside `steps` is a bold sub-heading
+  within a group (C1, C2...), each with its own tick-box table.
 - Prices belong in the header, which the build takes from the catalogue.
   Do not write a price into the body: it goes stale. "No fix, no fee" is
   fine; "Since 2008" is not.

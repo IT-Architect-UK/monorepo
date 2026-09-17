@@ -40,20 +40,22 @@ const W = 9638; // A4 text width at 2 cm margins, in DXA
 
 const SECTIONS = {
   likely: 'What to expect',
-  before: 'Before you go (phone call)',
   kit: 'Kit to take',
   steps: 'On site',
   record: 'Record',
   appendix: 'Appendix',
   handover: 'What to tell the customer (plain English)',
 };
-const ORDER = ['likely', 'before', 'kit', 'steps', 'record', 'appendix', 'handover'];
-const PAGE_BREAK_BEFORE = new Set(['steps', 'appendix']);
+const ORDER = ['likely', 'kit', 'steps', 'record', 'appendix', 'handover'];
+// Only the appendix forces a new page; a break before "On site" left page 2
+// nearly empty (Darren, 2026-09-16).
+const PAGE_BREAK_BEFORE = new Set(['appendix']);
 
 // --- template parsing --------------------------------------------------------
 // Front matter, then `## section` headings, each holding a flat list of
-// blocks: paragraph, note, h2, bullet, numbered, check (with optional note),
-// kv (record rows) and table. Inline **bold** is the only inline markup.
+// blocks: paragraph, note, h2, sub (a bold sub-heading inside a lettered
+// group), bullet, numbered, check (with optional note), kv (record rows) and
+// table. Inline **bold** is the only inline markup.
 
 function parseFrontMatter(text) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
@@ -76,6 +78,7 @@ function parseSections(body) {
     let m;
     if ((m = line.match(/^## +([a-z]+)\s*(?::\s*(.*))?$/i))) {
       current = m[1].toLowerCase();
+      if (current === 'before') throw new Error(`"before" was dropped on 2026-09-16: the phone call is not part of the sheet (line ${i + 1})`);
       if (!SECTIONS[current]) throw new Error(`unknown section "${m[1]}" (line ${i + 1})`);
       sections[current] = [];
       if (m[2]) titles[current] = m[2].trim();
@@ -87,6 +90,7 @@ function parseSections(body) {
     }
     const blocks = sections[current];
     if (!line.trim()) continue;
+    if ((m = line.match(/^#### +(.*)$/))) { blocks.push({ type: 'sub', text: m[1].trim() }); continue; }
     if ((m = line.match(/^### +(.*)$/))) { blocks.push({ type: 'h2', text: m[1].trim() }); continue; }
     if ((m = line.match(/^- \[ \] +(.*)$/))) { blocks.push({ type: 'check', text: m[1].trim(), note: null }); continue; }
     if ((m = line.match(/^\s+> +(.*)$/))) {
@@ -155,6 +159,7 @@ function inline(text, base = {}) {
 const para = (text, opts = {}) => new Paragraph({ spacing: { after: 80 }, children: inline(text, opts) });
 const h1 = (text) => new Paragraph({ heading: HeadingLevel.HEADING_1, spacing: { before: 240, after: 100 }, children: [new TextRun({ text, font: HEAD, size: 26, bold: true, color: INK })] });
 const h2 = (text) => new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 180, after: 60 }, children: [new TextRun({ text, font: HEAD, size: 21, bold: true, color: RED })] });
+const sub = (text) => new Paragraph({ spacing: { before: 80, after: 40 }, children: inline(text, { bold: true }) });
 const note = (text) => new Paragraph({ spacing: { after: 80 }, children: inline(text, { italics: true, color: QUIET }) });
 const bullet = (text) => new Paragraph({ numbering: { reference: 'bullets', level: 0 }, spacing: { after: 40 }, children: inline(text) });
 const pageBreak = () => new Paragraph({ children: [new PageBreak()] });
@@ -225,6 +230,7 @@ function renderBlocks(blocks) {
     switch (b.type) {
       case 'check': pending.push(b); break;
       case 'h2': out.push(h2(b.text)); break;
+      case 'sub': out.push(sub(b.text)); break;
       case 'h1': out.push(h1(b.text)); break;
       case 'note': out.push(note(b.text)); break;
       case 'paragraph': out.push(para(b.text)); break;

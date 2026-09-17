@@ -15,14 +15,6 @@ What the site promises for this service (AI Help & Training page):
 - Staying safe: what not to share, and how to spot AI-generated scams, fake voices and images
 - Honest advice on whether a paid subscription is worth it for you, or whether the free version is plenty
 
-## before
-
-- [ ] Confirm full address, phone number, arrival time. Ask who will be there.
-- [ ] Ask what they have already tried, and what "fixed" looks like to them.
-- [ ] Ask them to have the passwords they will need to hand (account, Wi-Fi, any admin login).
-- [ ] Send the confirmation: date, time, price, "no fix, no fee".
-  > If they want to book online, send itsurgery.me/book (the £5 comes off).
-
 ## kit
 
 - [ ] USB toolkit stick, USB-C adapter, phone hotspot, power bank.

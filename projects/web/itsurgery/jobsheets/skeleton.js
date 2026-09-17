@@ -38,14 +38,6 @@ status: skeleton
 
 ${likely.join('\n')}
 
-## before
-
-- [ ] Confirm ${remote ? 'the time, and which device and remote tool they will use' : 'full address, phone number, arrival time. Ask who will be there'}.
-- [ ] Ask what they have already tried, and what "fixed" looks like to them.
-- [ ] Ask them to have the passwords they will need to hand${remote ? '' : ' (account, Wi-Fi, any admin login)'}.
-- [ ] Send the confirmation: date, time, price, "no fix, no fee".
-  > If they want to book online, send itsurgery.me/book (the £${catalogue.bookingFeeGbp} comes off).
-
 ## kit
 
 - [ ] ${remote ? 'Remote help link (help.itsurgery.me) tested, headset, second screen.' : 'USB toolkit stick, USB-C adapter, phone hotspot, power bank.'}

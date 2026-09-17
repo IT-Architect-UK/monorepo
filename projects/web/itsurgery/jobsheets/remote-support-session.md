@@ -8,14 +8,6 @@ status: skeleton
 
 (What this visit usually turns out to be, ranked. Not written yet.)
 
-## before
-
-- [ ] Confirm the time, and which device and remote tool they will use.
-- [ ] Ask what they have already tried, and what "fixed" looks like to them.
-- [ ] Ask them to have the passwords they will need to hand.
-- [ ] Send the confirmation: date, time, price, "no fix, no fee".
-  > If they want to book online, send itsurgery.me/book (the £5 comes off).
-
 ## kit
 
 - [ ] Remote help link (help.itsurgery.me) tested, headset, second screen.
