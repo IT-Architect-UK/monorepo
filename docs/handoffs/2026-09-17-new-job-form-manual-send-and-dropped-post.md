@@ -1,6 +1,6 @@
 # New job form: "I'll send it myself" option, and the first POST is being dropped
 
-Status: code done; nginx change needs the n8n playbook run on the VPS, then a live test
+Status: deployed (playbook run by Darren 2026-09-17, changed=4); live checks in 2026-09-17-verify-signin-fix-and-manual-send.md
 Owner: Claude Code
 Asked for by Darren 2026-09-17 (first real invoice, JS-2026-001).
 
@@ -163,3 +163,9 @@ is served without a sign-in. It holds only the tab bar; the `/webmin/`
 inside it is gated. Worth a one-line fix (serve it from a file instead of
 `return`) in a later handoff.
 
+**Deployed, 2026-09-17.** Darren ran `deploy-n8n.yml` on the VPS
+(`ok=35 changed=4 failed=0`). From outside, without a session:
+`GET /monitoring` -> 302 `/oauth2/start?rd=/monitoring`, `POST
+/webhook/custom-job` -> 302 `rd=/?resend=1`, `GET /` -> `rd=/`. The
+signed-in checks are handed to Cowork in
+`2026-09-17-verify-signin-fix-and-manual-send.md`.
