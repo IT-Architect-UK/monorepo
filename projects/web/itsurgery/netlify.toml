@@ -75,3 +75,12 @@
 # force = true, which shadowed the page completely — Netlify applies forced
 # redirects ahead of static files, so the page was built and deployed but
 # never served. If a redirect is ever reinstated, it must not cover /book.
+
+# itsurgery.me/review: the Google review form behind a link a customer can
+# be told out loud. The g.page URL it points at is the one Google issues
+# for the Business Profile and is not ours to shorten. Nothing here touches
+# /book (see above).
+[[redirects]]
+  from = "/review"
+  to = "https://g.page/r/CbTS5cA_a6nhEBM/review"
+  status = 302

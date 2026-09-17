@@ -53,7 +53,7 @@
       "parameters": {
         "toRecipients": "={{ $json.emailAddress }}",
         "subject": "Thanks from IT Surgery",
-        "bodyContent": "=<p>Hello {{ $json.firstName || 'there' }},</p><p>Thanks for letting me help with your computer — I hope everything is still running as it should.</p><p>If you have a minute, a short review would genuinely help. I am a one-man business in Penarth and a few honest words from a local customer make more difference than any advertising I could buy.</p><p><a href=\"https://g.page/r/CbTS5cA_a6nhEBM/review\">Leave a review on Google</a></p><p>And if anything is not right, please reply to this email instead and I will sort it out.</p><p>Thanks again,<br>Darren<br>IT Surgery</p>",
+        "bodyContent": "=<p>Hello {{ $json.firstName || 'there' }},</p><p>Thanks for letting me help with your computer — I hope everything is still running as it should.</p><p>If you have a minute, a short review would genuinely help. I am a one-man business in Penarth and a few honest words from a local customer make more difference than any advertising I could buy.</p><p><a href=\"https://itsurgery.me/review\">Leave a review on Google</a></p><p>And if anything is not right, please reply to this email instead and I will sort it out.</p><p>Thanks again,<br>Darren<br>IT Surgery</p>",
         "additionalFields": { "bodyContentType": "html" }
       },
       "type": "n8n-nodes-base.microsoftOutlook",
