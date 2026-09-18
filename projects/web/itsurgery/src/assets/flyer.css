@@ -8,6 +8,9 @@
    drift between the two.
    --------------------------------------------------------------------------- */
 
+/* Kept at 11/9 top and bottom: many home printers cannot print closer than
+   about 9mm to the bottom edge, so the small print would be clipped. Each
+   side is made to fit inside that instead — see .cat and .cats below. */
 @page { size: A4; margin: 11mm 12mm 9mm; }
 
 :root {
@@ -24,7 +27,11 @@
   --rule: #e4d6d6;
   --wash: #faf4f4;
   --head: "Poppins", system-ui, sans-serif;
-  --text: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Poppins for the body too, not just the headings (2026-09-18, after the
+     same change on the A5 leaflet): the system font beside Poppins read as
+     harder and narrower. fonts.css carries 400 and a real italic, so nothing
+     is synthesised. Poppins sets wider, hence the body size below. */
+  --text: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -123,16 +130,21 @@ body {
   color: var(--ink);
   margin: 0 0 1mm;
 }
-.services-note { font-size: 8.5pt; color: var(--muted); margin: 0 0 3mm; }
+.services-note { font-size: 8.5pt; color: var(--muted); margin: 0 0 2mm; }
 
 /* Newspaper column flow, not a two-up grid. With rows, every pair is as tall
    as its taller half and the ragged gaps cost most of a page; columns let the
    categories flow and pack. break-inside keeps a category whole. */
 .cats { columns: 2; column-gap: 8mm; }
+/* 1.6mm between categories rather than 2.2mm, and the tighter line below:
+   both sides ran ~6mm over the printable height and stranded the small print
+   on a page of its own, so the leaflet printed as four sheets instead of two
+   (2026-09-18; it predates the Poppins change). Ten categories a side make
+   this the cheapest place to find the millimetres. */
 .cat {
   break-inside: avoid;
   page-break-inside: avoid;
-  margin: 0 0 2.2mm;
+  margin: 0 0 1.6mm;
 }
 .cat h3 .pill { vertical-align: 0.4mm; margin-left: 1mm; }
 .cat h3 {
@@ -147,7 +159,7 @@ body {
 .cat ul { list-style: none; margin: 0; padding: 0; }
 /* Duration first, in a fixed-width rail, so the times line up down the column
    and the eye can scan "how long will this take" without reading each line. */
-.cat li { margin: 0 0 0.7mm; line-height: 1.28; padding-left: 12.5mm; text-indent: -12.5mm; }
+.cat li { margin: 0 0 0.5mm; line-height: 1.25; padding-left: 12.5mm; text-indent: -12.5mm; }
 .cat .t {
   display: inline-block;
   width: 12.5mm;
@@ -213,7 +225,7 @@ body {
   font-size: 7.5pt;
   color: var(--muted);
   line-height: 1.35;
-  margin: 2.5mm 0 0;
+  margin: 1.5mm 0 0;
   text-align: center;
 }
 
