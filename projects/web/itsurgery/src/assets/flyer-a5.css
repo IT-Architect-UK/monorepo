@@ -14,7 +14,11 @@
   --red:#990000; --red-deep:#7a0000; --ink:#1d2024; --body:#333333;
   --rule:#e4d6d6; --wash:#faf4f4;
   --head:"Poppins", system-ui, sans-serif;
-  --text: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Poppins throughout, headings and body alike (2026-09-18). The lists and
+     the italic notes used to fall to the system font, which next to Poppins
+     looked harder and narrower. fonts.css carries a real italic, so the notes
+     are not a synthesised slant. */
+  --text: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:var(--text);color:var(--body);-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -59,10 +63,10 @@ body{margin:0;font-family:var(--text);color:var(--body);-webkit-print-color-adju
 .col .box{border:.3mm solid var(--rule);border-top:0;border-radius:0 0 1.5mm 1.5mm;
   padding:3mm 3mm 3.5mm;flex:1;display:flex;flex-direction:column}
 .col ul{margin:0;padding:0;list-style:none}
-.col li{font-size:10pt;line-height:1.55;padding-left:4.5mm;position:relative}
+.col li{font-size:9.5pt;line-height:1.5;padding-left:4.5mm;position:relative}
 .col li::before{content:"";position:absolute;left:0;top:1.9mm;width:1.8mm;height:1.8mm;
   border-radius:50%;background:var(--red)}
-.col p.more{margin:3mm 0 0;padding-top:2mm;border-top:.3mm solid var(--rule);font-size:8.5pt;color:var(--red-deep);font-style:italic;line-height:1.35}
+.col p.more{margin:3mm 0 0;padding-top:2mm;border-top:.3mm solid var(--rule);font-size:8pt;color:var(--red-deep);font-style:italic;line-height:1.4}
 .col p.more{margin-top:auto;min-height:15mm}
 
 /* footer - the business card's details block: labels left, red vertical
