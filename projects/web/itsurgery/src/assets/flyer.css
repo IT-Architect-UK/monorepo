@@ -136,6 +136,13 @@ body {
    as its taller half and the ragged gaps cost most of a page; columns let the
    categories flow and pack. break-inside keeps a category whole. */
 .cats { columns: 2; column-gap: 8mm; }
+/* Once the balancing script has run (see flyer.njk) the categories sit in two
+   explicit columns chosen to make the two sides level. The multi-column rule
+   above is the fallback for a browser with JavaScript off: it fills the first
+   column before the second, which on the business side left the right-hand
+   column 27mm short (Darren, 2026-09-19). */
+.cats.balanced { columns: auto; display: flex; gap: 8mm; align-items: flex-start; }
+.cats.balanced > .cats-col { flex: 1 1 0; min-width: 0; }
 /* 1.6mm between categories rather than 2.2mm, and the tighter line below:
    both sides ran ~6mm over the printable height and stranded the small print
    on a page of its own, so the leaflet printed as four sheets instead of two

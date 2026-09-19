@@ -121,4 +121,58 @@ eleventyExcludeFromCollections: true
     {{ site.legalName }} · Company {{ site.companyNumber }}
   </p>
 
+{# ------------------------------------------------------------------------
+   Level columns. Each side lists its categories in two columns; CSS
+   multi-column fills the first before the second, so with whole categories
+   (break-inside: avoid) the business side ended 27mm short on the right.
+   This measures each category and picks the split that makes the two
+   columns as close in height as possible, keeping the lead category first
+   on the left and each column in its original order. No script, no change:
+   the multi-column fallback still renders. Runs before print, so the
+   print preview shows the balanced layout.
+   ------------------------------------------------------------------------ #}
+<script>
+(() => {
+  const best = (h, gap) => {
+    // h[0] is pinned to the left column; every other category may go either
+    // side. Nine categories means 256 arrangements, so try them all rather
+    // than approximate.
+    const n = h.length, height = (ix) => ix.reduce((t, i) => t + h[i], 0) + gap * Math.max(ix.length - 1, 0);
+    let pick = null;
+    for (let mask = 0; mask < (1 << (n - 1)); mask++) {
+      const left = [0], right = [];
+      for (let i = 1; i < n; i++) ((mask >> (i - 1)) & 1 ? right : left).push(i);
+      if (!right.length) continue;
+      const a = height(left), b = height(right);
+      const score = [Math.abs(a - b), Math.max(a, b)];
+      if (!pick || score[0] < pick.score[0] || (score[0] === pick.score[0] && score[1] < pick.score[1])) {
+        pick = { left, right, score };
+      }
+    }
+    return pick;
+  };
+  document.querySelectorAll('.cats').forEach((cats) => {
+    const cells = [...cats.children];
+    if (cells.length < 3) return;
+    const gap = 1.6 * 96 / 25.4;                       // .cat margin-bottom
+    // Measure at the width each category will actually have. Measured across
+    // the full sheet instead, the long labels do not wrap and every height is
+    // wrong, which is how the first attempt at this made the columns worse.
+    cats.style.columns = '1';
+    cats.style.width = 'calc((100% - 8mm) / 2)';
+    const h = cells.map((c) => c.getBoundingClientRect().height);
+    cats.style.columns = '';
+    cats.style.width = '';
+    const pick = best(h, gap);
+    if (!pick) return;
+    const col = () => { const d = document.createElement('div'); d.className = 'cats-col'; return d; };
+    const l = col(), r = col();
+    pick.left.forEach((i) => l.appendChild(cells[i]));
+    pick.right.forEach((i) => r.appendChild(cells[i]));
+    cats.append(l, r);
+    cats.classList.add('balanced');
+  });
+})();
+</script>
+
 </div>
