@@ -168,7 +168,10 @@ body {
 .cat ul { list-style: none; margin: 0; padding: 0; }
 /* Duration first, in a fixed-width rail, so the times line up down the column
    and the eye can scan "how long will this take" without reading each line. */
-.cat li { margin: 0 0 0.5mm; line-height: 1.25; padding-left: 12.5mm; text-indent: -12.5mm; }
+/* text-wrap: pretty keeps a single word off a line of its own: "…tested by
+   actually restoring it" left "it" stranded (Darren, 2026-09-20). Browsers
+   without it simply wrap as before. */
+.cat li { margin: 0 0 0.5mm; line-height: 1.25; padding-left: 12.5mm; text-indent: -12.5mm; text-wrap: pretty; }
 .cat .t {
   display: inline-block;
   width: 12.5mm;
@@ -182,7 +185,7 @@ body {
 }
 .cat .l { text-indent: 0; }
 .cat .addon { color: var(--muted); font-size: 8pt; }
-.cat-blurb { margin: 0 0 1.2mm; color: var(--body); }
+.cat-blurb { margin: 0 0 1.2mm; color: var(--body); text-wrap: pretty; }
 /* The one price the leaflet carries. Everything else sends people to the site,
    so this needs to read as deliberate rather than as a stray figure. */
 .cat .pill {
