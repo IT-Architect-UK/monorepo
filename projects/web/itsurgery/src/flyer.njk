@@ -133,11 +133,16 @@ eleventyExcludeFromCollections: true
    ------------------------------------------------------------------------ #}
 <script>
 (() => {
-  const best = (h, gap) => {
+  // 89mm: the width of one column on the printed page (A4 210mm, less the
+  // 12mm page margins each side, less the 8mm gutter, halved). An absolute
+  // unit, so the measurement is the same whatever the window is doing and
+  // whether the page is on screen or at the printer.
+  const COL = '89mm', GAP = 1.6 * 96 / 25.4;          // GAP: .cat margin-bottom
+  const best = (h) => {
     // h[0] is pinned to the left column; every other category may go either
     // side. Nine categories means 256 arrangements, so try them all rather
     // than approximate.
-    const n = h.length, height = (ix) => ix.reduce((t, i) => t + h[i], 0) + gap * Math.max(ix.length - 1, 0);
+    const n = h.length, height = (ix) => ix.reduce((t, i) => t + h[i], 0) + GAP * Math.max(ix.length - 1, 0);
     let pick = null;
     for (let mask = 0; mask < (1 << (n - 1)); mask++) {
       const left = [0], right = [];
@@ -151,27 +156,29 @@ eleventyExcludeFromCollections: true
     }
     return pick;
   };
-  document.querySelectorAll('.cats').forEach((cats) => {
-    const cells = [...cats.children];
+  const balance = () => document.querySelectorAll('.cats').forEach((cats) => {
+    const cells = [...cats.children].filter((c) => c.classList.contains('cat'));
     if (cells.length < 3) return;
-    const gap = 1.6 * 96 / 25.4;                       // .cat margin-bottom
-    // Measure at the width each category will actually have. Measured across
-    // the full sheet instead, the long labels do not wrap and every height is
-    // wrong, which is how the first attempt at this made the columns worse.
-    cats.style.columns = '1';
-    cats.style.width = 'calc((100% - 8mm) / 2)';
-    const h = cells.map((c) => c.getBoundingClientRect().height);
-    cats.style.columns = '';
-    cats.style.width = '';
-    const pick = best(h, gap);
-    if (!pick) return;
+    // Measure each category at the width it will occupy in print. Measured at
+    // any other width the long labels wrap differently and every height is
+    // wrong, which is how the first two attempts at this made the columns
+    // worse rather than better.
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;top:0;width:' + COL;
+    cats.parentNode.appendChild(probe);
+    const h = cells.map((c) => { probe.appendChild(c); const v = c.getBoundingClientRect().height; return v; });
+    const pick = best(h);
+    probe.remove();
     const col = () => { const d = document.createElement('div'); d.className = 'cats-col'; return d; };
     const l = col(), r = col();
-    pick.left.forEach((i) => l.appendChild(cells[i]));
-    pick.right.forEach((i) => r.appendChild(cells[i]));
+    (pick ? pick.left : cells.map((_, i) => i)).forEach((i) => l.appendChild(cells[i]));
+    (pick ? pick.right : []).forEach((i) => r.appendChild(cells[i]));
     cats.append(l, r);
     cats.classList.add('balanced');
   });
+  // Poppins arrives after the HTML. Measured before it lands, the heights are
+  // the fallback font's and the split is wrong on the page that matters.
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(balance);
 })();
 </script>
 

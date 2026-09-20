@@ -143,6 +143,8 @@ body {
    column 27mm short (Darren, 2026-09-19). */
 .cats.balanced { columns: auto; display: flex; gap: 8mm; align-items: flex-start; }
 .cats.balanced > .cats-col { flex: 1 1 0; min-width: 0; }
+/* On a phone the sheet is one column wide, so the two halves stack. */
+@media screen and (max-width: 800px) { .cats.balanced { display: block; } }
 /* 1.6mm between categories rather than 2.2mm, and the tighter line below:
    both sides ran ~6mm over the printable height and stranded the small print
    on a page of its own, so the leaflet printed as four sheets instead of two
