@@ -1,6 +1,6 @@
 # Monitoring page: Containers card overflows, and find out why every container keeps restarting
 
-Status: done (code); restart cause needs commands run on the VPS
+Status: done - restart cause explained from the monitoring page 2026-09-29, no VPS commands needed
 Owner: Claude Code
 
 ## Context
@@ -98,3 +98,16 @@ vitals script already reports `uptimeSeconds`, so no Ansible change.
    and paste the output here. Deployed by the push of this commit
    (`deploy-n8n.yml`); the live page check is Cowork's.
 
+### Cowork, 2026-09-29 - restart cause (no VPS commands needed)
+
+From dashboard.itsurgery.me/monitoring at 2026-09-29 15:01 UTC, using the
+host uptime this handoff added:
+
+| container(s) | up | cause |
+|---|---|---|
+| n8n, n8n-postgres, espocrm, espocrm-daemon, espocrm-db | 2 wk | host reboot: host up 14 d 17 h -> booted ~2026-09-14 22:00 UTC, the moment Darren saw all 7 at "Up Less than a second" |
+| oauth2-proxy | 2 h | Darren's `deploy-auth.yml` run that afternoon |
+| meshcentral | 12 h | by design - `roles/meshcentral/templates/meshcentral-backup.sh.j2` stops the container nightly for a consistent archive, restarts on exit |
+
+Nothing is restarting unexpectedly. Page also shows "1 pending, 1
+security, reboot needed" - Darren's to apply at a quiet time.
