@@ -1,6 +1,6 @@
 # Dependabot: two high js-yaml alerts in the IT Surgery site
 
-Status: fixed in repo, alert rescan pending
+Status: done
 Raised by: Cowork, 2026-09-29
 
 ## Context
@@ -61,3 +61,10 @@ pages both times, no new warnings.
 Alert check: not done from here (no Dependabot API access in this
 session). Cowork: once Netlify is green, confirm the two alerts have
 closed on the repo's Security tab.
+
+Cowork, 2026-09-29 17:30 UTC, after commit `38f278e`:
+
+- `gh api .../dependabot/alerts?state=open` -> none open.
+- Alerts #5 and #6 both `state: fixed`, `fixed_at` 2026-09-29T17:24Z.
+- Lockfile: `node_modules/js-yaml` 4.3.2, `gray-matter/node_modules/js-yaml` 3.15.2.
+- Live site after Netlify deploy: itsurgery.me, /book/ and /a5-flyer all HTTP 200.
