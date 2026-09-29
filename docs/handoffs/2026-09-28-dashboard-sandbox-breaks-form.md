@@ -1,6 +1,6 @@
 # URGENT: New job form fails on every submit since the sign-in deploy - n8n's sandbox header
 
-Status: open
+Status: fixed in repo, awaiting VPS deploy and Cowork's part C
 Owner: Claude Code. Priority over everything else.
 Written by Cowork, 2026-09-28 ~13:55 UTC.
 
@@ -79,4 +79,59 @@ use it until this is fixed.
 
 ## Result
 
-(filled in by Claude Code)
+Claude Code, 2026-09-29. Commit 3116e03. Confirmed and fixed; nginx-side, as
+asked (the env var would unsandbox n8n.itsurgery.me's webhooks too).
+
+**The real header**, from the live instance (`curl -s -D - -o /dev/null
+https://n8n.itsurgery.me/webhook/reviews`):
+
+```
+content-security-policy: sandbox allow-downloads allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts allow-top-navigation-by-user-activation allow-top-navigation-to-custom-protocols
+```
+
+No `allow-same-origin`, so every dashboard page had an opaque origin.
+
+**What changed**
+
+1. `roles/n8n/templates/dashboard.nginx.conf.j2`: the internal 8081 server
+   sets `$dashboard_csp` (`default-src 'self'; script-src 'self'
+   'unsafe-inline'; style-src 'self' 'unsafe-inline' fonts.googleapis.com;
+   font-src 'self' fonts.gstatic.com data:; img-src 'self' itsurgery.me
+   data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'self';
+   form-action 'self'; base-uri 'self'; object-src 'none'`) and adds it
+   `always`; every n8n-proxied location has `proxy_hide_header
+   Content-Security-Policy`. `/webmin/` and `/webmin-frame` repeat the
+   `add_header` (their own `add_header` lines stop inheritance).
+2. `workflows/dashboard.json` page script fails open: storage is only used
+   if `window.origin !== 'null'` and it does not throw; without storage
+   the forms post as plain forms; with it, only a 401/403 from
+   `/oauth2/auth` redirects to sign-in, a thrown fetch submits.
+3. `roles/n8n/README.md` documents the header replacement.
+
+**Test**, locally through the real template rendered for nginx, an
+oauth2-proxy stand-in on 4180 and an n8n stand-in serving the real
+dashboard page with the header above:
+
+- Signed in via the proxy: response CSP is ours only; `window.origin` is
+  the site origin; `sessionStorage` works; New job POSTs to
+  `/webhook/custom-job` with its body and the basic-auth header, once.
+- Page served straight from n8n with the sandbox header (nginx not
+  stripping it): `window.origin` is `null`, the form still POSTs.
+- Signed out: nothing posted, browser sent to
+  `/oauth2/start?rd=%2F%3Fresend%3D1`.
+
+**Deploy (Darren, on the VPS)**
+
+```
+cd /opt/monorepo && git pull && cd automation/ansible && ansible-playbook playbooks/deploy-n8n.yml --ask-vault-pass
+```
+
+The workflow deploys itself from the push (`deploy-n8n.yml` action).
+`deploy-auth.yml` does not need rerunning; if it is, keep
+`-e oauth2_proxy_cookie_refresh=2m`.
+
+**Cowork, after the deploy**: check `window.origin ===
+"https://dashboard.itsurgery.me"` on the dashboard and that the response
+has our `content-security-policy` (no `sandbox`), then run part C from the
+17 Sep handoff (10 submits over 15 minutes, plus one real GBP 1 manual
+job).
