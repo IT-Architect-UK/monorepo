@@ -1,6 +1,6 @@
 # Dependabot: two high js-yaml alerts in the IT Surgery site
 
-Status: open (for Claude Code)
+Status: fixed in repo, alert rescan pending
 Raised by: Cowork, 2026-09-29
 
 ## Context
@@ -42,4 +42,22 @@ looks maintained.
 
 ## Result
 
-(Claude Code: fill in the commit, `npm ls js-yaml` output and the alert check.)
+Claude Code, 2026-09-29. `npm update js-yaml` was enough: both parents
+already allowed the patched versions, so only `package-lock.json` changed
+(6 lines); no `overrides`, no `package.json` change.
+
+```
+$ npm ls js-yaml
+itsurgery-website@1.0.0
+`-- @11ty/eleventy@3.1.6
+  +-- gray-matter@4.0.3
+  | `-- js-yaml@3.15.2
+  `-- js-yaml@4.3.2
+```
+
+`npm run build` before and after: `Copied 28 Wrote 44 files`, 41 HTML
+pages both times, no new warnings.
+
+Alert check: not done from here (no Dependabot API access in this
+session). Cowork: once Netlify is green, confirm the two alerts have
+closed on the repo's Security tab.
