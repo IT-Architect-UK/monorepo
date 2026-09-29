@@ -1,6 +1,6 @@
 # URGENT: New job form fails on every submit since the sign-in deploy - n8n's sandbox header
 
-Status: fixed in repo, awaiting VPS deploy and Cowork's part C
+Status: done - verified live 2026-09-29; Darren to void INV-0101, delete the test Contact, and rerun deploy-auth.yml without the 2m flag
 Owner: Claude Code. Priority over everything else.
 Written by Cowork, 2026-09-28 ~13:55 UTC.
 
@@ -135,3 +135,51 @@ The workflow deploys itself from the push (`deploy-n8n.yml` action).
 has our `content-security-policy` (no `sandbox`), then run part C from the
 17 Sep handoff (10 submits over 15 minutes, plus one real GBP 1 manual
 job).
+
+### Cowork, 2026-09-29 - verified live
+
+Deploy was already on the box when checked (Darren ran deploy-n8n.yml).
+Edge via Claude in Chrome, signed in, 2-minute cookie refresh still in
+force from the 28 Sep -e oauth2_proxy_cookie_refresh=2m run.
+
+**Checks**
+- window.origin = https://dashboard.itsurgery.me (was "null").
+- Response content-security-policy on /: default-src 'self';
+  script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'
+  https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com
+  data:; img-src 'self' https://itsurgery.me data:; connect-src 'self';
+  frame-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri
+  'self'; object-src 'none' - ours, no sandbox.
+
+**Part C (from 2026-09-17-signin-no-lost-posts.md)** - fresh load of /
+each time, customer x, email @b.co, work 	est, amount 1, send
+manual, submitted with orm.requestSubmit() so the page handler ran.
+Expected: the workflow's "Nothing was raised - the form needs a customer
+name".
+
+| # | sent (UTC) | landed on | result |
+|---|---|---|---|
+| 1 | 11:43:17 | /webhook/custom-job | Nothing was raised |
+| 2 | 11:44:49 | /webhook/custom-job | Nothing was raised |
+| 3 | 11:46:19 | /webhook/custom-job | Nothing was raised |
+| 4 | 11:47:49 | /webhook/custom-job | Nothing was raised |
+| 5 | 11:49:20 | /webhook/custom-job | Nothing was raised |
+| 6 | 11:50:50 | /webhook/custom-job | Nothing was raised |
+| 7 | 11:52:21 | /webhook/custom-job | Nothing was raised |
+| 8 | 11:53:52 | /webhook/custom-job | Nothing was raised |
+| 9 | 11:55:22 | /webhook/custom-job | Nothing was raised |
+| 10 | 11:56:52 | /webhook/custom-job | Nothing was raised |
+
+10 of 10 reached the workflow over 13.6 minutes; zero bounces to sign-in,
+zero lost submits.
+
+**Real job**, 11:57:13: customer Test Manual, Darren's own email, work
+Test - void me (sign-in fix proof), GBP 1, home, send manual -> "Invoice
+**INV-0101** raised ... not emailed - you are sending it", pay link shown.
+First attempt, no bounce.
+
+**Left for Darren**
+1. Void INV-0101 in Xero; delete the "Test Manual" Contact it created.
+2. Put the session refresh back to normal:
+   cd /opt/monorepo/automation/ansible && ansible-playbook playbooks/deploy-auth.yml --ask-vault-pass
+   (no -e).

@@ -1,6 +1,6 @@
 # Dashboard sign-in: a form submit must never be lost. Fix it properly.
 
-Status: built; needs deploy-auth.yml then deploy-n8n.yml on the VPS, then the 10-submit proof
+Status: done - part C passed 2026-09-29 after the sandbox fix; see 2026-09-28-dashboard-sandbox-breaks-form.md
 Owner: Claude Code
 Darren, 2026-09-17: "just get it fixed. I don't have time for this." He has
 hit the bounce on his first real invoice twice. Priority over everything
