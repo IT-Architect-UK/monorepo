@@ -93,6 +93,7 @@ server {
         auth_basic           "IT Surgery services";
         auth_basic_user_file /etc/nginx/.htpasswd-services;
         proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/monitoring?format=json;
+        proxy_hide_header Content-Security-Policy;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
 {% endif %}
@@ -177,6 +178,23 @@ server {
 
     add_header X-Frame-Options "DENY" always;
 
+    # n8n stamps every webhook response with
+    #   Content-Security-Policy: sandbox allow-forms allow-scripts ...
+    # and deliberately no allow-same-origin, so a page it serves gets an
+    # opaque origin: sessionStorage throws, and a fetch back to this host is
+    # cross-origin and unauthenticated. That broke the New job form outright
+    # on 2026-09-28. The dashboard is our own page on our own host, so its
+    # policy is set here and n8n's is dropped (proxy_hide_header below, in
+    # every location that proxies to n8n). The webhooks are still sandboxed
+    # when reached at n8n.itsurgery.me, which this server does not touch.
+    #
+    # 'unsafe-inline': the pages are built inside n8n Code nodes, so their
+    # styles and the one small script are inline and there is nowhere to
+    # hash them at build time. frame-ancestors 'self' keeps the Webmin tab
+    # working; form-action 'self' keeps the forms posting here.
+    set $dashboard_csp "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://itsurgery.me data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; object-src 'none'";
+    add_header Content-Security-Policy $dashboard_csp always;
+
     # The bare host is the dashboard itself.
     location = / {
         # n8n's own basic auth stays on, satisfied invisibly. Kept because the
@@ -184,6 +202,7 @@ server {
         # sign-in does not guard.
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
         proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/dashboard;
+        proxy_hide_header Content-Security-Policy;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
 
@@ -192,6 +211,7 @@ server {
     location = /monitoring {
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
         proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/monitoring;
+        proxy_hide_header Content-Security-Policy;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
 
@@ -199,11 +219,13 @@ server {
     location = /guide {
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
         proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/guide;
+        proxy_hide_header Content-Security-Policy;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
     location = /backup {
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
         proxy_pass http://127.0.0.1:{{ n8n_http_port }}/webhook/backup;
+        proxy_hide_header Content-Security-Policy;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
 
@@ -217,7 +239,10 @@ server {
         # state SAMEORIGIN once; add_header here also stops inheritance of
         # the DENY, deliberately.
         proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
         add_header X-Frame-Options "SAMEORIGIN" always;
+        # add_header here stops the server-level policy being inherited.
+        add_header Content-Security-Policy $dashboard_csp always;
 {% if not oauth2_proxy_enabled | default(false) %}
         auth_basic "IT Surgery";
         auth_basic_user_file {{ webmin_htpasswd_file | default('/etc/nginx/.htpasswd-webmin') }};
@@ -252,6 +277,8 @@ server {
     location = /webmin-frame {
         default_type text/html;
         add_header Cache-Control "no-store" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy $dashboard_csp always;
         return 200 '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>IT Surgery - Webmin</title><style>body{margin:0;font:14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}nav{background:#fff;border-bottom:3px solid #990000;padding:.55rem 1.25rem;display:flex;gap:1.1rem;align-items:center}nav img{height:28px}nav a{color:#990000;font-weight:600;text-decoration:none;font-size:.9rem;padding-bottom:.2rem}nav a.on{color:#222222;border-bottom:2px solid #990000}iframe{display:block;border:0;width:100%;height:calc(100vh - 51px)}</style></head><body><nav><img src="https://itsurgery.me/assets/logo.png" alt="IT Surgery"><a href="/">Dashboard</a><a href="/monitoring">Monitoring</a><a href="/webhook/jobsheets">Job sheets</a><a class="on" href="/webmin-frame">Webmin</a><a href="/backup">Backup</a><a href="/guide">Guide</a></nav><iframe src="/webmin/" title="Webmin"></iframe></body></html>';
     }
 
@@ -264,23 +291,27 @@ server {
         if ($request_method = GET) { return 302 /?resend=1; }
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
         proxy_pass http://127.0.0.1:{{ n8n_http_port }};
+        proxy_hide_header Content-Security-Policy;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
     location = /webhook/ask-review {
         if ($request_method = GET) { return 302 /?resend=1; }
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
         proxy_pass http://127.0.0.1:{{ n8n_http_port }};
+        proxy_hide_header Content-Security-Policy;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
     location = /webhook/jobsheets-next {
         if ($request_method = GET) { return 302 /webhook/jobsheets; }
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
         proxy_pass http://127.0.0.1:{{ n8n_http_port }};
+        proxy_hide_header Content-Security-Policy;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
     location /webhook/ {
         proxy_set_header Authorization "Basic {{ ((n8n_dashboard_basic_user | default('dashboard')) ~ ':' ~ n8n_dashboard_basic_password) | b64encode }}";
         proxy_pass http://127.0.0.1:{{ n8n_http_port }};
+        proxy_hide_header Content-Security-Policy;
         include /etc/nginx/snippets/dashboard-proxy.conf;
     }
 

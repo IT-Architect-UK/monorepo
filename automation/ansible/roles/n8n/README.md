@@ -129,7 +129,13 @@ basic-auth header from `n8n_dashboard_basic_user` and
 reachable at `n8n_domain`, which this sign-in does not guard) but nobody
 types the password. A GET of a form's webhook (what a sign-in round trip
 turns a lost POST into) is redirected to the page the form lives on, which
-restores what was typed. Two doors sit outside the gate on purpose:
+restores what was typed. The internal server also replaces the
+`Content-Security-Policy` n8n stamps on every webhook response: n8n's is
+`sandbox ...` without `allow-same-origin`, which gives the page an opaque
+origin (`window.origin === "null"`, `sessionStorage` throws) and broke the
+dashboard's form script in September 2026; nginx hides it
+(`proxy_hide_header`) and sends a same-origin policy of its own instead.
+Two doors sit outside the gate on purpose:
 `/monitoring.json`, basic auth against `/etc/nginx/.htpasswd-services` for
 the watchdog, which is a machine and cannot sign in with Microsoft; and
 `/signed-out`, so a freshly signed-out person is not bounced straight back
