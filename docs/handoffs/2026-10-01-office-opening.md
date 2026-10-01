@@ -34,4 +34,22 @@ Darren on 2026-09-06:
    listing still says appointments are required.
 
 ## Result
-(to be filled in on the day)
+**Steps 1-4 (Claude Code), 2026-10-01.** Wording approved by Darren before
+the push.
+
+1. `about-us.njk`, "Where to find us": added "Our office and test lab in
+   Sully are also open by appointment, for anyone who would rather bring a
+   device to us." between the service-area sentence and the call-or-email one.
+2. `faq.json`, "What is a Surgery Appointment?": the closing sentence
+   "Available at home or for business." became "Available at your home or
+   business, or at our office in Sully by appointment." (replaced rather than
+   appended, so it reads as one sentence).
+3. `pricelist.json` and `businessprices.json`, appointment blurb: "At your
+   place or ours." appended. The flyer's separate `flyerBlurb` was left as is
+   on Darren's instruction (the leaflet is already printed).
+4. Built with Eleventy; a diff against the previous build shows exactly four
+   pages changed (`/about-us/`, `/faq/`, `/fixed-prices/`,
+   `/business-fixed-prices/`), the flyer unchanged. Pushed to main, which
+   deploys itsurgery.me.
+
+Steps 5-6 (Cowork): not yet done. Status stays open for them.
