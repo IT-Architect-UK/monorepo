@@ -12,6 +12,26 @@ set -uo pipefail
 OUT="{{ vitals_file }}"
 TMP="$(mktemp)"
 
+# --- timing ----------------------------------------------------------------
+# The monitoring page calls the snapshot stale past five minutes, so a run
+# that takes six is itself the fault being reported. Every run is timed and
+# logged to runs.log (one line: epoch, time, total ms, docker ms, slow half
+# ran, certs ms, backups ms, apt ms), and the snapshot carries a digest of
+# the last 24 hours, so the question "why was it late?" is answered on the
+# page and in the email rather than in journalctl.
+now_ms() { date +%s%3N; }
+T0=$(now_ms)
+RUNS_LOG="{{ vitals_dir }}/runs.log"
+MARK="{{ vitals_dir }}/running"
+# A run that never finished (killed, or the box went down) left its marker
+# behind. Record it, with -1 for a total, so the gap it caused has a cause.
+if [ -f "$MARK" ]; then
+  read -r m_epoch m_iso < "$MARK" 2>/dev/null || true
+  [ -n "${m_epoch:-}" ] && printf '%s %s -1 0 0 0 0 0\n' "$m_epoch" "$m_iso" >> "$RUNS_LOG"
+fi
+printf '%s %s\n' "$((T0 / 1000))" "$(date -u -d "@$((T0 / 1000))" +%Y-%m-%dT%H:%M:%SZ)" > "$MARK"
+T_DOCKER=0; T_CERTS=0; T_BACKUPS=0; T_APT=0; SLOW_RAN=0
+
 esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
 # --- memory and swap, in MB ------------------------------------------------
@@ -36,6 +56,7 @@ fi
 
 # --- containers ------------------------------------------------------------
 CONTAINERS=""
+T=$(now_ms)
 if command -v docker >/dev/null 2>&1; then
   while IFS='|' read -r c_name c_state c_status c_image; do
     [ -z "$c_name" ] && continue
@@ -43,6 +64,7 @@ if command -v docker >/dev/null 2>&1; then
     CONTAINERS="$CONTAINERS{\"name\":\"$(esc "$c_name")\",\"state\":\"$(esc "$c_state")\",\"status\":\"$(esc "$c_status")\",\"image\":\"$(esc "$c_image")\"}"
   done < <(docker ps -a --format '{% raw %}{{.Names}}|{{.State}}|{{.Status}}|{{.Image}}{% endraw %}' 2>/dev/null)
 fi
+T_DOCKER=$(( $(now_ms) - T ))
 
 # --- systemd services ------------------------------------------------------
 # Cheap, and belongs in the fast half: a stopped service is exactly the kind of
@@ -77,6 +99,8 @@ slow_age() {
 
 SLOW_AGE=$(slow_age)
 if [ "$SLOW_AGE" -ge {{ vitals_slow_max_age }} ]; then
+  SLOW_RAN=1
+  T=$(now_ms)
 
   # Days remaining on each Let's Encrypt certificate. Renewal is automatic, so
   # this is here to notice when automatic renewal has quietly stopped working.
@@ -93,6 +117,8 @@ if [ "$SLOW_AGE" -ge {{ vitals_slow_max_age }} ]; then
     done
   fi
 
+  T_CERTS=$(( $(now_ms) - T )); T=$(now_ms)
+
   BACKUPS=""
 {% for dir in vitals_backup_dirs %}
   if [ -d "{{ dir }}" ]; then
@@ -107,6 +133,8 @@ if [ "$SLOW_AGE" -ge {{ vitals_slow_max_age }} ]; then
   fi
 {% endfor %}
 
+  T_BACKUPS=$(( $(now_ms) - T )); T=$(now_ms)
+
   # One simulation, parsed twice. Running apt-get -s upgrade a second time just
   # to count the security lines doubled the most expensive thing here.
   UPDATES=0; SECURITY=0
@@ -115,6 +143,8 @@ if [ "$SLOW_AGE" -ge {{ vitals_slow_max_age }} ]; then
     UPDATES=$(printf '%s\n' "$sim" | grep -c '^Inst ')
     SECURITY=$(printf '%s\n' "$sim" | grep -ci security)
   fi
+
+  T_APT=$(( $(now_ms) - T ))
 
   printf '%s' "$CERTS"    > "$SLOW_DIR/certs"
   printf '%s' "$BACKUPS"  > "$SLOW_DIR/backups"
@@ -129,6 +159,46 @@ UPDATES=${UPDATES:-0}; SECURITY=${SECURITY:-0}
 
 REBOOT=false
 [ -f /var/run/reboot-required ] && REBOOT=true
+
+# --- this run, and the last 24 hours of runs ---------------------------------
+printf '%s %s %s %s %s %s %s %s\n' "$((T0 / 1000))" "$(date -u -d "@$((T0 / 1000))" +%Y-%m-%dT%H:%M:%SZ)" \
+  "$(( $(now_ms) - T0 ))" "$T_DOCKER" "$SLOW_RAN" "$T_CERTS" "$T_BACKUPS" "$T_APT" >> "$RUNS_LOG"
+rm -f "$MARK"
+# Two days at one line a minute; trimmed rather than rotated, there is
+# nothing in it worth keeping longer.
+if [ "$(wc -l < "$RUNS_LOG")" -gt 3000 ]; then
+  tail -n 2880 "$RUNS_LOG" > "$RUNS_LOG.tmp" && mv "$RUNS_LOG.tmp" "$RUNS_LOG"
+fi
+# The digest: the last run, the slowest run of the day and which step made it
+# slow, every gap of more than two minutes between starts (with how long the
+# run before the gap took: a long run means the script stalled, a short one
+# means the timer did not fire), and the last six runs. Plain mawk, no gawk
+# extensions.
+RUNS=$(awk -v since="$(( $(date +%s) - 86400 ))" '
+  $1 < since { next }
+  { n++; ep[n]=$1; at[n]=$2; ms[n]=$3; dk[n]=$4; sl[n]=$5; ce[n]=$6; ba[n]=$7; ap[n]=$8 }
+  function step(i,  s, m) {
+    if (ms[i] < 0) return "unfinished"
+    s = "fast"; m = 0
+    if (dk[i] > m) { s = "docker";  m = dk[i] }
+    if (ce[i] > m) { s = "certs";   m = ce[i] }
+    if (ba[i] > m) { s = "backups"; m = ba[i] }
+    if (ap[i] > m) { s = "apt";     m = ap[i] }
+    return s
+  }
+  function run(i) { return sprintf("{\"at\":\"%s\",\"ms\":%d,\"step\":\"%s\"}", at[i], ms[i], step(i)) }
+  END {
+    if (!n) { printf "null"; exit }
+    si = 1; for (i = 2; i <= n; i++) if (ms[i] > ms[si]) si = i
+    gaps = ""; g = 0
+    for (i = 2; i <= n; i++) {
+      d = ep[i] - ep[i-1]
+      if (d > 120) { g++; if (g <= 10) gaps = gaps (gaps ? "," : "") sprintf("{\"after\":\"%s\",\"minutes\":%d,\"runMs\":%d,\"step\":\"%s\"}", at[i-1], int(d / 60), ms[i-1], step(i-1)) }
+    }
+    rec = ""; for (i = (n > 6 ? n - 5 : 1); i <= n; i++) rec = rec (rec ? "," : "") run(i)
+    printf "{\"lastMs\":%d,\"count24h\":%d,\"slowest24h\":%s,\"gaps24h\":%d,\"gaps\":[%s],\"recent\":[%s]}", ms[n], n, run(si), g, gaps, rec
+  }' "$RUNS_LOG")
+RUNS=${RUNS:-null}
 
 cat > "$TMP" <<JSON
 {
@@ -145,7 +215,8 @@ cat > "$TMP" <<JSON
   "certificates": [ $CERTS ],
   "backups": [ $BACKUPS ],
   "updates": { "pending": $UPDATES, "security": $SECURITY, "rebootRequired": $REBOOT },
-  "slowAgeSeconds": $SLOW_AGE
+  "slowAgeSeconds": $SLOW_AGE,
+  "runs": $RUNS
 }
 JSON
 

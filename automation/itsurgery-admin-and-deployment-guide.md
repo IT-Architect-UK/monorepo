@@ -128,7 +128,11 @@ Four moving parts, one set of rules:
   1216 ms cold, 32 ms warm). nginx serves it only to loopback and the Docker
   bridge. The snapshot publishes its own age; the page calls it amber past 5
   minutes, red past 15 — a stale snapshot full of green numbers is the most
-  dangerous display this system can produce.
+  dangerous display this system can produce. The script also times itself:
+  `/opt/vitals/runs.log` keeps two days of runs, and the snapshot's `runs`
+  block (the page's "Snapshot runs" card, attached to any watchdog email
+  about the snapshot) names the slowest step and every gap over two minutes,
+  so a late snapshot explains itself without `journalctl`.
 - **The monitoring page** builds its verdict fresh on every load: services by
   asking them (a 401 from Stripe/Xero counts as up — an API refusing an
   unauthenticated request is working), the host from vitals, the last deploy

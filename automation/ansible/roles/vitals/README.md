@@ -21,6 +21,7 @@ Applied by `playbooks/deploy-vitals.yml` to the `n8n` group.
 | `/etc/systemd/system/vps-vitals.timer` | `OnCalendar=<vitals_schedule>`, `OnBootSec=60`, `Persistent=true` |
 | `/opt/vitals/vitals.json` | The snapshot, mode 0644. Written to a temp file and moved into place, so a reader never sees a half-written one |
 | `/opt/vitals/cache/` | The slow half's cache, below |
+| `/opt/vitals/runs.log` | One line per run (epoch, time, total ms, docker ms, slow half ran, certs ms, backups ms, apt ms), trimmed to about two days. A run that never finished is logged with `-1` when the next run finds its `running` marker |
 
 The role writes the first snapshot immediately, so the page is not blank
 until the timer first fires, and checks the file parses as JSON, so a
@@ -64,6 +65,7 @@ recomputed only when the cache is older than `vitals_slow_max_age`.
 | `updates.pending`, `updates.security` | Counts from one `apt-get -s upgrade` simulation (slow half) |
 | `updates.rebootRequired` | Whether `/var/run/reboot-required` exists |
 | `slowAgeSeconds` | Age of the cached slow half |
+| `runs` | How the script itself has behaved over the last 24 hours: `lastMs`, `count24h`, `slowest24h {at, ms, step}`, `gaps24h` and up to ten `gaps[] {after, minutes, runMs, step}` (a gap over two minutes between starts; a long `runMs` means the step named stalled, a short one means the timer did not fire), `recent[]` (the last six runs). The monitoring page shows it as the "Snapshot runs" card and the watchdog attaches it to any email about the snapshot. `null` until the first run has been logged |
 
 Handlers: `Reload systemd`. A `Reload nginx` handler is defined too, but
 nothing in this role notifies it — serving the file is the n8n role's job.
