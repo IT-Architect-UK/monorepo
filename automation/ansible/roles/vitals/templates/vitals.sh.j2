@@ -5,34 +5,112 @@
 # page to read. Runs as root on a timer; makes no decisions and changes
 # nothing.
 #
+# Two modes, two timers. With no argument it is the fast half: memory, disks,
+# containers, systemd units, every minute, and it must always finish in well
+# under a minute because the page calls the snapshot stale past five. With
+# "slow" it is the slow half: certificates, backup ages and the apt
+# simulation, every {{ vitals_slow_schedule }}, written to a cache the fast
+# half only reads. They used to be one run, and an apt simulation that took
+# six minutes made the snapshot six minutes late and the watchdog email
+# about it; nothing the slow half does can delay the snapshot now.
+#
 # Written without jq on purpose — one less package to be installed on a box
 # where this script is the thing that tells you when something is missing.
 
 set -uo pipefail
 OUT="{{ vitals_file }}"
 TMP="$(mktemp)"
+esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+MODE="${1:-fast}"
+SLOW_DIR="{{ vitals_dir }}/cache"
+mkdir -p "$SLOW_DIR"
 
 # --- timing ----------------------------------------------------------------
-# The monitoring page calls the snapshot stale past five minutes, so a run
-# that takes six is itself the fault being reported. Every run is timed and
-# logged to runs.log (one line: epoch, time, total ms, docker ms, slow half
-# ran, certs ms, backups ms, apt ms), and the snapshot carries a digest of
-# the last 24 hours, so the question "why was it late?" is answered on the
-# page and in the email rather than in journalctl.
+# Every run of either half is timed and logged (runs.log for the fast half:
+# epoch, time, total ms, docker ms; slow.log for the slow half: epoch, time,
+# total ms, certs ms, backups ms, apt ms), and the snapshot carries a digest
+# of the last 24 hours, so "why was it late?" is answered on the page and in
+# the watchdog email rather than in journalctl.
 now_ms() { date +%s%3N; }
 T0=$(now_ms)
+T0_ISO=$(date -u -d "@$((T0 / 1000))" +%Y-%m-%dT%H:%M:%SZ)
 RUNS_LOG="{{ vitals_dir }}/runs.log"
+SLOW_LOG="{{ vitals_dir }}/slow.log"
 MARK="{{ vitals_dir }}/running"
+# Two days at one line a minute; trimmed rather than rotated, there is
+# nothing in it worth keeping longer.
+trim() { if [ -f "$1" ] && [ "$(wc -l < "$1")" -gt 3000 ]; then tail -n 2880 "$1" > "$1.tmp" && mv "$1.tmp" "$1"; fi; }
+# Cache files are written whole and moved into place, so a fast run that
+# lands mid-way through a slow one never reads half a value.
+put() { printf '%s' "$2" > "$1.tmp" && mv "$1.tmp" "$1"; }
+
+# --- the slow half ---------------------------------------------------------
+# Certificates, backup ages and pending updates are expensive to collect and
+# change on the scale of hours or days. `apt-get -s upgrade` alone parses the
+# whole package database, and on this box has taken minutes.
+if [ "$MODE" = "slow" ]; then
+  T=$(now_ms)
+
+  # Days remaining on each Let's Encrypt certificate. Renewal is automatic, so
+  # this is here to notice when automatic renewal has quietly stopped working.
+  CERTS=""
+  if [ -d /etc/letsencrypt/live ]; then
+    for dir in /etc/letsencrypt/live/*/; do
+      [ -f "$dir/cert.pem" ] || continue
+      name=$(basename "$dir")
+      end=$(openssl x509 -enddate -noout -in "$dir/cert.pem" 2>/dev/null | cut -d= -f2)
+      [ -z "$end" ] && continue
+      days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+      [ -n "$CERTS" ] && CERTS="$CERTS,"
+      CERTS="$CERTS{\"name\":\"$(esc "$name")\",\"days\":$days}"
+    done
+  fi
+  T_CERTS=$(( $(now_ms) - T )); T=$(now_ms)
+
+  BACKUPS=""
+{% for dir in vitals_backup_dirs %}
+  if [ -d "{{ dir }}" ]; then
+    newest=$(find "{{ dir }}" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1)
+    if [ -n "$newest" ]; then
+      age_h=$(( ( $(date +%s) - ${newest%.*} ) / 3600 ))
+    else
+      age_h=-1
+    fi
+    [ -n "$BACKUPS" ] && BACKUPS="$BACKUPS,"
+    BACKUPS="$BACKUPS{\"name\":\"$(basename $(dirname "{{ dir }}"))\",\"ageHours\":$age_h}"
+  fi
+{% endfor %}
+  T_BACKUPS=$(( $(now_ms) - T )); T=$(now_ms)
+
+  # One simulation, parsed twice. Running apt-get -s upgrade a second time just
+  # to count the security lines doubled the most expensive thing here.
+  UPDATES=0; SECURITY=0
+  if command -v apt-get >/dev/null 2>&1; then
+    sim=$(apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null | grep '^Inst ')
+    UPDATES=$(printf '%s\n' "$sim" | grep -c '^Inst ')
+    SECURITY=$(printf '%s\n' "$sim" | grep -ci security)
+  fi
+  T_APT=$(( $(now_ms) - T ))
+
+  put "$SLOW_DIR/certs"   "$CERTS"
+  put "$SLOW_DIR/backups" "$BACKUPS"
+  put "$SLOW_DIR/updates" "$UPDATES $SECURITY"
+  printf '%s %s %s %s %s %s\n' "$((T0 / 1000))" "$T0_ISO" "$(( $(now_ms) - T0 ))" "$T_CERTS" "$T_BACKUPS" "$T_APT" >> "$SLOW_LOG"
+  trim "$SLOW_LOG"
+  exit 0
+fi
+
+# --- the fast half, from here down -----------------------------------------
 # A run that never finished (killed, or the box went down) left its marker
 # behind. Record it, with -1 for a total, so the gap it caused has a cause.
 if [ -f "$MARK" ]; then
   read -r m_epoch m_iso < "$MARK" 2>/dev/null || true
-  [ -n "${m_epoch:-}" ] && printf '%s %s -1 0 0 0 0 0\n' "$m_epoch" "$m_iso" >> "$RUNS_LOG"
+  [ -n "${m_epoch:-}" ] && printf '%s %s -1 0\n' "$m_epoch" "$m_iso" >> "$RUNS_LOG"
 fi
-printf '%s %s\n' "$((T0 / 1000))" "$(date -u -d "@$((T0 / 1000))" +%Y-%m-%dT%H:%M:%SZ)" > "$MARK"
-T_DOCKER=0; T_CERTS=0; T_BACKUPS=0; T_APT=0; SLOW_RAN=0
+printf '%s %s\n' "$((T0 / 1000))" "$T0_ISO" > "$MARK"
+T_DOCKER=0
 
-esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
 # --- memory and swap, in MB ------------------------------------------------
 read -r _ MEM_TOTAL MEM_USED MEM_FREE MEM_SHARED MEM_BUFF MEM_AVAIL <<< "$(free -m | awk '/^Mem:/')"
@@ -81,77 +159,11 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 {% endfor %}
 
-# --- the slow half ---------------------------------------------------------
-# Certificates, backup ages and pending updates are expensive to collect and
-# change on the scale of hours or days. `apt-get -s upgrade` alone parses the
-# whole package database. Recomputing that every minute would burn CPU on a box
-# that is also serving customers, to learn nothing new.
-#
-# So they are cached, and only recomputed when the cache is older than
-# {{ vitals_slow_max_age }} seconds. The fast half above still runs every time.
-SLOW_DIR="{{ vitals_dir }}/cache"
-mkdir -p "$SLOW_DIR"
-
-slow_age() {
-  [ -f "$SLOW_DIR/updates" ] || { echo 999999; return; }
-  echo $(( $(date +%s) - $(stat -c %Y "$SLOW_DIR/updates") ))
-}
-
-SLOW_AGE=$(slow_age)
-if [ "$SLOW_AGE" -ge {{ vitals_slow_max_age }} ]; then
-  SLOW_RAN=1
-  T=$(now_ms)
-
-  # Days remaining on each Let's Encrypt certificate. Renewal is automatic, so
-  # this is here to notice when automatic renewal has quietly stopped working.
-  CERTS=""
-  if [ -d /etc/letsencrypt/live ]; then
-    for dir in /etc/letsencrypt/live/*/; do
-      [ -f "$dir/cert.pem" ] || continue
-      name=$(basename "$dir")
-      end=$(openssl x509 -enddate -noout -in "$dir/cert.pem" 2>/dev/null | cut -d= -f2)
-      [ -z "$end" ] && continue
-      days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
-      [ -n "$CERTS" ] && CERTS="$CERTS,"
-      CERTS="$CERTS{\"name\":\"$(esc "$name")\",\"days\":$days}"
-    done
-  fi
-
-  T_CERTS=$(( $(now_ms) - T )); T=$(now_ms)
-
-  BACKUPS=""
-{% for dir in vitals_backup_dirs %}
-  if [ -d "{{ dir }}" ]; then
-    newest=$(find "{{ dir }}" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1)
-    if [ -n "$newest" ]; then
-      age_h=$(( ( $(date +%s) - ${newest%.*} ) / 3600 ))
-    else
-      age_h=-1
-    fi
-    [ -n "$BACKUPS" ] && BACKUPS="$BACKUPS,"
-    BACKUPS="$BACKUPS{\"name\":\"$(basename $(dirname "{{ dir }}"))\",\"ageHours\":$age_h}"
-  fi
-{% endfor %}
-
-  T_BACKUPS=$(( $(now_ms) - T )); T=$(now_ms)
-
-  # One simulation, parsed twice. Running apt-get -s upgrade a second time just
-  # to count the security lines doubled the most expensive thing here.
-  UPDATES=0; SECURITY=0
-  if command -v apt-get >/dev/null 2>&1; then
-    sim=$(apt-get -s -o Debug::NoLocking=true upgrade 2>/dev/null | grep '^Inst ')
-    UPDATES=$(printf '%s\n' "$sim" | grep -c '^Inst ')
-    SECURITY=$(printf '%s\n' "$sim" | grep -ci security)
-  fi
-
-  T_APT=$(( $(now_ms) - T ))
-
-  printf '%s' "$CERTS"    > "$SLOW_DIR/certs"
-  printf '%s' "$BACKUPS"  > "$SLOW_DIR/backups"
-  printf '%s' "$UPDATES $SECURITY" > "$SLOW_DIR/updates"
-  SLOW_AGE=0
-fi
-
+# --- the slow half's cache ---------------------------------------------------
+# Read, never computed, here. slowAgeSeconds is how old it is: a large number
+# means the slow timer has stopped and these three sections are history.
+SLOW_AGE=999999
+[ -f "$SLOW_DIR/updates" ] && SLOW_AGE=$(( $(date +%s) - $(stat -c %Y "$SLOW_DIR/updates") ))
 CERTS=$(cat "$SLOW_DIR/certs" 2>/dev/null || printf '')
 BACKUPS=$(cat "$SLOW_DIR/backups" 2>/dev/null || printf '')
 read -r UPDATES SECURITY <<< "$(cat "$SLOW_DIR/updates" 2>/dev/null || printf '0 0')"
@@ -161,31 +173,34 @@ REBOOT=false
 [ -f /var/run/reboot-required ] && REBOOT=true
 
 # --- this run, and the last 24 hours of runs ---------------------------------
-printf '%s %s %s %s %s %s %s %s\n' "$((T0 / 1000))" "$(date -u -d "@$((T0 / 1000))" +%Y-%m-%dT%H:%M:%SZ)" \
-  "$(( $(now_ms) - T0 ))" "$T_DOCKER" "$SLOW_RAN" "$T_CERTS" "$T_BACKUPS" "$T_APT" >> "$RUNS_LOG"
+printf '%s %s %s %s\n' "$((T0 / 1000))" "$T0_ISO" "$(( $(now_ms) - T0 ))" "$T_DOCKER" >> "$RUNS_LOG"
 rm -f "$MARK"
-# Two days at one line a minute; trimmed rather than rotated, there is
-# nothing in it worth keeping longer.
-if [ "$(wc -l < "$RUNS_LOG")" -gt 3000 ]; then
-  tail -n 2880 "$RUNS_LOG" > "$RUNS_LOG.tmp" && mv "$RUNS_LOG.tmp" "$RUNS_LOG"
-fi
+trim "$RUNS_LOG"
 # The digest: the last run, the slowest run of the day and which step made it
 # slow, every gap of more than two minutes between starts (with how long the
 # run before the gap took: a long run means the script stalled, a short one
-# means the timer did not fire), and the last six runs. Plain mawk, no gawk
-# extensions.
-RUNS=$(awk -v since="$(( $(date +%s) - 86400 ))" '
+# means the timer did not fire), the last six runs, and the same for the slow
+# half. Plain mawk, no gawk extensions.
+SINCE=$(( $(date +%s) - 86400 ))
+SLOW_RUNS=$(awk -v since="$SINCE" '
   $1 < since { next }
-  { n++; ep[n]=$1; at[n]=$2; ms[n]=$3; dk[n]=$4; sl[n]=$5; ce[n]=$6; ba[n]=$7; ap[n]=$8 }
+  { n++; at[n]=$2; ms[n]=$3; ce[n]=$4; ba[n]=$5; ap[n]=$6 }
   function step(i,  s, m) {
-    if (ms[i] < 0) return "unfinished"
-    s = "fast"; m = 0
-    if (dk[i] > m) { s = "docker";  m = dk[i] }
-    if (ce[i] > m) { s = "certs";   m = ce[i] }
+    s = "certs"; m = ce[i]
     if (ba[i] > m) { s = "backups"; m = ba[i] }
     if (ap[i] > m) { s = "apt";     m = ap[i] }
     return s
   }
+  function run(i) { return sprintf("{\"at\":\"%s\",\"ms\":%d,\"step\":\"%s\"}", at[i], ms[i], step(i)) }
+  END {
+    if (!n) { printf "null"; exit }
+    si = 1; for (i = 2; i <= n; i++) if (ms[i] > ms[si]) si = i
+    printf "{\"last\":%s,\"count24h\":%d,\"slowest24h\":%s}", run(n), n, run(si)
+  }' "$SLOW_LOG" 2>/dev/null)
+RUNS=$(awk -v since="$SINCE" -v slow="${SLOW_RUNS:-null}" '
+  $1 < since { next }
+  { n++; ep[n]=$1; at[n]=$2; ms[n]=$3; dk[n]=$4 }
+  function step(i) { return ms[i] < 0 ? "unfinished" : dk[i] > ms[i] / 2 ? "docker" : "fast" }
   function run(i) { return sprintf("{\"at\":\"%s\",\"ms\":%d,\"step\":\"%s\"}", at[i], ms[i], step(i)) }
   END {
     if (!n) { printf "null"; exit }
@@ -196,7 +211,7 @@ RUNS=$(awk -v since="$(( $(date +%s) - 86400 ))" '
       if (d > 120) { g++; if (g <= 10) gaps = gaps (gaps ? "," : "") sprintf("{\"after\":\"%s\",\"minutes\":%d,\"runMs\":%d,\"step\":\"%s\"}", at[i-1], int(d / 60), ms[i-1], step(i-1)) }
     }
     rec = ""; for (i = (n > 6 ? n - 5 : 1); i <= n; i++) rec = rec (rec ? "," : "") run(i)
-    printf "{\"lastMs\":%d,\"count24h\":%d,\"slowest24h\":%s,\"gaps24h\":%d,\"gaps\":[%s],\"recent\":[%s]}", ms[n], n, run(si), g, gaps, rec
+    printf "{\"lastMs\":%d,\"count24h\":%d,\"slowest24h\":%s,\"gaps24h\":%d,\"gaps\":[%s],\"recent\":[%s],\"slowHalf\":%s}", ms[n], n, run(si), g, gaps, rec, slow
   }' "$RUNS_LOG")
 RUNS=${RUNS:-null}
 

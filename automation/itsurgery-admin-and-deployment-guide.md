@@ -123,12 +123,17 @@ first so certbot can answer the challenge, then the TLS block appears.
 Four moving parts, one set of rules:
 
 - **vitals** — `/usr/local/bin/vps-vitals.sh` writes `/opt/vitals/vitals.json`
-  **every minute** (cheap half: memory, disks, containers, systemd units) with
-  certificates, backup ages and apt counts **cached 15 minutes** (measured:
-  1216 ms cold, 32 ms warm). nginx serves it only to loopback and the Docker
-  bridge. The snapshot publishes its own age; the page calls it amber past 5
+  **every minute** (memory, disks, containers, systemd units; well under a
+  second). Certificates, backup ages and apt counts come from a **separate
+  15-minute timer** (`vps-vitals-slow.timer`, `vps-vitals.sh slow`) that
+  writes a cache the minutely run only reads: the apt simulation has taken
+  minutes on this box, and while it shared the run it held the snapshot
+  back past five minutes and the watchdog emailed every half hour. nginx
+  serves the file only to loopback and the Docker bridge. The snapshot publishes its own age; the page calls it amber past 5
   minutes, red past 15 — a stale snapshot full of green numbers is the most
-  dangerous display this system can produce. The script also times itself:
+  dangerous display this system can produce. Pending updates are blue
+  (information): they never change the overall colour or send an email.
+  The script also times itself:
   `/opt/vitals/runs.log` keeps two days of runs, and the snapshot's `runs`
   block (the page's "Snapshot runs" card, attached to any watchdog email
   about the snapshot) names the slowest step and every gap over two minutes,

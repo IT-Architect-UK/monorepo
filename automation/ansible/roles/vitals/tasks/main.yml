@@ -66,6 +66,58 @@
     state: started
     daemon_reload: true
 
+- name: Install the slow-half systemd unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/vps-vitals-slow.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — automation/ansible/roles/vitals. Edits are overwritten.
+      [Unit]
+      Description=Refresh the slow half of the host snapshot (certificates, backups, updates)
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/vps-vitals.sh slow
+      # A stuck apt simulation must not pile up behind itself; the fast
+      # half keeps serving the last good cache meanwhile.
+      TimeoutStartSec=600
+  notify: Reload systemd
+
+- name: Install the slow-half timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/vps-vitals-slow.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — automation/ansible/roles/vitals. Edits are overwritten.
+      [Unit]
+      Description=Refresh the slow half of the host snapshot on a schedule
+
+      [Timer]
+      OnCalendar={{ vitals_slow_schedule }}
+      OnBootSec=30
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  notify: Reload systemd
+
+- name: Enable the slow-half timer
+  ansible.builtin.systemd:
+    name: vps-vitals-slow.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Write the slow half's cache now
+  # The fast half only reads the cache; without this the first snapshots
+  # would show no certificates, backups or updates until the timer fires.
+  ansible.builtin.command: /usr/local/bin/vps-vitals.sh slow
+  changed_when: true
+
 - name: Write the first snapshot now
   # Otherwise the monitoring page is blank until the timer first fires, which
   # looks exactly like the thing being broken.

@@ -18,11 +18,12 @@ vitals_file: /opt/vitals/vitals.json
 # to run every minute. Anything sudden shows up within a minute of happening.
 vitals_schedule: "*:0/1"
 
-# The slow half — certificates, backup ages, pending updates — is cached and
-# only recomputed when older than this. These change on the scale of hours and
-# days; apt-get -s upgrade alone parses the whole package database, and doing
-# that sixty times an hour would cost real CPU to learn nothing.
-vitals_slow_max_age: 900          # fifteen minutes, in seconds
+# The slow half — certificates, backup ages, pending updates — runs on its
+# own timer and writes a cache the fast half reads. These change on the scale
+# of hours and days, and apt-get -s upgrade has taken minutes on this box: in
+# the same run as the fast half it made the snapshot late, which is what the
+# monitoring page is there to catch.
+vitals_slow_schedule: "*:0/15"
 vitals_disk_paths:
   - /
 # Backup directories to report the age of the newest file in. A backup that

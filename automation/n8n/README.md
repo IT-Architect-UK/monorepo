@@ -125,6 +125,9 @@ broken. It has three sources and no memory — every load is a fresh look.
    red past fifteen, because stale numbers that look fine are worse than none.
 3. **The last deploy**, from the GitHub Actions API.
 
+Pending updates are blue, "info": a routine, not an incident. They never
+change the overall colour and the watchdog never emails about them.
+
 The thresholds are on the page itself rather than buried here: disks amber at
 80% and red at 90%, certificates amber at 21 days and red at 7, backups amber
 after 36 hours and red after 72.
@@ -179,14 +182,17 @@ Two traps worth not rediscovering:
 ## Two clocks, on purpose
 
 The host snapshot is rewritten **every minute**, but certificates, backup ages
-and pending-update counts inside it are **cached for fifteen**.
+and pending-update counts inside it come from a **separate fifteen-minute
+timer** that writes a cache the minutely run only reads.
 
 That is not laziness. `apt-get -s upgrade` parses the entire package database
-and takes over a second; walking the backup directories and forking `openssl`
-once per certificate is not free either. Measured on a rendered copy of the
-script: **1216 ms on a cold run, 32 ms when the cache is warm.** Recomputing
-all of it sixty times an hour would cost real CPU on a box that is also serving
-customers, to learn nothing — those numbers move in hours and days.
+and on the VPS has taken minutes; walking the backup directories and forking
+`openssl` once per certificate is not free either. Those numbers move in
+hours and days. And the two halves are separate timers, not one run with a
+cache, because when they shared a run the slow apt simulation held the
+snapshot back past five minutes, and the watchdog emailed "snapshot 6 min
+old" then "recovered" every half hour. Nothing the slow half does can delay
+the snapshot now.
 
 Everything that can change suddenly is in the fast half: memory, disks,
 containers and `systemctl is-active`. A stopped service shows up within a
