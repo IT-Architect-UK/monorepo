@@ -928,8 +928,10 @@ set_semaphore_env_var() { # set_semaphore_env_var <env_id> <key> <value>
 # ─── 9. Firewall lockdown ────────────────────────────────────────────────────
 echo ""
 log "Firewall: the build baseline allows SSH from anywhere and ICMP from private"
-log "subnets. You can lock this server down so that ONLY a management subnet may reach it"
-log "(SSH 22, Semaphore 80, Homepage 3002, Webmin 10000, ICMP)."
+log "subnets only — the web UIs (Semaphore 80, Homepage 3002, Portainer 9443,"
+log "Webmin 10000) are NOT reachable yet. You can lock this server down so that"
+log "ONLY a management subnet may reach them (plus SSH 22 and ICMP). Skip, and"
+log "they are opened to every RFC 1918 private range instead."
 warn "Run this from the Proxmox console or from a host INSIDE that subnet —"
 warn "an SSH session from anywhere else will be cut off when rules apply."
 if [[ -z "${MGMT_SUBNET}" && "${NONINTERACTIVE}" != "1" ]]; then
@@ -946,7 +948,19 @@ if [[ -n "${MGMT_SUBNET}" ]]; then
         warn "setup-iptables.sh not found in the repo checkout — firewall unchanged."
     fi
 else
-    log "Firewall unchanged (baseline rules still in effect)."
+    # No management subnet: the baseline (INPUT DROP, SSH + private ICMP, empty
+    # LOCAL-INPUT) would leave every web UI unreachable. Open the UI ports to
+    # the private ranges in LOCAL-INPUT, the chain setup-iptables.sh preserves
+    # across its own re-applies, so a later lockdown run keeps them too.
+    iptables -N LOCAL-INPUT 2>/dev/null || true   # already exists on the baseline
+    for cidr in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16; do
+        iptables -C LOCAL-INPUT -s "${cidr}" -p tcp -m multiport --dports 80,3002,9443,10000 -j ACCEPT 2>/dev/null \
+            || iptables -A LOCAL-INPUT -s "${cidr}" -p tcp -m multiport --dports 80,3002,9443,10000 -j ACCEPT
+    done
+    mkdir -p /etc/iptables
+    iptables-save > /etc/iptables/rules.v4 \
+        && log "Firewall: no management subnet given — web UI ports 80, 3002, 9443, 10000 opened to RFC 1918 ranges (SSH baseline otherwise unchanged)." \
+        || warn "Firewall rules added to LOCAL-INPUT but could not be saved to /etc/iptables/rules.v4 — they will not survive a reboot."
 fi
 
 # ─── 9b. Trusted subnets for servers built from here ────────────────────────
